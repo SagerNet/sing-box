@@ -31,6 +31,7 @@ type serverExport struct {
 	device     *darwinUSBHostDevice
 	entry      DeviceEntry
 	busy       bool
+	stale      bool
 }
 
 type darwinUSBHostDeviceWatch interface {
@@ -203,6 +204,7 @@ func (s *ServerService) reconcileExports() (bool, error) {
 		}
 		if export, ok := current[busid]; ok {
 			if export.busy {
+				changed = s.markExportStale(busid) || changed
 				continue
 			}
 			s.deleteExport(busid)
@@ -229,6 +231,7 @@ func (s *ServerService) reconcileExports() (bool, error) {
 			continue
 		}
 		if export.busy {
+			changed = s.markExportStale(busid) || changed
 			continue
 		}
 		s.deleteExport(busid)
@@ -270,7 +273,7 @@ func (s *ServerService) currentExports() []serverExport {
 	defer s.access.Unlock()
 	out := make([]serverExport, 0, len(s.exports))
 	for _, export := range s.exports {
-		if export.busy {
+		if export.busy || export.stale {
 			continue
 		}
 		out = append(out, export)
@@ -320,7 +323,7 @@ func (s *ServerService) claimExport(busid string) (serverExport, bool) {
 	s.access.Lock()
 	defer s.access.Unlock()
 	export, ok := s.exports[busid]
-	if !ok || export.busy {
+	if !ok || export.busy || export.stale {
 		return serverExport{}, false
 	}
 	export.busy = true
@@ -328,14 +331,35 @@ func (s *ServerService) claimExport(busid string) (serverExport, bool) {
 	return export, true
 }
 
-func (s *ServerService) releaseClaim(busid string) {
+func (s *ServerService) markExportStale(busid string) bool {
 	s.access.Lock()
+	defer s.access.Unlock()
 	export, ok := s.exports[busid]
-	if ok {
-		export.busy = false
-		s.exports[busid] = export
+	if !ok || export.stale {
+		return false
 	}
+	export.stale = true
+	s.exports[busid] = export
+	return true
+}
+
+func (s *ServerService) releaseClaim(claimed serverExport) bool {
+	s.access.Lock()
+	export, ok := s.exports[claimed.busid]
+	if !ok || export.registryID != claimed.registryID {
+		s.access.Unlock()
+		return false
+	}
+	if export.stale {
+		delete(s.exports, claimed.busid)
+		s.access.Unlock()
+		export.device.Close()
+		return true
+	}
+	export.busy = false
+	s.exports[claimed.busid] = export
 	s.access.Unlock()
+	return false
 }
 
 func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
@@ -440,7 +464,12 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 	releaseClaim := true
 	defer func() {
 		if releaseClaim {
-			s.releaseClaim(busid)
+			if s.releaseClaim(export) {
+				if err := s.reconcileAndBroadcast(true); err != nil {
+					s.logger.Warn("reconcile exports after stale release: ", err)
+				}
+				return
+			}
 			s.broadcastChanged()
 		}
 	}()
@@ -456,8 +485,14 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 	if err != nil && s.ctx.Err() == nil {
 		s.logger.Debug("data session ", busid, ": ", err)
 	}
-	s.releaseClaim(busid)
+	stale := s.releaseClaim(export)
 	releaseClaim = false
+	if stale {
+		if err := s.reconcileAndBroadcast(true); err != nil {
+			s.logger.Warn("reconcile exports after stale release: ", err)
+		}
+		return
+	}
 	s.broadcastChanged()
 }
 
@@ -472,6 +507,9 @@ func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
 	}
 	devices := make([]DeviceInfoV2, 0, len(exports))
 	for _, export := range exports {
+		if export.stale {
+			continue
+		}
 		state := deviceStateAvailable
 		reason := deviceStateAvailable
 		if export.busy {
@@ -489,6 +527,9 @@ func (s *ServerService) leaseAvailable(busid string) (bool, string) {
 	export, ok := s.exports[busid]
 	if !ok {
 		return false, "unknown busid"
+	}
+	if export.stale {
+		return false, deviceStateUnavailable
 	}
 	if export.busy {
 		return false, deviceStateBusy

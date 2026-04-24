@@ -228,6 +228,98 @@ func TestDarwinServerBuildDeviceStateIncludesBusyExports(t *testing.T) {
 	require.Equal(t, deviceStateBusy, devices["busy"].State)
 }
 
+func TestDarwinServerReconcileMarksBusyMissingExportStale(t *testing.T) {
+	t.Parallel()
+
+	const busid = "mac-00000001"
+	entry := standardTestDeviceEntry(busid)
+	export := serverExport{
+		busid:      busid,
+		registryID: 1,
+		device:     &darwinUSBHostDevice{},
+		entry:      entry,
+		busy:       true,
+	}
+	server := &ServerService{
+		ctx:         context.Background(),
+		logger:      newTestLogger(t),
+		matches:     []option.USBIPDeviceMatch{{BusID: busid}},
+		exports:     map[string]serverExport{busid: export},
+		controlSubs: make(map[uint64]*serverControlConn),
+		controlState: deviceInfoV2Map([]DeviceInfoV2{
+			deviceInfoV2FromEntry(entry, backendIDDarwinIOKit, darwinStableID(export.registryID), deviceStateBusy, 0, deviceStateBusy),
+		}),
+		ops: darwinServerOps{
+			copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+				return nil, nil
+			},
+		},
+	}
+
+	require.NoError(t, server.reconcileAndBroadcast(true))
+	snapshot := server.snapshotExports()
+	require.True(t, snapshot[busid].stale)
+	require.Equal(t, "", darwinServerControlState(server, busid))
+
+	require.True(t, server.releaseClaim(export))
+	require.NotContains(t, server.snapshotExports(), busid)
+}
+
+func TestDarwinServerReconcileCapturesReplacementAfterStaleRelease(t *testing.T) {
+	t.Parallel()
+
+	const busid = "mac-00000001"
+	oldEntry := standardTestDeviceEntry(busid)
+	oldExport := serverExport{
+		busid:      busid,
+		registryID: 1,
+		device:     &darwinUSBHostDevice{},
+		entry:      oldEntry,
+		busy:       true,
+	}
+	replacementEntry := standardTestDeviceEntry(busid)
+	replacementEntry.Info.DevNum = 2
+	replacementInfo := darwinTestDeviceInfo(2, replacementEntry)
+	opened := 0
+	server := &ServerService{
+		ctx:         context.Background(),
+		logger:      newTestLogger(t),
+		matches:     []option.USBIPDeviceMatch{{BusID: busid}},
+		exports:     map[string]serverExport{busid: oldExport},
+		controlSubs: make(map[uint64]*serverControlConn),
+		controlState: deviceInfoV2Map([]DeviceInfoV2{
+			deviceInfoV2FromEntry(oldEntry, backendIDDarwinIOKit, darwinStableID(oldExport.registryID), deviceStateBusy, 0, deviceStateBusy),
+		}),
+		ops: darwinServerOps{
+			copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+				return []darwinUSBHostDeviceInfo{replacementInfo}, nil
+			},
+			openUSBHostDevice: func(registryID uint64, capture bool) (*darwinUSBHostDevice, error) {
+				require.Equal(t, replacementInfo.registryID, registryID)
+				require.True(t, capture)
+				opened++
+				return &darwinUSBHostDevice{info: replacementInfo}, nil
+			},
+		},
+	}
+
+	require.NoError(t, server.reconcileAndBroadcast(true))
+	snapshot := server.snapshotExports()
+	require.True(t, snapshot[busid].stale)
+	require.Zero(t, opened)
+	require.Equal(t, "", darwinServerControlState(server, busid))
+
+	require.True(t, server.releaseClaim(oldExport))
+	require.NoError(t, server.reconcileAndBroadcast(true))
+
+	snapshot = server.snapshotExports()
+	require.Equal(t, uint64(2), snapshot[busid].registryID)
+	require.False(t, snapshot[busid].busy)
+	require.False(t, snapshot[busid].stale)
+	require.Equal(t, 1, opened)
+	require.Equal(t, deviceStateAvailable, darwinServerControlState(server, busid))
+}
+
 func TestDarwinServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing.T) {
 	t.Parallel()
 
@@ -308,6 +400,20 @@ func darwinServerControlState(server *ServerService, busid string) string {
 	server.controlAccess.Lock()
 	defer server.controlAccess.Unlock()
 	return server.controlState[busid].State
+}
+
+func darwinTestDeviceInfo(registryID uint64, entry DeviceEntry) darwinUSBHostDeviceInfo {
+	busid := entry.Info.BusIDString()
+	return darwinUSBHostDeviceInfo{
+		registryID: registryID,
+		entry:      entry,
+		key: DeviceKey{
+			BusID:     busid,
+			VendorID:  entry.Info.IDVendor,
+			ProductID: entry.Info.IDProduct,
+			Serial:    entrySerial(entry),
+		},
+	}
 }
 
 type fakeDarwinUSBHostDeviceWatch struct {

@@ -82,7 +82,7 @@ func (s *ServerService) consumeImportLease(request ImportExtRequest) bool {
 		return false
 	}
 	delete(s.leasesByBusID, request.BusID)
-	return now.Before(lease.Expires)
+	return now.Before(lease.Expires) && lease.Generation == s.controlSeq
 }
 
 func (s *ServerService) cleanupExpiredImportLeasesLocked(now time.Time) {

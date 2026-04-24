@@ -4,6 +4,7 @@ package usbip
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -17,6 +18,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+
+	"golang.org/x/sys/unix"
 )
 
 type ClientService struct {
@@ -215,25 +218,33 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, <
 	c.logger.Debug("usbip client handoff ", busid, ": ", handoff.mode())
 	c.portAssignAccess.Lock()
 	defer c.portAssignAccess.Unlock()
-	port, err := c.ops.vhciPickFreePort(info.Speed)
-	if err != nil {
-		return -1, nil, err
+	triedPorts := make(map[int]struct{})
+	for {
+		port, err := c.ops.vhciPickFreePort(info.Speed, triedPorts)
+		if err != nil {
+			return -1, nil, err
+		}
+		if !c.reservePort(port) {
+			triedPorts[port] = struct{}{}
+			continue
+		}
+		err = c.ops.vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed)
+		if err != nil {
+			c.trackPort(port, false)
+			if errors.Is(err, unix.EBUSY) {
+				triedPorts[port] = struct{}{}
+				continue
+			}
+			return -1, nil, E.Cause(err, "vhci attach")
+		}
+		err = handoff.closeKernelFD()
+		if err != nil {
+			c.logger.Debug("close kernel fd ", busid, ": ", err)
+		}
+		done := handoff.startRelay(ctx, c.logger, "client", busid)
+		relayStarted = true
+		return port, done, nil
 	}
-	if !c.reservePort(port) {
-		return -1, nil, E.New("vhci port ", port, " already reserved")
-	}
-	err = c.ops.vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed)
-	if err != nil {
-		c.trackPort(port, false)
-		return -1, nil, E.Cause(err, "vhci attach")
-	}
-	err = handoff.closeKernelFD()
-	if err != nil {
-		c.logger.Debug("close kernel fd ", busid, ": ", err)
-	}
-	done := handoff.startRelay(ctx, c.logger, "client", busid)
-	relayStarted = true
-	return port, done, nil
 }
 
 func (c *ClientService) waitPortSession(ctx context.Context, port int, busid string, done <-chan struct{}) {

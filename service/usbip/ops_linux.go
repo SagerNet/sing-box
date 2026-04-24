@@ -24,7 +24,7 @@ type usbipOps struct {
 	writeUsbipSockfd  func(busid string, fd int) error
 	newUEventListener func() (usbEventListener, error)
 
-	vhciPickFreePort func(speed uint32) (int, error)
+	vhciPickFreePort func(speed uint32, skip map[int]struct{}) (int, error)
 	vhciAttach       func(port int, fd uintptr, devid uint32, speed uint32) error
 	vhciDetach       func(port int) error
 }

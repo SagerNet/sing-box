@@ -278,7 +278,7 @@ func newTestUSBIPOps(t *testing.T) usbipOps {
 			t.Fatalf("unexpected newUEventListener")
 			return nil, nil
 		},
-		vhciPickFreePort: func(uint32) (int, error) {
+		vhciPickFreePort: func(uint32, map[int]struct{}) (int, error) {
 			t.Fatalf("unexpected vhciPickFreePort")
 			return 0, nil
 		},
@@ -1946,7 +1946,8 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 	var attachedPort int
 	var attachedDevID uint32
 	var attachedSpeed uint32
-	clientOps.vhciPickFreePort = func(speed uint32) (int, error) {
+	clientOps.vhciPickFreePort = func(speed uint32, skip map[int]struct{}) (int, error) {
+		require.Empty(t, skip)
 		require.Equal(t, SpeedSuper, speed)
 		return 7, nil
 	}
@@ -2075,7 +2076,8 @@ func TestClientAttemptAttachUsesImportExtLease(t *testing.T) {
 	}()
 
 	ops := newTestUSBIPOps(t)
-	ops.vhciPickFreePort = func(speed uint32) (int, error) {
+	ops.vhciPickFreePort = func(speed uint32, skip map[int]struct{}) (int, error) {
+		require.Empty(t, skip)
 		require.Equal(t, SpeedHigh, speed)
 		return 4, nil
 	}
@@ -2164,7 +2166,8 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 
 	kernelConnCh := make(chan net.Conn, 1)
 	ops := newTestUSBIPOps(t)
-	ops.vhciPickFreePort = func(speed uint32) (int, error) {
+	ops.vhciPickFreePort = func(speed uint32, skip map[int]struct{}) (int, error) {
+		require.Empty(t, skip)
 		require.Equal(t, SpeedHigh, speed)
 		return 4, nil
 	}
@@ -2226,6 +2229,123 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 	}
 }
 
+func TestClientAttemptAttachRetriesNextPortOnEBUSY(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	serverErrCh := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErrCh <- acceptErr
+			return
+		}
+		defer conn.Close()
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			serverErrCh <- readErr
+			return
+		}
+		if header.Code != OpReqImport {
+			serverErrCh <- fmt.Errorf("unexpected request code 0x%04x", header.Code)
+			return
+		}
+		busid, readErr := ReadOpReqImportBody(conn)
+		if readErr != nil {
+			serverErrCh <- readErr
+			return
+		}
+		if busid != "1-1" {
+			serverErrCh <- fmt.Errorf("unexpected busid %s", busid)
+			return
+		}
+		info := device.toProtocol()
+		if writeErr := WriteOpRepImport(conn, OpStatusOK, &info); writeErr != nil {
+			serverErrCh <- writeErr
+			return
+		}
+		buffer := make([]byte, 1)
+		n, readErr := conn.Read(buffer)
+		if n != 0 {
+			serverErrCh <- fmt.Errorf("unexpected server read bytes after relay close: %d", n)
+			return
+		}
+		if !errors.Is(readErr, io.EOF) {
+			serverErrCh <- readErr
+			return
+		}
+		serverErrCh <- nil
+	}()
+
+	ops := newTestUSBIPOps(t)
+	var pickCalls int
+	var attachedPorts []int
+	ops.vhciPickFreePort = func(speed uint32, skip map[int]struct{}) (int, error) {
+		require.Equal(t, SpeedHigh, speed)
+		pickCalls++
+		if _, skipped := skip[4]; skipped {
+			return 5, nil
+		}
+		return 4, nil
+	}
+	ops.vhciAttach = func(port int, fd uintptr, devid uint32, speed uint32) error {
+		requireStreamSocketFD(t, fd)
+		info := device.toProtocol()
+		require.Equal(t, info.DevID(), devid)
+		require.Equal(t, SpeedHigh, speed)
+		attachedPorts = append(attachedPorts, port)
+		if port == 4 {
+			return unix.EBUSY
+		}
+		if port == 5 {
+			return nil
+		}
+		return fmt.Errorf("unexpected vhci port %d", port)
+	}
+
+	client := &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(t),
+		dialer:     wrappingDialer{},
+		serverAddr: M.SocksaddrFromNet(listener.Addr()),
+		ops:        ops,
+	}
+
+	port, done, err := client.attemptAttach(ctx, "1-1")
+	require.NoError(t, err)
+	require.NotNil(t, done)
+	require.Equal(t, 5, port)
+	require.Equal(t, []int{4, 5}, attachedPorts)
+	require.Equal(t, 2, pickCalls)
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for client relay handoff")
+	}
+	select {
+	case err = <-serverErrCh:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for server side close")
+	}
+
+	client.portsAccess.Lock()
+	_, firstReserved := client.ports[4]
+	_, secondReserved := client.ports[5]
+	client.portsAccess.Unlock()
+	require.False(t, firstReserved)
+	require.True(t, secondReserved)
+}
+
 func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) {
 	t.Parallel()
 
@@ -2284,7 +2404,8 @@ func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) 
 	expectedErr := errors.New("vhci attach failed")
 	kernelConnCh := make(chan net.Conn, 1)
 	ops := newTestUSBIPOps(t)
-	ops.vhciPickFreePort = func(speed uint32) (int, error) {
+	ops.vhciPickFreePort = func(speed uint32, skip map[int]struct{}) (int, error) {
+		require.Empty(t, skip)
 		require.Equal(t, SpeedHigh, speed)
 		return 4, nil
 	}
@@ -2574,7 +2695,7 @@ func TestClientAttemptAttachRejectsUnexpectedReplyVersion(t *testing.T) {
 	}()
 
 	ops := newTestUSBIPOps(t)
-	ops.vhciPickFreePort = func(uint32) (int, error) {
+	ops.vhciPickFreePort = func(uint32, map[int]struct{}) (int, error) {
 		return -1, errors.New("unexpected vhci attach path")
 	}
 

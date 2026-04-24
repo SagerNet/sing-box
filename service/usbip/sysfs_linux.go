@@ -231,7 +231,7 @@ func writeUsbipSockfd(busid string, fd int) error {
 	return writeSysfs(filepath.Join(sysBusUSBDevices, busid, "usbip_sockfd"), strconv.Itoa(fd))
 }
 
-func vhciPickFreePort(speed uint32) (int, error) {
+func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
 	records, err := readVHCIStatus()
 	if err != nil {
 		return -1, err
@@ -239,6 +239,9 @@ func vhciPickFreePort(speed uint32) (int, error) {
 	targetHub := vhciHubForSpeed(speed)
 	for _, record := range records {
 		if record.hub != targetHub || record.state != 4 {
+			continue
+		}
+		if _, skipped := skip[record.port]; skipped {
 			continue
 		}
 		return record.port, nil
