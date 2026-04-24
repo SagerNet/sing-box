@@ -3,6 +3,7 @@
 package usbip
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -25,6 +26,23 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
+
+type testLogWriter struct {
+	access sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (w *testLogWriter) Write(p []byte) (int, error) {
+	w.access.Lock()
+	defer w.access.Unlock()
+	return w.buffer.Write(p)
+}
+
+func (w *testLogWriter) String() string {
+	w.access.Lock()
+	defer w.access.Unlock()
+	return w.buffer.String()
+}
 
 type testDialer struct{}
 
@@ -69,17 +87,19 @@ func (wrappingDialer) ListenPacket(context.Context, M.Socksaddr) (net.PacketConn
 }
 
 type testDeviceStore struct {
-	access   sync.Mutex
-	devices  map[string]sysfsDevice
-	statuses map[string]int
-	sockfds  map[string]int
+	access       sync.Mutex
+	devices      map[string]sysfsDevice
+	statuses     map[string]int
+	sockfds      map[string]int
+	sockfdWrites map[string][]int
 }
 
 func newTestDeviceStore(devices ...sysfsDevice) *testDeviceStore {
 	store := &testDeviceStore{
-		devices:  make(map[string]sysfsDevice),
-		statuses: make(map[string]int),
-		sockfds:  make(map[string]int),
+		devices:      make(map[string]sysfsDevice),
+		statuses:     make(map[string]int),
+		sockfds:      make(map[string]int),
+		sockfdWrites: make(map[string][]int),
 	}
 	store.setDevices(devices...)
 	return store
@@ -148,6 +168,7 @@ func (s *testDeviceStore) writeUsbipSockfd(busid string, fd int) error {
 	s.access.Lock()
 	defer s.access.Unlock()
 	s.sockfds[busid] = fd
+	s.sockfdWrites[busid] = append(s.sockfdWrites[busid], fd)
 	return nil
 }
 
@@ -155,6 +176,46 @@ func (s *testDeviceStore) lastSockfd(busid string) int {
 	s.access.Lock()
 	defer s.access.Unlock()
 	return s.sockfds[busid]
+}
+
+func (s *testDeviceStore) hasPositiveSockfd(busid string) bool {
+	s.access.Lock()
+	defer s.access.Unlock()
+	for _, fd := range s.sockfdWrites[busid] {
+		if fd > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+type testUSBEventListener struct {
+	closeOnce   sync.Once
+	waitOnce    sync.Once
+	closed      chan struct{}
+	waitEntered chan struct{}
+}
+
+func newTestUSBEventListener() *testUSBEventListener {
+	return &testUSBEventListener{
+		closed:      make(chan struct{}),
+		waitEntered: make(chan struct{}),
+	}
+}
+
+func (l *testUSBEventListener) Close() error {
+	l.closeOnce.Do(func() {
+		close(l.closed)
+	})
+	return nil
+}
+
+func (l *testUSBEventListener) WaitUSBEvent() error {
+	l.waitOnce.Do(func() {
+		close(l.waitEntered)
+	})
+	<-l.closed
+	return context.Canceled
 }
 
 func newTestUSBIPOps(t *testing.T) usbipOps {
@@ -232,23 +293,28 @@ func newTestUSBIPOps(t *testing.T) usbipOps {
 	}
 }
 
-func newTestLogger() log.ContextLogger {
-	if os.Getenv("CODEX_USBIP_TEST_LOG") != "" {
-		factory := log.NewDefaultFactory(
-			context.Background(),
-			log.Formatter{
-				BaseTime:      time.Now(),
-				DisableColors: true,
-			},
-			os.Stderr,
-			"",
-			nil,
-			false,
-		)
-		factory.SetLevel(log.LevelTrace)
-		return factory.NewLogger("usbip")
-	}
-	return log.NewNOPFactory().NewLogger("usbip")
+func newTestLogger(t testing.TB) log.ContextLogger {
+	t.Helper()
+	writer := new(testLogWriter)
+	factory := log.NewDefaultFactory(
+		context.Background(),
+		log.Formatter{
+			BaseTime:      time.Now(),
+			DisableColors: true,
+		},
+		writer,
+		"",
+		nil,
+		false,
+	)
+	factory.SetLevel(log.LevelTrace)
+	t.Cleanup(func() {
+		if output := writer.String(); t.Failed() && output != "" {
+			t.Logf("USB/IP log:\n%s", output)
+		}
+		_ = factory.Close()
+	})
+	return factory.NewLogger("usbip")
 }
 
 func newTestDevice(busid string, vendorID, productID uint16, serial string, speed uint32) sysfsDevice {
@@ -523,7 +589,7 @@ func TestClientApplyRemoteExportsKeepsActiveBusIDWorker(t *testing.T) {
 	canceled := false
 	client := &ClientService{
 		ctx:          context.Background(),
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
 		activeBusIDs: map[string]struct{}{"1-1": {}},
 		ops:          newTestUSBIPOps(t),
@@ -595,7 +661,7 @@ func TestClientShouldRetryBusIDRefreshesImportAllState(t *testing.T) {
 	server := &ServerService{
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     make(map[string]serverExport),
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         newTestUSBIPOps(t),
@@ -606,7 +672,7 @@ func TestClientShouldRetryBusIDRefreshesImportAllState(t *testing.T) {
 	canceled := false
 	client := &ClientService{
 		ctx:          context.Background(),
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		dialer:       testDialer{},
 		serverAddr:   serverAddr,
 		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
@@ -628,7 +694,7 @@ func TestClientShouldRetryBusIDKeepsRetryOnRefreshFailure(t *testing.T) {
 	canceled := false
 	client := &ClientService{
 		ctx:          context.Background(),
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		dialer:       failingDialer{err: expectedErr},
 		serverAddr:   M.ParseSocksaddrHostPort("127.0.0.1", 3240),
 		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
@@ -686,8 +752,9 @@ func TestLinuxHelpers(t *testing.T) {
 
 	require.Equal(t, "hs", vhciHubForSpeed(SpeedHigh))
 	require.Equal(t, "ss", vhciHubForSpeed(SpeedSuper))
-	require.True(t, isUSBUEvent([]byte("ACTION=add\x00SUBSYSTEM=usb\x00")))
-	require.False(t, isUSBUEvent([]byte("ACTION=add\x00SUBSYSTEM=net\x00")))
+	require.True(t, isUSBDeviceUEvent([]byte("add@/devices/platform/dummy_hcd.0/usb19/19-1\x00ACTION=add\x00SUBSYSTEM=usb\x00DEVTYPE=usb_device\x00")))
+	require.False(t, isUSBDeviceUEvent([]byte("add@/devices/platform/dummy_hcd.0/usb19/19-1/19-1:1.0\x00ACTION=add\x00SUBSYSTEM=usb\x00DEVTYPE=usb_interface\x00")))
+	require.False(t, isUSBDeviceUEvent([]byte("ACTION=add\x00SUBSYSTEM=net\x00DEVTYPE=usb_device\x00")))
 }
 
 func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
@@ -716,7 +783,7 @@ func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
 	require.False(t, handoff.relay())
 	require.Equal(t, "direct", handoff.mode())
 	requireStreamSocketFD(t, handoff.kernelFD())
-	done := handoff.startRelay(context.Background(), newTestLogger(), "test", "direct")
+	done := handoff.startRelay(context.Background(), newTestLogger(t), "test", "direct")
 
 	_, err = conn.Write([]byte("closed"))
 	require.Error(t, err)
@@ -747,7 +814,7 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	done := handoff.startRelay(ctx, newTestLogger(), "test", "relay")
+	done := handoff.startRelay(ctx, newTestLogger(t), "test", "relay")
 
 	_, err = right.Write([]byte("ping"))
 	require.NoError(t, err)
@@ -772,7 +839,7 @@ func TestServerStartRequiresHostDriver(t *testing.T) {
 	expectedErr := errors.New("host driver unavailable")
 	server := &ServerService{
 		ctx:         context.Background(),
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     make(map[string]serverExport),
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops: usbipOps{
@@ -790,7 +857,7 @@ func TestClientStartRequiresVHCI(t *testing.T) {
 	expectedErr := errors.New("vhci unavailable")
 	client := &ClientService{
 		ctx:    context.Background(),
-		logger: newTestLogger(),
+		logger: newTestLogger(t),
 		ops: usbipOps{
 			ensureVHCI: func() error { return expectedErr },
 		},
@@ -835,7 +902,7 @@ func TestServerReconcileExportsBindsMatchesAndSkipsHub(t *testing.T) {
 
 	server := &ServerService{
 		ctx:         context.Background(),
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		matches:     []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}},
 		exports:     make(map[string]serverExport),
 		controlSubs: make(map[uint64]*serverControlConn),
@@ -896,7 +963,7 @@ func TestServerBindOneRetriesAfterStaleHostMatch(t *testing.T) {
 
 	server := &ServerService{
 		ctx:         context.Background(),
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     make(map[string]serverExport),
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         ops,
@@ -952,7 +1019,7 @@ func TestServerReconcileExportsSkipsVHCIDevices(t *testing.T) {
 
 	server := &ServerService{
 		ctx:         context.Background(),
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		matches:     []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}},
 		exports:     make(map[string]serverExport),
 		controlSubs: make(map[uint64]*serverControlConn),
@@ -1007,7 +1074,7 @@ func TestServerReconcileExportsReleasesRemovedExports(t *testing.T) {
 
 	server := &ServerService{
 		ctx:     context.Background(),
-		logger:  newTestLogger(),
+		logger:  newTestLogger(t),
 		exports: map[string]serverExport{"1-1": {busid: "1-1", managed: true, originalDriver: "usbhid"}},
 		ops:     ops,
 	}
@@ -1035,7 +1102,7 @@ func TestServerReleaseExportLeavesCooptedSocketUntouched(t *testing.T) {
 	}
 
 	server := &ServerService{
-		logger:  newTestLogger(),
+		logger:  newTestLogger(t),
 		exports: map[string]serverExport{"1-1": {busid: "1-1"}},
 		ops:     ops,
 	}
@@ -1074,7 +1141,7 @@ func TestServerReleaseExportRetainsTrackingOnFailure(t *testing.T) {
 	}
 
 	server := &ServerService{
-		logger:  newTestLogger(),
+		logger:  newTestLogger(t),
 		exports: map[string]serverExport{"1-1": export},
 		ops:     ops,
 	}
@@ -1136,7 +1203,7 @@ func TestServerCloseSerializesRollbackWithActiveReconcile(t *testing.T) {
 	server := &ServerService{
 		ctx:          ctx,
 		cancel:       cancel,
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		matches:      []option.USBIPDeviceMatch{{BusID: "1-1"}},
 		exports:      make(map[string]serverExport),
 		controlSubs:  make(map[uint64]*serverControlConn),
@@ -1189,7 +1256,7 @@ func TestServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 	ops := newTestUSBIPOps(t)
 	server := &ServerService{
 		ctx:          ctx,
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		exports:      make(map[string]serverExport),
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
@@ -1197,6 +1264,63 @@ func TestServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 	}
 
 	require.NoError(t, server.reconcileAndBroadcast(true))
+}
+
+func TestServerUEventLoopReconcilesWhenListenerStarts(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	listener := newTestUSBEventListener()
+	done := make(chan struct{})
+	t.Cleanup(func() {
+		cancel()
+		_ = listener.Close()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Error("timed out waiting for uevent loop")
+		}
+	})
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "startup", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusAvailable)
+
+	ops := newTestUSBIPOps(t)
+	ops.newUEventListener = func() (usbEventListener, error) {
+		return listener, nil
+	}
+	ops.listUSBDevices = store.listUSBDevices
+	ops.currentDriver = func(string) (string, error) {
+		return "", nil
+	}
+	ops.hostMatchBusID = func(string, bool) error {
+		return nil
+	}
+	ops.hostBind = func(string) error {
+		return nil
+	}
+	ops.readUsbipStatus = store.readUsbipStatus
+	ops.readSysfsDevice = store.readSysfsDevice
+
+	server := &ServerService{
+		ctx:          ctx,
+		logger:       newTestLogger(t),
+		matches:      []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}},
+		exports:      make(map[string]serverExport),
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		ops:          ops,
+	}
+	go func() {
+		defer close(done)
+		server.ueventLoop()
+	}()
+
+	require.Eventually(t, func() bool {
+		_, ok := server.getExport("1-1")
+		return ok
+	}, 3*time.Second, 10*time.Millisecond)
 }
 
 func TestServerBuildDevListEntriesFiltersUnavailableAndRefreshFailures(t *testing.T) {
@@ -1213,7 +1337,7 @@ func TestServerBuildDevListEntriesFiltersUnavailableAndRefreshFailures(t *testin
 	ops.readSysfsDevice = store.readSysfsDevice
 
 	server := &ServerService{
-		logger: newTestLogger(),
+		logger: newTestLogger(t),
 		exports: map[string]serverExport{
 			"1-1": {busid: "1-1"},
 			"1-2": {busid: "1-2"},
@@ -1276,7 +1400,7 @@ func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
 	server := &ServerService{
 		ctx:          ctx,
 		cancel:       cancel,
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		exports:      map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
@@ -1361,7 +1485,7 @@ func TestServerHandleImportRelayClosesHandoffOnSockfdFailure(t *testing.T) {
 	server := &ServerService{
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         ops,
@@ -1431,7 +1555,7 @@ func TestServerHandleImportRelayClosesHandoffOnReplyFailure(t *testing.T) {
 	server := &ServerService{
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         ops,
@@ -1474,7 +1598,7 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	server := &ServerService{
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     make(map[string]serverExport),
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         newTestUSBIPOps(t),
@@ -1523,7 +1647,7 @@ func TestServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing.T) {
 	t.Parallel()
 
 	server := &ServerService{
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		exports:      make(map[string]serverExport),
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
@@ -1567,7 +1691,7 @@ func TestServerReconcileBroadcastsStatusOnlyDeviceDelta(t *testing.T) {
 	server := &ServerService{
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		matches:     []option.USBIPDeviceMatch{{BusID: "1-1"}},
 		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs: make(map[uint64]*serverControlConn),
@@ -1645,7 +1769,7 @@ func TestServerControlSnapshotPreservesPendingDelta(t *testing.T) {
 	server := &ServerService{
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		matches:     []option.USBIPDeviceMatch{{BusID: "1-1"}},
 		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs: make(map[uint64]*serverControlConn),
@@ -1714,7 +1838,7 @@ func TestServerControlLeaseEnablesImportExt(t *testing.T) {
 	server := &ServerService{
 		ctx:           ctx,
 		cancel:        cancel,
-		logger:        newTestLogger(),
+		logger:        newTestLogger(t),
 		exports:       map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs:   make(map[uint64]*serverControlConn),
 		controlState:  make(map[string]DeviceInfoV2),
@@ -1774,7 +1898,7 @@ func TestServerControlLeaseEnablesImportExt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "1-1", info.BusIDString())
 	require.NoError(t, importConn.Close())
-	require.Positive(t, store.lastSockfd("1-1"))
+	require.True(t, store.hasPositiveSockfd("1-1"))
 
 	reuseConn, err := net.Dial("tcp", serverAddr.String())
 	require.NoError(t, err)
@@ -1810,7 +1934,7 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 	server := &ServerService{
 		ctx:         ctx,
 		cancel:      cancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         serverOps,
@@ -1836,7 +1960,7 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 	client := &ClientService{
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     testDialer{},
 		serverAddr: serverAddr,
 		ops:        clientOps,
@@ -1966,7 +2090,7 @@ func TestClientAttemptAttachUsesImportExtLease(t *testing.T) {
 	client := &ClientService{
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     testDialer{},
 		serverAddr: M.SocksaddrFromNet(listener.Addr()),
 		ops:        ops,
@@ -2057,7 +2181,7 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 	client := &ClientService{
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     wrappingDialer{},
 		serverAddr: M.SocksaddrFromNet(listener.Addr()),
 		ops:        ops,
@@ -2177,7 +2301,7 @@ func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) 
 	client := &ClientService{
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     wrappingDialer{},
 		serverAddr: M.SocksaddrFromNet(listener.Addr()),
 		ops:        ops,
@@ -2256,7 +2380,7 @@ func TestClientFetchDevListRejectsUnexpectedReplyVersion(t *testing.T) {
 	client := &ClientService{
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     testDialer{},
 		serverAddr: M.SocksaddrFromNet(listener.Addr()),
 		ops:        newTestUSBIPOps(t),
@@ -2311,7 +2435,7 @@ func TestClientFetchDevListReturnsOnContextCancelWhileServerStalls(t *testing.T)
 	client := &ClientService{
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     testDialer{},
 		serverAddr: M.SocksaddrFromNet(listener.Addr()),
 		ops:        newTestUSBIPOps(t),
@@ -2374,7 +2498,7 @@ func TestClientSyncRemoteStateAndResetControlStateRebuildsV2Map(t *testing.T) {
 	client := &ClientService{
 		ctx:             ctx,
 		cancel:          cancel,
-		logger:          newTestLogger(),
+		logger:          newTestLogger(t),
 		dialer:          testDialer{},
 		serverAddr:      M.SocksaddrFromNet(listener.Addr()),
 		matches:         []option.USBIPDeviceMatch{{BusID: "unused"}},
@@ -2457,7 +2581,7 @@ func TestClientAttemptAttachRejectsUnexpectedReplyVersion(t *testing.T) {
 	client := &ClientService{
 		ctx:        ctx,
 		cancel:     cancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     testDialer{},
 		serverAddr: M.SocksaddrFromNet(listener.Addr()),
 		ops:        ops,
@@ -2489,7 +2613,7 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	server := &ServerService{
 		ctx:         serverCtx,
 		cancel:      serverCancel,
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         serverOps,
@@ -2505,7 +2629,7 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	client := &ClientService{
 		ctx:        clientCtx,
 		cancel:     clientCancel,
-		logger:     newTestLogger(),
+		logger:     newTestLogger(t),
 		dialer:     testDialer{},
 		serverAddr: serverAddr,
 		matches:    []option.USBIPDeviceMatch{match},
@@ -2557,7 +2681,7 @@ func TestUSBIPLinuxSmoke(t *testing.T) {
 
 	server := &ServerService{
 		ctx:         context.Background(),
-		logger:      newTestLogger(),
+		logger:      newTestLogger(t),
 		exports:     make(map[string]serverExport),
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         systemUSBIPOps,

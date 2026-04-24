@@ -8,6 +8,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const ueventReceiveBufferSize = 1 << 20
+
 type ueventListener struct {
 	fd int
 }
@@ -17,6 +19,7 @@ func newUEventListener() (*ueventListener, error) {
 	if err != nil {
 		return nil, err
 	}
+	_ = unix.SetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_RCVBUF, ueventReceiveBufferSize)
 	addr := &unix.SockaddrNetlink{
 		Family: unix.AF_NETLINK,
 		Groups: 1,
@@ -34,20 +37,27 @@ func (l *ueventListener) Close() error {
 }
 
 func (l *ueventListener) WaitUSBEvent() error {
-	var buf [4096]byte
+	var buf [16384]byte
 	for {
-		n, _, err := unix.Recvfrom(l.fd, buf[:], 0)
+		n, from, err := unix.Recvfrom(l.fd, buf[:], 0)
+		if err == unix.ENOBUFS {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
-		if isUSBUEvent(buf[:n]) {
+		if source, ok := from.(*unix.SockaddrNetlink); ok && source.Pid != 0 {
+			continue
+		}
+		if isUSBDeviceUEvent(buf[:n]) {
 			return nil
 		}
 	}
 }
 
 var usbSubsystemMarker = []byte("\x00SUBSYSTEM=usb\x00")
+var usbDeviceTypeMarker = []byte("\x00DEVTYPE=usb_device\x00")
 
-func isUSBUEvent(raw []byte) bool {
-	return bytes.Contains(raw, usbSubsystemMarker)
+func isUSBDeviceUEvent(raw []byte) bool {
+	return bytes.Contains(raw, usbSubsystemMarker) && bytes.Contains(raw, usbDeviceTypeMarker)
 }

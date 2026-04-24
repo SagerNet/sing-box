@@ -166,6 +166,10 @@ func WriteSubmitCommand(w io.Writer, command SubmitCommand) error {
 	if err != nil {
 		return err
 	}
+	err = validateUSBIPPayloadBuffer(command.Header.Direction, command.Buffer, command.TransferBufferLength, true)
+	if err != nil {
+		return err
+	}
 	packetCount := normalizeUSBIPIsoPacketCount(command.NumberOfPackets, command.IsoPackets)
 	err = validateUSBIPIsoPacketCount(packetCount)
 	if err != nil {
@@ -194,6 +198,10 @@ func WriteSubmitResponse(w io.Writer, response SubmitResponse) error {
 		response.ActualLength = 0
 	}
 	err := validateUSBIPBufferLength(response.ActualLength)
+	if err != nil {
+		return err
+	}
+	err = validateUSBIPPayloadBuffer(response.Header.Direction, response.Buffer, response.ActualLength, false)
 	if err != nil {
 		return err
 	}
@@ -352,6 +360,19 @@ func validateUSBIPBufferLength(length int32) error {
 	}
 	if length > maxUSBIPTransferBufferLength {
 		return E.New("USB/IP transfer buffer length too large: ", length)
+	}
+	return nil
+}
+
+func validateUSBIPPayloadBuffer(direction uint32, buffer []byte, length int32, command bool) error {
+	if shouldCarryUSBIPBuffer(direction, command) {
+		if len(buffer) != int(length) {
+			return E.New("USB/IP payload length mismatch: header length ", length, ", buffer length ", len(buffer))
+		}
+		return nil
+	}
+	if len(buffer) > 0 {
+		return E.New("USB/IP unexpected payload buffer: ", len(buffer))
 	}
 	return nil
 }

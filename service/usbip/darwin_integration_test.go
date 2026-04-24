@@ -3,6 +3,7 @@
 package usbip
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net"
@@ -23,6 +24,23 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
+
+type testLogWriter struct {
+	access sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (w *testLogWriter) Write(p []byte) (int, error) {
+	w.access.Lock()
+	defer w.access.Unlock()
+	return w.buffer.Write(p)
+}
+
+func (w *testLogWriter) String() string {
+	w.access.Lock()
+	defer w.access.Unlock()
+	return w.buffer.String()
+}
 
 const (
 	darwinFakeBusID     = "test-1"
@@ -67,23 +85,28 @@ func requireRoot(t *testing.T) {
 	}
 }
 
-func newTestLogger() log.ContextLogger {
-	if os.Getenv("CODEX_USBIP_TEST_LOG") != "" {
-		factory := log.NewDefaultFactory(
-			context.Background(),
-			log.Formatter{
-				BaseTime:      time.Now(),
-				DisableColors: true,
-			},
-			os.Stderr,
-			"",
-			nil,
-			false,
-		)
-		factory.SetLevel(log.LevelTrace)
-		return factory.NewLogger("usbip")
-	}
-	return log.NewNOPFactory().NewLogger("usbip")
+func newTestLogger(t testing.TB) log.ContextLogger {
+	t.Helper()
+	writer := new(testLogWriter)
+	factory := log.NewDefaultFactory(
+		context.Background(),
+		log.Formatter{
+			BaseTime:      time.Now(),
+			DisableColors: true,
+		},
+		writer,
+		"",
+		nil,
+		false,
+	)
+	factory.SetLevel(log.LevelTrace)
+	t.Cleanup(func() {
+		if output := writer.String(); t.Failed() && output != "" {
+			t.Logf("USB/IP log:\n%s", output)
+		}
+		_ = factory.Close()
+	})
+	return factory.NewLogger("usbip")
 }
 
 func loopbackListenAddr() *badoption.Addr {
@@ -107,7 +130,7 @@ func requireDarwinUserHCI(t *testing.T) {
 	defer left.Close()
 	defer right.Close()
 
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), left, darwinFakeDeviceEntry().Info)
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), left, darwinFakeDeviceEntry().Info)
 	hostController, err := darwinCreateUSBHostController(controller, 1, SpeedFull)
 	controller.cancel()
 	if err != nil {
@@ -121,7 +144,7 @@ func TestDarwinVirtualControllerReadsCompliantSubmitResponsePayload(t *testing.T
 
 	clientConn, serverConn := net.Pipe()
 	defer serverConn.Close()
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), clientConn, DeviceInfoTruncated{
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, DeviceInfoTruncated{
 		BusNum: 1,
 		DevNum: 1,
 	})
@@ -182,7 +205,7 @@ func TestDarwinHandleIsoTransferPreservesASAPFlag(t *testing.T) {
 
 	clientConn, serverConn := net.Pipe()
 	defer serverConn.Close()
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), clientConn, DeviceInfoTruncated{
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, DeviceInfoTruncated{
 		BusNum: 1,
 		DevNum: 2,
 	})
@@ -240,7 +263,7 @@ func TestDarwinHandleIsoTransferPreservesASAPFlag(t *testing.T) {
 func TestDarwinSubmitInTransferRejectsOversizedPayload(t *testing.T) {
 	t.Parallel()
 
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), nil, DeviceInfoTruncated{})
 	buffer := []byte{0xaa, 0xbb}
 
 	status, length := controller.completeSubmitInTransfer(unsafe.Pointer(&buffer[0]), SubmitResponse{
@@ -264,7 +287,7 @@ func TestWaitDarwinControllerClosesOnContextCancel(t *testing.T) {
 
 	clientConn, serverConn := net.Pipe()
 	defer serverConn.Close()
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), clientConn, DeviceInfoTruncated{})
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, DeviceInfoTruncated{})
 	go controller.readLoop()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -336,7 +359,7 @@ func (f *fakeDarwinEndpointStateMachine) complete(darwinCITransfer, int, int) er
 func TestDarwinHandleDoorbellSkipsNoResponseCompletion(t *testing.T) {
 	t.Parallel()
 
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), nil, DeviceInfoTruncated{})
 	message := darwinCIMessage{
 		control: (1 << 15) | (1 << 14) | 0x3c,
 		data0:   (uint32(2) << 8) | 1,
@@ -356,7 +379,7 @@ func TestDarwinHandleDoorbellSkipsNoResponseCompletion(t *testing.T) {
 func TestDarwinHandleDoorbellContinuesAfterNoResponseTransfer(t *testing.T) {
 	t.Parallel()
 
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), nil, DeviceInfoTruncated{})
 	noResponseMessage := darwinCIMessage{
 		control: (1 << 15) | (1 << 14) | 0x3c,
 		data0:   (uint32(2) << 8) | 1,
@@ -387,7 +410,7 @@ func TestDarwinHandleDoorbellContinuesAfterNoResponseTransfer(t *testing.T) {
 func TestDarwinControllerCloseWaitsForEventLoopTeardown(t *testing.T) {
 	t.Parallel()
 
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), nil, DeviceInfoTruncated{})
 	processStarted := make(chan struct{})
 	releaseProcess := make(chan struct{})
 	endpointClosed := make(chan struct{})
@@ -441,7 +464,7 @@ func TestDarwinControllerCloseWaitsForEventLoopTeardown(t *testing.T) {
 func TestDarwinControllerCloseWithNilConn(t *testing.T) {
 	t.Parallel()
 
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), nil, DeviceInfoTruncated{})
 	done := make(chan struct{})
 	go func() {
 		controller.Close()
@@ -771,7 +794,7 @@ func TestDarwinUSBIPClientSmoke(t *testing.T) {
 	fakeServer := startDarwinFakeUSBIPServer(t)
 	defer fakeServer.Close()
 
-	serviceInstance, err := NewClientService(context.Background(), newTestLogger(), "usbip-client-darwin-test", option.USBIPClientServiceOptions{
+	serviceInstance, err := NewClientService(context.Background(), newTestLogger(t), "usbip-client-darwin-test", option.USBIPClientServiceOptions{
 		ServerOptions: option.ServerOptions{
 			Server:     fakeServer.address.AddrString(),
 			ServerPort: fakeServer.address.Port,
@@ -809,7 +832,7 @@ func TestDarwinUSBIPServerSmoke(t *testing.T) {
 		t.Skip("safe vendor-specific USB capture target unavailable")
 	}
 
-	serviceInstance, err := NewServerService(context.Background(), newTestLogger(), "usbip-server-darwin-test", option.USBIPServerServiceOptions{
+	serviceInstance, err := NewServerService(context.Background(), newTestLogger(t), "usbip-server-darwin-test", option.USBIPServerServiceOptions{
 		ListenOptions: option.ListenOptions{
 			Listen:     loopbackListenAddr(),
 			ListenPort: pickFreeTCPPort(t),

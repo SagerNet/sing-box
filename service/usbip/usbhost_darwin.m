@@ -271,21 +271,32 @@ static void box_load_interfaces(BoxUSBHostDevice *box) {
 	IOObjectRelease(iterator);
 }
 
+static IOUSBHostPipe *box_find_pipe_for_endpoint(BoxUSBHostDevice *box, uint8_t endpoint) {
+	for (IOUSBHostInterface *interface in box.interfaces) {
+		NSError *error = nil;
+		IOUSBHostPipe *pipe = [interface copyPipeWithAddress:endpoint error:&error];
+		if (pipe != nil) {
+			return pipe;
+		}
+	}
+	return nil;
+}
+
 static IOUSBHostPipe *box_pipe_for_endpoint(BoxUSBHostDevice *box, uint8_t endpoint) {
 	NSNumber *key = @(endpoint);
 	IOUSBHostPipe *cached = box.pipes[key];
 	if (cached != nil) {
 		return cached;
 	}
-	for (IOUSBHostInterface *interface in box.interfaces) {
-		NSError *error = nil;
-		IOUSBHostPipe *pipe = [interface copyPipeWithAddress:endpoint error:&error];
-		if (pipe != nil) {
-			box.pipes[key] = pipe;
-			return pipe;
-		}
+	IOUSBHostPipe *pipe = box_find_pipe_for_endpoint(box, endpoint);
+	if (pipe == nil) {
+		box_load_interfaces(box);
+		pipe = box_find_pipe_for_endpoint(box, endpoint);
 	}
-	return nil;
+	if (pipe != nil) {
+		box.pipes[key] = pipe;
+	}
+	return pipe;
 }
 
 static IOUSBHostInterface *box_interface_for_number(BoxUSBHostDevice *box, uint8_t interface_number) {

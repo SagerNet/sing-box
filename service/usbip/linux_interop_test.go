@@ -387,7 +387,7 @@ func startRealUSBIPServer(t *testing.T, devices []option.USBIPDeviceMatch) (*Ser
 	t.Helper()
 	requireUSBIPHost(t)
 
-	serviceInstance, err := NewServerService(context.Background(), newTestLogger(), "usbip-server-test", option.USBIPServerServiceOptions{
+	serviceInstance, err := NewServerService(context.Background(), newTestLogger(t), "usbip-server-test", option.USBIPServerServiceOptions{
 		ListenOptions: option.ListenOptions{
 			Listen:     loopbackListenAddr(),
 			ListenPort: pickFreeTCPPort(t),
@@ -409,7 +409,7 @@ func startRealUSBIPClient(t *testing.T, destination M.Socksaddr, devices []optio
 	t.Helper()
 	requireVHCI(t)
 
-	serviceInstance, err := NewClientService(context.Background(), newTestLogger(), "usbip-client-test", option.USBIPClientServiceOptions{
+	serviceInstance, err := NewClientService(context.Background(), newTestLogger(t), "usbip-client-test", option.USBIPClientServiceOptions{
 		ServerOptions: option.ServerOptions{
 			Server:     destination.AddrString(),
 			ServerPort: destination.Port,

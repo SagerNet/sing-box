@@ -56,7 +56,6 @@ func TestUSBIPSubmitCommandRoundTripInOmitsCommandPayload(t *testing.T) {
 		},
 		TransferBufferLength: 4,
 		NumberOfPackets:      nonIsoPacketCount,
-		Buffer:               []byte{9, 8, 7, 6},
 	}
 
 	var buffer bytes.Buffer
@@ -122,7 +121,6 @@ func TestUSBIPSubmitResponseRoundTripOutOmitsResponsePayload(t *testing.T) {
 		Status:          0,
 		ActualLength:    3,
 		NumberOfPackets: nonIsoPacketCount,
-		Buffer:          []byte{1, 2, 3},
 	}
 
 	var buffer bytes.Buffer
@@ -316,6 +314,33 @@ func TestUSBIPRejectsInvalidDataPlaneLengths(t *testing.T) {
 		ActualLength: maxUSBIPTransferBufferLength + 1,
 	})
 	require.ErrorContains(t, err, "too large")
+
+	err = WriteSubmitCommand(&buffer, SubmitCommand{
+		Header:               DataHeader{Command: CmdSubmit, Direction: USBIPDirOut},
+		TransferBufferLength: 4,
+		Buffer:               []byte("abc"),
+	})
+	require.ErrorContains(t, err, "payload length mismatch")
+
+	err = WriteSubmitResponse(&buffer, SubmitResponse{
+		Header:       DataHeader{Command: RetSubmit, Direction: USBIPDirIn},
+		ActualLength: 4,
+		Buffer:       []byte("abc"),
+	})
+	require.ErrorContains(t, err, "payload length mismatch")
+
+	err = WriteSubmitCommand(&buffer, SubmitCommand{
+		Header:               DataHeader{Command: CmdSubmit, Direction: USBIPDirIn},
+		TransferBufferLength: 4,
+		Buffer:               []byte("abcd"),
+	})
+	require.ErrorContains(t, err, "unexpected payload buffer")
+
+	err = WriteSubmitResponse(&buffer, SubmitResponse{
+		Header: DataHeader{Command: RetSubmit, Direction: USBIPDirOut},
+		Buffer: []byte("abcd"),
+	})
+	require.ErrorContains(t, err, "unexpected payload buffer")
 
 	var raw [28]byte
 	binary.BigEndian.PutUint32(raw[4:8], 0xffffffff)

@@ -617,6 +617,9 @@ func (s *ServerService) ueventLoop() {
 			case <-done:
 			}
 		}()
+		if err := s.reconcileAndBroadcast(true); err != nil {
+			s.logger.Warn("reconcile exports: ", err)
+		}
 		for {
 			err = listener.WaitUSBEvent()
 			if err != nil {

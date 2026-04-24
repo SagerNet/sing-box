@@ -124,8 +124,10 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		if ctx.Err() != nil {
 			return
 		}
+		c.setBusIDActive(busid, true)
 		port, done, err := c.attemptAttach(ctx, busid)
 		if err != nil {
+			c.setBusIDActive(busid, false)
 			c.logger.Error("attach ", description, " (", busid, "): ", err)
 			if !sleepCtx(ctx, clientReconnectDelay) {
 				return
@@ -133,7 +135,6 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 			continue
 		}
 		c.logger.Info("attached ", busid, " → vhci port ", port)
-		c.setBusIDActive(busid, true)
 		c.waitPortSession(ctx, port, busid, done)
 		c.setBusIDActive(busid, false)
 		c.trackPort(port, false)

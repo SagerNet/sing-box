@@ -41,7 +41,7 @@ func TestDarwinServerAbortPendingSubmitsMarksAndAbortsEndpoints(t *testing.T) {
 
 	device := &fakeDarwinServerDataDevice{}
 	session := &darwinServerDataSession{
-		logger:  newTestLogger(),
+		logger:  newTestLogger(t),
 		device:  device,
 		pending: make(map[uint32]darwinServerPendingSubmit),
 	}
@@ -65,7 +65,7 @@ func TestDarwinServerServeAbortsPendingSubmitOnClose(t *testing.T) {
 		ioStarted:   make(chan struct{}),
 		abortNotify: make(chan struct{}),
 	}
-	session := newDarwinServerDataSession(context.Background(), newTestLogger(), serverConn, device)
+	session := newDarwinServerDataSession(context.Background(), newTestLogger(t), serverConn, device)
 	done := make(chan error, 1)
 	go func() {
 		done <- session.serve()
@@ -134,7 +134,7 @@ func TestDarwinServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 	cancel()
 	server := &ServerService{
 		ctx:          ctx,
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		exports:      make(map[string]serverExport),
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
@@ -165,7 +165,7 @@ func TestDarwinServerUSBEventWatcherTriggersReconcile(t *testing.T) {
 	var fakeWatch *fakeDarwinUSBHostDeviceWatch
 	server := &ServerService{
 		ctx:          ctx,
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		matches:      []option.USBIPDeviceMatch{{BusID: busid}},
 		exports:      make(map[string]serverExport),
 		controlSubs:  make(map[uint64]*serverControlConn),
@@ -232,7 +232,7 @@ func TestDarwinServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing
 	t.Parallel()
 
 	server := &ServerService{
-		logger:       newTestLogger(),
+		logger:       newTestLogger(t),
 		exports:      make(map[string]serverExport),
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
