@@ -8,6 +8,7 @@ icon: material/new-box
     :material-plus: [handshake_timeout](#handshake_timeout)  
     :material-plus: [spoof](#spoof)  
     :material-plus: [spoof_method](#spoof_method)  
+    :material-plus: [engine](#engine)  
     :material-delete-clock: [acme](#acme-字段)
 
 !!! quote "sing-box 1.13.0 中的更改"
@@ -195,6 +196,8 @@ TLS 版本值：
 
 #### engine
 
+!!! question "自 sing-box 1.14.0 起"
+
 ==仅客户端==
 
 要使用的 TLS 引擎。
@@ -203,14 +206,40 @@ TLS 版本值：
 
 * `go`（默认）
 * `apple`
+* `windows`
 
-`apple` 使用 Network.framework，仅在 Apple 平台可用，且仅支持 **直接** TCP TLS 客户端连接。
+支持的字段：
 
-!!! warning ""
+* `server_name`
+* `insecure`
+* `alpn`
+* `min_version`
+* `max_version`
+* `certificate` / `certificate_path`
+* `certificate_public_key_sha256`
+* `handshake_timeout`
 
-    仅供实验用途：由于 CGO 和 Network.framework 占用的内存都很多，
-    不应在 iOS 和 tvOS 的热路径中使用。
-    如果您想规避基于 TLS 指纹的代理审查，应使用 [NaiveProxy](/zh/configuration/outbound/naive/)。
+不支持的字段：
+
+* `disable_sni`
+* `cipher_suites`
+* `curve_preferences`
+* `client_certificate` / `client_certificate_path` / `client_key` / `client_key_path`
+* `fragment` / `record_fragment`
+* `kernel_tx` / `kernel_rx`
+* `ech`
+* `utls`
+* `reality`
+
+!!! note ""
+
+    `windows` 通过 SSPI 使用 Schannel，仅在 Windows build 17763 及以上可用，包括 Windows 10 版本 1809、Windows Server 2019 及后续版本。
+
+!!! note ""
+
+    TLS 1.3 仅在 Windows 11 或 Windows Server 2022 及后续版本上协商。在更早的 Windows 版本上，即使 `max_version` 设为 `1.3`，Schannel 也会把连接上限固定在 TLS 1.2。
+
+默认版本范围为 TLS 1.2 到 TLS 1.3，与 `go` 引擎一致。证书验证在 Go 侧基于 Schannel 返回的证书链执行，默认使用系统证书存储。当设置了 `certificate` 或 `certificate_path` 时，这些根证书会替代系统存储。
 
 支持的字段：
 

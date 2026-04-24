@@ -20,24 +20,25 @@ import (
 	"math"
 	"net"
 	"os"
+	"runtime/cgo"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unsafe"
 
-	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/sys/unix"
 )
 
 func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (Conn, error) {
-	rawSyscallConn, ok := common.Cast[syscall.Conn](conn)
+	tcpConn, ok := N.UnwrapReader(conn).(*net.TCPConn)
 	if !ok {
 		return nil, E.New("apple TLS: requires fd-backed TCP connection")
 	}
-	syscallConn, err := rawSyscallConn.SyscallConn()
+	syscallConn, err := tcpConn.SyscallConn()
 	if err != nil {
 		return nil, E.Cause(err, "access raw connection")
 	}
@@ -61,8 +62,14 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 	alpnPtr := cStringOrNil(alpn)
 	defer cFree(alpnPtr)
 
-	anchorPEMPtr := cStringOrNil(c.anchorPEM)
-	defer cFree(anchorPEMPtr)
+	anchors, err := c.resolveAnchors()
+	if err != nil {
+		return nil, err
+	}
+	var anchorsRef unsafe.Pointer
+	if anchors != nil {
+		anchorsRef = anchors.Ref()
+	}
 
 	var (
 		hasVerifyTime       bool
@@ -82,13 +89,15 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 		C.uint16_t(c.minVersion),
 		C.uint16_t(c.maxVersion),
 		C.bool(c.insecure),
-		anchorPEMPtr,
-		C.size_t(len(c.anchorPEM)),
+		anchorsRef,
 		C.bool(c.anchorOnly),
 		C.bool(hasVerifyTime),
 		C.int64_t(verifyTimeUnixMilli),
 		&errorPtr,
 	)
+	if anchors != nil {
+		anchors.Release()
+	}
 	if client == nil {
 		if errorPtr != nil {
 			defer C.free(unsafe.Pointer(errorPtr))
@@ -138,21 +147,27 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 	}, nil
 }
 
-const appleTLSHandshakePollInterval = 100 * time.Millisecond
+const (
+	appleTLSHandshakePollInterval = 100 * time.Millisecond
+	appleTLSWriteChunkSize        = 32 * 1024
+)
 
 func waitAppleTLSClientReady(ctx context.Context, client *C.box_apple_tls_client_t) error {
 	for {
-		if err := ctx.Err(); err != nil {
+		err := ctx.Err()
+		if err != nil {
 			C.box_apple_tls_client_cancel(client)
 			return err
 		}
 
 		waitTimeout := appleTLSHandshakePollInterval
-		if deadline, loaded := ctx.Deadline(); loaded {
+		deadline, loaded := ctx.Deadline()
+		if loaded {
 			remaining := time.Until(deadline)
 			if remaining <= 0 {
 				C.box_apple_tls_client_cancel(client)
-				if err := ctx.Err(); err != nil {
+				err = ctx.Err()
+				if err != nil {
 					return err
 				}
 				return context.DeadlineExceeded
@@ -201,9 +216,37 @@ type appleTLSConn struct {
 	writeTimedOut  bool
 }
 
+var (
+	_ N.ExtendedConn    = (*appleTLSConn)(nil)
+	_ N.ReadWaitCreator = (*appleTLSConn)(nil)
+)
+
 func (c *appleTLSConn) Read(p []byte) (int, error) {
 	c.readAccess.Lock()
 	defer c.readAccess.Unlock()
+	if c.readEOF {
+		return 0, io.EOF
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	return c.readIntoLocked(p)
+}
+
+func (c *appleTLSConn) ReadBuffer(buffer *buf.Buffer) error {
+	c.readAccess.Lock()
+	defer c.readAccess.Unlock()
+	if buffer.IsFull() {
+		return io.ErrShortBuffer
+	}
+	startLen := buffer.Len()
+	n, err := c.readIntoLocked(buffer.FreeBytes())
+	buffer.Truncate(startLen + n)
+	return err
+}
+
+func (c *appleTLSConn) readIntoLocked(p []byte) (int, error) {
 	if c.readEOF {
 		return 0, io.EOF
 	}
@@ -256,34 +299,55 @@ func (c *appleTLSConn) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 
-	timeoutMs, err := c.prepareWriteTimeout()
-	if err != nil {
-		return 0, err
-	}
-
 	client, err := c.acquireClient()
 	if err != nil {
 		return 0, err
 	}
 	defer c.releaseClient()
 
-	var errorPtr *C.char
-	n := C.box_apple_tls_client_write(client, unsafe.Pointer(&p[0]), C.size_t(len(p)), C.int(timeoutMs), &errorPtr)
-	switch {
-	case n == -2:
-		c.markWriteTimedOut()
-		return 0, os.ErrDeadlineExceeded
-	case n >= 0:
-		return int(n), nil
+	deadline, err := c.prepareWriteDeadline()
+	if err != nil {
+		return 0, err
 	}
-	if errorPtr != nil {
-		defer C.free(unsafe.Pointer(errorPtr))
-		if c.isClosed() {
-			return 0, net.ErrClosed
+	var written int
+	for written < len(p) {
+		timeoutMs, expired := deadlineTimeoutMs(deadline)
+		if expired {
+			C.box_apple_tls_client_cancel(client)
+			c.markWriteTimedOut()
+			return written, os.ErrDeadlineExceeded
 		}
-		return 0, E.New(C.GoString(errorPtr))
+		chunkSize := min(len(p)-written, appleTLSWriteChunkSize)
+		chunk := p[written : written+chunkSize]
+		var errorPtr *C.char
+		n := C.box_apple_tls_client_write(client, unsafe.Pointer(&chunk[0]), C.size_t(len(chunk)), C.int(timeoutMs), &errorPtr)
+		switch {
+		case n == -2:
+			c.markWriteTimedOut()
+			return written, os.ErrDeadlineExceeded
+		case n >= 0:
+			written += int(n)
+			if int(n) != len(chunk) {
+				return written, io.ErrShortWrite
+			}
+			continue
+		}
+		return written, c.errorFromPointer(errorPtr)
 	}
-	return 0, net.ErrClosed
+	return written, nil
+}
+
+func (c *appleTLSConn) WriteBuffer(buffer *buf.Buffer) error {
+	defer buffer.Release()
+	_, err := c.Write(buffer.Bytes())
+	return err
+}
+
+func (c *appleTLSConn) CreateReadWaiter() (N.ReadWaiter, bool) {
+	return &appleTLSReadWaiter{
+		conn:    c,
+		results: make(chan *C.box_apple_tls_read_result_t, 1),
+	}, true
 }
 
 func (c *appleTLSConn) Close() error {
@@ -358,18 +422,18 @@ func (c *appleTLSConn) prepareReadTimeout() (int, error) {
 	return timeoutMs, nil
 }
 
-func (c *appleTLSConn) prepareWriteTimeout() (int, error) {
+func (c *appleTLSConn) prepareWriteDeadline() (time.Time, error) {
 	c.deadlineAccess.Lock()
 	defer c.deadlineAccess.Unlock()
 	if c.writeTimedOut {
-		return 0, os.ErrDeadlineExceeded
+		return time.Time{}, os.ErrDeadlineExceeded
 	}
-	timeoutMs, expired := deadlineTimeoutMs(c.writeDeadline)
+	_, expired := deadlineTimeoutMs(c.writeDeadline)
 	if expired {
 		c.writeTimedOut = true
-		return 0, os.ErrDeadlineExceeded
+		return time.Time{}, os.ErrDeadlineExceeded
 	}
-	return timeoutMs, nil
+	return c.writeDeadline, nil
 }
 
 func (c *appleTLSConn) markReadTimedOut() {
@@ -420,6 +484,138 @@ func (c *appleTLSConn) acquireClient() (*C.box_apple_tls_client_t, error) {
 
 func (c *appleTLSConn) releaseClient() {
 	c.ioGroup.Done()
+}
+
+func (c *appleTLSConn) errorFromPointer(errorPtr *C.char) error {
+	if errorPtr != nil {
+		defer C.free(unsafe.Pointer(errorPtr))
+		if c.isClosed() {
+			return net.ErrClosed
+		}
+		return E.New(C.GoString(errorPtr))
+	}
+	return net.ErrClosed
+}
+
+type appleTLSReadWaiter struct {
+	conn    *appleTLSConn
+	options N.ReadWaitOptions
+	results chan *C.box_apple_tls_read_result_t
+}
+
+var _ N.ReadWaiter = (*appleTLSReadWaiter)(nil)
+
+func (w *appleTLSReadWaiter) InitializeReadWaiter(options N.ReadWaitOptions) (needCopy bool) {
+	w.options = options
+	if w.results == nil {
+		w.results = make(chan *C.box_apple_tls_read_result_t, 1)
+	}
+	return false
+}
+
+func (w *appleTLSReadWaiter) WaitReadBuffer() (*buf.Buffer, error) {
+	c := w.conn
+	c.readAccess.Lock()
+	defer c.readAccess.Unlock()
+	if c.readEOF {
+		return nil, io.EOF
+	}
+	maximumLen := readWaitFreeLen(w.options)
+	if maximumLen <= 0 {
+		return nil, io.ErrShortBuffer
+	}
+	timeoutMs, err := c.prepareReadTimeout()
+	if err != nil {
+		return nil, err
+	}
+	client, err := c.acquireClient()
+	if err != nil {
+		return nil, err
+	}
+	defer c.releaseClient()
+
+	handle := cgo.NewHandle(w)
+	defer handle.Delete()
+	var errorPtr *C.char
+	if !bool(C.box_apple_tls_client_read_async(client, C.size_t(maximumLen), C.uintptr_t(handle), &errorPtr)) {
+		return nil, c.errorFromPointer(errorPtr)
+	}
+
+	var result *C.box_apple_tls_read_result_t
+	if timeoutMs >= 0 {
+		timer := time.NewTimer(time.Duration(timeoutMs) * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case result = <-w.results:
+		case <-timer.C:
+			C.box_apple_tls_client_cancel(client)
+			result = <-w.results
+			if result != nil {
+				C.box_apple_tls_read_result_free(result)
+			}
+			c.markReadTimedOut()
+			return nil, os.ErrDeadlineExceeded
+		}
+	} else {
+		result = <-w.results
+	}
+	return c.readWaitResultToBuffer(result, w.options)
+}
+
+func (c *appleTLSConn) readWaitResultToBuffer(result *C.box_apple_tls_read_result_t, options N.ReadWaitOptions) (*buf.Buffer, error) {
+	defer C.box_apple_tls_read_result_free(result)
+	buffer := options.NewBuffer()
+	if buffer.IsFull() {
+		buffer.Release()
+		return nil, io.ErrShortBuffer
+	}
+	startLen := buffer.Len()
+	var eof C.bool
+	var errorPtr *C.char
+	n := C.box_apple_tls_read_result_copy(result, unsafe.Pointer(&buffer.FreeBytes()[0]), C.size_t(buffer.FreeLen()), &eof, &errorPtr)
+	if n < 0 {
+		buffer.Release()
+		return nil, c.errorFromPointer(errorPtr)
+	}
+	if bool(eof) {
+		c.readEOF = true
+		if n == 0 {
+			buffer.Release()
+			return nil, io.EOF
+		}
+	}
+	if n == 0 {
+		buffer.Release()
+		return nil, io.ErrNoProgress
+	}
+	buffer.Truncate(startLen + int(n))
+	options.PostReturn(buffer)
+	return buffer, nil
+}
+
+func readWaitFreeLen(options N.ReadWaitOptions) int {
+	if options.IncreaseBuffer {
+		return 65535 - options.FrontHeadroom - options.RearHeadroom
+	}
+	if options.MTU > 0 {
+		return options.MTU
+	}
+	return buf.BufferSize - options.FrontHeadroom - options.RearHeadroom
+}
+
+//export box_apple_tls_read_callback
+func box_apple_tls_read_callback(callbackHandle C.uintptr_t, result *C.box_apple_tls_read_result_t) {
+	handle := cgo.Handle(callbackHandle)
+	waiter, ok := handle.Value().(*appleTLSReadWaiter)
+	if !ok {
+		C.box_apple_tls_read_result_free(result)
+		return
+	}
+	select {
+	case waiter.results <- result:
+	default:
+		C.box_apple_tls_read_result_free(result)
+	}
 }
 
 func (c *appleTLSConn) NetConn() net.Conn {
