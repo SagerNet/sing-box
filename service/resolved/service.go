@@ -132,7 +132,7 @@ func (i *Service) Close() error {
 	return i.listener.Close()
 }
 
-func (i *Service) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (i *Service) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = i.Tag()
 	metadata.InboundType = i.Type()
 	metadata.Destination = M.Socksaddr{}
@@ -146,7 +146,7 @@ func (i *Service) NewConnectionEx(ctx context.Context, conn net.Conn, metadata a
 	}
 }
 
-func (i *Service) NewPacketEx(buffer *buf.Buffer, oob []byte, source M.Socksaddr) {
+func (i *Service) NewPacket(buffer *buf.Buffer, oob []byte, source M.Socksaddr) {
 	go i.exchangePacket(buffer, oob, source)
 }
 
