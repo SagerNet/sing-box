@@ -544,9 +544,6 @@ func (s *ServerService) enqueueControlPayload(sub *serverControlConn, frame cont
 
 func (s *ServerService) enqueueControlSnapshot(sub *serverControlConn, sequence uint64) {
 	devices := s.buildDeviceStateV2()
-	s.controlMu.Lock()
-	s.controlState = deviceInfoV2Map(devices)
-	s.controlMu.Unlock()
 	s.enqueueControlPayload(sub, controlFrame{
 		Type:     controlFrameDeviceSnapshot,
 		Version:  controlProtocolVersion,

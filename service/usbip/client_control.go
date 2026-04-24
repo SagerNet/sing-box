@@ -206,3 +206,27 @@ func (c *ClientService) clearControlDeviceState() {
 	c.remoteDevicesV2 = nil
 	c.remoteMu.Unlock()
 }
+
+func (c *ClientService) syncRemoteStateAndResetControlState(ctx context.Context) error {
+	entries, err := c.fetchDevList(ctx)
+	if err != nil {
+		return err
+	}
+	c.resetControlDeviceStateFromEntries(entries)
+	c.applyRemoteEntries(entries)
+	return nil
+}
+
+func (c *ClientService) resetControlDeviceStateFromEntries(entries []DeviceEntry) {
+	devices := make(map[string]DeviceInfoV2, len(entries))
+	for _, entry := range entries {
+		device := deviceInfoV2FromEntry(entry, "", "", deviceStateAvailable, 0, "available")
+		if device.BusID == "" {
+			continue
+		}
+		devices[device.BusID] = device
+	}
+	c.remoteMu.Lock()
+	c.remoteDevicesV2 = devices
+	c.remoteMu.Unlock()
+}

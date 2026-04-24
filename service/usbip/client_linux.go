@@ -262,7 +262,12 @@ func (c *ClientService) runControlSession() error {
 				return E.Cause(errImmediateReconnect, "control sequence jumped from ", lastSeq, " to ", frame.Sequence)
 			}
 			lastSeq = frame.Sequence
-			if err := c.syncRemoteState(); err != nil {
+			if extended {
+				err = c.syncRemoteStateAndResetControlState(c.ctx)
+			} else {
+				err = c.syncRemoteState()
+			}
+			if err != nil {
 				return E.Cause(errImmediateReconnect, "devlist sync after change ", frame.Sequence, ": ", err)
 			}
 		case controlFrameDeviceSnapshot:
@@ -280,10 +285,9 @@ func (c *ClientService) runControlSession() error {
 				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
 			}
 			if frame.Sequence != lastSeq+1 {
-				if err := c.syncRemoteState(); err != nil {
+				if err := c.syncRemoteStateAndResetControlState(c.ctx); err != nil {
 					return E.Cause(errImmediateReconnect, "devlist sync after sequence jump ", frame.Sequence, ": ", err)
 				}
-				c.clearControlDeviceState()
 				lastSeq = frame.Sequence
 				continue
 			}

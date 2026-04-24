@@ -1327,6 +1327,75 @@ func TestServerReconcileBroadcastsStatusOnlyDeviceDelta(t *testing.T) {
 	require.True(t, netErr.Timeout())
 }
 
+func TestServerControlSnapshotPreservesPendingDelta(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusUsed)
+
+	serverOps := newTestUSBIPOps(t)
+	serverOps.listUSBDevices = store.listUSBDevices
+	serverOps.readUsbipStatus = store.readUsbipStatus
+	serverOps.readSysfsDevice = store.readSysfsDevice
+
+	server := &ServerService{
+		ctx:         ctx,
+		cancel:      cancel,
+		logger:      newTestLogger(),
+		matches:     []option.USBIPDeviceMatch{{BusID: "1-1"}},
+		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         serverOps,
+	}
+	server.refreshControlState()
+	serverAddr, closeServer := startDispatchServer(t, server)
+	defer closeServer()
+
+	firstConn, err := net.Dial("tcp", serverAddr.String())
+	require.NoError(t, err)
+	defer firstConn.Close()
+	setConnDeadline(t, firstConn)
+	require.NoError(t, WriteControlPreface(firstConn))
+	require.NoError(t, WriteControlHello(firstConn))
+	_, err = ReadControlFrame(firstConn)
+	require.NoError(t, err)
+	firstSnapshot, err := readControlMessage(firstConn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameDeviceSnapshot, firstSnapshot.Frame.Type)
+
+	store.setStatus("1-1", usbipStatusAvailable)
+
+	secondConn, err := net.Dial("tcp", serverAddr.String())
+	require.NoError(t, err)
+	defer secondConn.Close()
+	setConnDeadline(t, secondConn)
+	require.NoError(t, WriteControlPreface(secondConn))
+	require.NoError(t, WriteControlHello(secondConn))
+	_, err = ReadControlFrame(secondConn)
+	require.NoError(t, err)
+	secondSnapshotMessage, err := readControlMessage(secondConn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameDeviceSnapshot, secondSnapshotMessage.Frame.Type)
+	var secondSnapshot controlDeviceSnapshot
+	require.NoError(t, unmarshalControlPayload(secondSnapshotMessage.Payload, &secondSnapshot))
+	require.Len(t, secondSnapshot.Devices, 1)
+	require.Equal(t, deviceStateAvailable, secondSnapshot.Devices[0].State)
+
+	require.NoError(t, server.reconcileAndBroadcast(true))
+	changed, err := readControlMessage(firstConn)
+	require.NoError(t, err)
+	require.Equal(t, controlFrameDeviceDelta, changed.Frame.Type)
+	var delta controlDeviceDelta
+	require.NoError(t, unmarshalControlPayload(changed.Payload, &delta))
+	require.Len(t, delta.Updated, 1)
+	require.Equal(t, "1-1", delta.Updated[0].BusID)
+	require.Equal(t, deviceStateAvailable, delta.Updated[0].State)
+}
+
 func TestServerControlLeaseEnablesImportExt(t *testing.T) {
 	t.Parallel()
 
@@ -1958,6 +2027,61 @@ func TestClientFetchDevListReturnsOnContextCancelWhileServerStalls(t *testing.T)
 		t.Fatal("fetchDevList did not exit after cancellation")
 	}
 	require.NoError(t, <-serverErr)
+}
+
+func TestClientSyncRemoteStateAndResetControlStateRebuildsV2Map(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	entry := DeviceEntry{Info: device.toProtocol(), Interfaces: device.Interfaces}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverErr <- acceptErr
+			return
+		}
+		defer conn.Close()
+		header, readErr := ReadOpHeader(conn)
+		if readErr != nil {
+			serverErr <- readErr
+			return
+		}
+		if header.Code != OpReqDevList {
+			serverErr <- fmt.Errorf("unexpected request code 0x%s", hex16(header.Code))
+			return
+		}
+		serverErr <- WriteOpRepDevList(conn, []DeviceEntry{entry})
+	}()
+
+	client := &ClientService{
+		ctx:             ctx,
+		cancel:          cancel,
+		logger:          newTestLogger(),
+		dialer:          testDialer{},
+		serverAddr:      M.SocksaddrFromNet(listener.Addr()),
+		matches:         []option.USBIPDeviceMatch{{BusID: "unused"}},
+		ops:             newTestUSBIPOps(t),
+		remoteDevicesV2: map[string]DeviceInfoV2{"stale": {BusID: "stale", State: deviceStateAvailable}},
+	}
+
+	require.NoError(t, client.syncRemoteStateAndResetControlState(ctx))
+	require.NoError(t, <-serverErr)
+
+	client.remoteMu.Lock()
+	devices := client.remoteDevicesV2
+	client.remoteMu.Unlock()
+	require.Len(t, devices, 1)
+	require.Contains(t, devices, "1-1")
+	require.Equal(t, deviceStateAvailable, devices["1-1"].State)
+	require.Equal(t, uint16(0x1d6b), devices["1-1"].VendorID)
 }
 
 func TestClientAttemptAttachRejectsUnexpectedReplyVersion(t *testing.T) {

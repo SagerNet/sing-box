@@ -50,7 +50,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y usbip
+          sudo apt-get install -y linux-tools-common
       - name: Test (unix)
         if: matrix.os != 'windows-latest'
         run: go test -v -exec sudo -tags "$BUILD_TAGS" -ldflags "$LDFLAGS_SHARED" ./...

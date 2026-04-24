@@ -239,7 +239,12 @@ func (c *ClientService) runControlSession() error {
 				return E.Cause(errImmediateReconnect, "control sequence jumped from ", lastSeq, " to ", frame.Sequence)
 			}
 			lastSeq = frame.Sequence
-			if err := c.syncRemoteState(); err != nil {
+			if extended {
+				err = c.syncRemoteStateAndResetControlState(c.ctx)
+			} else {
+				err = c.syncRemoteState()
+			}
+			if err != nil {
 				return E.Cause(errImmediateReconnect, "devlist sync after change ", frame.Sequence, ": ", err)
 			}
 		case controlFrameDeviceSnapshot:
@@ -257,10 +262,9 @@ func (c *ClientService) runControlSession() error {
 				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
 			}
 			if frame.Sequence != lastSeq+1 {
-				if err := c.syncRemoteState(); err != nil {
+				if err := c.syncRemoteStateAndResetControlState(c.ctx); err != nil {
 					return E.Cause(errImmediateReconnect, "devlist sync after sequence jump ", frame.Sequence, ": ", err)
 				}
-				c.clearControlDeviceState()
 				lastSeq = frame.Sequence
 				continue
 			}
@@ -1054,8 +1058,8 @@ func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKe
 	if err != nil {
 		return -int32(unix.EIO), 0
 	}
-	if direction == USBIPDirIn && len(response.Buffer) > 0 {
-		copyToUnsafe(message.bufferPointer(), response.Buffer)
+	if direction == USBIPDirIn {
+		return c.completeSubmitInTransfer(message.bufferPointer(), response, length)
 	}
 	return response.Status, int(response.ActualLength)
 }
@@ -1110,8 +1114,8 @@ func (c *darwinVirtualController) handleNormalTransfer(key darwinEndpointKey, me
 	if err != nil {
 		return -int32(unix.EIO), 0
 	}
-	if direction == USBIPDirIn && len(response.Buffer) > 0 {
-		copyToUnsafe(message.bufferPointer(), response.Buffer)
+	if direction == USBIPDirIn {
+		return c.completeSubmitInTransfer(message.bufferPointer(), response, length)
 	}
 	return response.Status, int(response.ActualLength)
 }
@@ -1144,10 +1148,32 @@ func (c *darwinVirtualController) handleIsoTransfer(key darwinEndpointKey, messa
 	if err != nil {
 		return -int32(unix.EIO), 0
 	}
-	if direction == USBIPDirIn && len(response.Buffer) > 0 {
-		copyToUnsafe(message.bufferPointer(), response.Buffer)
+	if direction == USBIPDirIn {
+		return c.completeSubmitInTransfer(message.bufferPointer(), response, length)
 	}
 	return response.Status, int(response.ActualLength)
+}
+
+func (c *darwinVirtualController) completeSubmitInTransfer(ptr unsafe.Pointer, response SubmitResponse, requestLength int) (int32, int) {
+	if response.ActualLength < 0 {
+		c.logger.Debug("RET_SUBMIT actual_length is negative: ", response.ActualLength)
+		c.requestClose()
+		return -int32(unix.EPROTO), 0
+	}
+	actualLength := int(response.ActualLength)
+	if actualLength > requestLength || len(response.Buffer) > requestLength {
+		c.logger.Debug("RET_SUBMIT actual_length ", actualLength, " exceeds request length ", requestLength)
+		c.requestClose()
+		return -int32(unix.EOVERFLOW), 0
+	}
+	copyLength := actualLength
+	if copyLength > len(response.Buffer) {
+		copyLength = len(response.Buffer)
+	}
+	if copyLength > 0 {
+		copyToUnsafe(ptr, response.Buffer[:copyLength])
+	}
+	return response.Status, actualLength
 }
 
 func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitResponse, error) {

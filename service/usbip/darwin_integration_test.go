@@ -21,6 +21,7 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -173,6 +174,28 @@ func TestDarwinVirtualControllerReadsCompliantSubmitResponsePayload(t *testing.T
 		require.Equal(t, []byte{1, 2, 3}, response.Buffer)
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for submit response")
+	}
+}
+
+func TestDarwinSubmitInTransferRejectsOversizedPayload(t *testing.T) {
+	t.Parallel()
+
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), nil, DeviceInfoTruncated{})
+	buffer := []byte{0xaa, 0xbb}
+
+	status, length := controller.completeSubmitInTransfer(unsafe.Pointer(&buffer[0]), SubmitResponse{
+		Status:       0,
+		ActualLength: 3,
+		Buffer:       []byte{1, 2, 3},
+	}, len(buffer))
+
+	require.Equal(t, -int32(unix.EOVERFLOW), status)
+	require.Zero(t, length)
+	require.Equal(t, []byte{0xaa, 0xbb}, buffer)
+	select {
+	case <-controller.ctx.Done():
+	default:
+		t.Fatal("controller context stayed active after oversized payload")
 	}
 }
 
