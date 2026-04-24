@@ -19,13 +19,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/proxybridge"
 	boxTLS "github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route"
 	"github.com/sagernet/sing/common/json/badoption"
+	commonLogger "github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
@@ -56,6 +59,23 @@ type appleHTTPTestServer struct {
 	certificate    stdtls.Certificate
 	certificatePEM string
 	publicKeyHash  []byte
+}
+
+type appleTestAnchors struct {
+	ref      unsafe.Pointer
+	releases int
+}
+
+func (a *appleTestAnchors) Retain() adapter.AppleAnchors {
+	return a
+}
+
+func (a *appleTestAnchors) Release() {
+	a.releases++
+}
+
+func (a *appleTestAnchors) Ref() unsafe.Pointer {
+	return a.ref
 }
 
 func TestNewAppleSessionConfig(t *testing.T) {
@@ -103,8 +123,14 @@ func TestNewAppleSessionConfig(t *testing.T) {
 				if !config.anchorOnly {
 					t.Fatal("expected anchor_only")
 				}
-				if !strings.Contains(config.anchorPEM, "BEGIN CERTIFICATE") {
-					t.Fatalf("unexpected anchor pem: %q", config.anchorPEM)
+				if config.userAnchors == nil {
+					t.Fatal("expected user anchors")
+				}
+				if config.userAnchors.Ref() == nil {
+					t.Fatal("expected non-empty user anchors")
+				}
+				if config.store != nil {
+					t.Fatal("unexpected store reference")
 				}
 				if len(config.pinnedPublicKeySHA256s) != 0 {
 					t.Fatalf("unexpected pinned hashes: %d", len(config.pinnedPublicKeySHA256s))
@@ -137,8 +163,8 @@ func TestNewAppleSessionConfig(t *testing.T) {
 				if !bytes.Equal(config.pinnedPublicKeySHA256s[applePinnedHashSize:], otherHash) {
 					t.Fatal("unexpected second pin")
 				}
-				if config.anchorPEM != "" {
-					t.Fatalf("unexpected anchor pem: %q", config.anchorPEM)
+				if config.userAnchors != nil {
+					t.Fatal("unexpected user anchors")
 				}
 				if config.anchorOnly {
 					t.Fatal("unexpected anchor_only")
@@ -389,6 +415,46 @@ func TestAppleTransportVerifyPublicKeySHA256(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid pinned public key list") {
 		t.Fatalf("unexpected malformed pin error: %v", err)
+	}
+}
+
+func TestNewAppleTransportClosesSessionConfigOnBridgeFailure(t *testing.T) {
+	_, serverCertificatePEM := newAppleHTTPTestCertificate(t, "localhost")
+	restoreAppleTransportFactories(t)
+	testAnchors := &appleTestAnchors{ref: unsafe.Pointer(new(int))}
+	newAppleUserAnchors = func([]byte) (adapter.AppleAnchors, error) {
+		return testAnchors, nil
+	}
+	newAppleProxyBridge = func(context.Context, commonLogger.ContextLogger, string, N.Dialer) (*proxybridge.Bridge, error) {
+		return nil, errors.New("bridge boom")
+	}
+
+	_, err := newAppleTransport(newAppleHTTPTestContext(), log.NewNOPFactory().NewLogger("httpclient"), &appleHTTPTestDialer{}, appleTransportAnchorOptions(serverCertificatePEM))
+	if err == nil || !strings.Contains(err.Error(), "bridge boom") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if testAnchors.releases != 1 {
+		t.Fatalf("expected 1 anchor release, got %d", testAnchors.releases)
+	}
+}
+
+func TestNewAppleTransportClosesSessionConfigOnSessionFailure(t *testing.T) {
+	_, serverCertificatePEM := newAppleHTTPTestCertificate(t, "localhost")
+	restoreAppleTransportFactories(t)
+	testAnchors := &appleTestAnchors{ref: unsafe.Pointer(new(int))}
+	newAppleUserAnchors = func([]byte) (adapter.AppleAnchors, error) {
+		return testAnchors, nil
+	}
+	newAppleTransportSession = func(*appleTransportShared) (unsafe.Pointer, error) {
+		return nil, errors.New("session boom")
+	}
+
+	_, err := newAppleTransport(newAppleHTTPTestContext(), log.NewNOPFactory().NewLogger("httpclient"), &appleHTTPTestDialer{}, appleTransportAnchorOptions(serverCertificatePEM))
+	if err == nil || !strings.Contains(err.Error(), "session boom") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if testAnchors.releases != 1 {
+		t.Fatalf("expected 1 anchor release, got %d", testAnchors.releases)
 	}
 }
 
@@ -665,7 +731,8 @@ func TestAppleTransportLifecycle(t *testing.T) {
 	assertAppleHTTPSucceeds(t, transport, server.URL("/reset"))
 
 	innerTransport := transport.(*appleTransport)
-	if err := innerTransport.Close(); err != nil {
+	err := innerTransport.Close()
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -722,10 +789,7 @@ func (s *appleHTTPTestServer) URL(path string) string {
 func newAppleHTTPTestTransport(t *testing.T, server *appleHTTPTestServer, options option.HTTPClientOptions) innerTransport {
 	t.Helper()
 
-	ctx := service.ContextWith[adapter.ConnectionManager](
-		context.Background(),
-		route.NewConnectionManager(log.NewNOPFactory().NewLogger("connection")),
-	)
+	ctx := newAppleHTTPTestContext()
 	dialer := &appleHTTPTestDialer{
 		hostMap: make(map[string]string),
 	}
@@ -741,6 +805,39 @@ func newAppleHTTPTestTransport(t *testing.T, server *appleHTTPTestServer, option
 		_ = transport.Close()
 	})
 	return transport
+}
+
+func newAppleHTTPTestContext() context.Context {
+	return service.ContextWith[adapter.ConnectionManager](
+		context.Background(),
+		route.NewConnectionManager(log.NewNOPFactory().NewLogger("connection")),
+	)
+}
+
+func appleTransportAnchorOptions(certificatePEM string) option.HTTPClientOptions {
+	return option.HTTPClientOptions{
+		Version: 2,
+		OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
+			TLS: &option.OutboundTLSOptions{
+				Enabled:     true,
+				ServerName:  "localhost",
+				MinVersion:  "1.2",
+				Certificate: badoption.Listable[string]{certificatePEM},
+			},
+		},
+	}
+}
+
+func restoreAppleTransportFactories(t *testing.T) {
+	t.Helper()
+	oldAnchors := newAppleUserAnchors
+	oldBridge := newAppleProxyBridge
+	oldSession := newAppleTransportSession
+	t.Cleanup(func() {
+		newAppleUserAnchors = oldAnchors
+		newAppleProxyBridge = oldBridge
+		newAppleTransportSession = oldSession
+	})
 }
 
 func (d *appleHTTPTestDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

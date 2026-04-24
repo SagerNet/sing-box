@@ -8,6 +8,7 @@ icon: material/new-box
     :material-plus: [handshake_timeout](#handshake_timeout)  
     :material-plus: [spoof](#spoof)  
     :material-plus: [spoof_method](#spoof_method)  
+    :material-plus: [engine](#engine)  
     :material-delete-clock: [acme](#acme-fields)
 
 !!! quote "Changes in sing-box 1.13.0"
@@ -195,6 +196,8 @@ Enable TLS.
 
 #### engine
 
+!!! question "Since sing-box 1.14.0"
+
 ==Client only==
 
 TLS engine to use.
@@ -203,15 +206,40 @@ Values:
 
 * `go` (default)
 * `apple`
+* `windows`
 
-`apple` uses Network.framework, only available on Apple platforms and only supports **direct** TCP TLS client connections.
+Supported fields:
 
-!!! warning ""
+* `server_name`
+* `insecure`
+* `alpn`
+* `min_version`
+* `max_version`
+* `certificate` / `certificate_path`
+* `certificate_public_key_sha256`
+* `handshake_timeout`
 
-    Experimental only: due to the high memory overhead of both CGO and Network.framework,
-    do not use in hot paths on iOS and tvOS.
-    If you want to circumvent TLS fingerprint-based proxy censorship,
-    use [NaiveProxy](/configuration/outbound/naive/) instead.
+Unsupported fields:
+
+* `disable_sni`
+* `cipher_suites`
+* `curve_preferences`
+* `client_certificate` / `client_certificate_path` / `client_key` / `client_key_path`
+* `fragment` / `record_fragment`
+* `kernel_tx` / `kernel_rx`
+* `ech`
+* `utls`
+* `reality`
+
+!!! note ""
+
+    `windows` uses Schannel via SSPI. Only available on Windows build 17763 or later (Windows 10 version 1809, Windows Server 2019, or newer).
+
+!!! note ""
+
+    TLS 1.3 is only negotiated on Windows 11 or Windows Server 2022 and newer. On older Windows versions, Schannel caps the connection at TLS 1.2 even when `max_version` is `1.3`.
+
+The default version range is TLS 1.2 to TLS 1.3, matching the `go` engine.
 
 Supported fields:
 
