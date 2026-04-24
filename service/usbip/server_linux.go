@@ -471,9 +471,6 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		s.logger.Debug("write control ack: ", err)
 		return
 	}
-	if supportsControlExtensions(capabilities) {
-		s.enqueueControlSnapshot(sub, seq)
-	}
 
 	readDone := make(chan struct{})
 	go s.readControlConn(sub, readDone)
@@ -691,14 +688,18 @@ func (s *ServerService) registerControlConn(conn net.Conn, capabilities uint32) 
 	s.controlMu.Lock()
 	defer s.controlMu.Unlock()
 	s.controlNextID++
+	sequence := s.controlSeq
 	sub := &serverControlConn{
 		id:           s.controlNextID,
 		capabilities: capabilities,
 		conn:         conn,
 		send:         make(chan controlOutboundMessage, 16),
 	}
+	if supportsControlExtensions(capabilities) {
+		s.enqueueControlSnapshot(sub, sequence)
+	}
 	s.controlSubs[sub.id] = sub
-	return sub, s.controlSeq
+	return sub, sequence
 }
 
 func (s *ServerService) unregisterControlConn(id uint64) {

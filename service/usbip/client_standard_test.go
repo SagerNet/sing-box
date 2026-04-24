@@ -85,6 +85,61 @@ func TestClientStandardSessionPollsDevList(t *testing.T) {
 	require.NoError(t, <-serverErr)
 }
 
+func TestClientStandardMatchedAssignmentSurvivesHiddenActiveDevice(t *testing.T) {
+	t.Parallel()
+
+	entry := standardTestDeviceEntry("1-1")
+	tests := []struct {
+		name   string
+		match  option.USBIPDeviceMatch
+		target clientTarget
+	}{
+		{
+			name:   "fixed busid",
+			match:  option.USBIPDeviceMatch{BusID: "1-1"},
+			target: clientTarget{fixedBusID: "1-1"},
+		},
+		{
+			name:   "device key",
+			match:  option.USBIPDeviceMatch{VendorID: 0x1d6b, ProductID: 0x0002},
+			target: clientTarget{match: option.USBIPDeviceMatch{VendorID: 0x1d6b, ProductID: 0x0002}},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			worker := &clientAssignedWorker{target: test.target, updates: make(chan string, 2)}
+			client := &ClientService{
+				matches:         []option.USBIPDeviceMatch{test.match},
+				targets:         []clientTarget{test.target},
+				assigned:        []string{"1-1"},
+				assignedWorkers: []*clientAssignedWorker{worker},
+				activeBusIDs:    map[string]struct{}{"1-1": {}},
+			}
+
+			client.applyMatchedExports([]DeviceEntry{entry})
+			require.Equal(t, []string{"1-1"}, client.assigned)
+			select {
+			case update := <-worker.updates:
+				t.Fatalf("unexpected assignment update %q", update)
+			default:
+			}
+
+			client.applyMatchedExports(nil)
+			require.Equal(t, []string{"1-1"}, client.assigned)
+			select {
+			case update := <-worker.updates:
+				t.Fatalf("unexpected assignment update %q", update)
+			default:
+			}
+
+			client.setBusIDActive("1-1", false)
+			client.applyMatchedExports(nil)
+			require.Equal(t, []string{""}, client.assigned)
+			require.Equal(t, "", <-worker.updates)
+		})
+	}
+}
+
 func serveStandardDevLists(listener net.Listener, responses [][]DeviceEntry) error {
 	for _, entries := range responses {
 		conn, err := listener.Accept()

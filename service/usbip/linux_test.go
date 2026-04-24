@@ -1487,6 +1487,36 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	require.Equal(t, uint64(1), delta.Sequence)
 }
 
+func TestServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing.T) {
+	t.Parallel()
+
+	server := &ServerService{
+		logger:       newTestLogger(),
+		exports:      make(map[string]serverExport),
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+	}
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+	defer clientConn.Close()
+
+	sub, seq := server.registerControlConn(serverConn, controlCapabilities)
+	require.Zero(t, seq)
+	require.Contains(t, server.controlSubs, sub.id)
+
+	require.True(t, server.broadcastControlState(map[string]DeviceInfoV2{
+		"1-1": {BusID: "1-1", State: deviceStateAvailable},
+	}, true))
+
+	first := <-sub.send
+	require.Equal(t, controlFrameDeviceSnapshot, first.Frame.Type)
+	require.Zero(t, first.Frame.Sequence)
+
+	second := <-sub.send
+	require.Equal(t, controlFrameDeviceDelta, second.Frame.Type)
+	require.Equal(t, uint64(1), second.Frame.Sequence)
+}
+
 func TestServerReconcileBroadcastsStatusOnlyDeviceDelta(t *testing.T) {
 	t.Parallel()
 

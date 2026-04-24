@@ -245,3 +245,57 @@ func (c *ClientService) resetControlDeviceStateFromEntries(entries []DeviceEntry
 	c.remoteDevicesV2 = devices
 	c.remoteMu.Unlock()
 }
+
+func (c *ClientService) matchedKeysForAssignmentLocked(entries []DeviceEntry, knownKeys map[string]DeviceKey) map[string]DeviceKey {
+	if len(c.matchedKnownKeys) == 0 && len(entries) == 0 && len(knownKeys) == 0 {
+		return nil
+	}
+	assignmentKeys := make(map[string]DeviceKey, len(c.matchedKnownKeys)+len(entries)+len(knownKeys))
+	for busid, key := range c.matchedKnownKeys {
+		assignmentKeys[busid] = key
+	}
+	for i := range entries {
+		key := entryDeviceKey(entries[i])
+		if key.BusID == "" {
+			continue
+		}
+		assignmentKeys[key.BusID] = key
+	}
+	for busid, key := range knownKeys {
+		if busid == "" {
+			continue
+		}
+		assignmentKeys[busid] = key
+	}
+	return assignmentKeys
+}
+
+func (c *ClientService) retainMatchedKnownKeysLocked(assignmentKeys map[string]DeviceKey, entries []DeviceEntry, assigned []string) {
+	if len(assignmentKeys) == 0 {
+		c.matchedKnownKeys = nil
+		return
+	}
+	retained := make(map[string]DeviceKey, len(entries)+len(assigned))
+	for i := range entries {
+		busid := entries[i].Info.BusIDString()
+		if busid == "" {
+			continue
+		}
+		if key, ok := assignmentKeys[busid]; ok {
+			retained[busid] = key
+		}
+	}
+	for _, busid := range assigned {
+		if busid == "" {
+			continue
+		}
+		if key, ok := assignmentKeys[busid]; ok {
+			retained[busid] = key
+		}
+	}
+	if len(retained) == 0 {
+		c.matchedKnownKeys = nil
+		return
+	}
+	c.matchedKnownKeys = retained
+}

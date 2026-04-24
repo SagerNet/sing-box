@@ -57,12 +57,13 @@ type ClientService struct {
 	serverAddr M.Socksaddr
 	matches    []option.USBIPDeviceMatch
 
-	stateMu         sync.Mutex
-	targets         []clientTarget
-	assigned        []string
-	assignedWorkers []*clientAssignedWorker
-	allWorkers      map[string]*clientBusIDWorker
-	allDesired      map[string]struct{}
+	stateMu          sync.Mutex
+	targets          []clientTarget
+	assigned         []string
+	assignedWorkers  []*clientAssignedWorker
+	allWorkers       map[string]*clientBusIDWorker
+	allDesired       map[string]struct{}
+	matchedKnownKeys map[string]DeviceKey
 
 	wg sync.WaitGroup
 
@@ -394,11 +395,13 @@ func (c *ClientService) applyMatchedExportsWithRetained(entries []DeviceEntry, k
 		c.stateMu.Unlock()
 		return
 	}
-	activeCurrent := c.activeCurrentAssignmentsLocked(c.assigned, knownKeys)
-	nextAssigned := assignMatchedBusIDsWithRetained(c.targets, c.assigned, entries, knownKeys, activeCurrent)
+	assignmentKeys := c.matchedKeysForAssignmentLocked(entries, knownKeys)
+	activeCurrent := c.activeCurrentAssignmentsLocked(c.assigned, assignmentKeys)
+	nextAssigned := assignMatchedBusIDsWithRetained(c.targets, c.assigned, entries, assignmentKeys, activeCurrent)
 	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
 	previous := append([]string(nil), c.assigned...)
 	c.assigned = nextAssigned
+	c.retainMatchedKnownKeysLocked(assignmentKeys, entries, nextAssigned)
 	c.stateMu.Unlock()
 
 	for i, worker := range workers {
