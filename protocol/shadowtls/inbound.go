@@ -108,7 +108,7 @@ func (h *Inbound) Close() error {
 	return h.listener.Close()
 }
 
-func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	err := h.service.NewConnection(adapter.WithContext(log.ContextWithNewID(ctx), &metadata), conn, metadata.Source, metadata.Destination, onClose)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
