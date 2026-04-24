@@ -12,21 +12,30 @@ import (
 
 type (
 	// Deprecated
-	ConnectionHandlerFunc = func(ctx context.Context, conn net.Conn, metadata InboundContext) error
+	LegacyConnectionHandlerFunc = func(ctx context.Context, conn net.Conn, metadata InboundContext) error
 	// Deprecated
-	PacketConnectionHandlerFunc = func(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
+	LegacyPacketConnectionHandlerFunc = func(ctx context.Context, conn N.PacketConn, metadata InboundContext) error
 )
 
 // Deprecated
 //
 //nolint:staticcheck
-func NewUpstreamHandler(
+type LegacyUpstreamHandlerAdapter interface {
+	N.TCPConnectionHandler
+	N.UDPConnectionHandler
+	E.Handler
+}
+
+// Deprecated
+//
+//nolint:staticcheck
+func NewLegacyUpstreamHandler(
 	metadata InboundContext,
-	connectionHandler ConnectionHandlerFunc,
-	packetHandler PacketConnectionHandlerFunc,
+	connectionHandler LegacyConnectionHandlerFunc,
+	packetHandler LegacyPacketConnectionHandlerFunc,
 	errorHandler E.Handler,
-) UpstreamHandlerAdapter {
-	return &myUpstreamHandlerWrapper{
+) LegacyUpstreamHandlerAdapter {
+	return &legacyUpstreamHandlerWrapper{
 		metadata:          metadata,
 		connectionHandler: connectionHandler,
 		packetHandler:     packetHandler,
@@ -34,20 +43,20 @@ func NewUpstreamHandler(
 	}
 }
 
-var _ UpstreamHandlerAdapter = (*myUpstreamHandlerWrapper)(nil)
+var _ LegacyUpstreamHandlerAdapter = (*legacyUpstreamHandlerWrapper)(nil)
 
-// Deprecated: use myUpstreamHandlerWrapperEx instead.
+// Deprecated: use NewUpstreamHandler instead.
 //
 //nolint:staticcheck
-type myUpstreamHandlerWrapper struct {
+type legacyUpstreamHandlerWrapper struct {
 	metadata          InboundContext
-	connectionHandler ConnectionHandlerFunc
-	packetHandler     PacketConnectionHandlerFunc
+	connectionHandler LegacyConnectionHandlerFunc
+	packetHandler     LegacyPacketConnectionHandlerFunc
 	errorHandler      E.Handler
 }
 
-// Deprecated: use myUpstreamHandlerWrapperEx instead.
-func (w *myUpstreamHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+// Deprecated: use NewUpstreamHandler instead.
+func (w *legacyUpstreamHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
 	myMetadata := w.metadata
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -58,8 +67,8 @@ func (w *myUpstreamHandlerWrapper) NewConnection(ctx context.Context, conn net.C
 	return w.connectionHandler(ctx, conn, myMetadata)
 }
 
-// Deprecated: use myUpstreamHandlerWrapperEx instead.
-func (w *myUpstreamHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
+// Deprecated: use NewUpstreamHandler instead.
+func (w *legacyUpstreamHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
 	myMetadata := w.metadata
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -70,8 +79,8 @@ func (w *myUpstreamHandlerWrapper) NewPacketConnection(ctx context.Context, conn
 	return w.packetHandler(ctx, conn, myMetadata)
 }
 
-// Deprecated: use myUpstreamHandlerWrapperEx instead.
-func (w *myUpstreamHandlerWrapper) NewError(ctx context.Context, err error) {
+// Deprecated: use NewUpstreamHandler instead.
+func (w *legacyUpstreamHandlerWrapper) NewError(ctx context.Context, err error) {
 	w.errorHandler.NewError(ctx, err)
 }
 
@@ -83,28 +92,28 @@ func UpstreamMetadata(metadata InboundContext) M.Metadata {
 	}
 }
 
-// Deprecated: Use NewUpstreamContextHandlerEx instead.
-type myUpstreamContextHandlerWrapper struct {
-	connectionHandler ConnectionHandlerFunc
-	packetHandler     PacketConnectionHandlerFunc
+// Deprecated: Use NewUpstreamContextHandler instead.
+type legacyUpstreamContextHandlerWrapper struct {
+	connectionHandler LegacyConnectionHandlerFunc
+	packetHandler     LegacyPacketConnectionHandlerFunc
 	errorHandler      E.Handler
 }
 
-// Deprecated: Use NewUpstreamContextHandlerEx instead.
-func NewUpstreamContextHandler(
-	connectionHandler ConnectionHandlerFunc,
-	packetHandler PacketConnectionHandlerFunc,
+// Deprecated: Use NewUpstreamContextHandler instead.
+func NewLegacyUpstreamContextHandler(
+	connectionHandler LegacyConnectionHandlerFunc,
+	packetHandler LegacyPacketConnectionHandlerFunc,
 	errorHandler E.Handler,
-) UpstreamHandlerAdapter {
-	return &myUpstreamContextHandlerWrapper{
+) LegacyUpstreamHandlerAdapter {
+	return &legacyUpstreamContextHandlerWrapper{
 		connectionHandler: connectionHandler,
 		packetHandler:     packetHandler,
 		errorHandler:      errorHandler,
 	}
 }
 
-// Deprecated: Use NewUpstreamContextHandlerEx instead.
-func (w *myUpstreamContextHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+// Deprecated: Use NewUpstreamContextHandler instead.
+func (w *legacyUpstreamContextHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
 	myMetadata := ContextFrom(ctx)
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -115,8 +124,8 @@ func (w *myUpstreamContextHandlerWrapper) NewConnection(ctx context.Context, con
 	return w.connectionHandler(ctx, conn, *myMetadata)
 }
 
-// Deprecated: Use NewUpstreamContextHandlerEx instead.
-func (w *myUpstreamContextHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
+// Deprecated: Use NewUpstreamContextHandler instead.
+func (w *legacyUpstreamContextHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
 	myMetadata := ContextFrom(ctx)
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -127,18 +136,18 @@ func (w *myUpstreamContextHandlerWrapper) NewPacketConnection(ctx context.Contex
 	return w.packetHandler(ctx, conn, *myMetadata)
 }
 
-// Deprecated: Use NewUpstreamContextHandlerEx instead.
-func (w *myUpstreamContextHandlerWrapper) NewError(ctx context.Context, err error) {
+// Deprecated: Use NewUpstreamContextHandler instead.
+func (w *legacyUpstreamContextHandlerWrapper) NewError(ctx context.Context, err error) {
 	w.errorHandler.NewError(ctx, err)
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func NewRouteHandler(
+func NewLegacyRouteHandler(
 	metadata InboundContext,
 	router ConnectionRouter,
 	logger logger.ContextLogger,
-) UpstreamHandlerAdapter {
-	return &routeHandlerWrapper{
+) LegacyUpstreamHandlerAdapter {
+	return &legacyRouteHandlerWrapper{
 		metadata: metadata,
 		router:   router,
 		logger:   logger,
@@ -146,29 +155,29 @@ func NewRouteHandler(
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func NewRouteContextHandler(
+func NewLegacyRouteContextHandler(
 	router ConnectionRouter,
 	logger logger.ContextLogger,
-) UpstreamHandlerAdapter {
-	return &routeContextHandlerWrapper{
+) LegacyUpstreamHandlerAdapter {
+	return &legacyRouteContextHandlerWrapper{
 		router: router,
 		logger: logger,
 	}
 }
 
-var _ UpstreamHandlerAdapter = (*routeHandlerWrapper)(nil)
+var _ LegacyUpstreamHandlerAdapter = (*legacyRouteHandlerWrapper)(nil)
 
 // Deprecated: Use ConnectionRouterEx instead.
 //
 //nolint:staticcheck
-type routeHandlerWrapper struct {
+type legacyRouteHandlerWrapper struct {
 	metadata InboundContext
 	router   ConnectionRouter
 	logger   logger.ContextLogger
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func (w *routeHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+func (w *legacyRouteHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
 	myMetadata := w.metadata
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -180,7 +189,7 @@ func (w *routeHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, 
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func (w *routeHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
+func (w *legacyRouteHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
 	myMetadata := w.metadata
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -192,20 +201,20 @@ func (w *routeHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.Pa
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func (w *routeHandlerWrapper) NewError(ctx context.Context, err error) {
+func (w *legacyRouteHandlerWrapper) NewError(ctx context.Context, err error) {
 	w.logger.ErrorContext(ctx, err)
 }
 
-var _ UpstreamHandlerAdapter = (*routeContextHandlerWrapper)(nil)
+var _ LegacyUpstreamHandlerAdapter = (*legacyRouteContextHandlerWrapper)(nil)
 
 // Deprecated: Use ConnectionRouterEx instead.
-type routeContextHandlerWrapper struct {
+type legacyRouteContextHandlerWrapper struct {
 	router ConnectionRouter
 	logger logger.ContextLogger
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func (w *routeContextHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
+func (w *legacyRouteContextHandlerWrapper) NewConnection(ctx context.Context, conn net.Conn, metadata M.Metadata) error {
 	myMetadata := ContextFrom(ctx)
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -217,7 +226,7 @@ func (w *routeContextHandlerWrapper) NewConnection(ctx context.Context, conn net
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func (w *routeContextHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
+func (w *legacyRouteContextHandlerWrapper) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata M.Metadata) error {
 	myMetadata := ContextFrom(ctx)
 	if metadata.Source.IsValid() {
 		myMetadata.Source = metadata.Source
@@ -229,6 +238,6 @@ func (w *routeContextHandlerWrapper) NewPacketConnection(ctx context.Context, co
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
-func (w *routeContextHandlerWrapper) NewError(ctx context.Context, err error) {
+func (w *legacyRouteContextHandlerWrapper) NewError(ctx context.Context, err error) {
 	w.logger.ErrorContext(ctx, err)
 }
