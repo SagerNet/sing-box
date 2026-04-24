@@ -60,7 +60,7 @@ func newRelayInbound(ctx context.Context, router adapter.Router, logger log.Cont
 		options.Method,
 		options.Password,
 		int64(udpTimeout.Seconds()),
-		adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
+		adapter.NewLegacyUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
 	)
 	if err != nil {
 		return nil, err
@@ -98,7 +98,7 @@ func (h *RelayInbound) Close() error {
 }
 
 //nolint:staticcheck
-func (h *RelayInbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (h *RelayInbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
@@ -111,7 +111,7 @@ func (h *RelayInbound) NewConnectionEx(ctx context.Context, conn net.Conn, metad
 }
 
 //nolint:staticcheck
-func (h *RelayInbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
+func (h *RelayInbound) NewPacket(buffer *buf.Buffer, source M.Socksaddr) {
 	err := h.service.NewPacket(h.ctx, &stubPacketConn{h.listener.PacketWriter()}, buffer, M.Metadata{Source: source})
 	if err != nil {
 		h.logger.Error(E.Cause(err, "process packet from ", source))
