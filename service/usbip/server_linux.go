@@ -173,8 +173,7 @@ func (s *ServerService) reconcileExports() (bool, error) {
 			continue
 		}
 		if err := s.bindOne(&device); err != nil {
-			s.logger.Warn("bind ", busid, ": ", err)
-			continue
+			return changed, E.Cause(err, "bind ", busid)
 		}
 		changed = true
 	}
@@ -192,6 +191,24 @@ func (s *ServerService) reconcileExports() (bool, error) {
 }
 
 func (s *ServerService) bindOne(d *sysfsDevice) error {
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		err = s.bindOneOnce(d)
+		if err == nil {
+			return nil
+		}
+		if attempt > 0 || !errors.Is(err, unix.ENODEV) {
+			break
+		}
+		s.logger.Warn("reset usbip-host after bind failure on ", d.BusID, ": ", err)
+		if resetErr := s.resetHostDriverForBindRetry(); resetErr != nil {
+			return E.Cause(resetErr, "reset usbip-host after bind failure")
+		}
+	}
+	return err
+}
+
+func (s *ServerService) bindOneOnce(d *sysfsDevice) error {
 	driver, err := s.ops.currentDriver(d.BusID)
 	if err != nil {
 		return err
@@ -226,6 +243,13 @@ func (s *ServerService) bindOne(d *sysfsDevice) error {
 		originalDriver: driver,
 	})
 	return nil
+}
+
+func (s *ServerService) resetHostDriverForBindRetry() error {
+	if len(s.snapshotExports()) > 0 {
+		return E.New("active usbip-host exports are present")
+	}
+	return s.ops.reloadHostDriver()
 }
 
 func (s *ServerService) releaseExport(export serverExport, restore bool) error {

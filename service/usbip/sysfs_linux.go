@@ -215,6 +215,18 @@ func hostUnbind(busid string) error {
 	return writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), busid)
 }
 
+func reloadHostDriver() error {
+	modprobePath, err := findModprobePath()
+	if err != nil {
+		return err
+	}
+	output, err := shell.Exec(modprobePath, "-r", "usbip-host").Read()
+	if err != nil {
+		return E.Extend(E.Cause(err, "unload kernel module usbip-host"), strings.TrimSpace(output))
+	}
+	return ensureHostDriver()
+}
+
 // readUsbipStatus returns the usbip_status attribute value for busid.
 func readUsbipStatus(busid string) (int, error) {
 	raw, err := os.ReadFile(filepath.Join(sysBusUSBDevices, busid, "usbip_status"))

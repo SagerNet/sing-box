@@ -201,6 +201,10 @@ func newTestUSBIPOps(t *testing.T) usbipOps {
 			t.Fatalf("unexpected hostUnbind")
 			return nil
 		},
+		reloadHostDriver: func() error {
+			t.Fatalf("unexpected reloadHostDriver")
+			return nil
+		},
 		readUsbipStatus: func(string) (int, error) {
 			t.Fatalf("unexpected readUsbipStatus")
 			return 0, nil
@@ -837,6 +841,70 @@ func TestServerReconcileExportsBindsMatchesAndSkipsHub(t *testing.T) {
 	}, server.snapshotExports())
 }
 
+func TestServerBindOneRetriesAfterStaleHostMatch(t *testing.T) {
+	t.Parallel()
+
+	device := newTestDevice("1-1", 0x1d6b, 0x0104, "regular", SpeedHigh)
+	ops := newTestUSBIPOps(t)
+	var actions []string
+	bindCalls := 0
+	ops.currentDriver = func(busid string) (string, error) {
+		return "usb", nil
+	}
+	ops.unbindFromDriver = func(busid, driver string) error {
+		actions = append(actions, "unbind "+busid+" "+driver)
+		return nil
+	}
+	ops.hostMatchBusID = func(busid string, add bool) error {
+		actions = append(actions, "match "+busid+" "+map[bool]string{true: "add", false: "del"}[add])
+		return nil
+	}
+	ops.hostBind = func(busid string) error {
+		bindCalls++
+		actions = append(actions, "hostbind "+busid)
+		if bindCalls == 1 {
+			return &os.PathError{Op: "write", Path: filepath.Join(sysUsbipHostDriver, "bind"), Err: unix.ENODEV}
+		}
+		return nil
+	}
+	ops.bindToDriver = func(busid, driver string) error {
+		actions = append(actions, "bind "+busid+" "+driver)
+		return nil
+	}
+	ops.reloadHostDriver = func() error {
+		actions = append(actions, "reload")
+		return nil
+	}
+
+	server := &ServerService{
+		ctx:         context.Background(),
+		logger:      newTestLogger(),
+		exports:     make(map[string]serverExport),
+		controlSubs: make(map[uint64]*serverControlConn),
+		ops:         ops,
+	}
+
+	require.NoError(t, server.bindOne(&device))
+	require.Equal(t, []string{
+		"unbind 1-1 usb",
+		"match 1-1 add",
+		"hostbind 1-1",
+		"match 1-1 del",
+		"bind 1-1 usb",
+		"reload",
+		"unbind 1-1 usb",
+		"match 1-1 add",
+		"hostbind 1-1",
+	}, actions)
+	require.Equal(t, map[string]serverExport{
+		"1-1": {
+			busid:          "1-1",
+			managed:        true,
+			originalDriver: "usb",
+		},
+	}, server.snapshotExports())
+}
+
 func TestServerReconcileExportsSkipsVHCIDevices(t *testing.T) {
 	t.Parallel()
 
@@ -1047,7 +1115,6 @@ func TestServerCloseSerializesRollbackWithActiveReconcile(t *testing.T) {
 		record("hostunbind " + busid)
 		return nil
 	}
-
 	server := &ServerService{
 		ctx:          ctx,
 		cancel:       cancel,

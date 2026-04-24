@@ -19,6 +19,7 @@ type usbipOps struct {
 	hostMatchBusID    func(busid string, add bool) error
 	hostBind          func(busid string) error
 	hostUnbind        func(busid string) error
+	reloadHostDriver  func() error
 	readUsbipStatus   func(busid string) (int, error)
 	writeUsbipSockfd  func(busid string, fd int) error
 	newUEventListener func() (usbEventListener, error)
@@ -40,6 +41,7 @@ var systemUSBIPOps = usbipOps{
 	hostMatchBusID:   hostMatchBusID,
 	hostBind:         hostBind,
 	hostUnbind:       hostUnbind,
+	reloadHostDriver: reloadHostDriver,
 	readUsbipStatus:  readUsbipStatus,
 	writeUsbipSockfd: writeUsbipSockfd,
 	newUEventListener: func() (usbEventListener, error) {
