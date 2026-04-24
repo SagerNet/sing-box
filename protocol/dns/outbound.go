@@ -43,7 +43,7 @@ func (d *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return nil, os.ErrInvalid
 }
 
-func (d *Outbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (d *Outbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Destination = M.Socksaddr{}
 	for {
 		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
@@ -58,6 +58,6 @@ func (d *Outbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata 
 	}
 }
 
-func (d *Outbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (d *Outbound) NewPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	NewDNSPacketConnection(ctx, d.router, conn, nil, metadata)
 }
