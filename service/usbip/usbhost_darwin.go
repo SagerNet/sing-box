@@ -58,6 +58,9 @@ const (
 	ciMsgNormalTransfer        = 0x39
 	ciMsgStatusTransfer        = 0x3a
 	ciMsgIsochronousTransfer   = 0x3b
+
+	ciIsochronousTransferControlFramePhase = 16
+	ciIsochronousTransferControlASAP       = 1 << 24
 )
 
 type darwinCIMessage struct {
@@ -316,6 +319,14 @@ func (m darwinCIMessage) normalLength() uint32 {
 
 func (m darwinCIMessage) bufferPointer() unsafe.Pointer {
 	return m.buffer
+}
+
+func (m darwinCIMessage) isoASAP() bool {
+	return m.control&ciIsochronousTransferControlASAP != 0
+}
+
+func (m darwinCIMessage) isoFrame() int32 {
+	return int32(m.control >> ciIsochronousTransferControlFramePhase & 0xff)
 }
 
 func darwinCIFrameTimestamp() uint64 {

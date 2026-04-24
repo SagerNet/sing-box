@@ -746,7 +746,7 @@ type darwinServerDataSession struct {
 	ctx     context.Context
 	logger  log.ContextLogger
 	conn    net.Conn
-	device  *darwinUSBHostDevice
+	device  darwinServerDataDevice
 	writeMu sync.Mutex
 	mu      sync.Mutex
 	pending map[uint32]darwinServerPendingSubmit
@@ -758,7 +758,14 @@ type darwinServerPendingSubmit struct {
 	unlinked bool
 }
 
-func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, conn net.Conn, device *darwinUSBHostDevice) *darwinServerDataSession {
+type darwinServerDataDevice interface {
+	control(setup [8]byte, buffer []byte) (int32, int32, []byte, error)
+	io(endpoint uint8, buffer []byte) (int32, int32, []byte, error)
+	iso(endpoint uint8, buffer []byte, startFrame int32, packets []IsoPacketDescriptor) (int32, int32, []byte, []IsoPacketDescriptor, error)
+	abortEndpoint(endpoint uint8) error
+}
+
+func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, conn net.Conn, device darwinServerDataDevice) *darwinServerDataSession {
 	return &darwinServerDataSession{
 		ctx:     ctx,
 		logger:  logger,
@@ -771,7 +778,10 @@ func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, c
 func (s *darwinServerDataSession) serve() error {
 	stopCloseOnCancel := closeConnOnContextDone(s.ctx, s.conn)
 	defer stopCloseOnCancel()
-	defer s.wg.Wait()
+	defer func() {
+		s.abortPendingSubmits()
+		s.wg.Wait()
+	}()
 	for {
 		header, err := ReadDataHeader(s.conn)
 		if err != nil {
@@ -901,6 +911,37 @@ func (s *darwinServerDataSession) finishSubmit(seq uint32) bool {
 	}
 	delete(s.pending, seq)
 	return !pending.unlinked
+}
+
+func (s *darwinServerDataSession) abortPendingSubmits() {
+	endpoints := s.markPendingSubmitsUnlinked()
+	if s.device == nil {
+		return
+	}
+	for _, endpoint := range endpoints {
+		if err := s.device.abortEndpoint(endpoint); err != nil {
+			s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", err)
+		}
+	}
+}
+
+func (s *darwinServerDataSession) markPendingSubmitsUnlinked() []uint8 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	seen := make(map[uint8]struct{})
+	for seq, pending := range s.pending {
+		if !pending.unlinked {
+			seen[pending.endpoint] = struct{}{}
+		}
+		pending.unlinked = true
+		s.pending[seq] = pending
+	}
+	endpoints := make([]uint8, 0, len(seen))
+	for endpoint := range seen {
+		endpoints = append(endpoints, endpoint)
+	}
+	slices.Sort(endpoints)
+	return endpoints
 }
 
 func commandEndpoint(command SubmitCommand) uint8 {

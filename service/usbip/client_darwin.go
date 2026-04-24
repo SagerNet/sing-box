@@ -1165,6 +1165,12 @@ func (c *darwinVirtualController) handleIsoTransfer(key darwinEndpointKey, messa
 	} else {
 		buffer = bytesFromUnsafe(message.bufferPointer(), length)
 	}
+	startFrame := message.isoFrame()
+	transferFlags := int32(0)
+	if message.isoASAP() {
+		startFrame = 0
+		transferFlags = usbipTransferFlagIsoASAP
+	}
 	response, err := c.sendSubmit(SubmitCommand{
 		Header: DataHeader{
 			Command:   CmdSubmit,
@@ -1172,8 +1178,9 @@ func (c *darwinVirtualController) handleIsoTransfer(key darwinEndpointKey, messa
 			Direction: direction,
 			Endpoint:  uint32(key.endpoint & 0x0f),
 		},
+		TransferFlags:        transferFlags,
 		TransferBufferLength: int32(length),
-		StartFrame:           int32(message.control >> 16 & 0xff),
+		StartFrame:           startFrame,
 		NumberOfPackets:      1,
 		Buffer:               buffer,
 		IsoPackets: []IsoPacketDescriptor{{

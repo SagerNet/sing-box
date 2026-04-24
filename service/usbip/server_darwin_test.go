@@ -34,6 +34,97 @@ func TestDarwinServerPendingSubmitUnlinkState(t *testing.T) {
 	require.False(t, active)
 }
 
+func TestDarwinServerAbortPendingSubmitsMarksAndAbortsEndpoints(t *testing.T) {
+	t.Parallel()
+
+	device := &fakeDarwinServerDataDevice{}
+	session := &darwinServerDataSession{
+		logger:  newTestLogger(),
+		device:  device,
+		pending: make(map[uint32]darwinServerPendingSubmit),
+	}
+
+	session.trackSubmit(7, 0x81)
+	session.trackSubmit(8, 0x81)
+	session.trackSubmit(9, 0x02)
+	session.abortPendingSubmits()
+
+	require.Equal(t, []uint8{0x02, 0x81}, device.aborted)
+	require.False(t, session.finishSubmit(7))
+	require.False(t, session.finishSubmit(8))
+	require.False(t, session.finishSubmit(9))
+}
+
+func TestDarwinServerServeAbortsPendingSubmitOnClose(t *testing.T) {
+	t.Parallel()
+
+	serverConn, clientConn := net.Pipe()
+	device := &fakeDarwinServerDataDevice{
+		ioStarted:   make(chan struct{}),
+		abortNotify: make(chan struct{}),
+	}
+	session := newDarwinServerDataSession(context.Background(), newTestLogger(), serverConn, device)
+	done := make(chan error, 1)
+	go func() {
+		done <- session.serve()
+	}()
+
+	require.NoError(t, WriteSubmitCommand(clientConn, SubmitCommand{
+		Header: DataHeader{
+			Command:   CmdSubmit,
+			SeqNum:    1,
+			Direction: USBIPDirIn,
+			Endpoint:  1,
+		},
+		TransferBufferLength: 8,
+	}))
+	select {
+	case <-device.ioStarted:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for pending Darwin IO")
+	}
+
+	require.NoError(t, clientConn.Close())
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for Darwin session shutdown")
+	}
+	require.Equal(t, []uint8{0x81}, device.aborted)
+}
+
+type fakeDarwinServerDataDevice struct {
+	ioStarted   chan struct{}
+	abortNotify chan struct{}
+	aborted     []uint8
+}
+
+func (d *fakeDarwinServerDataDevice) control(setup [8]byte, buffer []byte) (int32, int32, []byte, error) {
+	return 0, 0, buffer, nil
+}
+
+func (d *fakeDarwinServerDataDevice) io(endpoint uint8, buffer []byte) (int32, int32, []byte, error) {
+	if d.ioStarted != nil {
+		close(d.ioStarted)
+	}
+	if d.abortNotify != nil {
+		<-d.abortNotify
+	}
+	return usbipStatusECONNRESET, 0, buffer, nil
+}
+
+func (d *fakeDarwinServerDataDevice) iso(endpoint uint8, buffer []byte, startFrame int32, packets []IsoPacketDescriptor) (int32, int32, []byte, []IsoPacketDescriptor, error) {
+	return 0, 0, buffer, packets, nil
+}
+
+func (d *fakeDarwinServerDataDevice) abortEndpoint(endpoint uint8) error {
+	d.aborted = append(d.aborted, endpoint)
+	if d.abortNotify != nil {
+		close(d.abortNotify)
+	}
+	return nil
+}
+
 func TestDarwinServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 	t.Parallel()
 

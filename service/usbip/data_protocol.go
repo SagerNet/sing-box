@@ -22,6 +22,7 @@ const (
 	maxUSBIPTransferBufferLength = 16 << 20
 	maxUSBIPIsoPackets           = 4096
 	nonIsoPacketCount            = -1
+	usbipTransferFlagIsoASAP     = 0x0002
 	usbipStatusECONNRESET        = -104
 )
 

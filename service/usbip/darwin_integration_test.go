@@ -177,6 +177,66 @@ func TestDarwinVirtualControllerReadsCompliantSubmitResponsePayload(t *testing.T
 	}
 }
 
+func TestDarwinHandleIsoTransferPreservesASAPFlag(t *testing.T) {
+	t.Parallel()
+
+	clientConn, serverConn := net.Pipe()
+	defer serverConn.Close()
+	controller := newDarwinVirtualController(context.Background(), newTestLogger(), clientConn, DeviceInfoTruncated{
+		BusNum: 1,
+		DevNum: 2,
+	})
+	go controller.readLoop()
+	t.Cleanup(controller.Close)
+
+	type transferResult struct {
+		status int32
+		length int
+	}
+	resultCh := make(chan transferResult, 1)
+	var buffer [8]byte
+	go func() {
+		status, length := controller.handleIsoTransfer(darwinEndpointKey{device: 1, endpoint: 0x81}, darwinCIMessage{
+			control: ciIsochronousTransferControlASAP | (0x7f << ciIsochronousTransferControlFramePhase),
+			data0:   uint32(len(buffer)),
+			buffer:  unsafe.Pointer(&buffer[0]),
+		})
+		resultCh <- transferResult{status: status, length: length}
+	}()
+
+	header, err := ReadDataHeader(serverConn)
+	require.NoError(t, err)
+	command, err := ReadSubmitCommandBody(serverConn, header)
+	require.NoError(t, err)
+	require.Equal(t, CmdSubmit, header.Command)
+	require.Equal(t, USBIPDirIn, command.Header.Direction)
+	require.Equal(t, uint32(1), command.Header.Endpoint)
+	require.Equal(t, int32(usbipTransferFlagIsoASAP), command.TransferFlags)
+	require.Zero(t, command.StartFrame)
+	require.Equal(t, int32(1), command.NumberOfPackets)
+	require.Len(t, command.IsoPackets, 1)
+
+	require.NoError(t, WriteSubmitResponse(serverConn, SubmitResponse{
+		Header: DataHeader{
+			Command:   RetSubmit,
+			SeqNum:    header.SeqNum,
+			Direction: USBIPDirIn,
+		},
+		Status:          0,
+		ActualLength:    0,
+		NumberOfPackets: 1,
+		IsoPackets:      []IsoPacketDescriptor{{}},
+	}))
+
+	select {
+	case result := <-resultCh:
+		require.Zero(t, result.status)
+		require.Zero(t, result.length)
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for isochronous submit response")
+	}
+}
+
 func TestDarwinSubmitInTransferRejectsOversizedPayload(t *testing.T) {
 	t.Parallel()
 
