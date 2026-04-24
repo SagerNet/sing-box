@@ -36,44 +36,6 @@ static void box_set_error_from_nserror(char **error_out, NSError *error) {
 	box_set_error_string(error_out, error.localizedDescription ?: error.description);
 }
 
-static NSArray *box_parse_certificates_from_pem(const char *pem, size_t pem_len) {
-	if (pem == NULL || pem_len == 0) {
-		return @[];
-	}
-	NSString *content = [[NSString alloc] initWithBytes:pem length:pem_len encoding:NSUTF8StringEncoding];
-	if (content == nil) {
-		return @[];
-	}
-	NSString *beginMarker = @"-----BEGIN CERTIFICATE-----";
-	NSString *endMarker = @"-----END CERTIFICATE-----";
-	NSMutableArray *certificates = [NSMutableArray array];
-	NSUInteger searchFrom = 0;
-	while (searchFrom < content.length) {
-		NSRange beginRange = [content rangeOfString:beginMarker options:0 range:NSMakeRange(searchFrom, content.length - searchFrom)];
-		if (beginRange.location == NSNotFound) {
-			break;
-		}
-		NSUInteger bodyStart = beginRange.location + beginRange.length;
-		NSRange endRange = [content rangeOfString:endMarker options:0 range:NSMakeRange(bodyStart, content.length - bodyStart)];
-		if (endRange.location == NSNotFound) {
-			break;
-		}
-		NSString *base64Section = [content substringWithRange:NSMakeRange(bodyStart, endRange.location - bodyStart)];
-		NSArray<NSString *> *components = [base64Section componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		NSString *base64Content = [components componentsJoinedByString:@""];
-		NSData *der = [[NSData alloc] initWithBase64EncodedString:base64Content options:0];
-		if (der != nil) {
-			SecCertificateRef certificate = SecCertificateCreateWithData(NULL, (__bridge CFDataRef)der);
-			if (certificate != NULL) {
-				[certificates addObject:(__bridge id)certificate];
-				CFRelease(certificate);
-			}
-		}
-		searchFrom = endRange.location + endRange.length;
-	}
-	return certificates;
-}
-
 static bool box_evaluate_trust(SecTrustRef trustRef, NSArray *anchors, bool anchor_only, NSDate *verifyDate) {
 	if (trustRef == NULL) {
 		return false;
@@ -249,7 +211,11 @@ box_apple_http_session_t *box_apple_http_session_create(
 		if (config != NULL) {
 			delegate.insecure = config->insecure;
 			delegate.anchorOnly = config->anchor_only;
-			delegate.anchors = box_parse_certificates_from_pem(config->anchor_pem, config->anchor_pem_len);
+			if (config->anchors_cf != NULL) {
+				delegate.anchors = (__bridge NSArray *)config->anchors_cf;
+			} else {
+				delegate.anchors = @[];
+			}
 			if (config->pinned_public_key_sha256 != NULL && config->pinned_public_key_sha256_len > 0) {
 				delegate.pinnedPublicKeyHashes = [NSData dataWithBytes:config->pinned_public_key_sha256 length:config->pinned_public_key_sha256_len];
 			}
