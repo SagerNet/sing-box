@@ -708,6 +708,10 @@ func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
 	require.False(t, handoff.relay())
 	require.Equal(t, "direct", handoff.mode())
 	requireStreamSocketFD(t, handoff.kernelFD())
+	require.True(t, handoff.startRelay(context.Background(), newTestLogger(), "test", "direct"))
+
+	_, err = conn.Write([]byte("closed"))
+	require.Error(t, err)
 }
 
 func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
@@ -992,6 +996,122 @@ func TestServerReleaseExportRetainsTrackingOnFailure(t *testing.T) {
 	err := server.releaseExport(export, true)
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, map[string]serverExport{"1-1": export}, server.snapshotExports())
+}
+
+func TestServerCloseSerializesRollbackWithActiveReconcile(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "regular", SpeedHigh)
+	listEntered := make(chan struct{})
+	releaseList := make(chan struct{})
+	reconcileDone := make(chan error, 1)
+	closeDone := make(chan error, 1)
+
+	var actionsMu sync.Mutex
+	var actions []string
+	record := func(action string) {
+		actionsMu.Lock()
+		defer actionsMu.Unlock()
+		actions = append(actions, action)
+	}
+
+	ops := newTestUSBIPOps(t)
+	ops.listUSBDevices = func() ([]sysfsDevice, error) {
+		close(listEntered)
+		<-releaseList
+		return []sysfsDevice{device}, nil
+	}
+	ops.currentDriver = func(string) (string, error) {
+		return "", nil
+	}
+	ops.hostMatchBusID = func(busid string, add bool) error {
+		if add {
+			record("match add " + busid)
+		} else {
+			record("match del " + busid)
+		}
+		return nil
+	}
+	ops.hostBind = func(busid string) error {
+		record("hostbind " + busid)
+		return nil
+	}
+	ops.readSysfsDevice = func(string, string) (sysfsDevice, error) {
+		return device, nil
+	}
+	ops.readUsbipStatus = func(string) (int, error) {
+		return usbipStatusAvailable, nil
+	}
+	ops.hostUnbind = func(busid string) error {
+		record("hostunbind " + busid)
+		return nil
+	}
+
+	server := &ServerService{
+		ctx:          ctx,
+		cancel:       cancel,
+		logger:       newTestLogger(),
+		matches:      []option.USBIPDeviceMatch{{BusID: "1-1"}},
+		exports:      make(map[string]serverExport),
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		ops:          ops,
+	}
+
+	go func() {
+		reconcileDone <- server.reconcileAndBroadcast(true)
+	}()
+	select {
+	case <-listEntered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for active reconcile")
+	}
+	go func() {
+		closeDone <- server.Close()
+	}()
+	close(releaseList)
+
+	select {
+	case err := <-reconcileDone:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for reconcile")
+	}
+	select {
+	case err := <-closeDone:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for close")
+	}
+
+	actionsMu.Lock()
+	defer actionsMu.Unlock()
+	require.Equal(t, []string{
+		"match add 1-1",
+		"hostbind 1-1",
+		"hostunbind 1-1",
+		"match del 1-1",
+	}, actions)
+	require.Empty(t, server.snapshotExports())
+}
+
+func TestServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ops := newTestUSBIPOps(t)
+	server := &ServerService{
+		ctx:          ctx,
+		logger:       newTestLogger(),
+		exports:      make(map[string]serverExport),
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		ops:          ops,
+	}
+
+	require.NoError(t, server.reconcileAndBroadcast(true))
 }
 
 func TestServerBuildDevListEntriesFiltersUnavailableAndRefreshFailures(t *testing.T) {

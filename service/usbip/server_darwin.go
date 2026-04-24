@@ -119,6 +119,8 @@ func (s *ServerService) Close() error {
 	}
 	s.closeControlSubscribers()
 	err := common.Close(common.PtrOrNil(s.listener))
+	s.reconcileMu.Lock()
+	defer s.reconcileMu.Unlock()
 	s.rollbackExports()
 	return err
 }
@@ -189,6 +191,9 @@ func (s *ServerService) reconcileExports() (bool, error) {
 func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	s.reconcileMu.Lock()
 	defer s.reconcileMu.Unlock()
+	if s.ctx != nil && s.ctx.Err() != nil {
+		return nil
+	}
 	changed, err := s.reconcileExports()
 	if err != nil {
 		return err
