@@ -229,10 +229,6 @@ func newTestUSBIPOps(t *testing.T) usbipOps {
 			t.Fatalf("unexpected vhciDetach")
 			return nil
 		},
-		vhciPortUsed: func(int) (bool, error) {
-			t.Fatalf("unexpected vhciPortUsed")
-			return false, nil
-		},
 	}
 }
 
@@ -322,6 +318,12 @@ func duplicateNetConnFromFD(fd uintptr, name string) (net.Conn, error) {
 		return nil, closeErr
 	}
 	return conn, nil
+}
+
+func linuxServerControlState(server *ServerService, busid string) string {
+	server.controlAccess.Lock()
+	defer server.controlAccess.Unlock()
+	return server.controlState[busid].State
 }
 
 func duplicateHandoffKernelConn(t *testing.T, handoff *usbipConnHandoff) net.Conn {
@@ -714,10 +716,16 @@ func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
 	require.False(t, handoff.relay())
 	require.Equal(t, "direct", handoff.mode())
 	requireStreamSocketFD(t, handoff.kernelFD())
-	require.True(t, handoff.startRelay(context.Background(), newTestLogger(), "test", "direct"))
+	done := handoff.startRelay(context.Background(), newTestLogger(), "test", "direct")
 
 	_, err = conn.Write([]byte("closed"))
 	require.Error(t, err)
+	require.NoError(t, acceptedConn.Close())
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for direct handoff monitor")
+	}
 }
 
 func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
@@ -739,7 +747,7 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	require.True(t, handoff.startRelay(ctx, newTestLogger(), "test", "relay"))
+	done := handoff.startRelay(ctx, newTestLogger(), "test", "relay")
 
 	_, err = right.Write([]byte("ping"))
 	require.NoError(t, err)
@@ -748,6 +756,14 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 	_, err = kernelConn.Write([]byte("pong"))
 	require.NoError(t, err)
 	requireConnRead(t, right, []byte("pong"))
+
+	require.NoError(t, right.Close())
+	require.NoError(t, kernelConn.Close())
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for relay handoff")
+	}
 }
 
 func TestServerStartRequiresHostDriver(t *testing.T) {
@@ -1229,12 +1245,16 @@ func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
 	ops.readSysfsDevice = store.readSysfsDevice
 	ops.writeUsbipSockfd = func(busid string, fd int) error {
 		if fd < 0 {
+			store.setStatus(busid, usbipStatusAvailable)
+			store.writeUsbipSockfd(busid, fd)
 			return nil
 		}
 		if busid != "1-1" {
 			kernelErrCh <- fmt.Errorf("unexpected busid %s", busid)
 			return nil
 		}
+		store.setStatus(busid, usbipStatusUsed)
+		store.writeUsbipSockfd(busid, fd)
 		socketType, err := unix.GetsockoptInt(fd, unix.SOL_SOCKET, unix.SO_TYPE)
 		if err != nil {
 			kernelErrCh <- err
@@ -1254,12 +1274,13 @@ func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
 	}
 
 	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(),
-		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         ops,
+		ctx:          ctx,
+		cancel:       cancel,
+		logger:       newTestLogger(),
+		exports:      map[string]serverExport{"1-1": {busid: "1-1"}},
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		ops:          ops,
 	}
 
 	serverConn, clientConn := net.Pipe()
@@ -1274,6 +1295,9 @@ func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
 	require.Equal(t, OpStatusOK, header.Status)
 	_, err = ReadOpRepImportBody(clientConn)
 	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		return linuxServerControlState(server, "1-1") == deviceStateBusy
+	}, time.Second, 10*time.Millisecond)
 
 	var kernelConn net.Conn
 	select {
@@ -1293,6 +1317,12 @@ func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
 	_, err = kernelConn.Write([]byte("server-out"))
 	require.NoError(t, err)
 	requireConnRead(t, clientConn, []byte("server-out"))
+
+	require.NoError(t, clientConn.Close())
+	require.NoError(t, kernelConn.Close())
+	require.Eventually(t, func() bool {
+		return store.lastSockfd("1-1") == -1 && linuxServerControlState(server, "1-1") == deviceStateAvailable
+	}, time.Second, 10*time.Millisecond)
 }
 
 func TestServerHandleImportRelayClosesHandoffOnSockfdFailure(t *testing.T) {
@@ -1812,8 +1842,9 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 		ops:        clientOps,
 	}
 
-	port, err := client.attemptAttach(ctx, "1-1")
+	port, done, err := client.attemptAttach(ctx, "1-1")
 	require.NoError(t, err)
+	require.NotNil(t, done)
 	require.Equal(t, 7, port)
 	require.Equal(t, 7, attachedPort)
 	info := device.toProtocol()
@@ -1943,8 +1974,9 @@ func TestClientAttemptAttachUsesImportExtLease(t *testing.T) {
 	client.setControlSession(controlSession)
 	defer client.clearControlSession(controlSession, errClientControlSessionClosed)
 
-	port, err := client.attemptAttach(ctx, "1-1")
+	port, done, err := client.attemptAttach(ctx, "1-1")
 	require.NoError(t, err)
+	require.NotNil(t, done)
 	require.Equal(t, 4, port)
 	require.NoError(t, <-controlErrCh)
 	require.NoError(t, <-deliverErrCh)
@@ -2031,8 +2063,9 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 		ops:        ops,
 	}
 
-	port, err := client.attemptAttach(ctx, "1-1")
+	port, done, err := client.attemptAttach(ctx, "1-1")
 	require.NoError(t, err)
+	require.NotNil(t, done)
 	require.Equal(t, 4, port)
 
 	var serverConn net.Conn
@@ -2060,6 +2093,13 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 	_, err = kernelConn.Write([]byte("client-out"))
 	require.NoError(t, err)
 	requireConnRead(t, serverConn, []byte("client-out"))
+
+	require.NoError(t, kernelConn.Close())
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for client relay handoff")
+	}
 }
 
 func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) {
@@ -2143,8 +2183,9 @@ func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) 
 		ops:        ops,
 	}
 
-	port, err := client.attemptAttach(ctx, "1-1")
+	port, done, err := client.attemptAttach(ctx, "1-1")
 	require.Equal(t, -1, port)
+	require.Nil(t, done)
 	require.ErrorIs(t, err, expectedErr)
 
 	var kernelConn net.Conn
@@ -2422,8 +2463,9 @@ func TestClientAttemptAttachRejectsUnexpectedReplyVersion(t *testing.T) {
 		ops:        ops,
 	}
 
-	port, err := client.attemptAttach(ctx, "1-1")
+	port, done, err := client.attemptAttach(ctx, "1-1")
 	require.Equal(t, -1, port)
+	require.Nil(t, done)
 	require.ErrorContains(t, err, "unexpected reply version")
 	require.NoError(t, <-serverErr)
 }

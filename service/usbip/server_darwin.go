@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
@@ -34,6 +33,22 @@ type serverExport struct {
 	busy       bool
 }
 
+type darwinUSBHostDeviceWatch interface {
+	Close()
+}
+
+type darwinServerOps struct {
+	copyUSBHostDevices  func() ([]darwinUSBHostDeviceInfo, error)
+	openUSBHostDevice   func(registryID uint64, capture bool) (*darwinUSBHostDevice, error)
+	watchUSBHostDevices func(func()) (darwinUSBHostDeviceWatch, error)
+}
+
+var systemDarwinServerOps = darwinServerOps{
+	copyUSBHostDevices:  darwinCopyUSBHostDevices,
+	openUSBHostDevice:   darwinOpenUSBHostDevice,
+	watchUSBHostDevices: darwinWatchUSBHostDevices,
+}
+
 type ServerService struct {
 	boxService.Adapter
 	ctx      context.Context
@@ -41,10 +56,12 @@ type ServerService struct {
 	logger   log.ContextLogger
 	listener *listener.Listener
 	matches  []option.USBIPDeviceMatch
+	ops      darwinServerOps
 
 	access  sync.Mutex
 	exports map[string]serverExport
 	listen  net.Listener
+	watcher darwinUSBHostDeviceWatch
 
 	controlAccess sync.Mutex
 	controlSeq    uint64
@@ -83,6 +100,7 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 		controlSubs:   make(map[uint64]*serverControlConn),
 		controlState:  make(map[string]DeviceInfoV2),
 		leasesByBusID: make(map[string]serverImportLease),
+		ops:           systemDarwinServerOps,
 	}, nil
 }
 
@@ -94,17 +112,23 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	if err != nil {
 		return err
 	}
+	watcher, err := s.newUSBEventWatcher()
+	if err != nil {
+		s.rollbackExports()
+		return err
+	}
 	var tcpListener net.Listener
 	tcpListener, err = s.listener.ListenTCP()
 	if err != nil {
+		watcher.Close()
 		s.rollbackExports()
 		return err
 	}
 	s.access.Lock()
 	s.listen = tcpListener
+	s.watcher = watcher
 	s.access.Unlock()
 	go s.acceptLoop(tcpListener)
-	go s.reconcileLoop()
 	return nil
 }
 
@@ -114,14 +138,46 @@ func (s *ServerService) Close() error {
 	}
 	s.closeControlSubscribers()
 	err := common.Close(common.PtrOrNil(s.listener))
+	s.access.Lock()
+	watcher := s.watcher
+	s.watcher = nil
+	s.access.Unlock()
+	if watcher != nil {
+		watcher.Close()
+	}
 	s.reconcileAccess.Lock()
 	defer s.reconcileAccess.Unlock()
 	s.rollbackExports()
 	return err
 }
 
+func (s *ServerService) newUSBEventWatcher() (darwinUSBHostDeviceWatch, error) {
+	ops := s.darwinOps()
+	return ops.watchUSBHostDevices(func() {
+		err := s.reconcileAndBroadcast(true)
+		if err != nil {
+			s.logger.Warn("reconcile exports: ", err)
+		}
+	})
+}
+
+func (s *ServerService) darwinOps() darwinServerOps {
+	ops := s.ops
+	if ops.copyUSBHostDevices == nil {
+		ops.copyUSBHostDevices = darwinCopyUSBHostDevices
+	}
+	if ops.openUSBHostDevice == nil {
+		ops.openUSBHostDevice = darwinOpenUSBHostDevice
+	}
+	if ops.watchUSBHostDevices == nil {
+		ops.watchUSBHostDevices = darwinWatchUSBHostDevices
+	}
+	return ops
+}
+
 func (s *ServerService) reconcileExports() (bool, error) {
-	devices, err := darwinCopyUSBHostDevices()
+	ops := s.darwinOps()
+	devices, err := ops.copyUSBHostDevices()
 	if err != nil {
 		return false, E.Cause(err, "enumerate IOUSBHost devices")
 	}
@@ -153,7 +209,7 @@ func (s *ServerService) reconcileExports() (bool, error) {
 			export.device.Close()
 			changed = true
 		}
-		device, err := darwinOpenUSBHostDevice(info.registryID, true)
+		device, err := ops.openUSBHostDevice(info.registryID, true)
 		if err != nil {
 			s.logger.Warn("capture ", busid, ": ", err)
 			continue
@@ -403,22 +459,6 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 	s.releaseClaim(busid)
 	releaseClaim = false
 	s.broadcastChanged()
-}
-
-func (s *ServerService) reconcileLoop() {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-ticker.C:
-		}
-		err := s.reconcileAndBroadcast(true)
-		if err != nil {
-			s.logger.Warn("reconcile exports: ", err)
-		}
-	}
 }
 
 func (s *ServerService) broadcastChanged() {

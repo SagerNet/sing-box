@@ -31,13 +31,8 @@ type serverExport struct {
 	busid          string
 	managed        bool
 	originalDriver string
+	busy           bool
 }
-
-const (
-	usbipExportReleaseTimeout      = 10 * time.Second
-	usbipExportReleasePollInterval = 100 * time.Millisecond
-	serverReconcileBackstop        = 30 * time.Second
-)
 
 type ServerService struct {
 	boxService.Adapter
@@ -118,7 +113,6 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	s.access.Unlock()
 	go s.acceptLoop(tcpListener)
 	go s.ueventLoop()
-	go s.reconcileLoop()
 	return nil
 }
 
@@ -267,12 +261,7 @@ func (s *ServerService) releaseExport(export serverExport, restore bool) error {
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		if restore {
-			err = s.waitUSBIPStatusAvailable(export.busid, usbipExportReleaseTimeout)
-			if err != nil {
-				return err
-			}
-		}
+		s.setExportBusy(export.busid, false)
 	}
 	err := s.ops.hostUnbind(export.busid)
 	if err != nil && !os.IsNotExist(err) && !(isMissingUSBDeviceError(err) && !restore) {
@@ -299,29 +288,6 @@ func (s *ServerService) releaseExport(export serverExport, restore bool) error {
 	s.deleteExport(export.busid)
 	s.logger.Info("restored ", export.busid, " to ", export.originalDriver)
 	return nil
-}
-
-func (s *ServerService) waitUSBIPStatusAvailable(busid string, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	for {
-		status, err := s.ops.readUsbipStatus(busid)
-		if err != nil {
-			if os.IsNotExist(err) || isMissingUSBDeviceError(err) {
-				return nil
-			}
-		} else if status == usbipStatusAvailable {
-			return nil
-		}
-		if time.Now().After(deadline) {
-			if err != nil {
-				return E.Cause(err, "wait for ", busid, " usbip status available")
-			}
-			return E.New("timed out waiting for ", busid, " usbip status available")
-		}
-		if !sleepCtx(s.ctx, usbipExportReleasePollInterval) {
-			return s.ctx.Err()
-		}
-	}
 }
 
 func (s *ServerService) rollbackExports() {
@@ -356,14 +322,32 @@ func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	return nil
 }
 
-func (s *ServerService) currentExports() []string {
+func (s *ServerService) currentExports() []serverExport {
 	s.access.Lock()
 	defer s.access.Unlock()
-	out := make([]string, 0, len(s.exports))
-	for busid := range s.exports {
-		out = append(out, busid)
+	out := make([]serverExport, 0, len(s.exports))
+	for _, export := range s.exports {
+		if export.busy {
+			continue
+		}
+		out = append(out, export)
 	}
-	slices.Sort(out)
+	slices.SortFunc(out, func(left, right serverExport) int {
+		return strings.Compare(left.busid, right.busid)
+	})
+	return out
+}
+
+func (s *ServerService) allExports() []serverExport {
+	s.access.Lock()
+	defer s.access.Unlock()
+	out := make([]serverExport, 0, len(s.exports))
+	for _, export := range s.exports {
+		out = append(out, export)
+	}
+	slices.SortFunc(out, func(left, right serverExport) int {
+		return strings.Compare(left.busid, right.busid)
+	})
 	return out
 }
 
@@ -381,6 +365,25 @@ func (s *ServerService) setExport(export serverExport) {
 	s.access.Lock()
 	defer s.access.Unlock()
 	s.exports[export.busid] = export
+}
+
+func (s *ServerService) getExport(busid string) (serverExport, bool) {
+	s.access.Lock()
+	defer s.access.Unlock()
+	export, ok := s.exports[busid]
+	return export, ok
+}
+
+func (s *ServerService) setExportBusy(busid string, busy bool) bool {
+	s.access.Lock()
+	defer s.access.Unlock()
+	export, ok := s.exports[busid]
+	if !ok || export.busy == busy {
+		return false
+	}
+	export.busy = busy
+	s.exports[busid] = export
+	return true
 }
 
 func (s *ServerService) deleteExport(busid string) {
@@ -467,12 +470,13 @@ func (s *ServerService) handleDevList(conn net.Conn) {
 }
 
 func (s *ServerService) buildDevListEntries() []DeviceEntry {
-	busids := s.currentExports()
-	if len(busids) == 0 {
+	exports := s.currentExports()
+	if len(exports) == 0 {
 		return nil
 	}
-	entries := make([]DeviceEntry, 0, len(busids))
-	for _, busid := range busids {
+	entries := make([]DeviceEntry, 0, len(exports))
+	for _, export := range exports {
+		busid := export.busid
 		status, err := s.ops.readUsbipStatus(busid)
 		if err != nil {
 			s.logger.Debug("status ", busid, ": ", err)
@@ -550,6 +554,8 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 		_ = writeReply(conn, OpStatusError, nil)
 		return false
 	}
+	s.setExportBusy(busid, true)
+	s.broadcastChanged()
 	err = handoff.closeKernelFD()
 	if err != nil {
 		s.logger.Debug("close kernel fd ", busid, ": ", err)
@@ -559,10 +565,14 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 	if err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
 		_ = s.ops.writeUsbipSockfd(busid, -1)
+		s.setExportBusy(busid, false)
+		s.broadcastChanged()
 		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
-	return handoff.startRelay(s.ctx, s.logger, "server", busid)
+	done := handoff.startRelay(s.ctx, s.logger, "server", busid)
+	go s.waitImportDone(busid, done)
+	return true
 }
 
 func (s *ServerService) isExported(busid string) bool {
@@ -570,6 +580,20 @@ func (s *ServerService) isExported(busid string) bool {
 	defer s.access.Unlock()
 	_, ok := s.exports[busid]
 	return ok
+}
+
+func (s *ServerService) waitImportDone(busid string, done <-chan struct{}) {
+	select {
+	case <-s.ctx.Done():
+		return
+	case <-done:
+	}
+	err := s.ops.writeUsbipSockfd(busid, -1)
+	if err != nil && !os.IsNotExist(err) && !isMissingUSBDeviceError(err) {
+		s.logger.Debug("release ", busid, " from usbip-host: ", err)
+	}
+	s.setExportBusy(busid, false)
+	s.broadcastChanged()
 }
 
 func (s *ServerService) ueventLoop() {
@@ -615,31 +639,18 @@ func (s *ServerService) ueventLoop() {
 	}
 }
 
-func (s *ServerService) reconcileLoop() {
-	ticker := time.NewTicker(serverReconcileBackstop)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-ticker.C:
-		}
-
-		err := s.reconcileAndBroadcast(true)
-		if err != nil {
-			s.logger.Warn("reconcile exports: ", err)
-		}
-	}
+func (s *ServerService) broadcastChanged() {
+	s.broadcastControlState(deviceInfoV2Map(s.buildDeviceStateV2()), false)
 }
 
 func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
-	busids := s.currentExports()
-	if len(busids) == 0 {
+	exports := s.allExports()
+	if len(exports) == 0 {
 		return nil
 	}
-	devices := make([]DeviceInfoV2, 0, len(busids))
-	for _, busid := range busids {
+	devices := make([]DeviceInfoV2, 0, len(exports))
+	for _, export := range exports {
+		busid := export.busid
 		status, statusErr := s.ops.readUsbipStatus(busid)
 		dev, devErr := s.ops.readSysfsDevice(busid, sysBusDevicePath(busid))
 		if devErr != nil {
@@ -657,6 +668,10 @@ func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
 		if statusErr != nil {
 			state = deviceStateUnavailable
 			reason = statusErr.Error()
+		} else if export.busy {
+			status = usbipStatusUsed
+			state = deviceStateBusy
+			reason = linuxUSBIPStatusReason(status)
 		}
 		entry := dev.toDeviceEntry()
 		devices = append(devices, deviceInfoV2FromEntry(entry, backendIDLinuxSysfs, linuxStableID(dev), state, status, reason))
@@ -665,8 +680,12 @@ func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
 }
 
 func (s *ServerService) leaseAvailable(busid string) (bool, string) {
-	if !s.isExported(busid) {
+	export, ok := s.getExport(busid)
+	if !ok {
 		return false, "unknown busid"
+	}
+	if export.busy {
+		return false, linuxUSBIPStatusReason(usbipStatusUsed)
 	}
 	status, err := s.ops.readUsbipStatus(busid)
 	if err != nil {

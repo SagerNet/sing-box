@@ -47,12 +47,15 @@ typedef struct box_usbhost_iso_packet {
 } box_usbhost_iso_packet_t;
 
 typedef struct box_usbhost_device box_usbhost_device_t;
+typedef struct box_usbhost_device_watcher box_usbhost_device_watcher_t;
 typedef struct box_usbhost_controller box_usbhost_controller_t;
 typedef struct box_usbhost_device_sm box_usbhost_device_sm_t;
 typedef struct box_usbhost_endpoint_sm box_usbhost_endpoint_sm_t;
 
 bool box_usbhost_copy_devices(box_usbhost_device_list_t *out, char **error_out);
 void box_usbhost_device_list_free(box_usbhost_device_list_t *list);
+box_usbhost_device_watcher_t *box_usbhost_device_watcher_create(uintptr_t ref, char **error_out);
+void box_usbhost_device_watcher_destroy(box_usbhost_device_watcher_t *watcher);
 
 box_usbhost_device_t *box_usbhost_device_open(uint64_t registry_id, bool capture, box_usbhost_device_info_t *info_out, char **error_out);
 void box_usbhost_device_close(box_usbhost_device_t *device);
@@ -97,3 +100,4 @@ void box_usbhost_free_error(char *error);
 
 extern void box_usbip_darwin_controller_command(uintptr_t ref, IOUSBHostCIMessage message);
 extern void box_usbip_darwin_controller_doorbell(uintptr_t ref, uint32_t doorbell);
+extern void box_usbip_darwin_usb_event(uintptr_t ref);

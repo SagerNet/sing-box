@@ -130,6 +130,31 @@ func darwinOpenUSBHostDevice(registryID uint64, capture bool) (*darwinUSBHostDev
 	}, nil
 }
 
+type darwinUSBHostDeviceWatcher struct {
+	handle *C.box_usbhost_device_watcher_t
+	ref    cgo.Handle
+}
+
+func darwinWatchUSBHostDevices(callback func()) (darwinUSBHostDeviceWatch, error) {
+	ref := cgo.NewHandle(callback)
+	var errorPtr *C.char
+	handle := C.box_usbhost_device_watcher_create(C.uintptr_t(ref), &errorPtr)
+	if handle == nil {
+		ref.Delete()
+		return nil, darwinCError(errorPtr)
+	}
+	return &darwinUSBHostDeviceWatcher{handle: handle, ref: ref}, nil
+}
+
+func (w *darwinUSBHostDeviceWatcher) Close() {
+	if w == nil || w.handle == nil {
+		return
+	}
+	C.box_usbhost_device_watcher_destroy(w.handle)
+	w.handle = nil
+	w.ref.Delete()
+}
+
 func darwinCreateUSBHostController(controller *darwinVirtualController, portCount uint8, speed uint32) (*darwinUSBHostController, error) {
 	ref := cgo.NewHandle(controller)
 	var errorPtr *C.char
@@ -355,6 +380,16 @@ func box_usbip_darwin_controller_doorbell(ref C.uintptr_t, doorbell C.uint32_t) 
 		return
 	}
 	controller.enqueueDoorbell(uint32(doorbell))
+}
+
+//export box_usbip_darwin_usb_event
+func box_usbip_darwin_usb_event(ref C.uintptr_t) {
+	handle := cgo.Handle(ref)
+	callback, ok := handle.Value().(func())
+	if !ok {
+		return
+	}
+	callback()
 }
 
 func (d *darwinUSBHostDevice) Close() {

@@ -19,11 +19,6 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-const (
-	clientDetachTimeout = 10 * time.Second
-	clientDetachPoll    = 100 * time.Millisecond
-)
-
 type ClientService struct {
 	boxService.Adapter
 	ctx        context.Context
@@ -129,7 +124,7 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		if ctx.Err() != nil {
 			return
 		}
-		port, err := c.attemptAttach(ctx, busid)
+		port, done, err := c.attemptAttach(ctx, busid)
 		if err != nil {
 			c.logger.Error("attach ", description, " (", busid, "): ", err)
 			if !sleepCtx(ctx, clientReconnectDelay) {
@@ -139,7 +134,7 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		}
 		c.logger.Info("attached ", busid, " → vhci port ", port)
 		c.setBusIDActive(busid, true)
-		c.watchPort(ctx, port, busid)
+		c.waitPortSession(ctx, port, busid, done)
 		c.setBusIDActive(busid, false)
 		c.trackPort(port, false)
 		if ctx.Err() != nil {
@@ -156,10 +151,10 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 	}
 }
 
-func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, error) {
+func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, <-chan struct{}, error) {
 	conn, err := c.dialer.DialContext(ctx, N.NetworkTCP, c.serverAddr)
 	if err != nil {
-		return -1, E.Cause(err, "dial ", c.serverAddr)
+		return -1, nil, E.Cause(err, "dial ", c.serverAddr)
 	}
 	relayStarted := false
 	defer func() {
@@ -171,7 +166,7 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	defer stopCloseOnCancel()
 	lease, err := c.requestImportLease(ctx, busid)
 	if err != nil {
-		return -1, err
+		return -1, nil, err
 	}
 	expectedReply := OpRepImport
 	if lease.Valid {
@@ -182,34 +177,34 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 			ClientNonce: lease.ClientNonce,
 		})
 		if err != nil {
-			return -1, E.Cause(err, "write OP_REQ_IMPORT_EXT")
+			return -1, nil, E.Cause(err, "write OP_REQ_IMPORT_EXT")
 		}
 	} else {
 		err = WriteOpReqImport(conn, busid)
 		if err != nil {
-			return -1, E.Cause(err, "write OP_REQ_IMPORT")
+			return -1, nil, E.Cause(err, "write OP_REQ_IMPORT")
 		}
 	}
 	header, err := ReadOpHeader(conn)
 	if err != nil {
-		return -1, E.Cause(err, "read OP_REP_IMPORT header")
+		return -1, nil, E.Cause(err, "read OP_REP_IMPORT header")
 	}
 	if header.Version != ProtocolVersion {
-		return -1, E.New(fmt.Sprintf("unexpected reply version 0x%04x", header.Version))
+		return -1, nil, E.New(fmt.Sprintf("unexpected reply version 0x%04x", header.Version))
 	}
 	if header.Code != expectedReply {
-		return -1, E.New(fmt.Sprintf("unexpected reply code 0x%04x", header.Code))
+		return -1, nil, E.New(fmt.Sprintf("unexpected reply code 0x%04x", header.Code))
 	}
 	if header.Status != OpStatusOK {
-		return -1, E.New("remote rejected import (status=", header.Status, ")")
+		return -1, nil, E.New("remote rejected import (status=", header.Status, ")")
 	}
 	info, err := ReadOpRepImportBody(conn)
 	if err != nil {
-		return -1, E.Cause(err, "read OP_REP_IMPORT body")
+		return -1, nil, E.Cause(err, "read OP_REP_IMPORT body")
 	}
 	handoff, err := newUSBIPConnHandoff(conn)
 	if err != nil {
-		return -1, E.Cause(err, "prepare handoff")
+		return -1, nil, E.Cause(err, "prepare handoff")
 	}
 	defer func() {
 		if !relayStarted {
@@ -221,86 +216,34 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (int, e
 	defer c.portAssignAccess.Unlock()
 	port, err := c.ops.vhciPickFreePort(info.Speed)
 	if err != nil {
-		return -1, err
+		return -1, nil, err
 	}
 	if !c.reservePort(port) {
-		return -1, E.New("vhci port ", port, " already reserved")
+		return -1, nil, E.New("vhci port ", port, " already reserved")
 	}
 	err = c.ops.vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed)
 	if err != nil {
 		c.trackPort(port, false)
-		return -1, E.Cause(err, "vhci attach")
+		return -1, nil, E.Cause(err, "vhci attach")
 	}
 	err = handoff.closeKernelFD()
 	if err != nil {
 		c.logger.Debug("close kernel fd ", busid, ": ", err)
 	}
-	relayStarted = handoff.startRelay(ctx, c.logger, "client", busid)
-	return port, nil
+	done := handoff.startRelay(ctx, c.logger, "client", busid)
+	relayStarted = true
+	return port, done, nil
 }
 
-func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-	seenUsed := false
-	settleDeadline := time.NewTimer(10 * time.Second)
-	defer settleDeadline.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			err := c.ops.vhciDetach(port)
-			if err != nil {
-				c.logger.Warn("detach port ", port, " (", busid, "): ", err)
-			}
-			c.waitVHCIPortIdle(port, busid)
-			return
-		case <-settleDeadline.C:
-			if !seenUsed {
-				c.logger.Warn("vhci port ", port, " never reached used state; reattaching ", busid)
-				err := c.ops.vhciDetach(port)
-				if err != nil {
-					c.logger.Warn("detach port ", port, " (", busid, "): ", err)
-				}
-				c.waitVHCIPortIdle(port, busid)
-				return
-			}
-		case <-ticker.C:
-			used, err := c.ops.vhciPortUsed(port)
-			if err != nil {
-				c.logger.Debug("poll port ", port, ": ", err)
-				continue
-			}
-			if used {
-				if !seenUsed {
-					c.logger.Debug("vhci port ", port, " entered used state for ", busid)
-				}
-				seenUsed = true
-				continue
-			}
-			if seenUsed {
-				c.logger.Debug("vhci port ", port, " left used state for ", busid)
-				return
-			}
+func (c *ClientService) waitPortSession(ctx context.Context, port int, busid string, done <-chan struct{}) {
+	select {
+	case <-ctx.Done():
+		err := c.ops.vhciDetach(port)
+		if err != nil {
+			c.logger.Warn("detach port ", port, " (", busid, "): ", err)
 		}
-	}
-}
-
-func (c *ClientService) waitVHCIPortIdle(port int, busid string) {
-	deadline := time.Now().Add(clientDetachTimeout)
-	for {
-		used, err := c.ops.vhciPortUsed(port)
-		if err == nil && !used {
-			return
-		}
-		if time.Now().After(deadline) {
-			if err != nil {
-				c.logger.Warn("poll detached vhci port ", port, " (", busid, "): ", err)
-			} else {
-				c.logger.Warn("vhci port ", port, " stayed used after detach for ", busid)
-			}
-			return
-		}
-		time.Sleep(clientDetachPoll)
+	case <-done:
+		c.logger.Debug("vhci port ", port, " session ended for ", busid)
 	}
 }
 

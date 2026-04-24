@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 
 	"github.com/stretchr/testify/require"
 )
@@ -142,6 +143,65 @@ func TestDarwinServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 	require.NoError(t, server.reconcileAndBroadcast(true))
 }
 
+func TestDarwinServerUSBEventWatcherTriggersReconcile(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const busid = "mac-00000001"
+	entry := standardTestDeviceEntry(busid)
+	info := darwinUSBHostDeviceInfo{
+		registryID: 1,
+		entry:      entry,
+		key: DeviceKey{
+			BusID:     busid,
+			VendorID:  entry.Info.IDVendor,
+			ProductID: entry.Info.IDProduct,
+			Serial:    entry.Serial,
+		},
+	}
+	var devices []darwinUSBHostDeviceInfo
+	var fakeWatch *fakeDarwinUSBHostDeviceWatch
+	server := &ServerService{
+		ctx:          ctx,
+		logger:       newTestLogger(),
+		matches:      []option.USBIPDeviceMatch{{BusID: busid}},
+		exports:      make(map[string]serverExport),
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		ops: darwinServerOps{
+			copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+				return devices, nil
+			},
+			openUSBHostDevice: func(registryID uint64, capture bool) (*darwinUSBHostDevice, error) {
+				require.Equal(t, info.registryID, registryID)
+				require.True(t, capture)
+				return &darwinUSBHostDevice{info: info}, nil
+			},
+			watchUSBHostDevices: func(callback func()) (darwinUSBHostDeviceWatch, error) {
+				fakeWatch = &fakeDarwinUSBHostDeviceWatch{callback: callback}
+				return fakeWatch, nil
+			},
+		},
+	}
+
+	watcher, err := server.newUSBEventWatcher()
+	require.NoError(t, err)
+	require.NotNil(t, watcher)
+	require.NotNil(t, fakeWatch)
+
+	devices = []darwinUSBHostDeviceInfo{info}
+	fakeWatch.trigger()
+	require.Eventually(t, func() bool {
+		_, ok := server.snapshotExports()[busid]
+		return ok && darwinServerControlState(server, busid) == deviceStateAvailable
+	}, time.Second, 10*time.Millisecond)
+
+	watcher.Close()
+	require.True(t, fakeWatch.closed)
+}
+
 func TestDarwinServerBuildDeviceStateIncludesBusyExports(t *testing.T) {
 	t.Parallel()
 
@@ -248,4 +308,17 @@ func darwinServerControlState(server *ServerService, busid string) string {
 	server.controlAccess.Lock()
 	defer server.controlAccess.Unlock()
 	return server.controlState[busid].State
+}
+
+type fakeDarwinUSBHostDeviceWatch struct {
+	callback func()
+	closed   bool
+}
+
+func (w *fakeDarwinUSBHostDeviceWatch) Close() {
+	w.closed = true
+}
+
+func (w *fakeDarwinUSBHostDeviceWatch) trigger() {
+	w.callback()
 }

@@ -27,7 +27,6 @@ type usbipOps struct {
 	vhciPickFreePort func(speed uint32) (int, error)
 	vhciAttach       func(port int, fd uintptr, devid uint32, speed uint32) error
 	vhciDetach       func(port int) error
-	vhciPortUsed     func(port int) (bool, error)
 }
 
 var systemUSBIPOps = usbipOps{
@@ -50,5 +49,4 @@ var systemUSBIPOps = usbipOps{
 	vhciPickFreePort: vhciPickFreePort,
 	vhciAttach:       vhciAttach,
 	vhciDetach:       vhciDetach,
-	vhciPortUsed:     vhciPortUsed,
 }

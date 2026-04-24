@@ -3,6 +3,7 @@
 #import <Foundation/Foundation.h>
 #import <IOKit/IOKitLib.h>
 #import <IOUSBHost/AppleUSBDescriptorParsing.h>
+#import <dispatch/dispatch.h>
 #import <mach/mach_time.h>
 #import <stdlib.h>
 #import <string.h>
@@ -26,6 +27,13 @@
 
 struct box_usbhost_device {
 	void *object;
+};
+
+struct box_usbhost_device_watcher {
+	IONotificationPortRef port;
+	io_iterator_t matched;
+	io_iterator_t terminated;
+	uintptr_t ref;
 };
 
 struct box_usbhost_controller {
@@ -75,6 +83,29 @@ static void box_set_error_from_nserror(char **error_out, NSString *prefix, NSErr
 
 void box_usbhost_free_error(char *error) {
 	free(error);
+}
+
+static CFMutableDictionaryRef box_usbhost_device_matching_dictionary(void) {
+	return [IOUSBHostDevice createMatchingDictionaryWithVendorID:nil
+	                                                  productID:nil
+	                                                  bcdDevice:nil
+	                                                deviceClass:nil
+	                                             deviceSubclass:nil
+	                                             deviceProtocol:nil
+	                                                      speed:nil
+	                                             productIDArray:nil];
+}
+
+static void box_usbhost_device_watcher_drain(io_iterator_t iterator) {
+	io_service_t service = IO_OBJECT_NULL;
+	while ((service = IOIteratorNext(iterator)) != IO_OBJECT_NULL) {
+		IOObjectRelease(service);
+	}
+}
+
+static void box_usbhost_device_watcher_callback(void *refcon, io_iterator_t iterator) {
+	box_usbhost_device_watcher_drain(iterator);
+	box_usbip_darwin_usb_event((uintptr_t)refcon);
 }
 
 static uint32_t box_number_property(io_service_t service, NSString *key) {
@@ -274,14 +305,7 @@ bool box_usbhost_copy_devices(box_usbhost_device_list_t *out, char **error_out) 
 	}
 	memset(out, 0, sizeof(*out));
 	@autoreleasepool {
-		CFMutableDictionaryRef matching = [IOUSBHostDevice createMatchingDictionaryWithVendorID:nil
-		                                                                              productID:nil
-		                                                                              bcdDevice:nil
-		                                                                            deviceClass:nil
-		                                                                         deviceSubclass:nil
-		                                                                         deviceProtocol:nil
-		                                                                                  speed:nil
-		                                                                         productIDArray:nil];
+		CFMutableDictionaryRef matching = box_usbhost_device_matching_dictionary();
 		io_iterator_t iterator = IO_OBJECT_NULL;
 		kern_return_t kr = IOServiceGetMatchingServices(kIOMainPortDefault, matching, &iterator);
 		if (kr != KERN_SUCCESS) {
@@ -318,6 +342,73 @@ void box_usbhost_device_list_free(box_usbhost_device_list_t *list) {
 	free(list->items);
 	list->items = NULL;
 	list->count = 0;
+}
+
+box_usbhost_device_watcher_t *box_usbhost_device_watcher_create(uintptr_t ref, char **error_out) {
+	@autoreleasepool {
+		box_usbhost_device_watcher_t *watcher = calloc(1, sizeof(*watcher));
+		if (watcher == NULL) {
+			box_set_error_string(error_out, @"IOUSBHost watcher: allocate watcher");
+			return NULL;
+		}
+		watcher->ref = ref;
+		watcher->port = IONotificationPortCreate(kIOMainPortDefault);
+		if (watcher->port == NULL) {
+			box_set_error_string(error_out, @"IONotificationPortCreate(IOUSBHostDevice)");
+			box_usbhost_device_watcher_destroy(watcher);
+			return NULL;
+		}
+		dispatch_queue_t queue = dispatch_queue_create("io.nekohasekai.sing-box.usbhost-watch", DISPATCH_QUEUE_SERIAL);
+		IONotificationPortSetDispatchQueue(watcher->port, queue);
+
+		CFMutableDictionaryRef matching = box_usbhost_device_matching_dictionary();
+		kern_return_t kr = IOServiceAddMatchingNotification(watcher->port,
+		                                                    kIOFirstMatchNotification,
+		                                                    matching,
+		                                                    box_usbhost_device_watcher_callback,
+		                                                    (void *)ref,
+		                                                    &watcher->matched);
+		if (kr != KERN_SUCCESS) {
+			box_set_error_string(error_out, [NSString stringWithFormat:@"IOServiceAddMatchingNotification(first match IOUSBHostDevice): 0x%x", kr]);
+			box_usbhost_device_watcher_destroy(watcher);
+			return NULL;
+		}
+		box_usbhost_device_watcher_drain(watcher->matched);
+
+		matching = box_usbhost_device_matching_dictionary();
+		kr = IOServiceAddMatchingNotification(watcher->port,
+		                                      kIOTerminatedNotification,
+		                                      matching,
+		                                      box_usbhost_device_watcher_callback,
+		                                      (void *)ref,
+		                                      &watcher->terminated);
+		if (kr != KERN_SUCCESS) {
+			box_set_error_string(error_out, [NSString stringWithFormat:@"IOServiceAddMatchingNotification(terminated IOUSBHostDevice): 0x%x", kr]);
+			box_usbhost_device_watcher_destroy(watcher);
+			return NULL;
+		}
+		box_usbhost_device_watcher_drain(watcher->terminated);
+		return watcher;
+	}
+}
+
+void box_usbhost_device_watcher_destroy(box_usbhost_device_watcher_t *watcher) {
+	if (watcher == NULL) {
+		return;
+	}
+	if (watcher->matched != IO_OBJECT_NULL) {
+		IOObjectRelease(watcher->matched);
+		watcher->matched = IO_OBJECT_NULL;
+	}
+	if (watcher->terminated != IO_OBJECT_NULL) {
+		IOObjectRelease(watcher->terminated);
+		watcher->terminated = IO_OBJECT_NULL;
+	}
+	if (watcher->port != NULL) {
+		IONotificationPortDestroy(watcher->port);
+		watcher->port = NULL;
+	}
+	free(watcher);
 }
 
 box_usbhost_device_t *box_usbhost_device_open(uint64_t registry_id, bool capture, box_usbhost_device_info_t *info_out, char **error_out) {

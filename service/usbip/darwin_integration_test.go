@@ -63,7 +63,7 @@ type darwinFakeUSBIPServer struct {
 func requireRoot(t *testing.T) {
 	t.Helper()
 	if os.Geteuid() != 0 {
-		t.Skip("root required")
+		t.Skip("root required; run with go test -exec sudo")
 	}
 }
 
@@ -455,6 +455,14 @@ func TestDarwinControllerCloseWithNilConn(t *testing.T) {
 	}
 }
 
+func TestDarwinUSBHostDeviceWatcherSmoke(t *testing.T) {
+	watcher, err := darwinWatchUSBHostDevices(func() {})
+	if err != nil {
+		t.Skipf("IOUSBHostDevice watcher unavailable: %v", err)
+	}
+	watcher.Close()
+}
+
 func startDarwinFakeUSBIPServer(t *testing.T) *darwinFakeUSBIPServer {
 	t.Helper()
 
@@ -756,7 +764,7 @@ func darwinFakeDeviceEntry() DeviceEntry {
 	}
 }
 
-func TestDarwinUSBIPClientImportsFakeServer(t *testing.T) {
+func TestDarwinUSBIPClientSmoke(t *testing.T) {
 	requireRoot(t)
 	requireDarwinUserHCI(t)
 
@@ -793,7 +801,7 @@ func TestDarwinUSBIPClientImportsFakeServer(t *testing.T) {
 	}
 }
 
-func TestDarwinUSBIPServerSelectedDeviceConfiguresDevice(t *testing.T) {
+func TestDarwinUSBIPServerSmoke(t *testing.T) {
 	requireRoot(t)
 
 	candidate, ok := darwinSafeCaptureCandidate(t)
