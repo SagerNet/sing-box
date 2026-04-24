@@ -98,9 +98,11 @@ func NewClientWithOptions(options ClientOptions) (Config, error) {
 		options.Logger.Warn("enabling kTLS RX will definitely reduce performance, please checkout https://sing-box.sagernet.org/configuration/shared/tls/#kernel_rx")
 	}
 	switch options.Options.Engine {
-	case C.TLSEngineDefault, "go":
+	case "", C.TLSEngineGo:
 	case C.TLSEngineApple:
 		return newAppleClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
+	case C.TLSEngineWindows:
+		return newWindowsClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
 	default:
 		return nil, E.New("unknown tls engine: ", options.Options.Engine)
 	}

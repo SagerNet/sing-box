@@ -50,7 +50,7 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 		}
 		managedTransport.epoch.Store(&transportEpoch{transport: inner})
 		return managedTransport, nil
-	case C.TLSEngineDefault, "go":
+	case "", C.TLSEngineGo:
 		cheapRebuild = true
 	default:
 		return nil, E.New("unknown HTTP engine: ", options.Engine)

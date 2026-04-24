@@ -271,19 +271,7 @@ func verifyConnection(rootCAs *x509.CertPool, timeFunc func() time.Time, serverN
 		if serverName == "" {
 			return errMissingServerName
 		}
-		verifyOptions := x509.VerifyOptions{
-			Roots:         rootCAs,
-			DNSName:       serverName,
-			Intermediates: x509.NewCertPool(),
-		}
-		for _, cert := range state.PeerCertificates[1:] {
-			verifyOptions.Intermediates.AddCert(cert)
-		}
-		if timeFunc != nil {
-			verifyOptions.CurrentTime = timeFunc()
-		}
-		_, err := state.PeerCertificates[0].Verify(verifyOptions)
-		return err
+		return verifySystemTLSPeer(rootCAs, serverName, timeFunc, state.PeerCertificates)
 	}
 }
 
