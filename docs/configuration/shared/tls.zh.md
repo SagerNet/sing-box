@@ -9,6 +9,7 @@ icon: material/new-box
     :material-plus: [spoof](#spoof)  
     :material-plus: [spoof_method](#spoof_method)  
     :material-plus: [engine](#engine)  
+    :material-plus: [reality.mldsa65_verify](#mldsa65_verify)  
     :material-delete-clock: [acme](#acme-字段)
 
 !!! quote "sing-box 1.13.0 中的更改"
@@ -152,7 +153,8 @@ icon: material/new-box
   "reality": {
     "enabled": false,
     "public_key": "jNXHt1yRo0vDuchQlIP6Z0ZvjT3KtzVI-T4E7RoLJS0",
-    "short_id": "0123456789abcdef"
+    "short_id": "0123456789abcdef",
+    "mldsa65_verify": ""
   }
 }
 ```
@@ -815,3 +817,11 @@ ACME DNS01 验证字段。如果配置，将禁用其他验证方法。
 服务器和客户端之间的最大时间差。
 
 如果为空则禁用检查。
+
+#### mldsa65_verify
+
+!!! question "自 sing-box 1.14.0 起"
+
+==仅客户端==
+
+Base64 格式的 1952 字节 ML-DSA-65 公钥，用于验证证书第一个扩展中的额外后量子签名。

@@ -241,7 +241,8 @@ type OutboundUTLSOptions struct {
 }
 
 type OutboundRealityOptions struct {
-	Enabled   bool   `json:"enabled,omitempty"`
-	PublicKey string `json:"public_key,omitempty"`
-	ShortID   string `json:"short_id,omitempty"`
+	Enabled       bool   `json:"enabled,omitempty"`
+	PublicKey     string `json:"public_key,omitempty"`
+	ShortID       string `json:"short_id,omitempty"`
+	Mldsa65Verify string `json:"mldsa65_verify,omitempty"`
 }
