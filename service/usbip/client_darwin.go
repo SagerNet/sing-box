@@ -290,14 +290,6 @@ func (c *ClientService) runControlSession() error {
 	}
 }
 
-func (c *ClientService) runStandardSession() error {
-	if err := c.syncRemoteState(); err != nil {
-		return E.Cause(err, "initial devlist sync")
-	}
-	<-c.ctx.Done()
-	return nil
-}
-
 func (c *ClientService) controlPingLoop(session *clientControlSession, done <-chan struct{}) {
 	ticker := time.NewTicker(controlPingInterval)
 	defer ticker.Stop()

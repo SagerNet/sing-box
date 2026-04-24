@@ -230,6 +230,19 @@ func (s *ServerService) currentExports() []serverExport {
 	return out
 }
 
+func (s *ServerService) allExports() []serverExport {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]serverExport, 0, len(s.exports))
+	for _, export := range s.exports {
+		out = append(out, export)
+	}
+	slices.SortFunc(out, func(a, b serverExport) int {
+		return stringsCompare(a.busid, b.busid)
+	})
+	return out
+}
+
 func (s *ServerService) snapshotExports() map[string]serverExport {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -436,10 +449,12 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 		_ = writeReply(conn, OpStatusError, nil)
 		return
 	}
+	s.broadcastChanged()
 	releaseClaim := true
 	defer func() {
 		if releaseClaim {
 			s.releaseClaim(busid)
+			s.broadcastChanged()
 		}
 	}()
 	info := export.entry.Info
@@ -577,13 +592,19 @@ func (s *ServerService) refreshControlState() {
 }
 
 func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
-	exports := s.currentExports()
+	exports := s.allExports()
 	if len(exports) == 0 {
 		return nil
 	}
 	devices := make([]DeviceInfoV2, 0, len(exports))
 	for _, export := range exports {
-		devices = append(devices, deviceInfoV2FromEntry(export.entry, "darwin-iokit", darwinStableID(export.registryID), deviceStateAvailable, 0, "available"))
+		state := deviceStateAvailable
+		reason := "available"
+		if export.busy {
+			state = deviceStateBusy
+			reason = "busy"
+		}
+		devices = append(devices, deviceInfoV2FromEntry(export.entry, "darwin-iokit", darwinStableID(export.registryID), state, 0, reason))
 	}
 	return devices
 }
