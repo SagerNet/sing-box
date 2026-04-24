@@ -71,7 +71,7 @@ func (t *TProxy) Close() error {
 	return t.listener.Close()
 }
 
-func (t *TProxy) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (t *TProxy) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = t.Tag()
 	metadata.InboundType = t.Type()
 	metadata.Destination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
@@ -91,7 +91,7 @@ func (t *TProxy) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, s
 	t.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (t *TProxy) NewPacketEx(buffer *buf.Buffer, oob []byte, source M.Socksaddr) {
+func (t *TProxy) NewPacket(buffer *buf.Buffer, oob []byte, source M.Socksaddr) {
 	destination, err := redir.GetOriginalDestinationFromOOB(oob)
 	if err != nil {
 		t.logger.Warn("process packet from ", source, ": get tproxy destination: ", err)
