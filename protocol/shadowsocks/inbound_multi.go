@@ -68,14 +68,14 @@ func newMultiInbound(ctx context.Context, router adapter.Router, logger log.Cont
 			options.Method,
 			options.Password,
 			int64(udpTimeout.Seconds()),
-			adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
+			adapter.NewLegacyUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
 			ntp.TimeFuncFromContext(ctx),
 		)
 	} else if common.Contains(shadowaead.List, options.Method) {
 		service, err = shadowaead.NewMultiService[int](
 			options.Method,
 			int64(udpTimeout.Seconds()),
-			adapter.NewUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
+			adapter.NewLegacyUpstreamHandler(adapter.InboundContext{}, inbound.newConnection, inbound.newPacketConnection, inbound),
 		)
 	} else {
 		return nil, E.New("unsupported method: " + options.Method)
@@ -138,7 +138,7 @@ func (h *MultiInbound) UpdateUsers(users []string, uPSKs []string) error {
 }
 
 //nolint:staticcheck
-func (h *MultiInbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
+func (h *MultiInbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	err := h.service.NewConnection(ctx, conn, adapter.UpstreamMetadata(metadata))
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
@@ -151,7 +151,7 @@ func (h *MultiInbound) NewConnectionEx(ctx context.Context, conn net.Conn, metad
 }
 
 //nolint:staticcheck
-func (h *MultiInbound) NewPacketEx(buffer *buf.Buffer, source M.Socksaddr) {
+func (h *MultiInbound) NewPacket(buffer *buf.Buffer, source M.Socksaddr) {
 	err := h.service.NewPacket(h.ctx, &stubPacketConn{h.listener.PacketWriter()}, buffer, M.Metadata{Source: source})
 	if err != nil {
 		h.logger.Error(E.Cause(err, "process packet from ", source))
