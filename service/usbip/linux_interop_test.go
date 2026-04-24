@@ -108,9 +108,27 @@ func requireUSBIPTools(t *testing.T) testUSBIPTools {
 	if usbipErr != nil || usbipdErr != nil {
 		t.Skip("usbip and usbipd are required")
 	}
+	requireRunnableUSBIPTool(t, usbipPath, "version")
+	requireRunnableUSBIPTool(t, usbipdPath, "--version")
 	return testUSBIPTools{
 		usbip:  usbipPath,
 		usbipd: usbipdPath,
+	}
+}
+
+func requireRunnableUSBIPTool(t *testing.T, path string, args ...string) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, path, args...)
+	command.Env = os.Environ()
+	output, err := command.CombinedOutput()
+	if ctx.Err() != nil {
+		t.Skipf("%s %s timed out", path, strings.Join(args, " "))
+	}
+	if err != nil {
+		t.Skipf("%s is unavailable: %v\n%s", path, err, strings.TrimSpace(string(output)))
 	}
 }
 

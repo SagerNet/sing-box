@@ -293,7 +293,7 @@ func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, s
 		StableID:           stableID,
 		Backend:            backend,
 		Path:               entry.Info.PathString(),
-		Serial:             entry.Info.SerialString(),
+		Serial:             entrySerial(entry),
 		VendorID:           entry.Info.IDVendor,
 		ProductID:          entry.Info.IDProduct,
 		BCDDevice:          entry.Info.BCDDevice,
@@ -313,7 +313,7 @@ func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, s
 
 func (d DeviceInfoV2) toDeviceEntry() DeviceEntry {
 	var info DeviceInfoTruncated
-	encodePathField(&info.Path, d.Path, d.Serial)
+	encodePathField(&info.Path, d.Path)
 	copy(info.BusID[:], d.BusID)
 	info.Speed = d.Speed
 	info.IDVendor = d.VendorID
@@ -333,7 +333,7 @@ func (d DeviceInfoV2) toDeviceEntry() DeviceEntry {
 			BInterfaceProtocol: d.Interfaces[i].Protocol,
 		}
 	}
-	return DeviceEntry{Info: info, Interfaces: interfaces}
+	return DeviceEntry{Info: info, Interfaces: interfaces, Serial: d.Serial}
 }
 
 func (d DeviceInfoV2) key() DeviceKey {

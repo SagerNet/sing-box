@@ -57,7 +57,7 @@ func (d *sysfsDevice) key() DeviceKey {
 
 func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 	var info DeviceInfoTruncated
-	encodePathField(&info.Path, d.Path, d.Serial)
+	encodePathField(&info.Path, d.Path)
 	copy(info.BusID[:], d.BusID)
 	info.BusNum = d.BusNum
 	info.DevNum = d.DevNum
@@ -72,6 +72,14 @@ func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 	info.BNumConfigurations = d.NumConfigs
 	info.BNumInterfaces = d.NumInterfaces
 	return info
+}
+
+func (d *sysfsDevice) toDeviceEntry() DeviceEntry {
+	return DeviceEntry{
+		Info:       d.toProtocol(),
+		Interfaces: d.Interfaces,
+		Serial:     d.Serial,
+	}
 }
 
 type vhciStatusRecord struct {

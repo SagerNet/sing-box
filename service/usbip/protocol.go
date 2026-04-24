@@ -80,6 +80,7 @@ type DeviceInterface struct {
 type DeviceEntry struct {
 	Info       DeviceInfoTruncated
 	Interfaces []DeviceInterface
+	Serial     string // internal metadata carried by control V2, not OP_REP_* wire data
 }
 
 type ImportExtRequest struct {
@@ -279,12 +280,8 @@ func (d *DeviceInfoTruncated) DevID() uint32 {
 	return (d.BusNum << 16) | (d.DevNum & 0xffff)
 }
 
-func encodePathField(dst *[256]byte, path, serial string) {
+func encodePathField(dst *[256]byte, path string) {
 	copy(dst[:], path)
-	if serial == "" || len(path) >= len(dst)-1 {
-		return
-	}
-	copy(dst[len(path)+1:], "serial="+serial)
 }
 
 func cstring(b []byte) string {
@@ -307,4 +304,20 @@ func trailingCString(b []byte) string {
 		return cstring(b[i+1:])
 	}
 	return ""
+}
+
+func entrySerial(entry DeviceEntry) string {
+	if entry.Serial != "" {
+		return entry.Serial
+	}
+	return entry.Info.SerialString()
+}
+
+func entryDeviceKey(entry DeviceEntry) DeviceKey {
+	return DeviceKey{
+		BusID:     entry.Info.BusIDString(),
+		VendorID:  entry.Info.IDVendor,
+		ProductID: entry.Info.IDProduct,
+		Serial:    entrySerial(entry),
+	}
 }

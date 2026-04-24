@@ -4,7 +4,6 @@ package usbip
 
 import (
 	"bytes"
-	"os"
 
 	"golang.org/x/sys/unix"
 )
@@ -20,7 +19,6 @@ func newUEventListener() (*ueventListener, error) {
 	}
 	addr := &unix.SockaddrNetlink{
 		Family: unix.AF_NETLINK,
-		Pid:    uint32(os.Getpid()),
 		Groups: 1,
 	}
 	if err := unix.Bind(fd, addr); err != nil {

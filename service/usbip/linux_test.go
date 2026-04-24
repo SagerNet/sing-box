@@ -600,9 +600,9 @@ func TestAssignMatchedBusIDs(t *testing.T) {
 	first := newTestDevice("1-2", 0x1d6b, 0x0002, "first", SpeedHigh)
 	second := newTestDevice("1-3", 0x1d6b, 0x0002, "second", SpeedHigh)
 	entries := []DeviceEntry{
-		{Info: fixed.toProtocol()},
-		{Info: first.toProtocol()},
-		{Info: second.toProtocol()},
+		fixed.toDeviceEntry(),
+		first.toDeviceEntry(),
+		second.toDeviceEntry(),
 	}
 
 	require.Equal(t, []string{"1-1", "1-3", "1-2"}, assignMatchedBusIDs(
@@ -969,7 +969,7 @@ func TestServerBuildDevListEntriesFiltersUnavailableAndRefreshFailures(t *testin
 	entries := server.buildDevListEntries()
 	require.Len(t, entries, 1)
 	require.Equal(t, "1-1", entries[0].Info.BusIDString())
-	require.Equal(t, "ok", entries[0].Info.SerialString())
+	require.Equal(t, "ok", entries[0].Serial)
 }
 
 func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
@@ -2036,7 +2036,7 @@ func TestClientSyncRemoteStateAndResetControlStateRebuildsV2Map(t *testing.T) {
 	defer cancel()
 
 	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
-	entry := DeviceEntry{Info: device.toProtocol(), Interfaces: device.Interfaces}
+	entry := device.toDeviceEntry()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	defer listener.Close()

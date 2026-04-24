@@ -479,10 +479,7 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 			s.logger.Debug("refresh ", busid, ": ", err)
 			continue
 		}
-		entries = append(entries, DeviceEntry{
-			Info:       d.toProtocol(),
-			Interfaces: d.Interfaces,
-		})
+		entries = append(entries, d.toDeviceEntry())
 	}
 	return entries
 }
@@ -773,7 +770,7 @@ func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
 			state = deviceStateUnavailable
 			reason = statusErr.Error()
 		}
-		entry := DeviceEntry{Info: dev.toProtocol(), Interfaces: dev.Interfaces}
+		entry := dev.toDeviceEntry()
 		devices = append(devices, deviceInfoV2FromEntry(entry, "linux-sysfs", linuxStableID(dev), state, status, reason))
 	}
 	return devices

@@ -48,9 +48,12 @@ jobs:
           echo "LDFLAGS_SHARED=$(cat release/LDFLAGS)" >> "$GITHUB_ENV"
       - name: Install usbip tools
         if: matrix.os == 'ubuntu-latest'
+        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y linux-tools-common
+          sudo apt-get install -y linux-tools-common "linux-tools-$(uname -r)"
+          usbip version
+          usbipd --version
       - name: Test (unix)
         if: matrix.os != 'windows-latest'
         run: go test -v -exec sudo -tags "$BUILD_TAGS" -ldflags "$LDFLAGS_SHARED" ./...

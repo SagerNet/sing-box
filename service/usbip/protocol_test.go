@@ -247,7 +247,7 @@ func TestOpRepDevListRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	var path [256]byte
-	encodePathField(&path, "/sys/bus/usb/devices/1-2", "serial-1")
+	encodePathField(&path, "/sys/bus/usb/devices/1-2")
 
 	entries := []DeviceEntry{{
 		Info: DeviceInfoTruncated{
@@ -293,13 +293,13 @@ func TestDeviceInfoHelpers(t *testing.T) {
 	t.Parallel()
 
 	var info DeviceInfoTruncated
-	encodePathField(&info.Path, "/sys/bus/usb/devices/1-2", "serial-1")
+	encodePathField(&info.Path, "/sys/bus/usb/devices/1-2")
 	copy(info.BusID[:], "1-2")
 	info.BusNum = 3
 	info.DevNum = 9
 
 	require.Equal(t, "/sys/bus/usb/devices/1-2", info.PathString())
-	require.Equal(t, "serial-1", info.SerialString())
+	require.Empty(t, info.SerialString())
 	require.Equal(t, "1-2", info.BusIDString())
 	require.Equal(t, uint32(0x00030009), info.DevID())
 }
@@ -308,7 +308,7 @@ func TestDeviceInfoV2RoundTrip(t *testing.T) {
 	t.Parallel()
 
 	var path [256]byte
-	encodePathField(&path, "/sys/bus/usb/devices/1-2", "serial-1")
+	encodePathField(&path, "/sys/bus/usb/devices/1-2")
 	entry := DeviceEntry{
 		Info: DeviceInfoTruncated{
 			Path:                path,
@@ -326,6 +326,7 @@ func TestDeviceInfoV2RoundTrip(t *testing.T) {
 			BNumInterfaces:      1,
 		},
 		Interfaces: []DeviceInterface{{BInterfaceClass: 0xff, BInterfaceSubClass: 1, BInterfaceProtocol: 2}},
+		Serial:     "serial-1",
 	}
 	copy(entry.Info.BusID[:], "1-2")
 
@@ -336,18 +337,22 @@ func TestDeviceInfoV2RoundTrip(t *testing.T) {
 	require.Equal(t, DeviceKey{BusID: "1-2", VendorID: 0x1d6b, ProductID: 0x0002, Serial: "serial-1"}, info.key())
 	roundTrip := info.toDeviceEntry()
 	require.Equal(t, "1-2", roundTrip.Info.BusIDString())
-	require.Equal(t, "serial-1", roundTrip.Info.SerialString())
+	require.Equal(t, "serial-1", roundTrip.Serial)
+	require.Empty(t, roundTrip.Info.SerialString())
 	require.Equal(t, uint16(0x1d6b), roundTrip.Info.IDVendor)
 	require.Equal(t, uint16(0x0002), roundTrip.Info.IDProduct)
 	require.Equal(t, entry.Interfaces, roundTrip.Interfaces)
 }
 
-func TestEncodePathFieldSkipsSerialWithoutRoom(t *testing.T) {
+func TestEncodePathFieldZeroPadsPath(t *testing.T) {
 	t.Parallel()
 
 	var info DeviceInfoTruncated
-	encodePathField(&info.Path, strings.Repeat("a", len(info.Path)-1), "serial-1")
+	encodePathField(&info.Path, "/sys/bus/usb/devices/1-2")
 
+	pathLen := len("/sys/bus/usb/devices/1-2")
+	require.Equal(t, byte(0), info.Path[pathLen])
+	require.Equal(t, make([]byte, len(info.Path)-pathLen-1), info.Path[pathLen+1:])
 	require.Empty(t, info.SerialString())
 }
 

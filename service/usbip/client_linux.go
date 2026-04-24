@@ -795,12 +795,7 @@ func assignMatchedBusIDs(targets []clientTarget, current []string, entries []Dev
 		if busid == "" {
 			continue
 		}
-		keysByBusID[busid] = DeviceKey{
-			BusID:     busid,
-			VendorID:  entries[i].Info.IDVendor,
-			ProductID: entries[i].Info.IDProduct,
-			Serial:    entries[i].Info.SerialString(),
-		}
+		keysByBusID[busid] = entryDeviceKey(entries[i])
 	}
 
 	nextAssigned := make([]string, len(targets))
@@ -846,12 +841,7 @@ func assignMatchedBusIDs(targets []clientTarget, current []string, entries []Dev
 
 func firstMatchingUnclaimedBusID(match option.USBIPDeviceMatch, entries []DeviceEntry, reserved map[string]struct{}) string {
 	for i := range entries {
-		key := DeviceKey{
-			BusID:     entries[i].Info.BusIDString(),
-			VendorID:  entries[i].Info.IDVendor,
-			ProductID: entries[i].Info.IDProduct,
-			Serial:    entries[i].Info.SerialString(),
-		}
+		key := entryDeviceKey(entries[i])
 		if _, claimed := reserved[key.BusID]; claimed {
 			continue
 		}

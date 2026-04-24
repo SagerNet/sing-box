@@ -674,7 +674,7 @@ func truncateDarwinFakeDescriptor(data []byte, length int) []byte {
 
 func darwinFakeDeviceEntry() DeviceEntry {
 	var info DeviceInfoTruncated
-	encodePathField(&info.Path, "fake-darwin-usbip", "codex-usbip-fake")
+	encodePathField(&info.Path, "fake-darwin-usbip")
 	copy(info.BusID[:], darwinFakeBusID)
 	info.BusNum = 1
 	info.DevNum = 1
@@ -686,7 +686,8 @@ func darwinFakeDeviceEntry() DeviceEntry {
 	info.BNumConfigurations = 1
 	info.BNumInterfaces = 1
 	return DeviceEntry{
-		Info: info,
+		Info:   info,
+		Serial: "codex-usbip-fake",
 		Interfaces: []DeviceInterface{{
 			BInterfaceClass:    0xff,
 			BInterfaceSubClass: 0x42,
