@@ -27,6 +27,16 @@ func isBusIDOnlyMatch(m option.USBIPDeviceMatch) bool {
 }
 
 func assignMatchedBusIDs(targets []clientTarget, current []string, entries []DeviceEntry) []string {
+	return assignMatchedBusIDsWithRetained(targets, current, entries, nil, nil)
+}
+
+func assignMatchedBusIDsWithRetained(
+	targets []clientTarget,
+	current []string,
+	entries []DeviceEntry,
+	knownKeys map[string]DeviceKey,
+	activeCurrent map[string]struct{},
+) []string {
 	if len(targets) == 0 {
 		return nil
 	}
@@ -38,17 +48,34 @@ func assignMatchedBusIDs(targets []clientTarget, current []string, entries []Dev
 		}
 		keysByBusID[busid] = entryDeviceKey(entries[i])
 	}
+	currentKey := func(busid string) (DeviceKey, bool) {
+		if key, ok := keysByBusID[busid]; ok {
+			return key, true
+		}
+		if _, active := activeCurrent[busid]; !active {
+			return DeviceKey{}, false
+		}
+		key, ok := knownKeys[busid]
+		return key, ok
+	}
 	nextAssigned := make([]string, len(targets))
 	reserved := make(map[string]struct{}, len(targets))
 	for i, target := range targets {
 		if target.fixedBusID == "" {
 			continue
 		}
-		if _, ok := keysByBusID[target.fixedBusID]; !ok {
+		if _, ok := keysByBusID[target.fixedBusID]; ok {
+			nextAssigned[i] = target.fixedBusID
+			reserved[target.fixedBusID] = struct{}{}
 			continue
 		}
-		nextAssigned[i] = target.fixedBusID
-		reserved[target.fixedBusID] = struct{}{}
+		if i >= len(current) || current[i] != target.fixedBusID {
+			continue
+		}
+		if _, ok := currentKey(target.fixedBusID); ok {
+			nextAssigned[i] = target.fixedBusID
+			reserved[target.fixedBusID] = struct{}{}
+		}
 	}
 	for i, target := range targets {
 		if target.fixedBusID != "" || i >= len(current) || current[i] == "" {
@@ -57,7 +84,7 @@ func assignMatchedBusIDs(targets []clientTarget, current []string, entries []Dev
 		if _, ok := reserved[current[i]]; ok {
 			continue
 		}
-		key, ok := keysByBusID[current[i]]
+		key, ok := currentKey(current[i])
 		if !ok || !Matches(target.match, key) {
 			continue
 		}

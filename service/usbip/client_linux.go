@@ -23,6 +23,9 @@ import (
 
 const (
 	clientReconnectDelay   = 5 * time.Second
+	clientShutdownTimeout  = 15 * time.Second
+	clientDetachTimeout    = 10 * time.Second
+	clientDetachPoll       = 100 * time.Millisecond
 	controlPingInterval    = 10 * time.Second
 	controlReadTimeout     = 30 * time.Second
 	controlWriteTimeout    = 5 * time.Second
@@ -145,7 +148,7 @@ func (c *ClientService) Close() error {
 	}()
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(clientShutdownTimeout):
 		c.logger.Warn("shutdown timeout; some vhci ports may remain attached")
 	}
 	return nil
@@ -363,6 +366,22 @@ func (c *ClientService) applyRemoteEntries(entries []DeviceEntry) {
 	c.applyMatchedExports(entries)
 }
 
+func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
+	availableEntries := deviceInfoV2ToEntries(devices, true)
+	if len(c.matches) == 0 {
+		c.applyRemoteExports(availableEntries)
+		return
+	}
+	knownKeys := make(map[string]DeviceKey, len(devices))
+	for _, device := range devices {
+		if device.BusID == "" {
+			continue
+		}
+		knownKeys[device.BusID] = device.key()
+	}
+	c.applyMatchedExportsWithRetained(availableEntries, knownKeys)
+}
+
 func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 	desired := make(map[string]struct{}, len(entries))
 	for i := range entries {
@@ -405,12 +424,17 @@ func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 }
 
 func (c *ClientService) applyMatchedExports(entries []DeviceEntry) {
+	c.applyMatchedExportsWithRetained(entries, nil)
+}
+
+func (c *ClientService) applyMatchedExportsWithRetained(entries []DeviceEntry, knownKeys map[string]DeviceKey) {
 	c.stateMu.Lock()
 	if len(c.targets) == 0 {
 		c.stateMu.Unlock()
 		return
 	}
-	nextAssigned := assignMatchedBusIDs(c.targets, c.assigned, entries)
+	activeCurrent := c.activeCurrentAssignmentsLocked(c.assigned, knownKeys)
+	nextAssigned := assignMatchedBusIDsWithRetained(c.targets, c.assigned, entries, knownKeys, activeCurrent)
 	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
 	previous := append([]string(nil), c.assigned...)
 	c.assigned = nextAssigned
@@ -422,6 +446,29 @@ func (c *ClientService) applyMatchedExports(entries []DeviceEntry) {
 		}
 		worker.setDesiredBusID(nextAssigned[i])
 	}
+}
+
+func (c *ClientService) activeCurrentAssignmentsLocked(current []string, knownKeys map[string]DeviceKey) map[string]struct{} {
+	if len(knownKeys) == 0 {
+		return nil
+	}
+	var activeCurrent map[string]struct{}
+	for _, busid := range current {
+		if busid == "" {
+			continue
+		}
+		if _, ok := knownKeys[busid]; !ok {
+			continue
+		}
+		if !c.isBusIDActive(busid) {
+			continue
+		}
+		if activeCurrent == nil {
+			activeCurrent = make(map[string]struct{})
+		}
+		activeCurrent[busid] = struct{}{}
+	}
+	return activeCurrent
 }
 
 func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
@@ -678,6 +725,7 @@ func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 			if err := c.ops.vhciDetach(port); err != nil {
 				c.logger.Warn("detach port ", port, " (", busid, "): ", err)
 			}
+			c.waitVHCIPortIdle(port, busid)
 			return
 		case <-settleDeadline.C:
 			if !seenUsed {
@@ -685,6 +733,7 @@ func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 				if err := c.ops.vhciDetach(port); err != nil {
 					c.logger.Warn("detach port ", port, " (", busid, "): ", err)
 				}
+				c.waitVHCIPortIdle(port, busid)
 				return
 			}
 		case <-ticker.C:
@@ -705,6 +754,25 @@ func (c *ClientService) watchPort(ctx context.Context, port int, busid string) {
 				return
 			}
 		}
+	}
+}
+
+func (c *ClientService) waitVHCIPortIdle(port int, busid string) {
+	deadline := time.Now().Add(clientDetachTimeout)
+	for {
+		used, err := c.ops.vhciPortUsed(port)
+		if err == nil && !used {
+			return
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				c.logger.Warn("poll detached vhci port ", port, " (", busid, "): ", err)
+			} else {
+				c.logger.Warn("vhci port ", port, " stayed used after detach for ", busid)
+			}
+			return
+		}
+		time.Sleep(clientDetachPoll)
 	}
 }
 
@@ -786,6 +854,16 @@ func isBusIDOnlyMatch(m option.USBIPDeviceMatch) bool {
 }
 
 func assignMatchedBusIDs(targets []clientTarget, current []string, entries []DeviceEntry) []string {
+	return assignMatchedBusIDsWithRetained(targets, current, entries, nil, nil)
+}
+
+func assignMatchedBusIDsWithRetained(
+	targets []clientTarget,
+	current []string,
+	entries []DeviceEntry,
+	knownKeys map[string]DeviceKey,
+	activeCurrent map[string]struct{},
+) []string {
 	if len(targets) == 0 {
 		return nil
 	}
@@ -797,6 +875,16 @@ func assignMatchedBusIDs(targets []clientTarget, current []string, entries []Dev
 		}
 		keysByBusID[busid] = entryDeviceKey(entries[i])
 	}
+	currentKey := func(busid string) (DeviceKey, bool) {
+		if key, ok := keysByBusID[busid]; ok {
+			return key, true
+		}
+		if _, active := activeCurrent[busid]; !active {
+			return DeviceKey{}, false
+		}
+		key, ok := knownKeys[busid]
+		return key, ok
+	}
 
 	nextAssigned := make([]string, len(targets))
 	reserved := make(map[string]struct{}, len(targets))
@@ -804,11 +892,18 @@ func assignMatchedBusIDs(targets []clientTarget, current []string, entries []Dev
 		if target.fixedBusID == "" {
 			continue
 		}
-		if _, ok := keysByBusID[target.fixedBusID]; !ok {
+		if _, ok := keysByBusID[target.fixedBusID]; ok {
+			nextAssigned[i] = target.fixedBusID
+			reserved[target.fixedBusID] = struct{}{}
 			continue
 		}
-		nextAssigned[i] = target.fixedBusID
-		reserved[target.fixedBusID] = struct{}{}
+		if i >= len(current) || current[i] != target.fixedBusID {
+			continue
+		}
+		if _, ok := currentKey(target.fixedBusID); ok {
+			nextAssigned[i] = target.fixedBusID
+			reserved[target.fixedBusID] = struct{}{}
+		}
 	}
 	for i, target := range targets {
 		if target.fixedBusID != "" || i >= len(current) {
@@ -820,7 +915,7 @@ func assignMatchedBusIDs(targets []clientTarget, current []string, entries []Dev
 		if _, ok := reserved[current[i]]; ok {
 			continue
 		}
-		key, ok := keysByBusID[current[i]]
+		key, ok := currentKey(current[i])
 		if !ok || !Matches(target.match, key) {
 			continue
 		}

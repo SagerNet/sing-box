@@ -340,6 +340,22 @@ func (c *ClientService) applyRemoteEntries(entries []DeviceEntry) {
 	c.applyMatchedExports(entries)
 }
 
+func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
+	availableEntries := deviceInfoV2ToEntries(devices, true)
+	if len(c.matches) == 0 {
+		c.applyRemoteExports(availableEntries)
+		return
+	}
+	knownKeys := make(map[string]DeviceKey, len(devices))
+	for _, device := range devices {
+		if device.BusID == "" {
+			continue
+		}
+		knownKeys[device.BusID] = device.key()
+	}
+	c.applyMatchedExportsWithRetained(availableEntries, knownKeys)
+}
+
 func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 	desired := make(map[string]struct{}, len(entries))
 	for i := range entries {
@@ -377,12 +393,17 @@ func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 }
 
 func (c *ClientService) applyMatchedExports(entries []DeviceEntry) {
+	c.applyMatchedExportsWithRetained(entries, nil)
+}
+
+func (c *ClientService) applyMatchedExportsWithRetained(entries []DeviceEntry, knownKeys map[string]DeviceKey) {
 	c.stateMu.Lock()
 	if len(c.targets) == 0 {
 		c.stateMu.Unlock()
 		return
 	}
-	nextAssigned := assignMatchedBusIDs(c.targets, c.assigned, entries)
+	activeCurrent := c.activeCurrentAssignmentsLocked(c.assigned, knownKeys)
+	nextAssigned := assignMatchedBusIDsWithRetained(c.targets, c.assigned, entries, knownKeys, activeCurrent)
 	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
 	previous := append([]string(nil), c.assigned...)
 	c.assigned = nextAssigned
@@ -393,6 +414,29 @@ func (c *ClientService) applyMatchedExports(entries []DeviceEntry) {
 			worker.setDesiredBusID(nextAssigned[i])
 		}
 	}
+}
+
+func (c *ClientService) activeCurrentAssignmentsLocked(current []string, knownKeys map[string]DeviceKey) map[string]struct{} {
+	if len(knownKeys) == 0 {
+		return nil
+	}
+	var activeCurrent map[string]struct{}
+	for _, busid := range current {
+		if busid == "" {
+			continue
+		}
+		if _, ok := knownKeys[busid]; !ok {
+			continue
+		}
+		if !c.isBusIDActive(busid) {
+			continue
+		}
+		if activeCurrent == nil {
+			activeCurrent = make(map[string]struct{})
+		}
+		activeCurrent[busid] = struct{}{}
+	}
+	return activeCurrent
 }
 
 func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {

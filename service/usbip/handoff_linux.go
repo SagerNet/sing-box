@@ -86,7 +86,11 @@ func (h *usbipConnHandoff) Close() error {
 
 func (h *usbipConnHandoff) startRelay(ctx context.Context, logger log.ContextLogger, side string, busid string) bool {
 	if !h.relay() {
-		return false
+		go func() {
+			<-ctx.Done()
+			_ = h.conn.Close()
+		}()
+		return true
 	}
 	relayConn := h.relayConn
 	h.relayConn = nil

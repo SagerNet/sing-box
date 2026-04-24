@@ -173,7 +173,7 @@ func (c *ClientService) applyControlSnapshot(snapshot controlDeviceSnapshot) {
 	c.remoteMu.Lock()
 	c.remoteDevicesV2 = devices
 	c.remoteMu.Unlock()
-	c.applyRemoteEntries(deviceInfoV2ToEntries(values, true))
+	c.applyRemoteDeviceState(values)
 }
 
 func (c *ClientService) applyControlDelta(delta controlDeviceDelta) {
@@ -198,7 +198,7 @@ func (c *ClientService) applyControlDelta(delta controlDeviceDelta) {
 	}
 	values := sortedDeviceInfoV2Values(c.remoteDevicesV2)
 	c.remoteMu.Unlock()
-	c.applyRemoteEntries(deviceInfoV2ToEntries(values, true))
+	c.applyRemoteDeviceState(values)
 }
 
 func (c *ClientService) clearControlDeviceState() {

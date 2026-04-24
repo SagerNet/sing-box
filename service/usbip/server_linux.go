@@ -40,6 +40,11 @@ type serverControlConn struct {
 	send         chan controlOutboundMessage
 }
 
+const (
+	usbipExportReleaseTimeout      = 10 * time.Second
+	usbipExportReleasePollInterval = 100 * time.Millisecond
+)
+
 type ServerService struct {
 	boxService.Adapter
 	ctx      context.Context
@@ -227,8 +232,19 @@ func (s *ServerService) releaseExport(export serverExport, restore bool) error {
 		s.logger.Info("stopped tracking ", export.busid, " on usbip-host")
 		return nil
 	}
-	if err := s.ops.writeUsbipSockfd(export.busid, -1); err != nil && !os.IsNotExist(err) {
-		return err
+	status, statusErr := s.ops.readUsbipStatus(export.busid)
+	if statusErr != nil && !os.IsNotExist(statusErr) && !isMissingUSBDeviceError(statusErr) {
+		return statusErr
+	}
+	if statusErr == nil && status == usbipStatusUsed {
+		if err := s.ops.writeUsbipSockfd(export.busid, -1); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if restore {
+			if err := s.waitUSBIPStatusAvailable(export.busid, usbipExportReleaseTimeout); err != nil {
+				return err
+			}
+		}
 	}
 	if err := s.ops.hostUnbind(export.busid); err != nil && !os.IsNotExist(err) && !(isMissingUSBDeviceError(err) && !restore) {
 		return err
@@ -252,6 +268,27 @@ func (s *ServerService) releaseExport(export serverExport, restore bool) error {
 	s.deleteExport(export.busid)
 	s.logger.Info("restored ", export.busid, " to ", export.originalDriver)
 	return nil
+}
+
+func (s *ServerService) waitUSBIPStatusAvailable(busid string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		status, err := s.ops.readUsbipStatus(busid)
+		if err != nil {
+			if os.IsNotExist(err) || isMissingUSBDeviceError(err) {
+				return nil
+			}
+		} else if status == usbipStatusAvailable {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				return E.Cause(err, "wait for ", busid, " usbip status available")
+			}
+			return E.New("timed out waiting for ", busid, " usbip status available")
+		}
+		time.Sleep(usbipExportReleasePollInterval)
+	}
 }
 
 func (s *ServerService) rollbackExports() {

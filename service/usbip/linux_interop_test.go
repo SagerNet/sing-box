@@ -33,6 +33,9 @@ const (
 	testACMProductID uint16 = 0x0104
 	testHIDProductID uint16 = 0x0105
 	testUDCCount            = 2
+
+	testUSBIPTeardownTimeout      = 20 * time.Second
+	testUSBIPTeardownPollInterval = 100 * time.Millisecond
 )
 
 var testHIDReportDescriptor = []byte{
@@ -212,30 +215,114 @@ func releaseTestUDC(name string) {
 	testUDCMu.Unlock()
 }
 
+func waitForUSBIPTeardown(condition func() bool) bool {
+	deadline := time.Now().Add(testUSBIPTeardownTimeout)
+	for {
+		if condition() {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(testUSBIPTeardownPollInterval)
+	}
+}
+
+func detachUsedVHCIPorts() {
+	records, err := readVHCIStatus()
+	if err != nil {
+		return
+	}
+	for _, record := range records {
+		if record.state == 6 {
+			_ = vhciDetach(record.port)
+		}
+	}
+}
+
+func allVHCIPortsIdle() bool {
+	records, err := readVHCIStatus()
+	if err != nil {
+		return true
+	}
+	for _, record := range records {
+		if record.state == 6 {
+			return false
+		}
+	}
+	return true
+}
+
+func waitForAllVHCIPortsIdle(t *testing.T) {
+	t.Helper()
+	require.Eventually(t, allVHCIPortsIdle, testUSBIPTeardownTimeout, testUSBIPTeardownPollInterval)
+}
+
+func waitForVHCIPortIdle(t *testing.T, port int) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		used, err := vhciPortUsed(port)
+		return err == nil && !used
+	}, testUSBIPTeardownTimeout, testUSBIPTeardownPollInterval)
+}
+
+func waitForUSBIPHostAvailable(busid string) bool {
+	return waitForUSBIPTeardown(func() bool {
+		status, err := readUsbipStatus(busid)
+		if err != nil {
+			return os.IsNotExist(err) || isMissingUSBDeviceError(err)
+		}
+		return status == usbipStatusAvailable
+	})
+}
+
+func waitForDriverAway(busid string, driver string) bool {
+	return waitForUSBIPTeardown(func() bool {
+		current, err := currentDriver(busid)
+		if err != nil {
+			return os.IsNotExist(err) || isMissingUSBDeviceError(err)
+		}
+		return current != driver
+	})
+}
+
+func waitForSysfsPathGone(path string) bool {
+	return waitForUSBIPTeardown(func() bool {
+		_, err := os.Stat(path)
+		return os.IsNotExist(err)
+	})
+}
+
+func waitForGadgetNodesGone(nodes map[string]string) bool {
+	return waitForUSBIPTeardown(func() bool {
+		for _, path := range nodes {
+			if _, err := os.Stat(path); err == nil {
+				return false
+			}
+		}
+		return true
+	})
+}
+
+func shutdownUSBIPHostDevice(busid string) {
+	status, err := readUsbipStatus(busid)
+	if err == nil && status == usbipStatusUsed {
+		_ = writeUsbipSockfd(busid, -1)
+		_ = waitForUSBIPHostAvailable(busid)
+	}
+	if driver, err := currentDriver(busid); err == nil && driver == "usbip-host" {
+		_ = hostUnbind(busid)
+		_ = hostMatchBusID(busid, false)
+		_ = waitForDriverAway(busid, "usbip-host")
+	}
+}
+
 func resetUSBIPInteropState(t *testing.T) {
 	t.Helper()
 	requireRoot(t)
 
-	records, err := readVHCIStatus()
-	if err == nil {
-		for _, record := range records {
-			if record.state == 6 {
-				_ = vhciDetach(record.port)
-			}
-		}
-		require.Eventually(t, func() bool {
-			records, err = readVHCIStatus()
-			if err != nil {
-				return false
-			}
-			for _, record := range records {
-				if record.state == 6 {
-					return false
-				}
-			}
-			return true
-		}, 10*time.Second, 100*time.Millisecond)
-	}
+	detachUsedVHCIPorts()
+	waitForAllVHCIPortsIdle(t)
 
 	devices, err := listUSBDevices()
 	if err != nil {
@@ -245,12 +332,7 @@ func resetUSBIPInteropState(t *testing.T) {
 		if !strings.HasPrefix(device.Serial, "codex-usbip-") {
 			continue
 		}
-		driver, err := currentDriver(device.BusID)
-		if err != nil || driver != "usbip-host" {
-			continue
-		}
-		_ = hostUnbind(device.BusID)
-		_ = hostMatchBusID(device.BusID, false)
+		shutdownUSBIPHostDevice(device.BusID)
 		_ = bindToDriver(device.BusID, "usb")
 	}
 
@@ -277,10 +359,10 @@ func resetUSBIPInteropState(t *testing.T) {
 	require.Eventually(t, func() bool {
 		paths, _ := filepath.Glob("/sys/kernel/config/usb_gadget/codex_usbip_*")
 		return len(paths) == 0
-	}, 10*time.Second, 100*time.Millisecond)
+	}, testUSBIPTeardownTimeout, testUSBIPTeardownPollInterval)
 	require.Eventually(t, func() bool {
 		return len(importedNodeSnapshot("/dev/ttyACM*")) == 0 && len(importedNodeSnapshot("/dev/hidraw*")) == 0
-	}, 10*time.Second, 100*time.Millisecond)
+	}, testUSBIPTeardownTimeout, testUSBIPTeardownPollInterval)
 
 	testUDCMu.Lock()
 	testAllocatedUDC = make(map[string]struct{})
@@ -623,13 +705,27 @@ func readExactlyWithin(reader io.Reader, size int, timeout time.Duration) ([]byt
 func openRawTTY(t *testing.T, path string) *rawFile {
 	t.Helper()
 
-	file, err := os.OpenFile(path, os.O_RDWR, 0)
-	require.NoError(t, err)
-	state, err := term.MakeRaw(int(file.Fd()))
-	require.NoError(t, err)
-	return &rawFile{
-		file:  file,
-		state: state,
+	var lastErr error
+	deadline := time.Now().Add(testUSBIPTeardownTimeout)
+	for {
+		file, err := os.OpenFile(path, os.O_RDWR, 0)
+		if err == nil {
+			state, err := term.MakeRaw(int(file.Fd()))
+			if err == nil {
+				return &rawFile{
+					file:  file,
+					state: state,
+				}
+			}
+			lastErr = err
+			_ = file.Close()
+		} else {
+			lastErr = err
+		}
+		if time.Now().After(deadline) {
+			require.NoErrorf(t, lastErr, "open raw tty %s", path)
+		}
+		time.Sleep(testUSBIPTeardownPollInterval)
 	}
 }
 
@@ -739,13 +835,14 @@ func (g *testVirtualGadget) Close() {
 		defer releaseTestUDC(g.udcName)
 
 		if g.busid != "" {
-			if driver, err := currentDriver(g.busid); err == nil && driver == "usbip-host" {
-				_ = hostUnbind(g.busid)
-				_ = hostMatchBusID(g.busid, false)
-			}
+			shutdownUSBIPHostDevice(g.busid)
 		}
 
 		_ = writeSysfsLine(filepath.Join(g.path, "UDC"), "")
+		if g.busid != "" {
+			_ = waitForSysfsPathGone(sysBusDevicePath(g.busid))
+		}
+		_ = waitForGadgetNodesGone(g.nodes)
 
 		for _, function := range g.functions {
 			_ = os.Remove(filepath.Join(g.path, "configs/c.1", function.instance))
@@ -758,30 +855,7 @@ func (g *testVirtualGadget) Close() {
 		_ = os.RemoveAll(filepath.Join(g.path, "strings/0x409"))
 		_ = os.RemoveAll(g.path)
 
-		deadline := time.Now().Add(5 * time.Second)
-		for time.Now().Before(deadline) {
-			if _, err := os.Stat(g.path); err == nil {
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-			if g.busid != "" {
-				if _, err := os.Stat(sysBusDevicePath(g.busid)); err == nil {
-					time.Sleep(100 * time.Millisecond)
-					continue
-				}
-			}
-			remainingNode := false
-			for _, path := range g.nodes {
-				if _, err := os.Stat(path); err == nil {
-					remainingNode = true
-					break
-				}
-			}
-			if !remainingNode {
-				return
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
+		_ = waitForSysfsPathGone(g.path)
 	})
 }
 
@@ -926,7 +1000,9 @@ func TestUSBIPInteropOurServerWithOfficialClientACM(t *testing.T) {
 	require.Contains(t, portOutput, fmt.Sprintf("Port %02d", port))
 
 	runUSBIP(t, tools, "detach", "--port="+strconv.Itoa(port))
+	waitForVHCIPortIdle(t, port)
 	waitForPathGone(t, importedTTY)
+	require.NoError(t, server.Close())
 
 	_ = server
 }
@@ -938,7 +1014,7 @@ func TestUSBIPInteropOurServerWithOfficialClientHID(t *testing.T) {
 	requireVHCI(t)
 
 	gadget := newTestHIDGadget(t)
-	_, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{{Serial: gadget.serial}})
+	server, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{{Serial: gadget.serial}})
 	beforePorts := usedVHCIPorts(t)
 	beforeHID := importedNodeSnapshot("/dev/hidraw*")
 
@@ -954,7 +1030,9 @@ func TestUSBIPInteropOurServerWithOfficialClientHID(t *testing.T) {
 	require.Contains(t, portOutput, fmt.Sprintf("Port %02d", port))
 
 	runUSBIP(t, tools, "detach", "--port="+strconv.Itoa(port))
+	waitForVHCIPortIdle(t, port)
 	waitForPathGone(t, importedHID)
+	require.NoError(t, server.Close())
 }
 
 func TestUSBIPInteropOurClientWithOfficialServerACM(t *testing.T) {
@@ -983,6 +1061,7 @@ func TestUSBIPInteropOurClientWithOfficialServerACM(t *testing.T) {
 	gadget.exerciseImportedIO(t, importedTTY)
 
 	require.NoError(t, client.Close())
+	waitForAllVHCIPortsIdle(t)
 	waitForPathGone(t, importedTTY)
 }
 
@@ -1012,6 +1091,7 @@ func TestUSBIPInteropOurClientWithOfficialServerHID(t *testing.T) {
 	gadget.exerciseImportedIO(t, importedHID)
 
 	require.NoError(t, client.Close())
+	waitForAllVHCIPortsIdle(t)
 	waitForPathGone(t, importedHID)
 }
 
@@ -1047,6 +1127,7 @@ func TestUSBIPOfficialServerHasStaticDiscoveryOnly(t *testing.T) {
 	ensureNoNewImportedNode(t, "/dev/hidraw*", beforeHID, 3*time.Second)
 
 	require.NoError(t, client.Close())
+	waitForAllVHCIPortsIdle(t)
 	waitForPathGone(t, importedTTY)
 }
 
@@ -1081,6 +1162,11 @@ func TestUSBIPControlHotplugACMReattach(t *testing.T) {
 	second := newTestACMGadget(t)
 	secondImportedTTY := waitForNewImportedNode(t, "/dev/ttyACM*", secondBefore)
 	second.exerciseImportedIO(t, secondImportedTTY)
+
+	require.NoError(t, client.Close())
+	waitForAllVHCIPortsIdle(t)
+	waitForPathGone(t, secondImportedTTY)
+	require.NoError(t, server.Close())
 }
 
 func TestUSBIPControlImportAllACMAndHID(t *testing.T) {
@@ -1089,7 +1175,7 @@ func TestUSBIPControlImportAllACMAndHID(t *testing.T) {
 	requireVHCI(t)
 	ensureTestUDCs(t, testUDCCount)
 
-	_, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{
+	server, address := startRealUSBIPServer(t, []option.USBIPDeviceMatch{
 		{VendorID: option.USBIPHexUint16(testVendorID), ProductID: option.USBIPHexUint16(testACMProductID)},
 		{VendorID: option.USBIPHexUint16(testVendorID), ProductID: option.USBIPHexUint16(testHIDProductID)},
 	})
@@ -1109,4 +1195,10 @@ func TestUSBIPControlImportAllACMAndHID(t *testing.T) {
 
 	acm.exerciseImportedIO(t, importedTTY)
 	hid.exerciseImportedIO(t, importedHID)
+
+	require.NoError(t, client.Close())
+	waitForAllVHCIPortsIdle(t)
+	waitForPathGone(t, importedTTY)
+	waitForPathGone(t, importedHID)
+	require.NoError(t, server.Close())
 }

@@ -535,6 +535,51 @@ func TestClientApplyRemoteExportsKeepsActiveBusIDWorker(t *testing.T) {
 	require.NotContains(t, client.allWorkers, "1-1")
 }
 
+func TestClientApplyControlDeviceStateKeepsActiveMatchedBusyBusID(t *testing.T) {
+	t.Parallel()
+
+	match := option.USBIPDeviceMatch{VendorID: 0x1d6b, ProductID: 0x0002}
+	target := clientTarget{match: match}
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	busyDevice := deviceInfoV2FromEntry(device.toDeviceEntry(), "linux-sysfs", "linux-busid:1-1", deviceStateBusy, usbipStatusUsed, "used")
+
+	worker := &clientAssignedWorker{target: target, updates: make(chan string, 1)}
+	client := &ClientService{
+		matches:         []option.USBIPDeviceMatch{match},
+		targets:         []clientTarget{target},
+		assigned:        []string{"1-1"},
+		assignedWorkers: []*clientAssignedWorker{worker},
+		activeBusIDs:    map[string]struct{}{"1-1": {}},
+	}
+
+	client.applyRemoteDeviceState([]DeviceInfoV2{busyDevice})
+
+	require.Equal(t, []string{"1-1"}, client.assigned)
+	select {
+	case update := <-worker.updates:
+		t.Fatalf("unexpected assignment update %q", update)
+	default:
+	}
+
+	idleWorker := &clientAssignedWorker{target: target, updates: make(chan string, 1)}
+	idleClient := &ClientService{
+		matches:         []option.USBIPDeviceMatch{match},
+		targets:         []clientTarget{target},
+		assigned:        []string{""},
+		assignedWorkers: []*clientAssignedWorker{idleWorker},
+		activeBusIDs:    make(map[string]struct{}),
+	}
+
+	idleClient.applyRemoteDeviceState([]DeviceInfoV2{busyDevice})
+
+	require.Equal(t, []string{""}, idleClient.assigned)
+	select {
+	case update := <-idleWorker.updates:
+		t.Fatalf("unexpected assignment update %q", update)
+	default:
+	}
+}
+
 func TestClientShouldRetryBusIDRefreshesImportAllState(t *testing.T) {
 	t.Parallel()
 
@@ -846,11 +891,14 @@ func TestServerReconcileExportsReleasesRemovedExports(t *testing.T) {
 
 	device := newTestDevice("1-1", 0x1d6b, 0x0002, "regular", SpeedHigh)
 	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusUsed)
 	ops := newTestUSBIPOps(t)
 	var actions []string
 	ops.listUSBDevices = store.listUSBDevices
+	ops.readUsbipStatus = store.readUsbipStatus
 	ops.writeUsbipSockfd = func(busid string, fd int) error {
 		actions = append(actions, "sockfd "+busid)
+		store.setStatus(busid, usbipStatusAvailable)
 		return nil
 	}
 	ops.hostUnbind = func(busid string) error {
@@ -919,6 +967,9 @@ func TestServerReleaseExportRetainsTrackingOnFailure(t *testing.T) {
 	}
 
 	ops := newTestUSBIPOps(t)
+	ops.readUsbipStatus = func(string) (int, error) {
+		return usbipStatusAvailable, nil
+	}
 	ops.writeUsbipSockfd = func(string, int) error {
 		return nil
 	}
@@ -2183,6 +2234,7 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 		controlSubs: make(map[uint64]*serverControlConn),
 		ops:         serverOps,
 	}
+	server.refreshControlState()
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
