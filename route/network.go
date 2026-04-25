@@ -48,6 +48,7 @@ type NetworkManager struct {
 	pauseManager           pause.Manager
 	platformInterface      adapter.PlatformInterface
 	connectionManager      adapter.ConnectionManager
+	dnsRouter              adapter.DNSRouter
 	endpoint               adapter.EndpointManager
 	inbound                adapter.InboundManager
 	outbound               adapter.OutboundManager
@@ -91,6 +92,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options
 		pauseManager:      service.FromContext[pause.Manager](ctx),
 		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
 		connectionManager: service.FromContext[adapter.ConnectionManager](ctx),
+		dnsRouter:         service.FromContext[adapter.DNSRouter](ctx),
 		endpoint:          service.FromContext[adapter.EndpointManager](ctx),
 		inbound:           service.FromContext[adapter.InboundManager](ctx),
 		outbound:          service.FromContext[adapter.OutboundManager](ctx),
@@ -452,6 +454,10 @@ func (r *NetworkManager) UpdateWIFIState() {
 }
 
 func (r *NetworkManager) ResetNetwork() {
+	if r.dnsRouter != nil {
+		r.dnsRouter.ResetNetwork()
+	}
+
 	if r.connectionManager != nil {
 		r.connectionManager.CloseAll()
 	}
