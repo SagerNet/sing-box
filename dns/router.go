@@ -78,9 +78,17 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 			optimisticTimeout = 3 * 24 * time.Hour
 		}
 	}
+	retryIntervals := make([]time.Duration, 0, len(options.DNSClientOptions.RetryIntervals))
+	for i, d := range options.DNSClientOptions.RetryIntervals {
+		if time.Duration(d) <= 0 {
+			return nil, E.New("dns: retry_intervals[", i, "]: must be positive")
+		}
+		retryIntervals = append(retryIntervals, time.Duration(d))
+	}
 	router.client = NewClient(ClientOptions{
 		Context:           ctx,
 		Timeout:           time.Duration(options.DNSClientOptions.Timeout),
+		RetryIntervals:    retryIntervals,
 		DisableCache:      options.DNSClientOptions.DisableCache,
 		DisableExpire:     options.DNSClientOptions.DisableExpire,
 		OptimisticTimeout: optimisticTimeout,

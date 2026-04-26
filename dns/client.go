@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -32,6 +33,7 @@ var _ adapter.DNSClient = (*Client)(nil)
 type Client struct {
 	ctx               context.Context
 	timeout           time.Duration
+	retryIntervals    []time.Duration
 	disableCache      bool
 	disableExpire     bool
 	optimisticTimeout time.Duration
@@ -50,6 +52,7 @@ type Client struct {
 type ClientOptions struct {
 	Context           context.Context
 	Timeout           time.Duration
+	RetryIntervals    []time.Duration
 	DisableCache      bool
 	DisableExpire     bool
 	OptimisticTimeout time.Duration
@@ -68,6 +71,7 @@ func NewClient(options ClientOptions) *Client {
 	client := &Client{
 		ctx:               options.Context,
 		timeout:           options.Timeout,
+		retryIntervals:    options.RetryIntervals,
 		disableCache:      options.DisableCache,
 		disableExpire:     options.DisableExpire,
 		optimisticTimeout: options.OptimisticTimeout,
@@ -222,7 +226,13 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			return nil, ErrResponseRejectedCached
 		}
 	}
-	response, err := c.exchangeToTransport(ctx, transport, message)
+	var response *dns.Msg
+	var err error
+	if len(c.retryIntervals) > 0 {
+		response, err = c.exchangeToTransportRetry(ctx, transport, message)
+	} else {
+		response, err = c.exchangeToTransport(ctx, transport, message)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -565,6 +575,77 @@ func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNST
 		return FixedResponseStatus(message, int(rcodeError)), nil
 	}
 	return nil, err
+}
+
+func (c *Client) exchangeToTransportRetry(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg) (*dns.Msg, error) {
+	outerCtx, outerCancel := context.WithTimeout(ctx, c.timeout)
+	defer outerCancel()
+	var lastErr error
+	for attempt, perAttempt := range c.retryIntervals {
+		if outerCtx.Err() != nil {
+			if lastErr != nil {
+				return nil, E.Cause(lastErr, "dns: outer cap fired after ", attempt, " attempts")
+			}
+			return nil, outerCtx.Err()
+		}
+		response, err := func() (*dns.Msg, error) {
+			attemptCtx, cancel := context.WithTimeout(outerCtx, perAttempt)
+			defer cancel()
+			return transport.Exchange(attemptCtx, message)
+		}()
+		if err == nil {
+			stripDNSPadding(response)
+			return response, nil
+		}
+		var rcodeError RcodeError
+		if errors.As(err, &rcodeError) {
+			return FixedResponseStatus(message, int(rcodeError)), nil
+		}
+		// Parent cancel takes precedence over per-attempt classification.
+		// Skip when err already wraps the outer cap's DeadlineExceeded — let
+		// the next iteration's top-of-loop check handle it.
+		if outerCtx.Err() != nil && !errors.Is(err, context.DeadlineExceeded) {
+			return nil, outerCtx.Err()
+		}
+		if !isRetriable(err) {
+			return nil, err
+		}
+		lastErr = err
+		// Skip Reset on final attempt or when outer cap already fired.
+		if attempt == len(c.retryIntervals)-1 || outerCtx.Err() != nil {
+			break
+		}
+		// Best-effort Reset: meaningful for UDP zombie-socket; no-op or
+		// redundant for other transports. Recover guards against panics in
+		// third-party transport implementations.
+		func() {
+			defer func() { _ = recover() }()
+			transport.Reset()
+		}()
+		if c.logger != nil {
+			c.logger.DebugContext(ctx, "dns: attempt ", attempt+1, "/", len(c.retryIntervals), " failed (", err, "), retrying")
+		}
+	}
+	if lastErr == nil {
+		if outerCtx.Err() != nil {
+			return nil, outerCtx.Err()
+		}
+		return nil, E.New("dns: no attempts executed")
+	}
+	return nil, E.Cause(lastErr, "dns: ", len(c.retryIntervals), " attempts failed")
+}
+
+func isRetriable(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, syscall.ECONNRESET) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	return false
 }
 
 func MessageToAddresses(response *dns.Msg) []netip.Addr {

@@ -55,6 +55,7 @@ type DNSClientOptions struct {
 	Optimistic       *OptimisticDNSOptions `json:"optimistic,omitempty"`
 	ClientSubnet     *badoption.Prefixable `json:"client_subnet,omitempty"`
 	Timeout          badoption.Duration    `json:"timeout,omitempty"`
+	RetryIntervals   badoption.Listable[badoption.Duration] `json:"retry_intervals,omitempty"`
 }
 
 type _OptimisticDNSOptions struct {
