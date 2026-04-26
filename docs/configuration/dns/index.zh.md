@@ -5,7 +5,9 @@ icon: material/alert-decagram
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-delete-clock: [independent_cache](#independent_cache)  
-    :material-plus: [optimistic](#optimistic)
+    :material-plus: [optimistic](#optimistic)  
+    :material-plus: [timeout](#timeout)  
+    :material-plus: [retry_intervals](#retry_intervals)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -33,6 +35,8 @@ icon: material/alert-decagram
     "optimistic": false, // or {}
     "reverse_mapping": false,
     "client_subnet": "",
+    "timeout": "",
+    "retry_intervals": [],
     "fakeip": {}
   }
 }
@@ -129,6 +133,22 @@ LRU 缓存容量。
 如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
 
 可以被 `servers.[].client_subnet` 或 `rules.[].client_subnet` 覆盖。
+
+#### timeout
+
+!!! question "自 sing-box 1.14.0 起"
+
+DNS 查询超时时间。
+
+默认使用 `10s`。
+
+#### retry_intervals
+
+!!! question "自 sing-box 1.14.0 起"
+
+每次尝试的 DNS 查询超时时间。每个条目对应一次尝试的截止时间；列表长度即为
+尝试次数。所有尝试的总耗时受 [`timeout`](#timeout) 限制；超出上限的间隔会被截断。
+权威 RCODE 响应会立即结束循环。
 
 #### fakeip :material-note-remove:
 
