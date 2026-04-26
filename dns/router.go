@@ -80,6 +80,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 	}
 	router.client = NewClient(ClientOptions{
 		Context:           ctx,
+		Timeout:           time.Duration(options.DNSClientOptions.Timeout),
 		DisableCache:      options.DNSClientOptions.DisableCache,
 		DisableExpire:     options.DNSClientOptions.DisableExpire,
 		OptimisticTimeout: optimisticTimeout,

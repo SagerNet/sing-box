@@ -5,7 +5,8 @@ icon: material/alert-decagram
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-delete-clock: [independent_cache](#independent_cache)  
-    :material-plus: [optimistic](#optimistic)
+    :material-plus: [optimistic](#optimistic)  
+    :material-plus: [timeout](#timeout)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -33,6 +34,7 @@ icon: material/alert-decagram
     "optimistic": false, // or {}
     "reverse_mapping": false,
     "client_subnet": "",
+    "timeout": "",
     "fakeip": {}
   }
 }
@@ -131,3 +133,11 @@ Append a `edns0-subnet` OPT extra record with the specified IP prefix to every q
 If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
 
 Can be overridden by `servers.[].client_subnet` or `rules.[].client_subnet`.
+
+#### timeout
+
+!!! question "Since sing-box 1.14.0"
+
+DNS query timeout.
+
+`10s` is used by default.
