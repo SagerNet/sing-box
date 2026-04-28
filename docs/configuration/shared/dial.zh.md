@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-alert: [domain_resolver](#domain_resolver)
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)  

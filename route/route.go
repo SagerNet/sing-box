@@ -791,6 +791,7 @@ func (r *Router) actionResolve(ctx context.Context, metadata *adapter.InboundCon
 			DisableCache:           action.DisableCache,
 			DisableOptimisticCache: action.DisableOptimisticCache,
 			RewriteTTL:             action.RewriteTTL,
+			Timeout:                action.Timeout,
 			ClientSubnet:           action.ClientSubnet,
 		})
 		if err != nil {

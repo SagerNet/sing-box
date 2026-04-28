@@ -7,7 +7,8 @@ icon: material/new-box
     :material-delete-clock: [strategy](#strategy)  
     :material-plus: [evaluate](#evaluate)  
     :material-plus: [respond](#respond)  
-    :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)
+    :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)  
+    :material-plus: [timeout](#timeout)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -26,6 +27,7 @@ icon: material/new-box
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
@@ -64,6 +66,14 @@ Disable optimistic DNS caching in this query.
 
 Rewrite TTL in DNS responses.
 
+#### timeout
+
+!!! question "Since sing-box 1.14.0"
+
+Override the DNS query timeout for matched queries.
+
+Will override `dns.timeout`.
+
 #### client_subnet
 
 Append a `edns0-subnet` OPT extra record with the specified IP prefix to every query by default.
@@ -83,6 +93,7 @@ Will override `dns.client_subnet`.
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
@@ -116,6 +127,14 @@ Disable optimistic DNS caching in this query.
 
 Rewrite TTL in DNS responses.
 
+#### timeout
+
+!!! question "Since sing-box 1.14.0"
+
+Override the DNS query timeout for matched queries.
+
+Will override `dns.timeout`.
+
 #### client_subnet
 
 Append a `edns0-subnet` OPT extra record with the specified IP prefix to every query by default.
@@ -148,6 +167,7 @@ Only allowed after a preceding top-level `evaluate` rule. If the action is reach
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
