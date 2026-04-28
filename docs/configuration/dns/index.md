@@ -5,7 +5,8 @@ icon: material/alert-decagram
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-delete-clock: [independent_cache](#independent_cache)  
-    :material-plus: [optimistic](#optimistic)
+    :material-plus: [optimistic](#optimistic)  
+    :material-plus: [timeout](#timeout)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -31,6 +32,7 @@ icon: material/alert-decagram
     "independent_cache": false,
     "cache_capacity": 0,
     "optimistic": false, // or {}
+    "timeout": "",
     "reverse_mapping": false,
     "client_subnet": "",
     "fakeip": {}
@@ -114,6 +116,16 @@ Enable optimistic DNS caching.
 The maximum time an expired cache entry can be served optimistically.
 
 `3d` is used by default.
+
+#### timeout
+
+!!! question "Since sing-box 1.14.0"
+
+Default timeout for each DNS query.
+
+`10s` is used by default.
+
+Can be overridden by `rules.[].timeout` (DNS rule action) or `domain_resolver.timeout`.
 
 #### reverse_mapping
 
