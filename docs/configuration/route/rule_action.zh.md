@@ -9,7 +9,8 @@ icon: material/new-box
 
 !!! quote "sing-box 1.14.0 中的更改"
 
-    :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)
+    :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)  
+    :material-plus: [resolve.timeout](#timeout)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -277,6 +278,7 @@ UDP 连接超时时间。
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
@@ -310,6 +312,14 @@ DNS 解析策略，可用值有：`prefer_ipv4`、`prefer_ipv6`、`ipv4_only`、
 !!! question "自 sing-box 1.12.0 起"
 
 重写 DNS 回应中的 TTL。
+
+#### timeout
+
+!!! question "自 sing-box 1.14.0 起"
+
+覆盖此查询的 DNS 查询超时时间。
+
+将覆盖 `dns.timeout`。
 
 #### client_subnet
 

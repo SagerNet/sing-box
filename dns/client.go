@@ -222,7 +222,7 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 			return nil, ErrResponseRejectedCached
 		}
 	}
-	response, err := c.exchangeToTransport(ctx, transport, message)
+	response, err := c.exchangeToTransport(ctx, transport, message, options.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +495,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, question d
 	go func() {
 		defer c.backgroundRefresh.Delete(key)
 		ctx := contextWithTransportTag(c.ctx, transport.Tag())
-		response, err := c.exchangeToTransport(ctx, transport, message)
+		response, err := c.exchangeToTransport(ctx, transport, message, options.Timeout)
 		if err != nil {
 			if c.logger != nil {
 				c.logger.DebugContext(ctx, "optimistic refresh failed for ", FqdnToDomain(question.Name), ": ", err)
@@ -550,8 +550,11 @@ func stripDNSPadding(response *dns.Msg) {
 	}
 }
 
-func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg) (*dns.Msg, error) {
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+func (c *Client) exchangeToTransport(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, timeout time.Duration) (*dns.Msg, error) {
+	if timeout == 0 {
+		timeout = c.timeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	response, err := transport.Exchange(ctx, message)
 	if err == nil {
