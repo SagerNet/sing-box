@@ -48,6 +48,7 @@ func (o *DNSOptions) UnmarshalJSONContext(ctx context.Context, content []byte) e
 
 type DNSClientOptions struct {
 	Strategy         DomainStrategy        `json:"strategy,omitempty"`
+	Timeout          badoption.Duration    `json:"timeout,omitempty"`
 	DisableCache     bool                  `json:"disable_cache,omitempty"`
 	DisableExpire    bool                  `json:"disable_expire,omitempty"`
 	IndependentCache bool                  `json:"independent_cache,omitempty"`
