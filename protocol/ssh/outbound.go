@@ -41,6 +41,9 @@ type Outbound struct {
 	user              string
 	hostKey           []ssh.PublicKey
 	hostKeyAlgorithms []string
+	cipher            []string
+	mac               []string
+	kexAlgorithm      []string
 	clientVersion     string
 	authMethod        []ssh.AuthMethod
 	clientAccess      sync.Mutex
@@ -60,6 +63,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		serverAddr:        options.ServerOptions.Build(),
 		user:              options.User,
 		hostKeyAlgorithms: options.HostKeyAlgorithms,
+		cipher:            options.Cipher,
+		mac:               options.MAC,
+		kexAlgorithm:      options.KexAlgorithm,
 		clientVersion:     options.ClientVersion,
 	}
 	if outbound.serverAddr.Port == 0 {
@@ -166,6 +172,15 @@ func (s *Outbound) connect(ctx context.Context) (client *ssh.Client, err error) 
 			}
 			return E.New("host key mismatch, server send ", key.Type(), " ", base64.StdEncoding.EncodeToString(serverKey))
 		},
+	}
+	if len(s.cipher) > 0 {
+		config.Ciphers = s.cipher
+	}
+	if len(s.mac) > 0 {
+		config.MACs = s.mac
+	}
+	if len(s.kexAlgorithm) > 0 {
+		config.KeyExchanges = s.kexAlgorithm
 	}
 	clientConn, chans, reqs, err := ssh.NewClientConn(conn, s.serverAddr.Addr.String(), config)
 	if err != nil {
