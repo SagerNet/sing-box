@@ -856,6 +856,9 @@ func (r *Router) ClearCache() {
 	if r.platformInterface != nil {
 		r.platformInterface.ClearDNSCache()
 	}
+	if r.dnsReverseMapping != nil {
+		r.dnsReverseMapping.Purge()
+	}
 }
 
 func (r *Router) LookupReverseMapping(ip netip.Addr) (string, bool) {
