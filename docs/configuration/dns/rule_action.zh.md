@@ -7,7 +7,8 @@ icon: material/new-box
     :material-delete-clock: [strategy](#strategy)  
     :material-plus: [evaluate](#evaluate)  
     :material-plus: [respond](#respond)  
-    :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)
+    :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)  
+    :material-plus: [timeout](#timeout)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -26,6 +27,7 @@ icon: material/new-box
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
@@ -64,6 +66,14 @@ icon: material/new-box
 
 重写 DNS 回应中的 TTL。
 
+#### timeout
+
+!!! question "自 sing-box 1.14.0 起"
+
+覆盖匹配查询的 DNS 查询超时时间。
+
+将覆盖 `dns.timeout`。
+
 #### client_subnet
 
 默认情况下，将带有指定 IP 前缀的 `edns0-subnet` OPT 附加记录附加到每个查询。
@@ -83,6 +93,7 @@ icon: material/new-box
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
@@ -113,6 +124,14 @@ icon: material/new-box
 #### rewrite_ttl
 
 重写 DNS 回应中的 TTL。
+
+#### timeout
+
+!!! question "自 sing-box 1.14.0 起"
+
+覆盖匹配查询的 DNS 查询超时时间。
+
+将覆盖 `dns.timeout`。
 
 #### client_subnet
 
@@ -146,6 +165,7 @@ icon: material/new-box
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
