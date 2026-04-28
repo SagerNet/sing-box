@@ -105,6 +105,7 @@ type adaptiveTimer struct {
 	limitThresholds pressureThresholds
 
 	access                  sync.Mutex
+	cleanupTriggered        bool
 	timer                   *time.Timer
 	state                   pressureState
 	currentInterval         time.Duration
@@ -161,10 +162,6 @@ func (t *adaptiveTimer) stop() {
 }
 
 func (t *adaptiveTimer) poll() {
-	if t.timerConfig.policyMode == policyModeNetworkExtension {
-		runtimeDebug.FreeOSMemory()
-	}
-
 	var triggered bool
 	var rateTriggered bool
 	sample := readMemorySample(t.policyMode)
@@ -173,6 +170,12 @@ func (t *adaptiveTimer) poll() {
 	if t.timer == nil {
 		t.access.Unlock()
 		return
+	}
+	if t.timerConfig.policyMode == policyModeNetworkExtension {
+		if t.cleanupTriggered {
+			runtimeDebug.FreeOSMemory()
+			t.cleanupTriggered = true
+		}
 	}
 	if t.pendingPressureBaseline {
 		t.pressureBaseline = sample
@@ -205,10 +208,10 @@ func (t *adaptiveTimer) poll() {
 		}
 	}
 	t.access.Unlock()
-
 	if !triggered {
 		return
 	}
+	t.cleanupTriggered = false
 	t.onTriggered(sample.usage)
 	if rateTriggered {
 		if t.killerDisabled {
@@ -225,6 +228,7 @@ func (t *adaptiveTimer) poll() {
 			t.router.ResetNetwork()
 		}
 	}
+	badCleanup()
 	runtimeDebug.FreeOSMemory()
 }
 
