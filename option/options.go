@@ -11,6 +11,7 @@ import (
 
 type _Options struct {
 	RawMessage           json.RawMessage       `json:"-"`
+	CommentsSet          *json.CommentSet      `json:"-"`
 	Schema               string                `json:"$schema,omitempty"`
 	Log                  *LogOptions           `json:"log,omitempty"`
 	DNS                  *DNSOptions           `json:"dns,omitempty"`
@@ -28,6 +29,10 @@ type _Options struct {
 
 type Options _Options
 
+func (o Options) MarshalJSONContext(ctx context.Context) ([]byte, error) {
+	return json.MarshalContext(ctx, (_Options)(o))
+}
+
 func (o *Options) UnmarshalJSONContext(ctx context.Context, content []byte) error {
 	decoder := json.NewDecoderContext(ctx, bytes.NewReader(content))
 	decoder.DisallowUnknownFields()
@@ -37,6 +42,14 @@ func (o *Options) UnmarshalJSONContext(ctx context.Context, content []byte) erro
 	}
 	o.RawMessage = content
 	return checkOptions(o)
+}
+
+func (o Options) Comments() *json.CommentSet {
+	return o.CommentsSet
+}
+
+func (o *Options) SetComments(comments *json.CommentSet) {
+	o.CommentsSet = comments
 }
 
 type LogOptions struct {
