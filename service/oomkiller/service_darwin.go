@@ -33,7 +33,6 @@ static void stopMemoryPressureMonitor() {
 import "C"
 
 import (
-	runtimeDebug "runtime/debug"
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -90,7 +89,6 @@ func (s *Service) Close() error {
 
 //export goMemoryPressureCallback
 func goMemoryPressureCallback(status C.ulong) {
-	runtimeDebug.FreeOSMemory()
 	globalAccess.Lock()
 	services := make([]*Service, len(globalServices))
 	copy(services, globalServices)
