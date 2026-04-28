@@ -9,7 +9,8 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
-    :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)
+    :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)  
+    :material-plus: [resolve.timeout](#timeout)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -285,6 +286,7 @@ Timeout for sniffing.
   "disable_cache": false,
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
+  "timeout": "",
   "client_subnet": null
 }
 ```
@@ -318,6 +320,14 @@ Disable optimistic DNS caching in this query.
 !!! question "Since sing-box 1.12.0"
 
 Rewrite TTL in DNS responses.
+
+#### timeout
+
+!!! question "Since sing-box 1.14.0"
+
+Override the DNS query timeout for this lookup.
+
+Will override `dns.timeout`.
 
 #### client_subnet
 
