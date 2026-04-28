@@ -38,10 +38,12 @@ func format() error {
 		return err
 	}
 	for _, optionsEntry := range optionsList {
+		comments := optionsEntry.options.Comments()
 		optionsEntry.options, err = badjson.Omitempty(globalCtx, optionsEntry.options)
 		if err != nil {
 			return err
 		}
+		optionsEntry.options.SetComments(comments)
 		buffer := new(bytes.Buffer)
 		encoder := json.NewEncoder(buffer)
 		encoder.SetIndent("", "  ")
