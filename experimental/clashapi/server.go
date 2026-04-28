@@ -21,6 +21,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/cleanup"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	N "github.com/sagernet/sing/common/network"
@@ -51,6 +52,7 @@ type Server struct {
 	trafficManager *trafficontrol.Manager
 	urlTestHistory adapter.URLTestHistoryStorage
 	logDebug       bool
+	cleaner        *cleanup.Cleaner
 
 	mode           string
 	modeList       []string
@@ -82,6 +84,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		externalController:       options.ExternalController != "",
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
+		cleaner:                  cleanup.Add(trafficManager.Clear),
 	}
 	s.urlTestHistory = service.FromContext[adapter.URLTestHistoryStorage](ctx)
 	if s.urlTestHistory == nil {
@@ -193,6 +196,7 @@ func (s *Server) Close() error {
 		common.PtrOrNil(s.httpServer),
 		s.trafficManager,
 		s.urlTestHistory,
+		common.PtrOrNil(s.cleaner),
 	)
 }
 
