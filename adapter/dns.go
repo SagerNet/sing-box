@@ -38,6 +38,7 @@ type DNSQueryOptions struct {
 	DisableCache           bool
 	DisableOptimisticCache bool
 	RewriteTTL             *uint32
+	Timeout                time.Duration
 	ClientSubnet           netip.Prefix
 }
 
@@ -56,6 +57,7 @@ func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptio
 		DisableCache:           options.DisableCache,
 		DisableOptimisticCache: options.DisableOptimisticCache,
 		RewriteTTL:             options.RewriteTTL,
+		Timeout:                time.Duration(options.Timeout),
 		ClientSubnet:           options.ClientSubnet.Build(netip.Prefix{}),
 	}, nil
 }
