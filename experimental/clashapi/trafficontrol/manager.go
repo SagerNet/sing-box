@@ -159,9 +159,10 @@ func (m *Manager) Snapshot() *Snapshot {
 	}
 }
 
-func (m *Manager) ResetStatistic() {
-	m.uploadTotal.Store(0)
-	m.downloadTotal.Store(0)
+func (m *Manager) Clear() {
+	m.closedConnectionsAccess.Lock()
+	defer m.closedConnectionsAccess.Unlock()
+	m.closedConnections.Init()
 }
 
 type Snapshot struct {
