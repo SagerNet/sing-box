@@ -202,6 +202,7 @@ func (r *RouteOptionsActionOptions) UnmarshalJSON(data []byte) error {
 
 type DNSRouteActionOptions struct {
 	Server                 string                `json:"server,omitempty"`
+	Timeout                badoption.Duration    `json:"timeout,omitempty"`
 	Strategy               DomainStrategy        `json:"strategy,omitempty"`
 	DisableCache           bool                  `json:"disable_cache,omitempty"`
 	DisableOptimisticCache bool                  `json:"disable_optimistic_cache,omitempty"`
@@ -211,6 +212,7 @@ type DNSRouteActionOptions struct {
 
 type _DNSRouteOptionsActionOptions struct {
 	Strategy               DomainStrategy        `json:"strategy,omitempty"`
+	Timeout                badoption.Duration    `json:"timeout,omitempty"`
 	DisableCache           bool                  `json:"disable_cache,omitempty"`
 	DisableOptimisticCache bool                  `json:"disable_optimistic_cache,omitempty"`
 	RewriteTTL             *uint32               `json:"rewrite_ttl,omitempty"`
@@ -324,6 +326,7 @@ type RouteActionSniff struct {
 
 type RouteActionResolve struct {
 	Server                 string                `json:"server,omitempty"`
+	Timeout                badoption.Duration    `json:"timeout,omitempty"`
 	Strategy               DomainStrategy        `json:"strategy,omitempty"`
 	DisableCache           bool                  `json:"disable_cache,omitempty"`
 	DisableOptimisticCache bool                  `json:"disable_optimistic_cache,omitempty"`
