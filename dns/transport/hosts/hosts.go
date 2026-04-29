@@ -19,7 +19,10 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 	dns.RegisterTransport[option.HostsDNSServerOptions](registry, C.DNSTypeHosts, NewTransport)
 }
 
-var _ adapter.DNSTransport = (*Transport)(nil)
+var (
+	_ adapter.DNSTransport                    = (*Transport)(nil)
+	_ adapter.DNSTransportWithPreferredDomain = (*Transport)(nil)
+)
 
 type Transport struct {
 	dns.TransportAdapter
@@ -64,6 +67,18 @@ func (t *Transport) Close() error {
 }
 
 func (t *Transport) Reset() {
+}
+
+func (t *Transport) PreferredDomain(domain string) bool {
+	if _, loaded := t.predefined[domain]; loaded {
+		return true
+	}
+	for _, file := range t.files {
+		if len(file.Lookup(domain)) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
