@@ -10,7 +10,9 @@ icon: material/new-box
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)  
-    :material-plus: [resolve.timeout](#timeout)
+    :material-plus: [resolve.timeout](#timeout)  
+    :material-plus: [tls_spoof](#tls_spoof)  
+    :material-plus: [tls_spoof_method](#tls_spoof_method)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -142,7 +144,9 @@ icon: material/new-box
   "udp_timeout": "",
   "tls_fragment": false,
   "tls_fragment_fallback_delay": "",
-  "tls_record_fragment": false
+  "tls_record_fragment": false,
+  "tls_spoof": "",
+  "tls_spoof_method": ""
 }
 ```
 
@@ -239,6 +243,24 @@ UDP 连接超时时间。
 !!! question "自 sing-box 1.12.0 起"
 
 通过分段 TLS 握手数据包到多个 TLS 记录来绕过防火墙检测。
+
+#### tls_spoof
+
+!!! question "自 sing-box 1.14.0 起"
+
+==仅 Linux/macOS/Windows，需要管理员权限==
+
+在真实 ClientHello 之前注入携带本字段所指定 SNI 的伪造 TLS ClientHello，
+用于欺骗仅放行特定主机名的 SNI 过滤中间盒。
+
+详情与所需权限参阅出站 TLS [`spoof`](/zh/configuration/shared/tls/#spoof)。
+
+#### tls_spoof_method
+
+!!! question "自 sing-box 1.14.0 起"
+
+控制伪造报文被真实服务器拒绝的方式。完整取值表与平台说明参阅出站 TLS
+[`spoof_method`](/zh/configuration/shared/tls/#spoof_method)。
 
 ### sniff
 
