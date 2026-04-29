@@ -27,6 +27,7 @@ type linuxSpoofer struct {
 	rawSockAddr unix.Sockaddr
 	sendNext    uint32
 	receiveNext uint32
+	timestamp   uint32
 }
 
 func newRawSpoofer(conn net.Conn, method Method) (rawSpoofer, error) {
@@ -84,6 +85,13 @@ func openLinuxRawSocket(dst netip.AddrPort) (int, unix.Sockaddr, error) {
 func (s *linuxSpoofer) loadSequenceNumbers(tcpConn *net.TCPConn) error {
 	return control.Conn(tcpConn, func(raw uintptr) (err error) {
 		fd := int(raw)
+
+		timestamp, err := unix.GetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_TIMESTAMP)
+		if err != nil {
+			return E.Cause(err, "read timestamp")
+		}
+		s.timestamp = uint32(timestamp)
+
 		err = unix.SetsockoptInt(fd, unix.IPPROTO_TCP, unix.TCP_REPAIR, unix.TCP_REPAIR_ON)
 		if err != nil {
 			return E.Cause(err, "enter TCP_REPAIR (need CAP_NET_ADMIN)")
@@ -113,12 +121,13 @@ func (s *linuxSpoofer) loadSequenceNumbers(tcpConn *net.TCPConn) error {
 		}
 		s.sendNext = uint32(sendSequence)
 		s.receiveNext = uint32(receiveSequence)
+
 		return nil
 	})
 }
 
 func (s *linuxSpoofer) Inject(payload []byte) error {
-	frame, err := buildSpoofFrame(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload)
+	frame, err := buildSpoofFrame(s.method, s.src, s.dst, s.sendNext, s.receiveNext, s.timestamp, payload)
 	if err != nil {
 		return err
 	}

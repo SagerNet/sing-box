@@ -11,11 +11,17 @@ type Method int
 const (
 	MethodWrongSequence Method = iota
 	MethodWrongChecksum
+	MethodWrongAcknowledgment
+	MethodWrongMD5Sig
+	MethodWrongTimestamp
 )
 
 const (
-	MethodNameWrongSequence = "wrong-sequence"
-	MethodNameWrongChecksum = "wrong-checksum"
+	MethodNameWrongSequence       = "wrong-sequence"
+	MethodNameWrongChecksum       = "wrong-checksum"
+	MethodNameWrongAcknowledgment = "wrong-ack"
+	MethodNameWrongMD5Sig         = "wrong-md5"
+	MethodNameWrongTimestamp      = "wrong-timestamp"
 )
 
 func ParseMethod(s string) (Method, error) {
@@ -24,6 +30,12 @@ func ParseMethod(s string) (Method, error) {
 		return MethodWrongSequence, nil
 	case MethodNameWrongChecksum:
 		return MethodWrongChecksum, nil
+	case MethodNameWrongAcknowledgment:
+		return MethodWrongAcknowledgment, nil
+	case MethodNameWrongMD5Sig:
+		return MethodWrongMD5Sig, nil
+	case MethodNameWrongTimestamp:
+		return MethodWrongTimestamp, nil
 	default:
 		return 0, E.New("tls_spoof: unknown method: ", s)
 	}
@@ -35,6 +47,12 @@ func (m Method) String() string {
 		return MethodNameWrongSequence
 	case MethodWrongChecksum:
 		return MethodNameWrongChecksum
+	case MethodWrongAcknowledgment:
+		return MethodNameWrongAcknowledgment
+	case MethodWrongMD5Sig:
+		return MethodNameWrongMD5Sig
+	case MethodWrongTimestamp:
+		return MethodNameWrongTimestamp
 	default:
 		return "unknown"
 	}

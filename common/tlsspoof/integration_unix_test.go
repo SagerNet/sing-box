@@ -44,6 +44,54 @@ func TestIntegrationSpoofer_WrongSequence(t *testing.T) {
 	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
 }
 
+func TestIntegrationSpoofer_WrongAcknowledgment(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServer(t)
+	spoofer, err := newRawSpoofer(client, MethodWrongAcknowledgment)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	fake, err := buildFakeClientHello("letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
+func TestIntegrationSpoofer_WrongMD5Sig(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServer(t)
+	spoofer, err := newRawSpoofer(client, MethodWrongMD5Sig)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	fake, err := buildFakeClientHello("letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
+func TestIntegrationSpoofer_WrongTimestamp(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServer(t)
+	spoofer, err := newRawSpoofer(client, MethodWrongTimestamp)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	fake, err := buildFakeClientHello("letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
 func TestIntegrationSpoofer_IPv6_WrongChecksum(t *testing.T) {
 	requireRoot(t)
 	client, serverPort := dialLocalEchoServerIPv6(t)
@@ -64,6 +112,54 @@ func TestIntegrationSpoofer_IPv6_WrongSequence(t *testing.T) {
 	requireRoot(t)
 	client, serverPort := dialLocalEchoServerIPv6(t)
 	spoofer, err := newRawSpoofer(client, MethodWrongSequence)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	fake, err := buildFakeClientHello("letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
+func TestIntegrationSpoofer_IPv6_WrongAcknowledgment(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServerIPv6(t)
+	spoofer, err := newRawSpoofer(client, MethodWrongAcknowledgment)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	fake, err := buildFakeClientHello("letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
+func TestIntegrationSpoofer_IPv6_WrongMD5Sig(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServerIPv6(t)
+	spoofer, err := newRawSpoofer(client, MethodWrongMD5Sig)
+	require.NoError(t, err)
+	defer spoofer.Close()
+
+	fake, err := buildFakeClientHello("letsencrypt.org")
+	require.NoError(t, err)
+
+	captured := tcpdumpObserver(t, loopbackInterface, serverPort, "letsencrypt.org", func() {
+		require.NoError(t, spoofer.Inject(fake))
+	}, 3*time.Second)
+	require.True(t, captured, "injected fake ClientHello must be observable on loopback")
+}
+
+func TestIntegrationSpoofer_IPv6_WrongTimestamp(t *testing.T) {
+	requireRoot(t)
+	client, serverPort := dialLocalEchoServerIPv6(t)
+	spoofer, err := newRawSpoofer(client, MethodWrongTimestamp)
 	require.NoError(t, err)
 	defer spoofer.Close()
 

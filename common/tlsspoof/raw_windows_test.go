@@ -15,8 +15,9 @@ func TestParseTCPFieldsIPv4Valid(t *testing.T) {
 	t.Parallel()
 	src := netip.MustParseAddrPort("10.0.0.1:54321")
 	dst := netip.MustParseAddrPort("1.2.3.4:443")
+	packetInfo := spoofPacketInfo{seqNum: 1000, ackNum: 2000, corrupt: false}
 	payload := []byte("hello")
-	frame := buildTCPSegment(src, dst, 1000, 2000, payload, false)
+	frame := buildTCPSegment(src, dst, packetInfo, payload)
 
 	seq, ack, payloadLen, ok := parseTCPFields(frame, false)
 	require.True(t, ok)
@@ -29,7 +30,8 @@ func TestParseTCPFieldsIPv4NoPayload(t *testing.T) {
 	t.Parallel()
 	src := netip.MustParseAddrPort("10.0.0.1:54321")
 	dst := netip.MustParseAddrPort("1.2.3.4:443")
-	frame := buildTCPSegment(src, dst, 42, 100, nil, false)
+	packetInfo := spoofPacketInfo{seqNum: 42, ackNum: 100, corrupt: false}
+	frame := buildTCPSegment(src, dst, packetInfo, nil)
 
 	seq, ack, payloadLen, ok := parseTCPFields(frame, false)
 	require.True(t, ok)
@@ -42,8 +44,9 @@ func TestParseTCPFieldsIPv6Valid(t *testing.T) {
 	t.Parallel()
 	src := netip.MustParseAddrPort("[fe80::1]:54321")
 	dst := netip.MustParseAddrPort("[2606:4700::1]:443")
+	packetInfo := spoofPacketInfo{seqNum: 0xDEADBEEF, ackNum: 0x12345678, corrupt: false}
 	payload := []byte("hello-v6")
-	frame := buildTCPSegment(src, dst, 0xDEADBEEF, 0x12345678, payload, false)
+	frame := buildTCPSegment(src, dst, packetInfo, payload)
 
 	seq, ack, payloadLen, ok := parseTCPFields(frame, true)
 	require.True(t, ok)
@@ -103,7 +106,8 @@ func TestParseTCPFieldsIPv4OptionsOverflow(t *testing.T) {
 	// Start with a valid IPv4+TCP frame, then lie about the header length.
 	src := netip.MustParseAddrPort("10.0.0.1:1")
 	dst := netip.MustParseAddrPort("10.0.0.2:2")
-	frame := buildTCPSegment(src, dst, 0, 0, []byte("x"), false)
+	packetInfo := spoofPacketInfo{seqNum: 0, ackNum: 0, corrupt: false}
+	frame := buildTCPSegment(src, dst, packetInfo, []byte("x"))
 	ip := header.IPv4(frame[:header.IPv4MinimumSize])
 	// ihl=15 → 60 bytes of IP header claimed, but buffer only has 20.
 	ip.SetHeaderLength(60)

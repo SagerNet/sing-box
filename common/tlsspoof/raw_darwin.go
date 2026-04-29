@@ -159,7 +159,7 @@ func openDarwinRawSocket(src, dst netip.AddrPort) (int, unix.Sockaddr, error) {
 
 func (s *darwinSpoofer) Inject(payload []byte) error {
 	if !s.src.Addr().Is4() {
-		segment, err := buildSpoofTCPSegment(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload)
+		segment, err := buildSpoofTCPSegment(s.method, s.src, s.dst, s.sendNext, s.receiveNext, 0, payload)
 		if err != nil {
 			return err
 		}
@@ -169,7 +169,7 @@ func (s *darwinSpoofer) Inject(payload []byte) error {
 		}
 		return nil
 	}
-	frame, err := buildSpoofFrame(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload)
+	frame, err := buildSpoofFrame(s.method, s.src, s.dst, s.sendNext, s.receiveNext, 0, payload)
 	if err != nil {
 		return err
 	}

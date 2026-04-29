@@ -352,10 +352,13 @@ func TestParseMethod(t *testing.T) {
 		want Method
 		ok   bool
 	}{
-		"":               {MethodWrongSequence, true},
-		"wrong-sequence": {MethodWrongSequence, true},
-		"wrong-checksum": {MethodWrongChecksum, true},
-		"nonsense":       {0, false},
+		"":                {MethodWrongSequence, true},
+		"wrong-sequence":  {MethodWrongSequence, true},
+		"wrong-checksum":  {MethodWrongChecksum, true},
+		"wrong-ack":       {MethodWrongAcknowledgment, true},
+		"wrong-md5":       {MethodWrongMD5Sig, true},
+		"wrong-timestamp": {MethodWrongTimestamp, true},
+		"nonsense":        {0, false},
 	}
 	for input, expected := range cases {
 		m, err := ParseMethod(input)

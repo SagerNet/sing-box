@@ -151,7 +151,7 @@ func (s *windowsSpoofer) run() {
 			continue
 		}
 
-		frame, err := buildSpoofFrame(s.method, s.src, s.dst, seq, ack, fake)
+		frame, err := buildSpoofFrame(s.method, s.src, s.dst, seq, ack, 0, fake)
 		if err != nil {
 			s.recordErr(err)
 			return
