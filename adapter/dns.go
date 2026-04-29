@@ -86,6 +86,11 @@ type DNSTransport interface {
 	Exchange(ctx context.Context, message *dns.Msg) (*dns.Msg, error)
 }
 
+type DNSTransportWithPreferredDomain interface {
+	DNSTransport
+	PreferredDomain(domain string) bool
+}
+
 type DNSTransportRegistry interface {
 	option.DNSTransportOptionsRegistry
 	CreateDNSTransport(ctx context.Context, logger log.ContextLogger, tag string, transportType string, options any) (DNSTransport, error)

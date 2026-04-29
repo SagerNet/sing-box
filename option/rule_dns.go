@@ -103,6 +103,7 @@ type RawDefaultDNSRule struct {
 	DefaultInterfaceAddress  badoption.Listable[*badoption.Prefixable]                                   `json:"default_interface_address,omitempty"`
 	SourceMACAddress         badoption.Listable[string]                                                  `json:"source_mac_address,omitempty"`
 	SourceHostname           badoption.Listable[string]                                                  `json:"source_hostname,omitempty"`
+	PreferredBy              badoption.Listable[string]                                                  `json:"preferred_by,omitempty"`
 	RuleSet                  badoption.Listable[string]                                                  `json:"rule_set,omitempty"`
 	RuleSetIPCIDRMatchSource bool                                                                        `json:"rule_set_ip_cidr_match_source,omitempty"`
 	MatchResponse            bool                                                                        `json:"match_response,omitempty"`
