@@ -14,6 +14,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -26,12 +27,14 @@ var _ adapter.DNSTransport = (*Transport)(nil)
 
 type Transport struct {
 	dns.TransportAdapter
-	ctx      context.Context
-	logger   logger.ContextLogger
-	hosts    *hosts.File
-	dialer   N.Dialer
-	preferGo bool
-	resolved ResolvedResolver
+	ctx              context.Context
+	logger           logger.ContextLogger
+	hosts            *hosts.File
+	dialer           N.Dialer
+	preferGo         bool
+	resolved         ResolvedResolver
+	neighborResolver adapter.NeighborResolver
+	neighborSuffixes []string
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.LocalDNSServerOptions) (adapter.DNSTransport, error) {
@@ -39,13 +42,17 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	if err != nil {
 		return nil, err
 	}
-
+	suffixes, err := buildNeighborMatchers(options.NeighborDomain)
+	if err != nil {
+		return nil, err
+	}
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
 		ctx:              ctx,
 		logger:           logger,
 		dialer:           transportDialer,
 		preferGo:         options.PreferGo,
+		neighborSuffixes: suffixes,
 	}, nil
 }
 
@@ -71,6 +78,11 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 				}
 			}
 		}
+	case adapter.StartStateStart:
+		router := service.FromContext[adapter.Router](t.ctx)
+		if router != nil {
+			t.neighborResolver = router.NeighborResolver()
+		}
 	}
 	return nil
 }
@@ -87,6 +99,10 @@ func (t *Transport) Reset() {
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	if t.resolved != nil {
+		response := t.lookupNeighbor(message)
+		if response != nil {
+			return response, nil
+		}
 		return t.resolved.Exchange(ctx, message)
 	}
 	question := message.Question[0]
@@ -95,6 +111,10 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 		if len(addresses) > 0 {
 			return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil
 		}
+	}
+	response := t.lookupNeighbor(message)
+	if response != nil {
+		return response, nil
 	}
 	return t.exchange(ctx, message, question.Name)
 }
