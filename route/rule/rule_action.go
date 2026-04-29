@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/sniff"
+	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
@@ -24,52 +25,54 @@ import (
 	"github.com/miekg/dns"
 )
 
+func newRuleActionRouteOptions(options option.RawRouteOptionsActionOptions) (RuleActionRouteOptions, error) {
+	spoof, spoofMethod, err := tlsspoof.ParseOptions(options.TLSSpoof, options.TLSSpoofMethod)
+	if err != nil {
+		return RuleActionRouteOptions{}, err
+	}
+	return RuleActionRouteOptions{
+		OverrideAddress:           M.ParseSocksaddrHostPort(options.OverrideAddress, 0),
+		OverridePort:              options.OverridePort,
+		NetworkStrategy:           (*C.NetworkStrategy)(options.NetworkStrategy),
+		FallbackDelay:             time.Duration(options.FallbackDelay),
+		UDPDisableDomainUnmapping: options.UDPDisableDomainUnmapping,
+		UDPConnect:                options.UDPConnect,
+		UDPTimeout:                time.Duration(options.UDPTimeout),
+		TLSFragment:               options.TLSFragment,
+		TLSFragmentFallbackDelay:  time.Duration(options.TLSFragmentFallbackDelay),
+		TLSRecordFragment:         options.TLSRecordFragment,
+		TLSSpoof:                  spoof,
+		TLSSpoofMethod:            spoofMethod,
+	}, nil
+}
+
 func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action option.RuleAction) (adapter.RuleAction, error) {
 	switch action.Action {
 	case "":
 		return nil, nil
 	case C.RuleActionTypeRoute:
+		routeOptions, err := newRuleActionRouteOptions(action.RouteOptions.RawRouteOptionsActionOptions)
+		if err != nil {
+			return nil, err
+		}
 		return &RuleActionRoute{
-			Outbound: action.RouteOptions.Outbound,
-			RuleActionRouteOptions: RuleActionRouteOptions{
-				OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptions.OverrideAddress, 0),
-				OverridePort:              action.RouteOptions.OverridePort,
-				NetworkStrategy:           (*C.NetworkStrategy)(action.RouteOptions.NetworkStrategy),
-				FallbackDelay:             time.Duration(action.RouteOptions.FallbackDelay),
-				UDPDisableDomainUnmapping: action.RouteOptions.UDPDisableDomainUnmapping,
-				UDPConnect:                action.RouteOptions.UDPConnect,
-				TLSFragment:               action.RouteOptions.TLSFragment,
-				TLSFragmentFallbackDelay:  time.Duration(action.RouteOptions.TLSFragmentFallbackDelay),
-				TLSRecordFragment:         action.RouteOptions.TLSRecordFragment,
-			},
+			Outbound:               action.RouteOptions.Outbound,
+			RuleActionRouteOptions: routeOptions,
 		}, nil
 	case C.RuleActionTypeRouteOptions:
-		return &RuleActionRouteOptions{
-			OverrideAddress:           M.ParseSocksaddrHostPort(action.RouteOptionsOptions.OverrideAddress, 0),
-			OverridePort:              action.RouteOptionsOptions.OverridePort,
-			NetworkStrategy:           (*C.NetworkStrategy)(action.RouteOptionsOptions.NetworkStrategy),
-			FallbackDelay:             time.Duration(action.RouteOptionsOptions.FallbackDelay),
-			UDPDisableDomainUnmapping: action.RouteOptionsOptions.UDPDisableDomainUnmapping,
-			UDPConnect:                action.RouteOptionsOptions.UDPConnect,
-			UDPTimeout:                time.Duration(action.RouteOptionsOptions.UDPTimeout),
-			TLSFragment:               action.RouteOptionsOptions.TLSFragment,
-			TLSFragmentFallbackDelay:  time.Duration(action.RouteOptionsOptions.TLSFragmentFallbackDelay),
-			TLSRecordFragment:         action.RouteOptionsOptions.TLSRecordFragment,
-		}, nil
+		routeOptions, err := newRuleActionRouteOptions(option.RawRouteOptionsActionOptions(action.RouteOptionsOptions))
+		if err != nil {
+			return nil, err
+		}
+		return &routeOptions, nil
 	case C.RuleActionTypeBypass:
+		routeOptions, err := newRuleActionRouteOptions(action.BypassOptions.RawRouteOptionsActionOptions)
+		if err != nil {
+			return nil, err
+		}
 		return &RuleActionBypass{
-			Outbound: action.BypassOptions.Outbound,
-			RuleActionRouteOptions: RuleActionRouteOptions{
-				OverrideAddress:           M.ParseSocksaddrHostPort(action.BypassOptions.OverrideAddress, 0),
-				OverridePort:              action.BypassOptions.OverridePort,
-				NetworkStrategy:           (*C.NetworkStrategy)(action.BypassOptions.NetworkStrategy),
-				FallbackDelay:             time.Duration(action.BypassOptions.FallbackDelay),
-				UDPDisableDomainUnmapping: action.BypassOptions.UDPDisableDomainUnmapping,
-				UDPConnect:                action.BypassOptions.UDPConnect,
-				TLSFragment:               action.BypassOptions.TLSFragment,
-				TLSFragmentFallbackDelay:  time.Duration(action.BypassOptions.TLSFragmentFallbackDelay),
-				TLSRecordFragment:         action.BypassOptions.TLSRecordFragment,
-			},
+			Outbound:               action.BypassOptions.Outbound,
+			RuleActionRouteOptions: routeOptions,
 		}, nil
 	case C.RuleActionTypeDirect:
 		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
@@ -225,6 +228,8 @@ type RuleActionRouteOptions struct {
 	TLSFragment               bool
 	TLSFragmentFallbackDelay  time.Duration
 	TLSRecordFragment         bool
+	TLSSpoof                  string
+	TLSSpoofMethod            tlsspoof.Method
 }
 
 func (r *RuleActionRouteOptions) Type() string {
@@ -272,6 +277,10 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 	}
 	if r.TLSRecordFragment {
 		descriptions = append(descriptions, "tls-record-fragment")
+	}
+	if r.TLSSpoof != "" {
+		descriptions = append(descriptions, F.ToString("tls-spoof=", r.TLSSpoof))
+		descriptions = append(descriptions, F.ToString("tls-spoof-method=", r.TLSSpoofMethod.String()))
 	}
 	return descriptions
 }
