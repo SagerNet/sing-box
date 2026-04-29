@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -113,7 +114,7 @@ func (s *windowsSpoofer) run() {
 			return
 		}
 		pkt := buf[:n]
-		seq, ack, payloadLen, ok := parseTCPFields(pkt, addr.IPv6())
+		seq, ack, tcpOptions, payloadLen, ok := parseTCPPacket(pkt, addr.IPv6())
 		if !ok {
 			// Our filter is OutboundTCP(src, dst); a non-TCP or truncated
 			// match means driver state is suspect. Re-inject so the kernel
@@ -151,7 +152,11 @@ func (s *windowsSpoofer) run() {
 			continue
 		}
 
-		frame, err := buildSpoofFrame(s.method, s.src, s.dst, seq, ack, fake)
+		var timestamp uint32
+		if parsed := header.ParseTCPOptions(tcpOptions); parsed.TS {
+			timestamp = parsed.TSVal
+		}
+		frame, err := buildSpoofFrame(s.method, s.src, s.dst, seq, ack, timestamp, tcpOptions, fake)
 		if err != nil {
 			s.recordErr(err)
 			return
@@ -177,46 +182,56 @@ func (s *windowsSpoofer) run() {
 	}
 }
 
-func parseTCPFields(pkt []byte, isV6 bool) (seq, ack uint32, payloadLen int, ok bool) {
+func parseTCPPacket(pkt []byte, isV6 bool) (seq, ack uint32, options []byte, payloadLen int, ok bool) {
 	if isV6 {
 		if len(pkt) < header.IPv6MinimumSize+header.TCPMinimumSize {
-			return 0, 0, 0, false
+			return 0, 0, nil, 0, false
 		}
 		ip := header.IPv6(pkt)
 		if ip.TransportProtocol() != header.TCPProtocolNumber {
-			return 0, 0, 0, false
+			return 0, 0, nil, 0, false
 		}
 		tcp := header.TCP(pkt[header.IPv6MinimumSize:])
 		tcpHdr := int(tcp.DataOffset())
 		if tcpHdr < header.TCPMinimumSize || header.IPv6MinimumSize+tcpHdr > len(pkt) {
-			return 0, 0, 0, false
+			return 0, 0, nil, 0, false
 		}
-		return tcp.SequenceNumber(), tcp.AckNumber(),
-			len(pkt) - header.IPv6MinimumSize - tcpHdr, true
+		total := header.IPv6MinimumSize + int(ip.PayloadLength())
+		if total == header.IPv6MinimumSize || total > len(pkt) {
+			total = len(pkt)
+		}
+		if total < header.IPv6MinimumSize+tcpHdr {
+			return 0, 0, nil, 0, false
+		}
+		return tcp.SequenceNumber(), tcp.AckNumber(), slices.Clone(tcp.Options()),
+			total - header.IPv6MinimumSize - tcpHdr, true
 	}
 	if len(pkt) < header.IPv4MinimumSize+header.TCPMinimumSize {
-		return 0, 0, 0, false
+		return 0, 0, nil, 0, false
 	}
 	ip := header.IPv4(pkt)
 	if ip.Protocol() != uint8(header.TCPProtocolNumber) {
-		return 0, 0, 0, false
+		return 0, 0, nil, 0, false
 	}
 	ihl := int(ip.HeaderLength())
 	// ihl+TCPMinimumSize guards the TCP-header field reads below; without
 	// this, an IPv4 packet with options (ihl>20) against a 40-byte buffer
 	// reads past the TCP slice when calling DataOffset.
 	if ihl < header.IPv4MinimumSize || ihl+header.TCPMinimumSize > len(pkt) {
-		return 0, 0, 0, false
+		return 0, 0, nil, 0, false
 	}
 	tcp := header.TCP(pkt[ihl:])
 	tcpHdr := int(tcp.DataOffset())
 	if tcpHdr < header.TCPMinimumSize || ihl+tcpHdr > len(pkt) {
-		return 0, 0, 0, false
+		return 0, 0, nil, 0, false
 	}
 	total := int(ip.TotalLength())
 	if total == 0 || total > len(pkt) {
 		total = len(pkt)
 	}
-	return tcp.SequenceNumber(), tcp.AckNumber(),
+	if total < ihl+tcpHdr {
+		return 0, 0, nil, 0, false
+	}
+	return tcp.SequenceNumber(), tcp.AckNumber(), slices.Clone(tcp.Options()),
 		total - ihl - tcpHdr, true
 }
