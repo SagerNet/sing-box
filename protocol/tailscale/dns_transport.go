@@ -259,6 +259,22 @@ func (t *DNSTransport) Raw() bool {
 	return true
 }
 
+func (t *DNSTransport) PreferredDomain(domain string) bool {
+	t.access.RLock()
+	hosts := t.hosts
+	routes := t.routes
+	t.access.RUnlock()
+	if _, loaded := hosts[domain]; loaded {
+		return true
+	}
+	for suffix := range routes {
+		if strings.HasSuffix(domain, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func (t *DNSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	if len(message.Question) != 1 {
 		return nil, os.ErrInvalid

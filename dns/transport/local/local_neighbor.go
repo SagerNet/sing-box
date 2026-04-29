@@ -43,6 +43,17 @@ func (t *Transport) lookupNeighbor(message *mDNS.Msg) *mDNS.Msg {
 	return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL)
 }
 
+func (t *Transport) hasNeighborHost(domain string) bool {
+	if t.neighborResolver == nil {
+		return false
+	}
+	host := extractNeighborHost(domain, t.neighborSuffixes)
+	if host == "" {
+		return false
+	}
+	return len(t.neighborResolver.LookupAddresses(host)) > 0
+}
+
 func extractNeighborHost(canonical string, suffixes []string) string {
 	for _, suffix := range suffixes {
 		if !strings.HasSuffix(canonical, suffix) || len(canonical) <= len(suffix) {

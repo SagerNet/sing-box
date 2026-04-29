@@ -6,6 +6,7 @@ icon: material/alert-decagram
 
     :material-plus: [source_mac_address](#source_mac_address)  
     :material-plus: [source_hostname](#source_hostname)  
+    :material-plus: [preferred_by](#preferred_by)  
     :material-plus: [match_response](#match_response)  
     :material-delete-clock: [rule_set_ip_cidr_accept_empty](#rule_set_ip_cidr_accept_empty)  
     :material-plus: [response_rcode](#response_rcode)  
@@ -165,6 +166,10 @@ icon: material/alert-decagram
         ],
         "source_hostname": [
           "my-device"
+        ],
+        "preferred_by": [
+          "local",
+          "ts-dns"
         ],
         "wifi_ssid": [
           "My WIFI"
@@ -487,6 +492,18 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
     仅支持 Linux、macOS，或在 Android 和 macOS 图形客户端中支持。参阅 [邻居解析](/configuration/shared/neighbor/) 了解设置方法。
 
 匹配源设备从 DHCP 租约获取的主机名。
+
+#### preferred_by
+
+!!! question "自 sing-box 1.14.0 起"
+
+匹配指定 DNS 服务器的首选域名。
+
+| 类型          | 匹配                       |
+|-------------|--------------------------|
+| `hosts`     | 匹配预定义条目和 hosts 文件中的条目    |
+| `local`     | 匹配 hosts 中的条目和邻居解析得到的主机名 |
+| `tailscale` | 匹配 MagicDNS 主机和 DNS 路由后缀 |
 
 #### wifi_ssid
 
