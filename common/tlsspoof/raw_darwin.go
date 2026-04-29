@@ -68,6 +68,9 @@ type darwinSpoofer struct {
 }
 
 func newRawSpoofer(conn net.Conn, method Method) (rawSpoofer, error) {
+	if method == MethodWrongTimestamp {
+		return nil, E.New("tls_spoof: wrong-timestamp is not supported on macOS")
+	}
 	_, src, dst, err := tcpEndpoints(conn)
 	if err != nil {
 		return nil, err
@@ -159,7 +162,7 @@ func openDarwinRawSocket(src, dst netip.AddrPort) (int, unix.Sockaddr, error) {
 
 func (s *darwinSpoofer) Inject(payload []byte) error {
 	if !s.src.Addr().Is4() {
-		segment, err := buildSpoofTCPSegment(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload)
+		segment, err := buildSpoofTCPSegment(s.method, s.src, s.dst, s.sendNext, s.receiveNext, 0, payload)
 		if err != nil {
 			return err
 		}
@@ -169,7 +172,7 @@ func (s *darwinSpoofer) Inject(payload []byte) error {
 		}
 		return nil
 	}
-	frame, err := buildSpoofFrame(s.method, s.src, s.dst, s.sendNext, s.receiveNext, payload)
+	frame, err := buildSpoofFrame(s.method, s.src, s.dst, s.sendNext, s.receiveNext, 0, nil, payload)
 	if err != nil {
 		return err
 	}

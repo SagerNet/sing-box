@@ -10,7 +10,9 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [resolve.disable_optimistic_cache](#disable_optimistic_cache)  
-    :material-plus: [resolve.timeout](#timeout)
+    :material-plus: [resolve.timeout](#timeout)  
+    :material-plus: [tls_spoof](#tls_spoof)  
+    :material-plus: [tls_spoof_method](#tls_spoof_method)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -149,7 +151,9 @@ Not available when `method` is set to drop.
   "udp_timeout": "",
   "tls_fragment": false,
   "tls_fragment_fallback_delay": "",
-  "tls_record_fragment": ""
+  "tls_record_fragment": "",
+  "tls_spoof": "",
+  "tls_spoof_method": ""
 }
 ```
 
@@ -247,6 +251,26 @@ The fallback value used when TLS segmentation cannot automatically determine the
 !!! question "Since sing-box 1.12.0"
 
 Fragment TLS handshake into multiple TLS records to bypass firewalls.
+
+#### tls_spoof
+
+!!! question "Since sing-box 1.14.0"
+
+==Linux/macOS/Windows only, requires elevated privileges==
+
+Inject a forged TLS ClientHello carrying this SNI before the real one,
+to fool SNI-filtering middleboxes that permit specific hostnames.
+
+See outbound TLS [`spoof`](/configuration/shared/tls/#spoof) for details
+and required privileges.
+
+#### tls_spoof_method
+
+!!! question "Since sing-box 1.14.0"
+
+How the forged segment is rejected by the real server. See outbound TLS
+[`spoof_method`](/configuration/shared/tls/#spoof_method) for the full table
+of accepted values and platform notes.
 
 ### sniff
 
