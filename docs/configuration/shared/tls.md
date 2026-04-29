@@ -702,12 +702,13 @@ driver on first use. Windows on ARM64 is not supported.
 
 How the forged segment is rejected by the real server.
 
-| Value                      | Behavior                                                                               |
-|----------------------------|----------------------------------------------------------------------------------------|
-| `wrong-sequence` (default) | The forged segment's TCP sequence number is placed before the server's receive window. |
-| `wrong-checksum`           | The forged segment's TCP checksum is deliberately invalid.                              |
-
-Conflict with `spoof` unset.
+| Value                      | Behavior                                                                                                       |
+|----------------------------|----------------------------------------------------------------------------------------------------------------|
+| `wrong-sequence` (default) | The forged segment's TCP sequence number is placed before the server's receive window.                         |
+| `wrong-checksum`           | The forged segment's TCP checksum is deliberately invalid.                                                     |
+| `wrong-ack`                | The forged segment's TCP acknowledgment number is placed before the server's send window.                      |
+| `wrong-md5`                | The forged segment carries a TCP-MD5 signature option, which the server rejects since no MD5 key is negotiated. |
+| `wrong-timestamp`          | The forged segment carries a backdated TCP timestamp, which the server rejects as a PAWS replay. Linux/Windows only; not supported on macOS. |
 
 ### ACME Fields
 

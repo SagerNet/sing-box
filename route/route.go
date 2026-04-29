@@ -489,6 +489,10 @@ match:
 			routeOptions = &action.RuleActionRouteOptions
 		case *R.RuleActionRouteOptions:
 			routeOptions = action
+		case *R.RuleActionBypass:
+			if action.Outbound != "" {
+				routeOptions = &action.RuleActionRouteOptions
+			}
 		}
 		if routeOptions != nil {
 			// TODO: add nat
@@ -537,6 +541,10 @@ match:
 			}
 			if routeOptions.TLSRecordFragment {
 				metadata.TLSRecordFragment = true
+			}
+			if routeOptions.TLSSpoof != "" {
+				metadata.TLSSpoof = routeOptions.TLSSpoof
+				metadata.TLSSpoofMethod = routeOptions.TLSSpoofMethod
 			}
 		}
 		switch action := currentRule.Action().(type) {
