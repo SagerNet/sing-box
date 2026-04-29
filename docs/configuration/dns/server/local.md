@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [neighbor_domain](#neighbor_domain)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [prefer_go](#prefer_go)
@@ -19,7 +23,8 @@ icon: material/new-box
       {
         "type": "local",
         "tag": "",
-        "prefer_go": false
+        "prefer_go": false,
+        "neighbor_domain": []
 
         // Dial Fields
       }
@@ -55,6 +60,19 @@ On devices running Android versions lower than 10, this interface can only resol
 
 2. On macOS, `local` will try DHCP first in Network Extension, since DHCP respects DIal Fields,
 it will not be disabled by `prefer_go`.
+
+#### neighbor_domain
+
+!!! question "Since sing-box 1.14.0"
+
+A list of domain suffixes for which A/AAAA queries are answered from the
+[neighbor resolver](/configuration/shared/neighbor/) instead of the upstream.
+
+Each entry must start with `.`. Only queries whose host part (the portion
+before the suffix) contains no dots are matched; `.` matches any
+single-label name such as `nas`.
+
+Example: `[".", ".lan"]`.
 
 ### Dial Fields
 

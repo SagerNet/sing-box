@@ -46,6 +46,12 @@ func (r *platformNeighborResolver) LookupMAC(address netip.Addr) (net.HardwareAd
 	return extractMACFromEUI64(address)
 }
 
+func (r *platformNeighborResolver) LookupAddresses(hostname string) []netip.Addr {
+	r.access.RLock()
+	defer r.access.RUnlock()
+	return lookupAddressesByHostname(hostname, r.ipToHostname, r.macToHostname, r.ipToMAC)
+}
+
 func (r *platformNeighborResolver) LookupHostname(address netip.Addr) (string, bool) {
 	r.access.RLock()
 	defer r.access.RUnlock()
