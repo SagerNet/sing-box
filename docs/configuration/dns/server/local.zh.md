@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [neighbor_domain](#neighbor_domain)
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [prefer_go](#prefer_go)
@@ -20,6 +24,7 @@ icon: material/new-box
         "type": "local",
         "tag": "",
         "prefer_go": false,
+        "neighbor_domain": [],
 
         // 拨号字段
       }
@@ -55,6 +60,17 @@ icon: material/new-box
 
 2. 在 macOS 上，`local` 会在 Network Extension 中首先尝试 DHCP，由于 DHCP 遵循拨号字段，
 它不会被 `prefer_go` 禁用。
+
+#### neighbor_domain
+
+!!! question "自 sing-box 1.14.0 起"
+
+用于从[邻居解析器](/zh/configuration/shared/neighbor/)而非上游回答 A/AAAA 查询的域后缀列表。
+
+每一项必须以 `.` 开头。仅匹配后缀之前的主机名部分不包含点的查询；
+`.` 匹配任意单标签名称，例如 `nas`。
+
+示例：`[".", ".lan"]`。
 
 ### 拨号字段
 

@@ -28,12 +28,14 @@ var _ adapter.DNSTransport = (*Transport)(nil)
 
 type Transport struct {
 	dns.TransportAdapter
-	ctx           context.Context
-	logger        logger.ContextLogger
-	hosts         *hosts.File
-	dialer        N.Dialer
-	fallback      bool
-	dhcpTransport dhcpTransport
+	ctx              context.Context
+	logger           logger.ContextLogger
+	hosts            *hosts.File
+	dialer           N.Dialer
+	fallback         bool
+	dhcpTransport    dhcpTransport
+	neighborResolver adapter.NeighborResolver
+	neighborSuffixes []string
 }
 
 type dhcpTransport interface {
@@ -47,38 +49,47 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	if err != nil {
 		return nil, err
 	}
+	suffixes, err := buildNeighborMatchers(options.NeighborDomain)
+	if err != nil {
+		return nil, err
+	}
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
 		ctx:              ctx,
 		logger:           logger,
 		dialer:           transportDialer,
+		neighborSuffixes: suffixes,
 	}, nil
 }
 
 func (t *Transport) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
-		return nil
-	}
-	defaultHosts, err := hosts.NewDefault()
-	if err != nil {
-		t.logger.Warn(err)
-	} else {
-		t.hosts = defaultHosts
-	}
-	inboundManager := service.FromContext[adapter.InboundManager](t.ctx)
-	for _, inbound := range inboundManager.Inbounds() {
-		if inbound.Type() == C.TypeTun {
-			t.fallback = true
-			break
+	switch stage {
+	case adapter.StartStateStart:
+		defaultHosts, err := hosts.NewDefault()
+		if err != nil {
+			t.logger.Warn(err)
+		} else {
+			t.hosts = defaultHosts
 		}
-	}
-	if t.fallback {
-		t.dhcpTransport = newDHCPTransport(t.TransportAdapter, log.ContextWithOverrideLevel(t.ctx, log.LevelDebug), t.dialer, t.logger)
-		if t.dhcpTransport != nil {
-			err := t.dhcpTransport.Start(stage)
-			if err != nil {
-				return err
+		inboundManager := service.FromContext[adapter.InboundManager](t.ctx)
+		for _, inbound := range inboundManager.Inbounds() {
+			if inbound.Type() == C.TypeTun {
+				t.fallback = true
+				break
 			}
+		}
+		if t.fallback {
+			t.dhcpTransport = newDHCPTransport(t.TransportAdapter, log.ContextWithOverrideLevel(t.ctx, log.LevelDebug), t.dialer, t.logger)
+			if t.dhcpTransport != nil {
+				err = t.dhcpTransport.Start(stage)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		router := service.FromContext[adapter.Router](t.ctx)
+		if router != nil {
+			t.neighborResolver = router.NeighborResolver()
 		}
 	}
 	return nil
