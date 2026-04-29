@@ -24,7 +24,10 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 	dns.RegisterTransport[option.LocalDNSServerOptions](registry, C.DNSTypeLocal, NewTransport)
 }
 
-var _ adapter.DNSTransport = (*Transport)(nil)
+var (
+	_ adapter.DNSTransport                    = (*Transport)(nil)
+	_ adapter.DNSTransportWithPreferredDomain = (*Transport)(nil)
+)
 
 type Transport struct {
 	dns.TransportAdapter
@@ -105,4 +108,13 @@ func (t *Transport) Reset() {
 	if t.dhcpTransport != nil {
 		t.dhcpTransport.Reset()
 	}
+}
+
+func (t *Transport) PreferredDomain(domain string) bool {
+	if t.hosts != nil {
+		if len(t.hosts.Lookup(dns.FqdnToDomain(domain))) > 0 {
+			return true
+		}
+	}
+	return t.hasNeighborHost(domain)
 }
