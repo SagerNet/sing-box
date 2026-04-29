@@ -5,6 +5,7 @@ import (
 
 	"github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 
 	"github.com/spf13/cobra"
 )
@@ -30,6 +31,7 @@ func check() error {
 	if err != nil {
 		return err
 	}
+	prepareOptionsForCheck(&options)
 	ctx, cancel := context.WithCancel(globalCtx)
 	instance, err := box.New(box.Options{
 		Context: ctx,
@@ -40,4 +42,10 @@ func check() error {
 	}
 	cancel()
 	return err
+}
+
+func prepareOptionsForCheck(options *option.Options) {
+	options.Log = &option.LogOptions{
+		Disabled: true,
+	}
 }
