@@ -86,7 +86,11 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 			return dns.FixedResponse(message.Id, question, addresses, boxC.DefaultDNSTTL), nil
 		}
 	}
-	if t.fallback && t.dhcpTransport != nil {
+	response := t.lookupNeighbor(message)
+	if response != nil {
+		return response, nil
+	}
+	if t.dhcpTransport != nil {
 		dhcpServers := t.dhcpTransport.Fetch()
 		if len(dhcpServers) > 0 {
 			return t.dhcpTransport.Exchange0(ctx, message, dhcpServers)
