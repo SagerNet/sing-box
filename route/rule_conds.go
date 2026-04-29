@@ -60,3 +60,19 @@ func isWIFIRule(rule option.DefaultRule) bool {
 func isWIFIDNSRule(rule option.DefaultDNSRule) bool {
 	return len(rule.WIFISSID) > 0 || len(rule.WIFIBSSID) > 0
 }
+
+func hasLocalNeighborDNSServer(servers []option.DNSServerOptions) bool {
+	for _, server := range servers {
+		if server.Type != C.DNSTypeLocal {
+			continue
+		}
+		localOptions, isLocal := server.Options.(*option.LocalDNSServerOptions)
+		if !isLocal {
+			continue
+		}
+		if len(localOptions.NeighborDomain) > 0 {
+			return true
+		}
+	}
+	return false
+}
