@@ -182,6 +182,8 @@ type RawRouteOptionsActionOptions struct {
 	TLSFragment              bool               `json:"tls_fragment,omitempty"`
 	TLSFragmentFallbackDelay badoption.Duration `json:"tls_fragment_fallback_delay,omitempty"`
 	TLSRecordFragment        bool               `json:"tls_record_fragment,omitempty"`
+	TLSSpoof                 string             `json:"tls_spoof,omitempty"`
+	TLSSpoofMethod           string             `json:"tls_spoof_method,omitempty"`
 }
 
 type RouteOptionsActionOptions RawRouteOptionsActionOptions
