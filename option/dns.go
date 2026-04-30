@@ -184,3 +184,8 @@ type DHCPDNSServerOptions struct {
 	LocalDNSServerOptions
 	Interface string `json:"interface,omitempty"`
 }
+
+type MDNSDNSServerOptions struct {
+	LocalDNSServerOptions
+	Interface badoption.Listable[string] `json:"interface,omitempty"`
+}
