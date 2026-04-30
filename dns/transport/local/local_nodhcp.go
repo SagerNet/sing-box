@@ -1,4 +1,4 @@
-//go:build darwin && !with_dhcp
+//go:build !with_dhcp
 
 package local
 
