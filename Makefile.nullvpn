@@ -1,0 +1,42 @@
+# Makefile.nullvpn — NullVPN stripped build targets
+# Usage: make -f Makefile.nullvpn [target]
+
+GO ?= go
+GOOS ?= linux
+GOARCH ?= amd64
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BIN_DIR ?= ./dist/nullvpn
+
+# NullVPN minimal tag set — removes protocols not needed for TCP/443 VLESS+Reality
+NULLVPN_TAGS := with_vless,with_tun,with_quic,with_ech
+# Note: with_quic required by XTLS/Reality TLS engine even when UDP is not exposed
+# Note: with_ech required for ECH-based SNI camouflage
+
+LDFLAGS := -s -w \
+	-X github.com/sagernet/sing-box/constant.Version=$(VERSION) \
+	-X github.com/sagernet/sing-box/constant.IsRelease=true
+
+.PHONY: build-server build-android clean
+
+build-server:
+	@mkdir -p $(BIN_DIR)
+	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) \
+	$(GO) build \
+		-tags '$(NULLVPN_TAGS)' \
+		-ldflags '$(LDFLAGS)' \
+		-trimpath \
+		-o $(BIN_DIR)/sing-box-nullvpn \
+		./cmd/sing-box
+	@echo "Built: $(BIN_DIR)/sing-box-nullvpn ($(GOOS)/$(GOARCH))"
+
+build-server-arm64:
+	@$(MAKE) -f Makefile.nullvpn build-server GOOS=linux GOARCH=arm64
+
+build-android:
+	@echo "Android library build — requires gomobile and NDK"
+	@echo "Run: cd .. && gomobile bind -v -target=android -tags '$(NULLVPN_TAGS)' -ldflags '$(LDFLAGS)' github.com/sagernet/sing-box/experimental/libbox"
+	@echo "See nullvpn-backend-bootstrap/README.md for full Android build instructions."
+
+clean:
+	@rm -rf $(BIN_DIR)
+	@echo "Cleaned $(BIN_DIR)"
