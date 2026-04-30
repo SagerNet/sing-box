@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [mdns](./mdns/)
+
 !!! quote "sing-box 1.12.0 中的更改"
 
     :material-plus: [type](#type)
@@ -39,6 +43,7 @@ DNS 服务器的类型。
 | `https`         | [HTTPS](./https/)         |
 | `h3`            | [HTTP/3](./http3/)        |
 | `dhcp`          | [DHCP](./dhcp/)           |
+| `mdns`          | [mDNS](./mdns/)           |
 | `fakeip`        | [Fake IP](./fakeip/)      |
 | `tailscale`     | [Tailscale](./tailscale/) |
 | `resolved`      | [Resolved](./resolved/)   |
