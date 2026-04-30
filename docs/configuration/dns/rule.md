@@ -507,11 +507,12 @@ Match source device hostname from DHCP leases.
 
 Match specified DNS servers' preferred domains.
 
-| Type        | Match                                               |
-|-------------|-----------------------------------------------------|
-| `hosts`     | Match predefined entries and entries in hosts files |
-| `local`     | Match hosts entries and neighbor-resolved hosts     |
-| `tailscale` | Match MagicDNS hosts and DNS route suffixes         |
+| Type        | Match                                                                        |
+|-------------|------------------------------------------------------------------------------|
+| `hosts`     | Match predefined entries and entries in hosts files                          |
+| `local`     | Match hosts entries, neighbor-resolved hosts, and mDNS local domains         |
+| `mdns`      | Match mDNS local domains (`*.local.` and IPv4/IPv6 link-local reverse zones) |
+| `tailscale` | Match MagicDNS hosts and DNS route suffixes                                  |
 
 #### wifi_ssid
 
