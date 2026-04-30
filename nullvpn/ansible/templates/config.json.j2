@@ -1,0 +1,47 @@
+{
+  "log": {
+    "level": "warn",
+    "output": "{{ singbox_log_dir }}/access.log",
+    "timestamp": true
+  },
+  "inbounds": [
+    {
+      "type": "vless",
+      "tag": "vless-reality-in",
+      "listen": "0.0.0.0",
+      "listen_port": 443,
+      "users": [
+        {
+          "uuid": "{{ vault_master_uuid }}",
+          "flow": "xtls-rprx-vision"
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "server_name": "{{ reality_sni }}",
+        "reality": {
+          "enabled": true,
+          "handshake": {
+            "server": "{{ reality_sni }}",
+            "server_port": 443
+          },
+          "private_key": "{{ vault_reality_private_key }}",
+          "short_id": {{ vault_reality_short_ids | to_json }}
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    { "type": "direct", "tag": "direct" },
+    { "type": "block",  "tag": "block"  }
+  ],
+  "route": {
+    "rules": [
+      {
+        "geoip": ["private"],
+        "outbound": "block"
+      }
+    ],
+    "final": "direct"
+  }
+}

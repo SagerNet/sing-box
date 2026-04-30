@@ -1,0 +1,112 @@
+---
+# nullvpn/ansible/singbox.yml
+# Ansible playbook: deploy sing-box to all VPN servers in [vpn_servers] group.
+# Prerequisites: vault_reality_private_key, vault_reality_short_ids, vault_master_uuid
+# must be defined in group_vars/all/vault.yml (ansible-vault encrypted).
+
+- name: Deploy sing-box — NullVPN VLESS+Reality transport
+  hosts: vpn_servers
+  become: true
+  vars:
+    singbox_version: "1.10.0"
+    singbox_install_dir: "/usr/local/bin"
+    singbox_config_dir: "/etc/sing-box"
+    singbox_log_dir: "/var/log/sing-box"
+    singbox_arch: "amd64"   # override with arm64 for ARM servers
+    singbox_os: "linux"
+    reality_sni: "www.cloudflare.com"
+
+  tasks:
+    - name: Create sing-box directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      loop:
+        - "{{ singbox_config_dir }}"
+        - "{{ singbox_log_dir }}"
+
+    - name: Download sing-box binary
+      get_url:
+        url: "https://github.com/SagerNet/sing-box/releases/download/v{{ singbox_version }}/sing-box-{{ singbox_version }}-{{ singbox_os }}-{{ singbox_arch }}.tar.gz"
+        dest: "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+        mode: '0644'
+
+    - name: Extract sing-box binary
+      unarchive:
+        src: "/tmp/sing-box-{{ singbox_version }}.tar.gz"
+        dest: /tmp/
+        remote_src: true
+
+    - name: Install sing-box binary
+      copy:
+        src: "/tmp/sing-box-{{ singbox_version }}-{{ singbox_os }}-{{ singbox_arch }}/sing-box"
+        dest: "{{ singbox_install_dir }}/sing-box"
+        mode: '0755'
+        remote_src: true
+
+    - name: Template sing-box server config
+      template:
+        src: templates/config.json.j2
+        dest: "{{ singbox_config_dir }}/config.json"
+        owner: root
+        group: root
+        mode: '0600'
+      notify: Restart sing-box
+
+    - name: Install sing-box systemd service
+      copy:
+        dest: /etc/systemd/system/sing-box.service
+        content: |
+          [Unit]
+          Description=sing-box service — NullVPN
+          Documentation=https://sing-box.sagernet.org
+          After=network.target nss-lookup.target
+
+          [Service]
+          User=root
+          WorkingDirectory={{ singbox_config_dir }}
+          ExecStart={{ singbox_install_dir }}/sing-box run -c {{ singbox_config_dir }}/config.json
+          ExecReload=/bin/kill -HUP $MAINPID
+          Restart=on-failure
+          RestartSec=10s
+          LimitNOFILE=infinity
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart sing-box
+
+    - name: Enable and start sing-box
+      systemd:
+        name: sing-box
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: Validate sing-box config
+      command: "{{ singbox_install_dir }}/sing-box check -c {{ singbox_config_dir }}/config.json"
+      changed_when: false
+
+    - name: Open port 443 in firewall (ufw)
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+      ignore_errors: true
+
+    - name: Open port 443 in firewall (firewalld)
+      firewalld:
+        port: 443/tcp
+        permanent: true
+        state: enabled
+        immediate: true
+      ignore_errors: true
+
+  handlers:
+    - name: Restart sing-box
+      systemd:
+        name: sing-box
+        state: restarted
+        daemon_reload: true
