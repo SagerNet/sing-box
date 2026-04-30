@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [mdns](./mdns/)
+
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-plus: [type](#type)
@@ -39,6 +43,7 @@ The type of the DNS server.
 | `https`         | [HTTPS](./https/)         |
 | `h3`            | [HTTP/3](./http3/)        |
 | `dhcp`          | [DHCP](./dhcp/)           |
+| `mdns`          | [mDNS](./mdns/)           |
 | `fakeip`        | [Fake IP](./fakeip/)      |
 | `tailscale`     | [Tailscale](./tailscale/) |
 | `resolved`      | [Resolved](./resolved/)   |

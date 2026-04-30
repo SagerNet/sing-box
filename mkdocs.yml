@@ -93,6 +93,7 @@ nav:
               - HTTPS: configuration/dns/server/https.md
               - HTTP3: configuration/dns/server/http3.md
               - DHCP: configuration/dns/server/dhcp.md
+              - mDNS: configuration/dns/server/mdns.md
               - FakeIP: configuration/dns/server/fakeip.md
               - Tailscale: configuration/dns/server/tailscale.md
               - Resolved: configuration/dns/server/resolved.md
