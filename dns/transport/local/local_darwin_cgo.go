@@ -31,7 +31,6 @@ import (
 	"errors"
 	"unsafe"
 
-	boxC "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	E "github.com/sagernet/sing/common/exceptions"
 
@@ -78,24 +77,8 @@ func darwinResolverHErrno(name string, hErrno int) error {
 	}
 }
 
-func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+func (t *Transport) systemExchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	question := message.Question[0]
-	if t.hosts != nil && (question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA) {
-		addresses := t.hosts.Lookup(dns.FqdnToDomain(question.Name))
-		if len(addresses) > 0 {
-			return dns.FixedResponse(message.Id, question, addresses, boxC.DefaultDNSTTL), nil
-		}
-	}
-	response := t.lookupNeighbor(message)
-	if response != nil {
-		return response, nil
-	}
-	if t.dhcpTransport != nil {
-		dhcpServers := t.dhcpTransport.Fetch()
-		if len(dhcpServers) > 0 {
-			return t.dhcpTransport.Exchange0(ctx, message, dhcpServers)
-		}
-	}
 	type resolvResult struct {
 		response *mDNS.Msg
 		err      error
