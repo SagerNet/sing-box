@@ -88,6 +88,10 @@ func (r *Router) routeConnection(ctx context.Context, conn net.Conn, metadata ad
 	case uot.LegacyMagicAddress:
 		return E.New("global UoT (legacy) not supported since sing-box v1.7.0.")
 	}
+	if metadata.InboundType == C.TypeTun && metadata.Protocol == C.ProtocolDNS {
+		N.CloseOnHandshakeFailure(conn, onClose, r.hijackDNSStream(ctx, conn, metadata))
+		return nil
+	}
 	if deadline.NeedAdditionalReadDeadline(conn) {
 		conn = deadline.NewConn(conn)
 	}
@@ -219,7 +223,9 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	/*if deadline.NeedAdditionalReadDeadline(conn) {
 		conn = deadline.NewPacketConn(bufio.NewNetPacketConn(conn))
 	}*/
-
+	if metadata.InboundType == C.TypeTun && metadata.Protocol == C.ProtocolDNS {
+		return r.hijackDNSPacket(ctx, conn, nil, metadata, onClose)
+	}
 	selectedRule, _, _, packetBuffers, err := r.matchRule(ctx, &metadata, false, false, nil, conn)
 	if err != nil {
 		return err

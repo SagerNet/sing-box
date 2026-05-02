@@ -513,6 +513,7 @@ Match specified DNS servers' preferred domains.
 | `local`     | Match hosts entries, neighbor-resolved hosts, and mDNS local domains         |
 | `mdns`      | Match mDNS local domains (`*.local.` and IPv4/IPv6 link-local reverse zones) |
 | `tailscale` | Match MagicDNS hosts and DNS route suffixes                                  |
+| `resolved`  | Match split DNS and search domains from systemd-resolved links               |
 
 #### wifi_ssid
 
