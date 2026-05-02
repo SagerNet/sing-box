@@ -89,13 +89,9 @@ hosts 文件路径列表。
             ],
             "rules": [
               {
-                "action": "evaluate",
+                "preferred_by": "hosts",
+                "action": "route",
                 "server": "hosts"
-              },
-              {
-                "match_response": true,
-                "ip_accept_any": true,
-                "action": "respond"
               }
             ]
           }
