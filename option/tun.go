@@ -14,6 +14,8 @@ type TunInboundOptions struct {
 	InterfaceName                 string                           `json:"interface_name,omitempty"`
 	MTU                           uint32                           `json:"mtu,omitempty"`
 	Address                       badoption.Listable[netip.Prefix] `json:"address,omitempty"`
+	DNSMode                       string                           `json:"dns_mode,omitempty"`
+	DNSAddress                    badoption.Listable[netip.Addr]   `json:"dns_address,omitempty"`
 	AutoRoute                     bool                             `json:"auto_route,omitempty"`
 	IPRoute2TableIndex            int                              `json:"iproute2_table_index,omitempty"`
 	IPRoute2RuleIndex             int                              `json:"iproute2_rule_index,omitempty"`

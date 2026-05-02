@@ -61,13 +61,9 @@ If not enabled, `NXDOMAIN` will be returned for requests that do not match searc
             ],
             "rules": [
               {
-                "action": "evaluate",
+                "preferred_by": "resolved",
+                "action": "route",
                 "server": "resolved"
-              },
-              {
-                "match_response": true,
-                "ip_accept_any": true,
-                "action": "respond"
               }
             ]
           }
