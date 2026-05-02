@@ -73,13 +73,9 @@ Default resolvers are not consulted for single-label queries regardless of `acce
             ],
             "rules": [
               {
-                "action": "evaluate",
+                "preferred_by": "ts",
+                "action": "route",
                 "server": "ts"
-              },
-              {
-                "match_response": true,
-                "ip_accept_any": true,
-                "action": "respond"
               }
             ]
           }
