@@ -18,7 +18,7 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -74,10 +74,13 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 		}
 	}
 	if options.Handler != nil {
-		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
-		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
 		icmpForwarder := tun.NewICMPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout)
 		icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
+		icmpForwarder.SetTTLDecrement(inet4Address, inet6Address, 0)
+		tcpHandler := tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket
+		udpHandler := tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket
+		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.WrapTCPHandlerWithDirectRoute(ipStack, options.Handler, icmpForwarder, options.UDPTimeout, 0, inet4Address, inet6Address, tcpHandler))
+		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.WrapUDPHandlerWithDirectRoute(ipStack, options.Handler, icmpForwarder, options.UDPTimeout, 0, inet4Address, inet6Address, udpHandler))
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
 	}

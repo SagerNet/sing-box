@@ -23,6 +23,8 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/header"
 	"github.com/sagernet/gvisor/pkg/tcpip/stack"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/icmp"
+	"github.com/sagernet/gvisor/pkg/tcpip/transport/tcp"
+	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -31,7 +33,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -398,6 +400,20 @@ func (t *Endpoint) postStart() error {
 	icmpForwarder := tun.NewICMPForwarder(t.ctx, ipStack, t, t.udpTimeout)
 	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
+
+	// Wrap Tailscale's existing TCP/UDP handlers with DirectRoute for traceroute support.
+	// Low-TTL packets are handled via DirectRoute (ICMP Time Exceeded), while
+	// normal packets are passed to Tailscale's original netstack handlers.
+	tsAddr4, tsAddr6 := t.server.TailscaleIPs()
+	if prevTCP := ipStack.GetTransportProtocolHandler(tcp.ProtocolNumber); prevTCP != nil {
+		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber,
+			tun.WrapTCPHandlerWithDirectRoute(ipStack, t, icmpForwarder, t.udpTimeout, 0, tsAddr4, tsAddr6, prevTCP))
+	}
+	if prevUDP := ipStack.GetTransportProtocolHandler(udp.ProtocolNumber); prevUDP != nil {
+		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber,
+			tun.WrapUDPHandlerWithDirectRoute(ipStack, t, icmpForwarder, t.udpTimeout, 0, tsAddr4, tsAddr6, prevUDP))
+	}
+
 	t.stack = ipStack
 	t.icmpForwarder = icmpForwarder
 	t.registerNetstackHandlers()
@@ -798,6 +814,7 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 		}
 	}
 	t.icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
+	t.icmpForwarder.SetTTLDecrement(inet4Address, inet6Address, 0)
 	t.cfg = cfg
 	t.dnsCfg = dnsCfg
 
