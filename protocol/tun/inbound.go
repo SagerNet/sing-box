@@ -17,7 +17,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -43,6 +43,7 @@ type Inbound struct {
 	tunOptions                  tun.Options
 	udpTimeout                  time.Duration
 	dnsHijackAddress            []netip.Addr
+	maxTracerouteHopLimit       uint8
 	stack                       string
 	tunIf                       tun.Tun
 	tunStack                    tun.Stack
@@ -221,10 +222,11 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			InterfaceMonitor:                      networkManager.InterfaceMonitor(),
 			EXP_MultiPendingPackets:               multiPendingPackets,
 		},
-		udpTimeout:        udpTimeout,
-		stack:             options.Stack,
-		platformInterface: platformInterface,
-		platformOptions:   common.PtrValueOrDefault(options.Platform),
+		udpTimeout:            udpTimeout,
+		maxTracerouteHopLimit: options.MaxTracerouteHopLimit,
+		stack:                 options.Stack,
+		platformInterface:     platformInterface,
+		platformOptions:       common.PtrValueOrDefault(options.Platform),
 	}
 	for _, routeAddressSet := range options.RouteAddressSet {
 		ruleSet, loaded := router.RuleSet(routeAddressSet)
@@ -409,6 +411,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 			ForwarderBindInterface: forwarderBindInterface,
 			InterfaceFinder:        t.networkManager.InterfaceFinder(),
 			IncludeAllNetworks:     includeAllNetworks,
+			MaxTracerouteHopLimit:  t.maxTracerouteHopLimit,
 		})
 		if err != nil {
 			return err

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/gvisor/pkg/buffer"
@@ -21,7 +22,7 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -45,6 +46,7 @@ type stackDevice struct {
 	dispatcher     stack.NetworkDispatcher
 	inet4Address   netip.Addr
 	inet6Address   netip.Addr
+	rewriter       *ping.SourceRewriter
 }
 
 func newStackDevice(options DeviceOptions) (*stackDevice, error) {
@@ -88,11 +90,15 @@ func newStackDevice(options DeviceOptions) (*stackDevice, error) {
 		}
 	}
 	tunDevice.stack = ipStack
+	tunDevice.rewriter = ping.NewSourceRewriter(options.Context, options.Logger, inet4Address, inet6Address)
 	if options.Handler != nil {
-		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
-		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
 		icmpForwarder := tun.NewICMPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout)
 		icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
+		icmpForwarder.SetTTLDecrement(inet4Address, inet6Address, 0)
+		tcpHandler := tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket
+		udpHandler := tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket
+		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.WrapTCPHandlerWithDirectRoute(ipStack, options.Handler, icmpForwarder, options.UDPTimeout, 0, inet4Address, inet6Address, tcpHandler))
+		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.WrapUDPHandlerWithDirectRoute(ipStack, options.Handler, icmpForwarder, options.UDPTimeout, 0, inet4Address, inet6Address, udpHandler))
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
 	}
@@ -210,6 +216,11 @@ func (w *stackDevice) Write(bufs [][]byte, offset int) (count int, err error) {
 		if len(b) == 0 {
 			continue
 		}
+		handled, _ := w.rewriter.WriteBack(b)
+		if handled {
+			count++
+			continue
+		}
 		var networkProtocol tcpip.NetworkProtocolNumber
 		switch header.IPVersion(b) {
 		case header.IPv4Version:
@@ -260,19 +271,37 @@ func (w *stackDevice) BatchSize() int {
 
 func (w *stackDevice) CreateDestination(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
 	ctx := log.ContextWithNewID(w.ctx)
-	destination, err := ping.ConnectGVisor(
-		ctx, w.logger,
-		metadata.Source.Addr, metadata.Destination.Addr,
-		routeContext,
-		w.stack,
-		w.inet4Address, w.inet6Address,
-		timeout,
-	)
-	if err != nil {
-		return nil, err
+	session := tun.DirectRouteSession{
+		Source:      metadata.Source.Addr,
+		Destination: metadata.Destination.Addr,
 	}
+	w.rewriter.CreateSession(session, routeContext)
 	w.logger.InfoContext(ctx, "linked ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
-	return destination, nil
+	return &stackNatDestination{device: w, session: session}, nil
+}
+
+var _ tun.DirectRouteDestination = (*stackNatDestination)(nil)
+
+type stackNatDestination struct {
+	device  *stackDevice
+	session tun.DirectRouteSession
+	closed  atomic.Bool
+}
+
+func (d *stackNatDestination) WritePacket(buffer *buf.Buffer) error {
+	d.device.rewriter.RewritePacket(buffer.Bytes())
+	d.device.packetOutbound <- buffer
+	return nil
+}
+
+func (d *stackNatDestination) Close() error {
+	d.closed.Store(true)
+	d.device.rewriter.DeleteSession(d.session)
+	return nil
+}
+
+func (d *stackNatDestination) IsClosed() bool {
+	return d.closed.Load()
 }
 
 var _ stack.LinkEndpoint = (*wireEndpoint)(nil)

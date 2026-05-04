@@ -181,7 +181,11 @@ func (s *Selector) NewDirectRouteConnection(metadata adapter.InboundContext, rou
 	if !common.Contains(selected.Network(), metadata.Network) {
 		return nil, E.New(metadata.Network, " is not supported by outbound: ", selected.Tag())
 	}
-	return selected.(adapter.DirectRouteOutbound).NewDirectRouteConnection(metadata, routeContext, timeout)
+	directRoute, ok := selected.(adapter.DirectRouteOutbound)
+	if !ok {
+		return nil, nil
+	}
+	return directRoute.NewDirectRouteConnection(metadata, routeContext, timeout)
 }
 
 func RealTag(detour adapter.Outbound) string {
