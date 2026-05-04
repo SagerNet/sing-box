@@ -12,10 +12,10 @@ import (
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	R "github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-mux"
-	"github.com/sagernet/sing-tun"
+	mux "github.com/sagernet/sing-mux"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
-	"github.com/sagernet/sing-vmess"
+	vmess "github.com/sagernet/sing-vmess"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -329,7 +329,11 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.Dire
 			if !common.Contains(outbound.Network(), metadata.Network) {
 				return nil, E.New(metadata.Network, " is not supported by outbound: ", action.Outbound)
 			}
-			directRouteOutbound = outbound.(adapter.DirectRouteOutbound)
+			var ok bool
+			directRouteOutbound, ok = outbound.(adapter.DirectRouteOutbound)
+			if !ok {
+				return nil, nil
+			}
 		case *R.RuleActionRoute:
 			if routeContext == nil {
 				return nil, nil
@@ -341,18 +345,26 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, routeContext tun.Dire
 			if !common.Contains(outbound.Network(), metadata.Network) {
 				return nil, E.New(metadata.Network, " is not supported by outbound: ", action.Outbound)
 			}
-			directRouteOutbound = outbound.(adapter.DirectRouteOutbound)
+			var ok bool
+			directRouteOutbound, ok = outbound.(adapter.DirectRouteOutbound)
+			if !ok {
+				return nil, nil
+			}
 		}
 	}
 	if directRouteOutbound == nil {
-		if selectedRule != nil || metadata.Network != N.NetworkICMP {
+		if selectedRule != nil || (metadata.Network != N.NetworkICMP && metadata.Network != N.NetworkUDP && metadata.Network != N.NetworkTCP) {
 			return nil, nil
 		}
 		defaultOutbound := r.outbound.Default()
 		if !common.Contains(defaultOutbound.Network(), metadata.Network) {
 			return nil, E.New(metadata.Network, " is not supported by default outbound: ", defaultOutbound.Tag())
 		}
-		directRouteOutbound = defaultOutbound.(adapter.DirectRouteOutbound)
+		var ok bool
+		directRouteOutbound, ok = defaultOutbound.(adapter.DirectRouteOutbound)
+		if !ok {
+			return nil, nil
+		}
 	}
 	if metadata.Destination.IsDomain() {
 		if len(metadata.DestinationAddresses) == 0 {

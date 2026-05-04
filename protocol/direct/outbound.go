@@ -13,7 +13,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
+	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -110,7 +110,19 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 
 func (h *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
 	ctx := log.ContextWithNewID(h.ctx)
-	destination, err := ping.ConnectDestination(ctx, h.logger, common.MustCast[*dialer.DefaultDialer](h.dialer).DialerForICMPDestination(metadata.Destination.Addr).Control, metadata.Destination.Addr, routeContext, timeout)
+	controlFunc := common.MustCast[*dialer.DefaultDialer](h.dialer).DialerForICMPDestination(metadata.Destination.Addr).Control
+	var (
+		destination tun.DirectRouteDestination
+		err         error
+	)
+	switch metadata.Network {
+	case N.NetworkUDP:
+		destination, err = ping.ConnectUDPDestination(ctx, h.logger, controlFunc, metadata.Destination.Addr, routeContext, timeout)
+	case N.NetworkTCP:
+		destination, err = ping.ConnectTCPDestination(ctx, h.logger, controlFunc, metadata.Destination.Addr, routeContext, timeout)
+	default:
+		destination, err = ping.ConnectDestination(ctx, h.logger, controlFunc, metadata.Destination.Addr, routeContext, timeout)
+	}
 	if err != nil {
 		return nil, err
 	}

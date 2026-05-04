@@ -183,7 +183,11 @@ func (s *URLTest) NewDirectRouteConnection(metadata adapter.InboundContext, rout
 	if !common.Contains(selected.Network(), metadata.Network) {
 		return nil, E.New(metadata.Network, " is not supported by outbound: ", selected.Tag())
 	}
-	return selected.(adapter.DirectRouteOutbound).NewDirectRouteConnection(metadata, routeContext, timeout)
+	directRoute, ok := selected.(adapter.DirectRouteOutbound)
+	if !ok {
+		return nil, nil
+	}
+	return directRoute.NewDirectRouteConnection(metadata, routeContext, timeout)
 }
 
 type URLTestGroup struct {
