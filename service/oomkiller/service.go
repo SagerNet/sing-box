@@ -27,7 +27,7 @@ type Service struct {
 	boxService.Adapter
 	ctx            context.Context
 	logger         log.ContextLogger
-	router         adapter.Router
+	network        adapter.NetworkManager
 	timerConfig    timerConfig
 	adaptiveTimer  *adaptiveTimer
 	lastReportTime atomic.Int64
@@ -44,13 +44,13 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		Adapter:     boxService.NewAdapter(boxConstant.TypeOOMKiller, tag),
 		ctx:         ctx,
 		logger:      logger,
-		router:      service.FromContext[adapter.Router](ctx),
+		network:     service.FromContext[adapter.NetworkManager](ctx),
 		timerConfig: config,
 	}, nil
 }
 
 func (s *Service) createTimer() {
-	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.router, s.timerConfig, s.writeOOMReport)
+	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.network, s.timerConfig, s.writeOOMReport)
 }
 
 func (s *Service) startTimer() {
