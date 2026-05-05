@@ -243,7 +243,7 @@ func (s *CommandServer) ResetNetwork() {
 	if instance == nil || instance.Box() == nil {
 		return
 	}
-	instance.Box().Router().ResetNetwork()
+	instance.Box().Network().ResetNetwork()
 }
 
 func (s *CommandServer) UpdateWIFIState() {
