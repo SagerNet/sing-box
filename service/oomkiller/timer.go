@@ -100,7 +100,7 @@ func buildTimerConfig(options option.OOMKillerServiceOptions, memoryLimit uint64
 type adaptiveTimer struct {
 	timerConfig
 	logger          log.ContextLogger
-	router          adapter.Router
+	network         adapter.NetworkManager
 	onTriggered     func(uint64)
 	limitThresholds pressureThresholds
 
@@ -115,11 +115,11 @@ type adaptiveTimer struct {
 	pressureBaselineTime    time.Time
 }
 
-func newAdaptiveTimer(logger log.ContextLogger, router adapter.Router, config timerConfig, onTriggered func(uint64)) *adaptiveTimer {
+func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, config timerConfig, onTriggered func(uint64)) *adaptiveTimer {
 	t := &adaptiveTimer{
 		timerConfig: config,
 		logger:      logger,
-		router:      router,
+		network:     network,
 		onTriggered: onTriggered,
 	}
 	if config.policyMode == policyModeMemoryLimit || config.policyMode == policyModeNetworkExtension {
@@ -218,14 +218,14 @@ func (t *adaptiveTimer) poll() {
 			t.logger.Warn("memory growth rate critical (report only), usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample))
 		} else {
 			t.logger.Error("memory growth rate critical, usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample), ", resetting network")
-			t.router.ResetNetwork()
+			t.network.ResetNetwork()
 		}
 	} else {
 		if t.killerDisabled {
 			t.logger.Warn("memory threshold reached (report only), usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample))
 		} else {
 			t.logger.Error("memory threshold reached, usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample), ", resetting network")
-			t.router.ResetNetwork()
+			t.network.ResetNetwork()
 		}
 	}
 	badCleanup()
