@@ -480,7 +480,9 @@ func (r *NetworkManager) ResetNetwork() {
 
 func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
 	if defaultInterface == nil {
-		r.pauseManager.NetworkPause()
+		if r.started {
+			r.pauseManager.NetworkPause()
+		}
 		r.logger.Error("missing default interface")
 		return
 	}
