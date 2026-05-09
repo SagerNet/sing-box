@@ -101,6 +101,7 @@ func (s *Server) downloadZIP(body io.Reader, output string) error {
 	}
 	defer reader.Close()
 	trimDir := zipIsInSingleDirectory(reader.File)
+	cleanOutput := filepath.Clean(output) + string(os.PathSeparator)
 	for _, file := range reader.File {
 		if file.FileInfo().IsDir() {
 			continue
@@ -118,6 +119,10 @@ func (s *Server) downloadZIP(body io.Reader, output string) error {
 			return err
 		}
 		savePath := filepath.Join(saveDirectory, pathElements[len(pathElements)-1])
+		cleanSavePath := filepath.Clean(savePath)
+		if !strings.HasPrefix(cleanSavePath, cleanOutput) {
+			return os.ErrPermission
+		}
 		err = downloadZIPEntry(s.ctx, file, savePath)
 		if err != nil {
 			return err
