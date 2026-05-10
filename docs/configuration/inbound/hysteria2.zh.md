@@ -4,7 +4,8 @@ icon: material/alert-decagram
 
 !!! quote "sing-box 1.14.0 中的更改"
 
-    :material-plus: [bbr_profile](#bbr_profile)
+    :material-plus: [bbr_profile](#bbr_profile)  
+    :material-plus: [realm](#realm)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -39,7 +40,14 @@ icon: material/alert-decagram
 
   "masquerade": "", // 或 {}
   "bbr_profile": "",
-  "brutal_debug": false
+  "brutal_debug": false,
+  "realm": {
+    "server_url": "https://realm.example.com",
+    "token": "",
+    "realm_id": "",
+    "stun_servers": [],
+    "http_client": {}
+  }
 }
 ```
 
@@ -161,3 +169,47 @@ BBR 拥塞控制算法配置，可选 `conservative` `standard` `aggressive`。
 #### brutal_debug
 
 启用 Hysteria Brutal CC 的调试信息日志记录。
+
+#### realm
+
+!!! question "自 sing-box 1.14.0 起"
+
+将此入站注册到 Hysteria Realm 会合服务，以启用 NAT 穿透。
+
+入站通过 STUN 发现自己的公网地址并注册到 realm，借助 UDP 打洞接受客户端连接，无需可公网直达的监听地址。
+
+会合服务参阅 [Hysteria Realm](/zh/configuration/service/hysteria-realm/)。
+
+#### realm.server_url
+
+==必填==
+
+Realm 会合服务 URL。
+
+#### realm.token
+
+Realm 的 Bearer 令牌，需与 realm 上配置的 `users[].token` 之一匹配。
+
+#### realm.realm_id
+
+==必填==
+
+Realm 上的槽位标识符。
+
+1–64 字符，需匹配 `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`。
+
+出站需使用相同的 `realm_id` 才能找到本服务器。
+
+#### realm.stun_servers
+
+==必填==
+
+用于发现公网地址的 STUN 服务器列表（`host` 或 `host:port`）。
+
+端口默认为 `3478`。
+
+#### realm.http_client
+
+与 realm 通信使用的 HTTP 客户端。
+
+参阅 [HTTP 客户端](/zh/configuration/shared/http-client/) 了解详情。

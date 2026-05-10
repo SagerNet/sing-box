@@ -114,7 +114,11 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
-	service, err := hysteria2.NewService[int](hysteria2.ServiceOptions{
+	realmOptions, err := buildRealmOptions(ctx, logger, options.Realm)
+	if err != nil {
+		return nil, err
+	}
+	hysteriaService, err := hysteria2.NewService[int](hysteria2.ServiceOptions{
 		Context:            ctx,
 		Logger:             logger,
 		BrutalDebug:        options.BrutalDebug,
@@ -136,6 +140,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		Handler:               inbound,
 		MasqueradeHandler:     masqueradeHandler,
 		BBRProfile:            options.BBRProfile,
+		RealmOptions:          realmOptions,
 	})
 	if err != nil {
 		return nil, err
@@ -148,8 +153,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		userNameList = append(userNameList, user.Name)
 		userPasswordList = append(userPasswordList, user.Password)
 	}
-	service.UpdateUsers(userList, userPasswordList)
-	inbound.service = service
+	hysteriaService.UpdateUsers(userList, userPasswordList)
+	inbound.service = hysteriaService
 	inbound.userNameList = userNameList
 	return inbound, nil
 }
@@ -213,6 +218,10 @@ func (h *Inbound) Start(stage adapter.StartStage) error {
 		return err
 	}
 	return h.service.Start(packetConn)
+}
+
+func (h *Inbound) InterfaceUpdated() {
+	h.service.Reset()
 }
 
 func (h *Inbound) Close() error {

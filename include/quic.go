@@ -5,6 +5,7 @@ package include
 import (
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/adapter/service"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/dns/transport/quic"
 	"github.com/sagernet/sing-box/protocol/hysteria"
@@ -29,4 +30,8 @@ func registerQUICOutbounds(registry *outbound.Registry) {
 func registerQUICTransports(registry *dns.TransportRegistry) {
 	quic.RegisterTransport(registry)
 	quic.RegisterHTTP3Transport(registry)
+}
+
+func registerQUICServices(registry *service.Registry) {
+	hysteria2.RegisterRealmService(registry)
 }
