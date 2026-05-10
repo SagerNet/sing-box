@@ -4,7 +4,8 @@ icon: material/alert-decagram
 
 !!! quote "Changes in sing-box 1.14.0"
 
-    :material-plus: [bbr_profile](#bbr_profile)
+    :material-plus: [bbr_profile](#bbr_profile)  
+    :material-plus: [realm](#realm)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -39,7 +40,14 @@ icon: material/alert-decagram
 
   "masquerade": "", // or {}
   "bbr_profile": "",
-  "brutal_debug": false
+  "brutal_debug": false,
+  "realm": {
+    "server_url": "https://realm.example.com",
+    "token": "",
+    "realm_id": "",
+    "stun_servers": [],
+    "http_client": {}
+  }
 }
 ```
 
@@ -164,3 +172,47 @@ BBR congestion control algorithm profile, one of `conservative` `standard` `aggr
 #### brutal_debug
 
 Enable debug information logging for Hysteria Brutal CC.
+
+#### realm
+
+!!! question "Since sing-box 1.14.0"
+
+Register this inbound to a Hysteria Realm rendezvous service to enable NAT traversal.
+
+The inbound discovers its public addresses via STUN, registers them on the realm, and uses UDP hole-punching to accept incoming clients without a publicly reachable listen address.
+
+See [Hysteria Realm](/configuration/service/hysteria-realm/) for the rendezvous service.
+
+#### realm.server_url
+
+==Required==
+
+Realm rendezvous service URL.
+
+#### realm.token
+
+Bearer token for the realm. Must match one of `users[].token` configured on the realm.
+
+#### realm.realm_id
+
+==Required==
+
+Slot identifier on the realm.
+
+1–64 characters, must match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`.
+
+Outbounds must use the same `realm_id` to find this server.
+
+#### realm.stun_servers
+
+==Required==
+
+List of STUN servers (`host` or `host:port`) used to discover public addresses.
+
+Port defaults to `3478`.
+
+#### realm.http_client
+
+HTTP client used to talk to the realm.
+
+See [HTTP Client](/configuration/shared/http-client/) for details.
