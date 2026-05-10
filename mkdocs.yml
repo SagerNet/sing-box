@@ -192,6 +192,7 @@ nav:
           - SSM API: configuration/service/ssm-api.md
           - CCM: configuration/service/ccm.md
           - OCM: configuration/service/ocm.md
+          - Hysteria Realm: configuration/service/hysteria-realm.md
 markdown_extensions:
   - toc:
       slugify: !!python/object/apply:pymdownx.slugs.slugify
