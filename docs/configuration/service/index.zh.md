@@ -21,13 +21,14 @@ icon: material/new-box
 
 ### 字段
 
-| 类型       | 格式                   |
-|-----------|------------------------|
-| `ccm`     | [CCM](./ccm)           |
-| `derp`    | [DERP](./derp)         |
-| `ocm`     | [OCM](./ocm)           |
-| `resolved`| [Resolved](./resolved) |
-| `ssm-api` | [SSM API](./ssm-api)   |
+| 类型              | 格式                                  |
+|-------------------|---------------------------------------|
+| `ccm`             | [CCM](./ccm)                          |
+| `derp`            | [DERP](./derp)                        |
+| `hysteria-realm`  | [Hysteria Realm](./hysteria-realm)    |
+| `ocm`             | [OCM](./ocm)                          |
+| `resolved`        | [Resolved](./resolved)                |
+| `ssm-api`         | [SSM API](./ssm-api)                  |
 
 #### tag
 
