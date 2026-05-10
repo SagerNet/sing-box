@@ -3,6 +3,7 @@ package hysteria2
 import (
 	"context"
 	"net"
+	"net/url"
 	"os"
 	"time"
 
@@ -45,7 +46,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
-	tlsConfig, err := tls.NewClient(ctx, logger, options.Server, common.PtrValueOrDefault(options.TLS))
+	tlsServerAddress, tlsOptions, err := outboundTLSOptions(options)
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig, err := tls.NewClient(ctx, logger, tlsServerAddress, tlsOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +67,10 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		}
 	}
 	outboundDialer, err := dialer.New(ctx, options.DialerOptions, options.ServerIsDomain())
+	if err != nil {
+		return nil, err
+	}
+	realmOptions, err := buildRealmOptions(ctx, logger, options.Realm)
 	if err != nil {
 		return nil, err
 	}
@@ -89,8 +98,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			InitialPacketSize:       options.InitialPacketSize,
 			DisablePathMTUDiscovery: options.DisablePathMTUDiscovery,
 		},
-		UDPDisabled: !common.Contains(networkList, N.NetworkUDP),
-		BBRProfile:  options.BBRProfile,
+		UDPDisabled:  !common.Contains(networkList, N.NetworkUDP),
+		BBRProfile:   options.BBRProfile,
+		RealmOptions: realmOptions,
 	})
 	if err != nil {
 		return nil, err
@@ -100,6 +110,25 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:  logger,
 		client:  client,
 	}, nil
+}
+
+func outboundTLSOptions(options option.Hysteria2OutboundOptions) (string, option.OutboundTLSOptions, error) {
+	tlsOptions := common.PtrValueOrDefault(options.TLS)
+	if options.Realm == nil {
+		return options.Server, tlsOptions, nil
+	}
+	if options.Server != "" || options.ServerPort != 0 || len(options.ServerPorts) > 0 {
+		return "", tlsOptions, E.New("realm conflicts with server, server_port, and server_ports")
+	}
+	serverURL, err := url.Parse(options.Realm.ServerURL)
+	if err != nil {
+		return "", tlsOptions, E.Cause(err, "parse realm server_url")
+	}
+	serverName := serverURL.Hostname()
+	if serverName == "" {
+		return "", tlsOptions, E.New("missing host in realm server_url")
+	}
+	return serverName, tlsOptions, nil
 }
 
 func (h *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
