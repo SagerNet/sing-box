@@ -26,6 +26,7 @@ import (
 	"github.com/sagernet/sing/common/ranges"
 	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/netlink"
 
 	"go4.org/netipx"
 )
@@ -452,11 +453,28 @@ func (t *Inbound) updateRouteAddressSet(it adapter.RuleSet) {
 }
 
 func (t *Inbound) Close() error {
-	return common.Close(
-		t.tunStack,
-		t.tunIf,
-		t.autoRedirect,
-	)
+    stackErr := common.Close(t.tunStack)
+    ifErr := common.Close(t.tunIf)
+    // Some linux kernel will not auto delete tunIf
+    ifName := t.tunOptions.Name
+    if ifName != "" && runtime.GOOS == "linux" {
+        if _, err := net.InterfaceByName(ifName); err == nil {
+            delErr := deleteLink(ifName)
+            if delErr != nil {
+                t.logger.Error("failed to delete tun interface ", ifName, ": ", delErr)
+            }
+        }
+    }
+    autoErr := common.Close(t.autoRedirect)
+    return E.Errors(stackErr, ifErr, autoErr)
+}
+
+func deleteLink(ifName string) error {
+    link, err := netlink.LinkByName(ifName)
+    if err != nil {
+        return err
+    }
+    return netlink.LinkDel(link)
 }
 
 func (t *Inbound) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
