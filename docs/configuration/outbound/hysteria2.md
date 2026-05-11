@@ -191,7 +191,7 @@ The same slot identifier the target Hysteria2 server registered.
 
 List of STUN servers (`host` or `host:port`) used to discover this client's public addresses.
 
-Port defaults to `3478`.
+Domain names are resolved using [`domain_resolver`](/configuration/shared/dial/#domain_resolver) from Dial Fields.
 
 #### realm.http_client
 
