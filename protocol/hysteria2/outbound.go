@@ -3,6 +3,8 @@ package hysteria2
 import (
 	"context"
 	"net"
+	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"time"
@@ -18,12 +20,14 @@ import (
 	qtls "github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing-quic/hysteria"
 	"github.com/sagernet/sing-quic/hysteria2"
+	"github.com/sagernet/sing-quic/hysteria2/realm"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 )
 
 func RegisterOutbound(registry *outbound.Registry) {
@@ -66,13 +70,43 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			return nil, E.New("unknown obfs type: ", options.Obfs.Type)
 		}
 	}
-	outboundDialer, err := dialer.New(ctx, options.DialerOptions, options.ServerIsDomain())
+	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context:        ctx,
+		Options:        options.DialerOptions,
+		RemoteIsDomain: options.ServerIsDomain(),
+	})
 	if err != nil {
 		return nil, err
 	}
-	realmOptions, err := buildRealmOptions(ctx, logger, options.Realm)
-	if err != nil {
-		return nil, err
+	var realmOptions *realm.Options
+	if options.Realm != nil {
+		queryOptions, err := adapter.DNSQueryOptionsFrom(ctx, options.DialerOptions.DomainResolver)
+		if err != nil {
+			return nil, err
+		}
+		httpClientTransport, err := service.FromContext[adapter.HTTPClientManager](ctx).ResolveTransport(ctx, logger, common.PtrValueOrDefault(options.Realm.HTTPClient))
+		if err != nil {
+			return nil, E.Cause(err, "create realm http client")
+		}
+		dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
+		realmOptions = &realm.Options{
+			ServerURL:   options.Realm.ServerURL,
+			Token:       options.Realm.Token,
+			RealmID:     options.Realm.RealmID,
+			STUNServers: options.Realm.STUNServers,
+			HTTPClient:  &http.Client{Transport: httpClientTransport},
+			Resolver: func(ctx context.Context, host string, ipv4, ipv6 bool) ([]netip.Addr, error) {
+				dnsOptions := queryOptions
+				switch {
+				case ipv4 && !ipv6:
+					dnsOptions.Strategy = C.DomainStrategyIPv4Only
+				case !ipv4 && ipv6:
+					dnsOptions.Strategy = C.DomainStrategyIPv6Only
+				}
+				return dnsRouter.Lookup(ctx, host, dnsOptions)
+			},
+			Logger: logger,
+		}
 	}
 	networkList := options.Network.Build()
 	client, err := hysteria2.NewClient(hysteria2.ClientOptions{
