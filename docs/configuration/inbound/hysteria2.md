@@ -46,6 +46,7 @@ icon: material/alert-decagram
     "token": "",
     "realm_id": "",
     "stun_servers": [],
+    "stun_domain_resolver": "", // or {}
     "http_client": {}
   }
 }
@@ -209,7 +210,15 @@ Outbounds must use the same `realm_id` to find this server.
 
 List of STUN servers (`host` or `host:port`) used to discover public addresses.
 
-Port defaults to `3478`.
+#### realm.stun_domain_resolver
+
+Set domain resolver to use for resolving STUN server domain names.
+
+This option uses the same format as the [route DNS rule action](/configuration/dns/rule_action/#route) without the `action` field.
+
+Setting this option directly to a string is equivalent to setting `server` of this options.
+
+If empty, the default domain resolver is used.
 
 #### realm.http_client
 
