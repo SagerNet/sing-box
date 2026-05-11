@@ -13,13 +13,11 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-quic/hysteria2/realm"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
 	sHTTP "github.com/sagernet/sing/protocol/http"
-	"github.com/sagernet/sing/service"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -29,24 +27,6 @@ import (
 
 func RegisterRealmService(registry *boxService.Registry) {
 	boxService.Register[option.HysteriaRealmServiceOptions](registry, C.TypeHysteriaRealm, NewRealmService)
-}
-
-func buildRealmOptions(ctx context.Context, logger log.ContextLogger, options *option.Hysteria2Realm) (*realm.Options, error) {
-	if options == nil {
-		return nil, nil
-	}
-	transport, err := service.FromContext[adapter.HTTPClientManager](ctx).ResolveTransport(ctx, logger, common.PtrValueOrDefault(options.HTTPClient))
-	if err != nil {
-		return nil, E.Cause(err, "create realm http client")
-	}
-	return &realm.Options{
-		ServerURL:   options.ServerURL,
-		Token:       options.Token,
-		RealmID:     options.RealmID,
-		STUNServers: options.STUNServers,
-		HTTPClient:  &http.Client{Transport: transport},
-		Logger:      logger,
-	}, nil
 }
 
 type RealmService struct {
