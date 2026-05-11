@@ -19,10 +19,10 @@ type Hysteria2InboundOptions struct {
 	IgnoreClientBandwidth bool            `json:"ignore_client_bandwidth,omitempty"`
 	InboundTLSOptionsContainer
 	QUICOptions
-	Masquerade  *Hysteria2Masquerade `json:"masquerade,omitempty"`
-	BBRProfile  string               `json:"bbr_profile,omitempty"`
-	BrutalDebug bool                 `json:"brutal_debug,omitempty"`
-	Realm       *Hysteria2Realm      `json:"realm,omitempty"`
+	Masquerade  *Hysteria2Masquerade   `json:"masquerade,omitempty"`
+	BBRProfile  string                 `json:"bbr_profile,omitempty"`
+	BrutalDebug bool                   `json:"brutal_debug,omitempty"`
+	Realm       *Hysteria2InboundRealm `json:"realm,omitempty"`
 }
 
 type Hysteria2Realm struct {
@@ -31,6 +31,11 @@ type Hysteria2Realm struct {
 	RealmID     string                     `json:"realm_id"`
 	STUNServers badoption.Listable[string] `json:"stun_servers"`
 	HTTPClient  *HTTPClientOptions         `json:"http_client,omitempty"`
+}
+
+type Hysteria2InboundRealm struct {
+	Hysteria2Realm
+	STUNDomainResolver *DomainResolveOptions `json:"stun_domain_resolver,omitempty"`
 }
 
 type Hysteria2Obfs struct {
