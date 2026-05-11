@@ -46,6 +46,7 @@ icon: material/alert-decagram
     "token": "",
     "realm_id": "",
     "stun_servers": [],
+    "stun_domain_resolver": "", // 或 {}
     "http_client": {}
   }
 }
@@ -206,7 +207,15 @@ Realm 上的槽位标识符。
 
 用于发现公网地址的 STUN 服务器列表（`host` 或 `host:port`）。
 
-端口默认为 `3478`。
+#### realm.stun_domain_resolver
+
+用于解析 STUN 服务器域名的域名解析器。
+
+此选项的格式与 [路由 DNS 规则动作](/zh/configuration/dns/rule_action/#route) 相同，但不包含 `action` 字段。
+
+若直接将此选项设置为字符串，则等同于设置该选项的 `server` 字段。
+
+如果为空，则使用默认域名解析器。
 
 #### realm.http_client
 
