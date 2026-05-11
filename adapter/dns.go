@@ -42,16 +42,16 @@ type DNSQueryOptions struct {
 	ClientSubnet           netip.Prefix
 }
 
-func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptions) (*DNSQueryOptions, error) {
-	if options == nil {
-		return &DNSQueryOptions{}, nil
+func DNSQueryOptionsFrom(ctx context.Context, options *option.DomainResolveOptions) (DNSQueryOptions, error) {
+	if options == nil || options.Server == "" {
+		return DNSQueryOptions{}, nil
 	}
 	transportManager := service.FromContext[DNSTransportManager](ctx)
 	transport, loaded := transportManager.Transport(options.Server)
 	if !loaded {
-		return nil, E.New("domain resolver not found: " + options.Server)
+		return DNSQueryOptions{}, E.New("domain resolver not found: " + options.Server)
 	}
-	return &DNSQueryOptions{
+	return DNSQueryOptions{
 		Transport:              transport,
 		Strategy:               C.DomainStrategy(options.Strategy),
 		DisableCache:           options.DisableCache,
