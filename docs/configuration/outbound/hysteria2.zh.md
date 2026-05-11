@@ -189,7 +189,7 @@ Realm 的 Bearer 令牌，需与 realm 上配置的 `users[].token` 之一匹配
 
 用于发现本客户端公网地址的 STUN 服务器列表（`host` 或 `host:port`）。
 
-端口默认为 `3478`。
+域名通过 [拨号字段](/zh/configuration/shared/dial/) 中的 [`domain_resolver`](/zh/configuration/shared/dial/#domain_resolver) 解析。
 
 #### realm.http_client
 
