@@ -197,7 +197,7 @@ func (s *darwinServerDataSession) handleSubmit(command SubmitCommand) SubmitResp
 		},
 		StartFrame:      command.StartFrame,
 		NumberOfPackets: command.NumberOfPackets,
-		IsoPackets:      cloneIsoPackets(command.IsoPackets),
+		IsoPackets:      slices.Clone(command.IsoPackets),
 	}
 	buffer := command.Buffer
 	if command.Header.Direction == USBIPDirIn && command.TransferBufferLength > 0 {
@@ -299,13 +299,4 @@ func commandEndpoint(command SubmitCommand) uint8 {
 		endpoint |= 0x80
 	}
 	return endpoint
-}
-
-func cloneIsoPackets(in []IsoPacketDescriptor) []IsoPacketDescriptor {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make([]IsoPacketDescriptor, len(in))
-	copy(out, in)
-	return out
 }

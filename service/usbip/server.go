@@ -138,7 +138,7 @@ func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	if s.ctx != nil && s.ctx.Err() != nil {
 		return nil
 	}
-	snapshot, released, _, err := s.host.Reconcile(s.ctx, s.ledger.IsBusy)
+	snapshot, released, err := s.host.Reconcile(s.ctx, s.ledger.IsBusy)
 	if err != nil {
 		return err
 	}

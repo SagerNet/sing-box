@@ -188,9 +188,8 @@ func TestDarwinExportHostEventTriggersReconcile(t *testing.T) {
 		t.Fatal("timed out waiting for Events channel signal")
 	}
 
-	snapshot, released, changed, err := host.Reconcile(ctx, func(string) bool { return false })
+	snapshot, released, err := host.Reconcile(ctx, func(string) bool { return false })
 	require.NoError(t, err)
-	require.True(t, changed)
 	require.Empty(t, released)
 	require.Contains(t, snapshot, busid)
 }
@@ -244,11 +243,10 @@ func TestDarwinExportHostReconcileMarksBusyMissingExportStale(t *testing.T) {
 		entry:      entry,
 	}
 
-	snapshot, released, changed, err := host.Reconcile(context.Background(), func(b string) bool {
+	snapshot, released, err := host.Reconcile(context.Background(), func(b string) bool {
 		return b == busid
 	})
 	require.NoError(t, err)
-	require.True(t, changed)
 	require.Empty(t, released)
 	require.NotContains(t, snapshot, busid)
 
@@ -291,11 +289,10 @@ func TestDarwinExportHostReconcileCapturesReplacementAfterStaleRelease(t *testin
 		entry:      oldEntry,
 	}
 
-	snapshot, released, changed, err := host.Reconcile(context.Background(), func(b string) bool {
+	snapshot, released, err := host.Reconcile(context.Background(), func(b string) bool {
 		return b == busid
 	})
 	require.NoError(t, err)
-	require.True(t, changed)
 	require.Empty(t, released)
 	require.NotContains(t, snapshot, busid)
 	require.True(t, host.exports[busid].stale)
@@ -305,9 +302,8 @@ func TestDarwinExportHostReconcileCapturesReplacementAfterStaleRelease(t *testin
 	require.NoError(t, err)
 	require.True(t, releasedFinish)
 
-	snapshot, released, changed, err = host.Reconcile(context.Background(), func(string) bool { return false })
+	snapshot, released, err = host.Reconcile(context.Background(), func(string) bool { return false })
 	require.NoError(t, err)
-	require.True(t, changed)
 	require.Empty(t, released)
 	require.Contains(t, snapshot, busid)
 	require.Equal(t, 1, opened)

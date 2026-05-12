@@ -1000,9 +1000,8 @@ func TestServerReconcileExportsBindsMatchesAndSkipsHub(t *testing.T) {
 
 	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}}, ops)
 
-	_, _, changed, err := host.Reconcile(context.Background(), func(string) bool { return false })
+	_, _, err := host.Reconcile(context.Background(), func(string) bool { return false })
 	require.NoError(t, err)
-	require.True(t, changed)
 	require.Equal(t, []string{
 		"unbind 1-1 usbhid",
 		"match 1-1 add",
@@ -1106,9 +1105,8 @@ func TestServerReconcileExportsSkipsVHCIDevices(t *testing.T) {
 
 	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}}, ops)
 
-	_, _, changed, err := host.Reconcile(context.Background(), func(string) bool { return false })
+	_, _, err := host.Reconcile(context.Background(), func(string) bool { return false })
 	require.NoError(t, err)
-	require.True(t, changed)
 	require.Equal(t, []string{
 		"unbind 1-1 usb",
 		"match 1-1",
@@ -1155,9 +1153,8 @@ func TestServerReconcileExportsReleasesRemovedExports(t *testing.T) {
 	host := newTestLinuxExportHost(t, nil, ops)
 	setLinuxExport(host, &linuxExport{busid: "1-1", managed: true, originalDriver: "usbhid", ops: ops, logger: host.logger})
 
-	_, _, changed, err := host.Reconcile(context.Background(), func(string) bool { return false })
+	_, _, err := host.Reconcile(context.Background(), func(string) bool { return false })
 	require.NoError(t, err)
-	require.True(t, changed)
 	require.Empty(t, linuxExportSnapshot(host))
 	require.Equal(t, []string{
 		"sockfd 1-1",

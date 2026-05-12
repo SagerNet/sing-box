@@ -131,10 +131,10 @@ func nextUEventListenerBackoff(current time.Duration) time.Duration {
 	return next
 }
 
-func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, bool, error) {
+func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := h.ops.listUSBDevices()
 	if err != nil {
-		return h.snapshotSelf(), nil, false, E.Cause(err, "enumerate usb devices")
+		return h.snapshotSelf(), nil, E.Cause(err, "enumerate usb devices")
 	}
 	desired := make(map[string]sysfsDevice)
 	present := make(map[string]struct{}, len(devices))
@@ -165,19 +165,17 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 	}
 	h.access.Unlock()
 
-	changed := false
 	for busid, device := range desired {
 		if _, ok := current[busid]; ok {
 			continue
 		}
 		exp, bindErr := h.bindOne(&device)
 		if bindErr != nil {
-			return h.snapshotSelf(), nil, changed, E.Cause(bindErr, "bind ", busid)
+			return h.snapshotSelf(), nil, E.Cause(bindErr, "bind ", busid)
 		}
 		h.access.Lock()
 		h.exports[busid] = exp
 		h.access.Unlock()
-		changed = true
 	}
 
 	var released []string
@@ -194,10 +192,9 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 		delete(h.exports, busid)
 		h.access.Unlock()
 		released = append(released, busid)
-		changed = true
 	}
 
-	return h.snapshotSelf(), released, changed, nil
+	return h.snapshotSelf(), released, nil
 }
 
 func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
@@ -466,7 +463,7 @@ func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncat
 		}
 		err = h.ops.vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed)
 		if err != nil {
-			h.trackPort(port, false)
+			h.releasePort(port)
 			if errors.Is(err, unix.EBUSY) {
 				triedPorts[port] = struct{}{}
 				continue
@@ -493,16 +490,11 @@ func (h *linuxImportHost) reservePort(port int) bool {
 	return true
 }
 
-func (h *linuxImportHost) trackPort(port int, add bool) {
+func (h *linuxImportHost) releasePort(port int) {
 	h.portsAccess.Lock()
 	defer h.portsAccess.Unlock()
-	if add {
-		h.logger.Debug("reserve vhci port ", port)
-		h.ports[port] = struct{}{}
-	} else {
-		h.logger.Debug("release vhci port ", port)
-		delete(h.ports, port)
-	}
+	h.logger.Debug("release vhci port ", port)
+	delete(h.ports, port)
 }
 
 // linuxClientSession wraps kernelHandoffSession with vhci-port cleanup
@@ -528,7 +520,7 @@ func (s *linuxClientSession) Close() error {
 	s.closeOnce.Do(func() {
 		detachErr := s.host.ops.vhciDetach(s.port)
 		closeErr := s.handoff.Close()
-		s.host.trackPort(s.port, false)
+		s.host.releasePort(s.port)
 		s.closeErr = E.Errors(detachErr, closeErr)
 	})
 	return s.closeErr

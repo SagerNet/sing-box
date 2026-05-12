@@ -16,8 +16,7 @@ import (
 // exportLedger owns the server's authoritative mutable state: which
 // devices it is exporting, which busids are currently in use, who is
 // subscribed to control-channel updates, and which import leases are
-// outstanding. It absorbs what previously lived as four fields plus a
-// LeaseManager on ServerService.
+// outstanding.
 //
 // Synchronization:
 //
@@ -29,11 +28,6 @@ import (
 //
 //	fast: broadcast bookkeeping. seq, nextSubID, subs, state.
 //	slow: inventory and leases. exports, busy, leases, nextLeaseID.
-//
-//	The previous controlAccess -> LeaseManager.access -> access
-//	ordering documented in lease.go disappears because the only
-//	remaining cross-state operation (IssueLease) reads seq under fast,
-//	releases, then uses slow.
 type exportLedger struct {
 	logger log.ContextLogger
 	now    func() time.Time
@@ -80,8 +74,7 @@ func newExportLedger(logger log.ContextLogger, ttl time.Duration, now func() tim
 	}
 }
 
-// IsBusy reports whether the busid currently has an active import. The
-// signature matches ExportHost.Reconcile's isBusy callback.
+// IsBusy reports whether the busid currently has an active import.
 func (l *exportLedger) IsBusy(busid string) bool {
 	l.slow.Lock()
 	defer l.slow.Unlock()
@@ -187,9 +180,15 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 // mark is only inserted after the lease check passes and the second
 // availability re-check confirms no other goroutine raced in.
 func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
-	export, reason, ok := l.checkAvailableUnderLock(busid)
-	if !ok {
-		return nil, false, reason
+	l.slow.Lock()
+	export, found := l.exports[busid]
+	busy := l.busy[busid]
+	l.slow.Unlock()
+	if !found {
+		return nil, false, "unknown busid"
+	}
+	if busy {
+		return nil, false, deviceStateBusy
 	}
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
 	if !leaseOK {
@@ -208,22 +207,7 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	return export, true, ""
 }
 
-func (l *exportLedger) checkAvailableUnderLock(busid string) (Export, string, bool) {
-	l.slow.Lock()
-	defer l.slow.Unlock()
-	export, found := l.exports[busid]
-	if !found {
-		return nil, "unknown busid", false
-	}
-	if l.busy[busid] {
-		return nil, deviceStateBusy, false
-	}
-	return export, "", true
-}
-
-// ConfirmImport broadcasts that an import is now active. The busy mark
-// was set during TryReserveForImport; this method only broadcasts so
-// clients see the state change.
+// ConfirmImport broadcasts that an import is now active.
 func (l *exportLedger) ConfirmImport(ctx context.Context) {
 	l.BroadcastIfChanged(ctx)
 }

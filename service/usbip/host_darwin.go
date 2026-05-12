@@ -87,10 +87,10 @@ func (h *darwinExportHost) Events(ctx context.Context) (<-chan struct{}, error) 
 	return ch, nil
 }
 
-func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, bool, error) {
+func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := h.ops.copyUSBHostDevices()
 	if err != nil {
-		return h.snapshotSelf(), nil, false, E.Cause(err, "enumerate IOUSBHost devices")
+		return h.snapshotSelf(), nil, E.Cause(err, "enumerate IOUSBHost devices")
 	}
 	desired := make(map[string]darwinUSBHostDeviceInfo)
 	for _, match := range h.matches {
@@ -159,7 +159,6 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 		released = append(released, busid)
 	}
 
-	changed := len(toAdd) > 0 || len(toRemove) > 0
 	h.access.Lock()
 	for _, busid := range toStale {
 		exp, ok := h.exports[busid]
@@ -167,7 +166,6 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 			continue
 		}
 		exp.stale = true
-		changed = true
 	}
 	for _, exp := range toRemove {
 		delete(h.exports, exp.busid)
@@ -189,7 +187,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 			exp.device.Close()
 		}
 	}
-	return out, released, changed, nil
+	return out, released, nil
 }
 
 func (h *darwinExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
@@ -243,23 +241,20 @@ func (e *darwinExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 		}
 	}
 	state := deviceStateAvailable
-	reason := deviceStateAvailable
 	if busy {
 		state = deviceStateBusy
-		reason = deviceStateBusy
 	}
 	return ExportSnapshot{
-		Entry:        e.entry,
-		Backend:      backendIDDarwinIOKit,
-		StableID:     stableID,
-		State:        state,
-		StatusReason: reason,
+		Entry:    e.entry,
+		Backend:  backendIDDarwinIOKit,
+		StableID: stableID,
+		State:    state,
 	}
 }
 
 func (e *darwinExport) LeaseCheck(ctx context.Context) (bool, string) {
 	if e.stale {
-		return false, deviceStateUnavailable
+		return false, "capture released"
 	}
 	return true, ""
 }
