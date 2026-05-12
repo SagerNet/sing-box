@@ -321,7 +321,7 @@ func (c *STDServerConfig) certificateUpdated(path string) error {
 }
 
 func (c *STDServerConfig) Close() error {
-	return common.Close(c.certificateProvider, c.acmeService, c.watcher)
+	return common.Close(c.certificateProvider, c.acmeService, common.PtrOrNil(c.watcher))
 }
 
 func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.InboundTLSOptions) (ServerConfig, error) {
