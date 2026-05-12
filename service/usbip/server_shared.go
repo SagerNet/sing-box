@@ -3,6 +3,7 @@
 package usbip
 
 import (
+	"bytes"
 	"io"
 	"net"
 	"time"
@@ -44,7 +45,7 @@ func (s *ServerService) dispatchConn(conn net.Conn) {
 		_ = conn.Close()
 		return
 	}
-	if IsControlPreface(prefix[:]) {
+	if bytes.Equal(prefix[:], controlPreface[:]) {
 		s.handleControlConn(conn)
 		return
 	}
@@ -62,7 +63,10 @@ func (s *ServerService) readControlConn(sub *exportSubscriber, done chan<- struc
 		frame := message.Frame
 		switch frame.Type {
 		case controlFramePing:
-			s.ledger.HandleControlPing(sub)
+			s.ledger.enqueueFrame(sub, controlFrame{
+				Type:    controlFramePong,
+				Version: controlProtocolVersion,
+			})
 		case controlFrameLeaseRequest:
 			if supportsControlExtensions(sub.capabilities) {
 				s.ledger.HandleControlLeaseRequest(s.ctx, sub, message.Payload)

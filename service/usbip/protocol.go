@@ -159,15 +159,7 @@ func ReadOpReqImportExtBody(r io.Reader) (ImportExtRequest, error) {
 	}, nil
 }
 
-func WriteOpRepImport(w io.Writer, status uint32, info *DeviceInfoTruncated) error {
-	return writeOpRepImport(w, OpRepImport, status, info)
-}
-
-func WriteOpRepImportExt(w io.Writer, status uint32, info *DeviceInfoTruncated) error {
-	return writeOpRepImport(w, OpRepImportExt, status, info)
-}
-
-func writeOpRepImport(w io.Writer, code uint16, status uint32, info *DeviceInfoTruncated) error {
+func WriteOpRepImport(w io.Writer, code uint16, status uint32, info *DeviceInfoTruncated) error {
 	err := WriteOpHeader(w, code, status)
 	if err != nil {
 		return err
@@ -254,10 +246,6 @@ func ReadOpRepDevListBody(r io.Reader) ([]DeviceEntry, error) {
 
 func (d *DeviceInfoTruncated) BusIDString() string {
 	return cstring(d.BusID[:])
-}
-
-func (d *DeviceInfoTruncated) PathString() string {
-	return cstring(d.Path[:])
 }
 
 func (d *DeviceInfoTruncated) SerialString() string {

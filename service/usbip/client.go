@@ -19,10 +19,6 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-// ClientService is the unified USB/IP client. It owns the control
-// channel, the assignment state machine, and the per-busid worker
-// goroutines. The platform-specific attach pipeline is delegated to an
-// ImportHost.
 type ClientService struct {
 	boxService.Adapter
 	ctx        context.Context
@@ -36,7 +32,7 @@ type ClientService struct {
 	assignment      *clientAssignment
 	workerAccess    sync.Mutex
 	assignedWorkers []*clientAssignedWorker
-	allWorkers      map[string]*clientBusIDWorker
+	allWorkers      map[string]context.CancelFunc
 	wg              sync.WaitGroup
 
 	controlAccess  sync.Mutex
@@ -77,7 +73,7 @@ func NewClientService(ctx context.Context, logger log.ContextLogger, tag string,
 		matches:    options.Devices,
 		host:       host,
 		assignment: newClientAssignment(options.Devices),
-		allWorkers: make(map[string]*clientBusIDWorker),
+		allWorkers: make(map[string]context.CancelFunc),
 	}, nil
 }
 
@@ -131,7 +127,14 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 			continue
 		}
 		c.logger.Info("attached ", busid, " through ", session.Description())
-		c.waitSession(ctx, session, busid)
+		select {
+		case <-session.Done():
+			c.logger.Debug("import session for ", busid, " ended (", session.Description(), ")")
+		case <-ctx.Done():
+			_ = session.Close()
+			<-session.Done()
+		}
+		_ = session.Close()
 		c.setBusIDActive(busid, false)
 		if ctx.Err() != nil {
 			return
@@ -144,17 +147,6 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 			return
 		}
 	}
-}
-
-func (c *ClientService) waitSession(ctx context.Context, session AttachedSession, busid string) {
-	select {
-	case <-session.Done():
-		c.logger.Debug("import session for ", busid, " ended (", session.Description(), ")")
-	case <-ctx.Done():
-		_ = session.Close()
-		<-session.Done()
-	}
-	_ = session.Close()
 }
 
 func (c *ClientService) attemptAttach(ctx context.Context, busid string) (AttachedSession, error) {

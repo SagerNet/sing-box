@@ -135,7 +135,7 @@ type darwinUSBHostDeviceWatcher struct {
 	ref    cgo.Handle
 }
 
-func darwinWatchUSBHostDevices(callback func()) (darwinUSBHostDeviceWatch, error) {
+func darwinWatchUSBHostDevices(callback func()) (*darwinUSBHostDeviceWatcher, error) {
 	ref := cgo.NewHandle(callback)
 	var errorPtr *C.char
 	handle := C.box_usbhost_device_watcher_create(C.uintptr_t(ref), &errorPtr)
@@ -313,20 +313,12 @@ func (m darwinCIMessage) valid() bool {
 	return m.control&(1<<15) != 0
 }
 
-func (m darwinCIMessage) noResponse() bool {
-	return m.control&(1<<14) != 0
-}
-
 func (m darwinCIMessage) deviceAddress() uint8 {
 	return uint8(m.data0 & 0xff)
 }
 
 func (m darwinCIMessage) endpointAddress() uint8 {
 	return uint8((m.data0 >> 8) & 0xff)
-}
-
-func (m darwinCIMessage) rootPort() uint8 {
-	return uint8(m.data0 & 0x0f)
 }
 
 func (m darwinCIMessage) setup() [8]byte {
@@ -346,14 +338,6 @@ func (m darwinCIMessage) bufferPointer() unsafe.Pointer {
 	return m.buffer
 }
 
-func (m darwinCIMessage) isoASAP() bool {
-	return m.control&ciIsochronousTransferControlASAP != 0
-}
-
-func (m darwinCIMessage) isoFrame() int32 {
-	return int32(m.control >> ciIsochronousTransferControlFramePhase & 0xff)
-}
-
 func darwinCIFrameTimestamp() uint64 {
 	return uint64(C.box_usbhost_now())
 }
@@ -365,11 +349,11 @@ func box_usbip_darwin_controller_command(ref C.uintptr_t, message C.IOUSBHostCIM
 	if !ok {
 		return
 	}
-	controller.enqueueCommand(darwinCIMessage{
+	controller.enqueueEvent(darwinControllerEvent{command: &darwinCIMessage{
 		control: uint32(message.control),
 		data0:   uint32(message.data0),
 		data1:   uint64(message.data1),
-	})
+	}})
 }
 
 //export box_usbip_darwin_controller_doorbell
@@ -379,7 +363,7 @@ func box_usbip_darwin_controller_doorbell(ref C.uintptr_t, doorbell C.uint32_t) 
 	if !ok {
 		return
 	}
-	controller.enqueueDoorbell(uint32(doorbell))
+	controller.enqueueEvent(darwinControllerEvent{doorbell: uint32(doorbell)})
 }
 
 //export box_usbip_darwin_usb_event
@@ -565,26 +549,22 @@ func darwinIOReturnToUSBIPStatus(status int32) int32 {
 	}
 }
 
-func usbipStatusToDarwinCIStatus(status int32) C.int {
+func darwinUSBIPStatusToCIStatus(status int32) int {
 	if status == 0 {
-		return C.IOUSBHostCIMessageStatusSuccess
+		return int(C.IOUSBHostCIMessageStatusSuccess)
 	}
 	switch -status {
 	case int32(unix.ETIMEDOUT):
-		return C.IOUSBHostCIMessageStatusTimeout
+		return int(C.IOUSBHostCIMessageStatusTimeout)
 	case int32(unix.ENOMEM):
-		return C.IOUSBHostCIMessageStatusNoResources
+		return int(C.IOUSBHostCIMessageStatusNoResources)
 	case int32(unix.EINVAL):
-		return C.IOUSBHostCIMessageStatusBadArgument
+		return int(C.IOUSBHostCIMessageStatusBadArgument)
 	case int32(unix.EPERM):
-		return C.IOUSBHostCIMessageStatusNotPermitted
+		return int(C.IOUSBHostCIMessageStatusNotPermitted)
 	case int32(unix.ECONNRESET):
-		return C.IOUSBHostCIMessageStatusEndpointStopped
+		return int(C.IOUSBHostCIMessageStatusEndpointStopped)
 	default:
-		return C.IOUSBHostCIMessageStatusError
+		return int(C.IOUSBHostCIMessageStatusError)
 	}
-}
-
-func darwinUSBIPStatusToCIStatus(status int32) int {
-	return int(usbipStatusToDarwinCIStatus(status))
 }

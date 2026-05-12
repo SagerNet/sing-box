@@ -20,10 +20,6 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-// ServerService is the unified USB/IP server. It owns the wire-protocol
-// surface (devlist, import, import-ext, control channel) and delegates
-// all mutable state to an exportLedger. Platform-specific device
-// acquisition is delegated to an ExportHost.
 type ServerService struct {
 	boxService.Adapter
 	ctx      context.Context
@@ -37,7 +33,6 @@ type ServerService struct {
 	reconcileAccess sync.Mutex
 }
 
-// NewServerService constructs a ServerService for the running platform.
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
 	for i, m := range options.Devices {
 		if m.IsZero() {
@@ -160,9 +155,18 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 	}()
 	switch header.Code {
 	case OpReqDevList:
-		s.handleDevList(conn)
+		entries := s.buildDevListEntries()
+		err := WriteOpRepDevList(conn, entries)
+		if err != nil {
+			s.logger.Debug("write devlist: ", err)
+		}
 	case OpReqImport:
-		closeConn = !s.handleImport(conn)
+		busid, err := ReadOpReqImportBody(conn)
+		if err != nil {
+			s.logger.Debug("read import body: ", err)
+			break
+		}
+		closeConn = !s.handleImportBusID(conn, busid, false)
 	case OpReqImportExt:
 		closeConn = !s.handleImportExt(conn)
 	default:
@@ -172,7 +176,8 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 
 func (s *ServerService) handleControlConn(conn net.Conn) {
 	defer conn.Close()
-	helloMessage, err := readControlMessage(conn)
+	var cr controlReader
+	helloMessage, err := cr.read(conn)
 	if err != nil {
 		s.logger.Debug("read control hello: ", err)
 		return
@@ -190,10 +195,15 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		s.logger.Debug("missing control capabilities 0x", hello.Capabilities)
 		return
 	}
-	capabilities := negotiatedControlCapabilities(hello.Capabilities)
+	capabilities := hello.Capabilities & controlCapabilities
 	sub, seq := s.ledger.Subscribe(s.ctx, conn, capabilities)
 	defer s.ledger.Unsubscribe(sub)
-	err = writeControlAckWithCapabilities(conn, seq, capabilities)
+	err = writeControlFrame(conn, controlFrame{
+		Type:         controlFrameAck,
+		Version:      controlProtocolVersion,
+		Capabilities: capabilities,
+		Sequence:     seq,
+	})
 	if err != nil {
 		s.logger.Debug("write control ack: ", err)
 		return
@@ -216,14 +226,6 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 	}
 }
 
-func (s *ServerService) handleDevList(conn net.Conn) {
-	entries := s.buildDevListEntries()
-	err := WriteOpRepDevList(conn, entries)
-	if err != nil {
-		s.logger.Debug("write devlist: ", err)
-	}
-}
-
 func (s *ServerService) buildDevListEntries() []DeviceEntry {
 	exports := s.ledger.AvailableExports()
 	if len(exports) == 0 {
@@ -232,21 +234,12 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 	entries := make([]DeviceEntry, 0, len(exports))
 	for _, export := range exports {
 		snapshot := export.Snapshot(s.ctx, false)
-		if snapshot.Err != nil || snapshot.State != deviceStateAvailable {
+		if snapshot.State != deviceStateAvailable {
 			continue
 		}
 		entries = append(entries, snapshot.Entry)
 	}
 	return entries
-}
-
-func (s *ServerService) handleImport(conn net.Conn) bool {
-	busid, err := ReadOpReqImportBody(conn)
-	if err != nil {
-		s.logger.Debug("read import body: ", err)
-		return false
-	}
-	return s.handleImportBusID(conn, busid, false)
 }
 
 func (s *ServerService) handleImportExt(conn net.Conn) bool {
@@ -257,39 +250,39 @@ func (s *ServerService) handleImportExt(conn net.Conn) bool {
 	}
 	if !s.ledger.ConsumeLease(request) {
 		s.logger.Info("import-ext rejected (invalid lease): ", request.BusID)
-		_ = WriteOpRepImportExt(conn, OpStatusError, nil)
+		_ = WriteOpRepImport(conn, OpRepImportExt, OpStatusError, nil)
 		return false
 	}
 	return s.handleImportBusID(conn, request.BusID, true)
 }
 
 func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended bool) bool {
-	writeReply := WriteOpRepImport
+	opCode := uint16(OpRepImport)
 	if extended {
-		writeReply = WriteOpRepImportExt
+		opCode = OpRepImportExt
 	}
 	export, ok, reason := s.ledger.TryReserveForImport(s.ctx, busid)
 	if !ok {
 		s.logger.Info("import rejected (", busid, ": ", reason, ")")
-		_ = writeReply(conn, OpStatusError, nil)
+		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
 		return false
 	}
 	info, err := export.DeviceInfo(s.ctx)
 	if err != nil {
 		s.ledger.ReleaseImport(s.ctx, busid, false)
 		s.logger.Warn("refresh ", busid, ": ", err)
-		_ = writeReply(conn, OpStatusError, nil)
+		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
 		return false
 	}
 	session, err := export.NewServerDataSession(s.ctx, conn)
 	if err != nil {
 		s.ledger.ReleaseImport(s.ctx, busid, false)
 		s.logger.Warn("open data session ", busid, ": ", err)
-		_ = writeReply(conn, OpStatusError, nil)
+		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
 		return false
 	}
-	s.ledger.ConfirmImport(s.ctx)
-	err = writeReply(conn, OpStatusOK, &info)
+	s.ledger.BroadcastIfChanged(s.ctx)
+	err = WriteOpRepImport(conn, opCode, OpStatusOK, &info)
 	if err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
 		_ = session.Close()
@@ -299,15 +292,13 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
-	go s.waitImportDone(busid, session)
+	go func() {
+		<-session.Done()
+		released, err := s.host.FinishImport(s.ctx, busid)
+		if err != nil {
+			s.logger.Debug("finish import ", busid, ": ", err)
+		}
+		s.ledger.ReleaseImport(s.ctx, busid, released)
+	}()
 	return true
-}
-
-func (s *ServerService) waitImportDone(busid string, session DataSession) {
-	<-session.Done()
-	released, err := s.host.FinishImport(s.ctx, busid)
-	if err != nil {
-		s.logger.Debug("finish import ", busid, ": ", err)
-	}
-	s.ledger.ReleaseImport(s.ctx, busid, released)
 }

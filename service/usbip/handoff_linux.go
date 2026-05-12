@@ -20,10 +20,6 @@ import (
 
 var _ DataSession = (*kernelHandoffSession)(nil)
 
-// kernelHandoffSession is the Linux DataSession that bridges a USB/IP
-// wire connection into the kernel's vhci_hcd / usbip-host. After the
-// caller writes kernelFD() into usbip_sockfd, Start kicks off the
-// monitor/relay goroutine; Done fires when the kernel detaches.
 type kernelHandoffSession struct {
 	conn        net.Conn
 	file        *os.File
@@ -80,12 +76,8 @@ func (h *kernelHandoffSession) kernelFD() uintptr {
 	return h.file.Fd()
 }
 
-func (h *kernelHandoffSession) relay() bool {
-	return h.relayConn != nil
-}
-
 func (h *kernelHandoffSession) mode() string {
-	if h.relay() {
+	if h.relayConn != nil {
 		return "relay"
 	}
 	return "direct"
@@ -129,11 +121,8 @@ func (h *kernelHandoffSession) markDone(err error) {
 	})
 }
 
-// Start launches the monitor (direct mode) or relay (userspace mode)
-// goroutine. Done() closes when the goroutine exits; Err() returns the
-// recorded termination cause (nil for clean detach or canceled context).
 func (h *kernelHandoffSession) Start(ctx context.Context, logger log.ContextLogger, side string, busid string) {
-	if !h.relay() {
+	if h.relayConn == nil {
 		err := h.conn.Close()
 		if err != nil && !E.IsClosedOrCanceled(err) {
 			logger.Debug("close usbip ", side, " userspace socket ", busid, ": ", err)
@@ -149,28 +138,9 @@ func (h *kernelHandoffSession) Start(ctx context.Context, logger log.ContextLogg
 }
 
 func (h *kernelHandoffSession) runDirect(ctx context.Context, logger log.ContextLogger, side string, busid string, file *os.File) {
-	err := pollDirectHandoff(ctx, logger, side, busid, file)
-	h.markDone(err)
-}
-
-func (h *kernelHandoffSession) runRelay(ctx context.Context, logger log.ContextLogger, side string, busid string, relayConn net.Conn) {
-	err := sBufio.CopyConn(ctx, h.conn, relayConn)
-	var runErr error
-	switch {
-	case err == nil:
-		logger.Debug("usbip ", side, " relay ", busid, " closed")
-	case ctx.Err() == nil && !E.IsClosedOrCanceled(err):
-		logger.Warn("usbip ", side, " relay ", busid, ": ", err)
-		runErr = err
-	default:
-		logger.Debug("usbip ", side, " relay ", busid, ": ", err)
-	}
-	h.markDone(runErr)
-}
-
-func pollDirectHandoff(ctx context.Context, logger log.ContextLogger, side string, busid string, file *os.File) error {
 	if file == nil {
-		return nil
+		h.markDone(nil)
+		return
 	}
 	closeFile := sync.OnceFunc(func() {
 		_ = file.Close()
@@ -191,12 +161,30 @@ func pollDirectHandoff(ctx context.Context, logger log.ContextLogger, side strin
 		if err != nil {
 			if ctx.Err() == nil && !errors.Is(err, unix.EBADF) {
 				logger.Debug("usbip ", side, " direct monitor ", busid, ": ", err)
-				return err
+				h.markDone(err)
+				return
 			}
-			return nil
+			h.markDone(nil)
+			return
 		}
 		if fds[0].Revents&(events|unix.POLLNVAL) != 0 {
-			return nil
+			h.markDone(nil)
+			return
 		}
 	}
+}
+
+func (h *kernelHandoffSession) runRelay(ctx context.Context, logger log.ContextLogger, side string, busid string, relayConn net.Conn) {
+	err := sBufio.CopyConn(ctx, h.conn, relayConn)
+	var runErr error
+	switch {
+	case err == nil:
+		logger.Debug("usbip ", side, " relay ", busid, " closed")
+	case ctx.Err() == nil && !E.IsClosedOrCanceled(err):
+		logger.Warn("usbip ", side, " relay ", busid, ": ", err)
+		runErr = err
+	default:
+		logger.Debug("usbip ", side, " relay ", busid, ": ", err)
+	}
+	h.markDone(runErr)
 }

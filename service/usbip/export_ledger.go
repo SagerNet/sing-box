@@ -13,18 +13,10 @@ import (
 	"github.com/sagernet/sing-box/log"
 )
 
-// exportLedger owns the server's authoritative mutable state: which
-// devices it is exporting, which busids are currently in use, who is
-// subscribed to control-channel updates, and which import leases are
-// outstanding.
-//
-// Synchronization:
-//
-//	The ledger uses two internal mutexes. The two are NEVER held
-//	simultaneously. Each public method acquires at most one at a time
-//	for any nested duration; multi-stage methods acquire and release
-//	one, do unlocked work (including syscalls), then acquire the
-//	other.
+// exportLedger uses two internal mutexes that are NEVER held
+// simultaneously. Each public method acquires at most one at a time;
+// multi-stage methods acquire one, do unlocked work (including
+// syscalls), then acquire the other.
 //
 //	fast: broadcast bookkeeping. seq, nextSubID, subs, state.
 //	slow: inventory and leases. exports, busy, leases, nextLeaseID.
@@ -46,9 +38,6 @@ type exportLedger struct {
 	nextLeaseID uint64
 }
 
-// exportSubscriber is one live control-channel connection. The send
-// channel is filled by the ledger's broadcast methods and drained by
-// the transport handler.
 type exportSubscriber struct {
 	id           uint64
 	capabilities uint32
@@ -74,24 +63,14 @@ func newExportLedger(logger log.ContextLogger, ttl time.Duration, now func() tim
 	}
 }
 
-// IsBusy reports whether the busid currently has an active import.
 func (l *exportLedger) IsBusy(busid string) bool {
 	l.slow.Lock()
 	defer l.slow.Unlock()
 	return l.busy[busid]
 }
 
-// Export returns the export registered for busid, if any.
-func (l *exportLedger) Export(busid string) (Export, bool) {
-	l.slow.Lock()
-	defer l.slow.Unlock()
-	export, found := l.exports[busid]
-	return export, found
-}
-
-// AvailableExports returns exports that are not currently busy, sorted
-// by busid. The slice references are stable; Snapshot may be called on
-// each entry outside the ledger's lock.
+// AvailableExports returns exports not currently busy; Snapshot may be
+// called on each entry outside the ledger's lock.
 func (l *exportLedger) AvailableExports() []Export {
 	l.slow.Lock()
 	out := make([]Export, 0, len(l.exports))
@@ -102,17 +81,14 @@ func (l *exportLedger) AvailableExports() []Export {
 		out = append(out, export)
 	}
 	l.slow.Unlock()
-	slices.SortFunc(out, exportLess)
+	slices.SortFunc(out, func(a, b Export) int {
+		return strings.Compare(a.BusID(), b.BusID())
+	})
 	return out
 }
 
-func exportLess(a, b Export) int {
-	return strings.Compare(a.BusID(), b.BusID())
-}
-
-// ApplyHostSnapshot replaces the inventory with snapshot and clears
-// busy entries for released busids. Does not broadcast — callers pair
-// this with SeedBroadcastState (quiet) or BroadcastIfChanged.
+// ApplyHostSnapshot does not broadcast; callers pair it with
+// SeedBroadcastState (quiet) or BroadcastIfChanged.
 func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []string) {
 	l.slow.Lock()
 	l.exports = snapshot
@@ -122,8 +98,7 @@ func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []
 	l.slow.Unlock()
 }
 
-// SeedBroadcastState recomputes the broadcast state and stores it
-// without emitting any frame. Used at Start.
+// SeedBroadcastState stores the recomputed state without emitting a frame.
 func (l *exportLedger) SeedBroadcastState(ctx context.Context) {
 	nextState := deviceInfoV2Map(l.snapshotDeviceState(ctx))
 	l.fast.Lock()
@@ -131,16 +106,13 @@ func (l *exportLedger) SeedBroadcastState(ctx context.Context) {
 	l.fast.Unlock()
 }
 
-// BroadcastIfChanged recomputes the broadcast state, compares against
-// the last broadcast, and emits a DeviceDelta + Changed frame to every
-// subscriber if the state moved. Returns true if a frame was sent.
 func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 	nextState := deviceInfoV2Map(l.snapshotDeviceState(ctx))
 
 	l.fast.Lock()
 	nextSequence := l.seq + 1
 	delta := buildControlDeviceDelta(nextSequence, l.state, nextState)
-	if controlDeviceDeltaEmpty(delta) {
+	if len(delta.Added) == 0 && len(delta.Updated) == 0 && len(delta.Removed) == 0 {
 		l.state = nextState
 		l.fast.Unlock()
 		return false
@@ -148,7 +120,10 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 	l.seq = nextSequence
 	sequence := l.seq
 	l.state = nextState
-	targets := l.snapshotSubsLocked()
+	targets := make([]*exportSubscriber, 0, len(l.subs))
+	for _, sub := range l.subs {
+		targets = append(targets, sub)
+	}
 	l.fast.Unlock()
 
 	frame := controlFrame{
@@ -170,15 +145,10 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 	return true
 }
 
-// TryReserveForImport atomically checks that busid is exported, not
-// busy, and currently lease-available, marking it busy on success. The
-// caller is responsible for follow-up DeviceInfo/NewServerDataSession
-// and must call ReleaseImport on any failure path or ConfirmImport on
-// success.
-//
-// The Export.LeaseCheck syscall runs outside the slow lock; the busy
-// mark is only inserted after the lease check passes and the second
-// availability re-check confirms no other goroutine raced in.
+// TryReserveForImport runs Export.LeaseCheck outside the slow lock; the
+// busy mark is inserted only after a second availability re-check
+// confirms no goroutine raced in. On success, the caller must follow up
+// with ConfirmImport or ReleaseImport on the failure path.
 func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
 	l.slow.Lock()
 	export, found := l.exports[busid]
@@ -207,15 +177,6 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	return export, true, ""
 }
 
-// ConfirmImport broadcasts that an import is now active.
-func (l *exportLedger) ConfirmImport(ctx context.Context) {
-	l.BroadcastIfChanged(ctx)
-}
-
-// ReleaseImport clears the busy mark for busid, optionally removing
-// the export entirely, and broadcasts the change. removeExport=true is
-// used when the platform host's FinishImport returns released=true
-// (e.g. Darwin stale capture).
 func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeExport bool) {
 	l.slow.Lock()
 	delete(l.busy, busid)
@@ -226,10 +187,8 @@ func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeEx
 	l.BroadcastIfChanged(ctx)
 }
 
-// IssueLease validates the request and inserts a fresh lease keyed by
-// busid. The seq generation is captured at entry and stored on the
-// lease so a subsequent ConsumeLease can reject stale leases issued
-// before a topology change.
+// IssueLease captures the seq generation at entry so a subsequent
+// ConsumeLease can reject stale leases issued before a topology change.
 func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request controlLeaseRequest) controlLeaseResponse {
 	response := controlLeaseResponse{
 		BusID:       request.BusID,
@@ -245,12 +204,30 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	generation := l.seq
 	l.fast.Unlock()
 
-	export, errorCode, reason, ok := l.checkAvailableForLease(request.BusID)
-	if !ok {
-		response.ErrorCode = errorCode
-		response.ErrorMessage = reason
+	l.slow.Lock()
+	now := l.now()
+	l.cleanupExpiredLocked(now)
+	export, found := l.exports[request.BusID]
+	if !found {
+		l.slow.Unlock()
+		response.ErrorCode = leaseErrorUnavailable
+		response.ErrorMessage = "unknown busid"
 		return response
 	}
+	if l.busy[request.BusID] {
+		l.slow.Unlock()
+		response.ErrorCode = leaseErrorUnavailable
+		response.ErrorMessage = deviceStateBusy
+		return response
+	}
+	if _, exists := l.leases[request.BusID]; exists {
+		l.slow.Unlock()
+		response.ErrorCode = leaseErrorBusy
+		response.ErrorMessage = "lease already active"
+		return response
+	}
+	l.slow.Unlock()
+
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
 	if !leaseOK {
 		response.ErrorCode = leaseErrorUnavailable
@@ -260,7 +237,7 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 
 	l.slow.Lock()
 	defer l.slow.Unlock()
-	now := l.now()
+	now = l.now()
 	l.cleanupExpiredLocked(now)
 	current, stillExported := l.exports[request.BusID]
 	if !stillExported || current != export {
@@ -294,29 +271,9 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	return response
 }
 
-func (l *exportLedger) checkAvailableForLease(busid string) (Export, string, string, bool) {
-	l.slow.Lock()
-	defer l.slow.Unlock()
-	now := l.now()
-	l.cleanupExpiredLocked(now)
-	export, found := l.exports[busid]
-	if !found {
-		return nil, leaseErrorUnavailable, "unknown busid", false
-	}
-	if l.busy[busid] {
-		return nil, leaseErrorUnavailable, deviceStateBusy, false
-	}
-	if _, exists := l.leases[busid]; exists {
-		return nil, leaseErrorBusy, "lease already active", false
-	}
-	return export, "", "", true
-}
-
-// ConsumeLease validates and removes the lease matching request, then
-// checks the lease's generation against the current seq. Returns true
-// only if all checks pass. Consume-on-read semantics: the entry is
-// removed regardless of outcome (except on mismatched nonce, which
-// preserves the lease for the legitimate holder).
+// ConsumeLease has consume-on-read semantics: the entry is removed
+// regardless of outcome, except on mismatched nonce — which preserves
+// the lease for the legitimate holder.
 func (l *exportLedger) ConsumeLease(request ImportExtRequest) bool {
 	l.slow.Lock()
 	now := l.now()
@@ -351,14 +308,11 @@ func (l *exportLedger) cleanupExpiredLocked(now time.Time) {
 	}
 }
 
-// Subscribe registers a new control-channel connection. If
-// capabilities include the device-snapshot extension, a freshly
-// computed snapshot is enqueued so the new subscriber sees current
-// state regardless of when the last broadcast fired. Returns the
-// subscriber and the current sequence.
-//
-// Does NOT mutate l.state: other subscribers must still receive the
-// next BroadcastIfChanged delta against the previous baseline.
+// Subscribe enqueues a freshly computed snapshot to extension-capable
+// subscribers so they see current state regardless of when the last
+// broadcast fired. Does NOT mutate l.state: other subscribers must
+// still receive the next BroadcastIfChanged delta against the previous
+// baseline.
 func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilities uint32) (*exportSubscriber, uint64) {
 	snapshot := l.snapshotDeviceState(ctx)
 	l.fast.Lock()
@@ -378,29 +332,23 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 	return sub, sequence
 }
 
-// Unsubscribe removes a control connection and revokes any outstanding
-// leases owned by it. The subscriber's send channel is left for the GC
-// to reclaim — the transport read loop already exited.
+// Unsubscribe leaves the subscriber's send channel for the GC to
+// reclaim; the transport read loop has already exited.
 func (l *exportLedger) Unsubscribe(sub *exportSubscriber) {
 	l.fast.Lock()
 	delete(l.subs, sub.id)
 	l.fast.Unlock()
-	l.revokeLeasesForSubscriber(sub.id)
-}
-
-func (l *exportLedger) revokeLeasesForSubscriber(subID uint64) {
 	l.slow.Lock()
-	defer l.slow.Unlock()
 	for busid, lease := range l.leases {
-		if lease.SubscriberID == subID {
+		if lease.SubscriberID == sub.id {
 			delete(l.leases, busid)
 		}
 	}
+	l.slow.Unlock()
 }
 
-// CloseAllSubscribers drains every subscriber and returns the
-// underlying connections so the caller can close them outside any
-// lock.
+// CloseAllSubscribers returns the underlying connections so the caller
+// can close them outside any lock.
 func (l *exportLedger) CloseAllSubscribers() []net.Conn {
 	l.fast.Lock()
 	conns := make([]net.Conn, 0, len(l.subs))
@@ -412,8 +360,6 @@ func (l *exportLedger) CloseAllSubscribers() []net.Conn {
 	return conns
 }
 
-// ResetForClose clears inventory and busy state. Called from Close
-// after the host has been shut down.
 func (l *exportLedger) ResetForClose() {
 	l.slow.Lock()
 	l.exports = make(map[string]Export)
@@ -422,48 +368,34 @@ func (l *exportLedger) ResetForClose() {
 	l.slow.Unlock()
 }
 
-// CurrentSequence returns the last broadcast sequence (for transport
-// code that writes the initial ack frame).
-func (l *exportLedger) CurrentSequence() uint64 {
-	l.fast.Lock()
-	defer l.fast.Unlock()
-	return l.seq
-}
-
-// HandleControlPing enqueues a Pong response on sub.
-func (l *exportLedger) HandleControlPing(sub *exportSubscriber) {
-	l.enqueueFrame(sub, controlFrame{
-		Type:    controlFramePong,
-		Version: controlProtocolVersion,
-	})
-}
-
-// HandleControlLeaseRequest parses payload, issues a lease, and
-// enqueues the resulting LeaseResponse (with a Changed fallback if the
-// payload exceeds maxControlPayloadLength).
 func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *exportSubscriber, payload []byte) {
 	var request controlLeaseRequest
 	err := unmarshalControlPayload(payload, &request)
 	if err != nil {
+		l.fast.Lock()
+		sequence := l.seq
+		l.fast.Unlock()
 		l.enqueuePayload(sub, controlFrame{
 			Type:    controlFrameLeaseResponse,
 			Version: controlProtocolVersion,
 		}, controlLeaseResponse{
 			ErrorCode:    leaseErrorBadRequest,
 			ErrorMessage: err.Error(),
-		}, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: l.CurrentSequence()})
+		}, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: sequence})
 		return
 	}
 	response := l.IssueLease(ctx, sub.id, request)
+	l.fast.Lock()
+	sequence := l.seq
+	l.fast.Unlock()
 	l.enqueuePayload(sub, controlFrame{
 		Type:    controlFrameLeaseResponse,
 		Version: controlProtocolVersion,
-	}, response, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: l.CurrentSequence()})
+	}, response, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: sequence})
 }
 
 // snapshotDeviceState gathers refs under slow, releases, then calls
-// Export.Snapshot for each entry outside the lock. The busy value
-// captured at copy time is what's reported to clients.
+// Export.Snapshot for each entry outside the lock.
 func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 	type entry struct {
 		export Export
@@ -484,28 +416,10 @@ func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 	out := make([]DeviceInfoV2, 0, len(entries))
 	for _, e := range entries {
 		snapshot := e.export.Snapshot(ctx, e.busy)
-		if snapshot.Err != nil {
-			out = append(out, DeviceInfoV2{
-				BusID:        e.export.BusID(),
-				Backend:      snapshot.Backend,
-				StableID:     snapshot.StableID,
-				State:        deviceStateUnavailable,
-				StatusReason: snapshot.StatusReason,
-			})
-			continue
-		}
 		if snapshot.State == deviceStateUnavailable && snapshot.Entry.Info.IDVendor == 0 {
 			continue
 		}
 		out = append(out, deviceInfoV2FromEntry(snapshot.Entry, snapshot.Backend, snapshot.StableID, snapshot.State, snapshot.RawStatus, snapshot.StatusReason))
-	}
-	return out
-}
-
-func (l *exportLedger) snapshotSubsLocked() []*exportSubscriber {
-	out := make([]*exportSubscriber, 0, len(l.subs))
-	for _, sub := range l.subs {
-		out = append(out, sub)
 	}
 	return out
 }
@@ -523,7 +437,12 @@ func (l *exportLedger) enqueueSnapshotLocked(sub *exportSubscriber, sequence uin
 }
 
 func (l *exportLedger) enqueueFrame(sub *exportSubscriber, frame controlFrame) {
-	l.deliver(sub, controlMessage{Frame: frame})
+	select {
+	case sub.send <- controlMessage{Frame: frame}:
+	default:
+		l.logger.Debug("control subscriber ", sub.id, " lagged behind")
+		_ = sub.conn.Close()
+	}
 }
 
 func (l *exportLedger) enqueuePayload(sub *exportSubscriber, frame controlFrame, payload any, fallback controlFrame) {
@@ -532,12 +451,8 @@ func (l *exportLedger) enqueuePayload(sub *exportSubscriber, frame controlFrame,
 		l.enqueueFrame(sub, fallback)
 		return
 	}
-	l.deliver(sub, controlMessage{Frame: frame, Payload: rawPayload})
-}
-
-func (l *exportLedger) deliver(sub *exportSubscriber, message controlMessage) {
 	select {
-	case sub.send <- message:
+	case sub.send <- controlMessage{Frame: frame, Payload: rawPayload}:
 	default:
 		l.logger.Debug("control subscriber ", sub.id, " lagged behind")
 		_ = sub.conn.Close()

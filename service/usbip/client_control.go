@@ -42,10 +42,6 @@ func newClientControlSession(conn net.Conn, capabilities uint32) *clientControlS
 	}
 }
 
-func (s *clientControlSession) supportsImportLease() bool {
-	return supportsControlExtensions(s.capabilities)
-}
-
 func (s *clientControlSession) writeControl(frame controlFrame, payload any) error {
 	s.writeAccess.Lock()
 	defer s.writeAccess.Unlock()
@@ -127,30 +123,11 @@ func (s *clientControlSession) closeWithError(err error) {
 	}
 }
 
-func (c *ClientService) setControlSession(session *clientControlSession) {
-	c.controlAccess.Lock()
-	c.controlSession = session
-	c.controlAccess.Unlock()
-}
-
-func (c *ClientService) clearControlSession(session *clientControlSession, err error) {
-	c.controlAccess.Lock()
-	if c.controlSession == session {
-		c.controlSession = nil
-	}
-	c.controlAccess.Unlock()
-	session.closeWithError(err)
-}
-
-func (c *ClientService) currentControlSession() *clientControlSession {
-	c.controlAccess.Lock()
-	defer c.controlAccess.Unlock()
-	return c.controlSession
-}
-
 func (c *ClientService) requestImportLease(ctx context.Context, busid string) (clientImportLease, error) {
-	session := c.currentControlSession()
-	if session == nil || !session.supportsImportLease() {
+	c.controlAccess.Lock()
+	session := c.controlSession
+	c.controlAccess.Unlock()
+	if session == nil || !supportsControlExtensions(session.capabilities) {
 		return clientImportLease{}, nil
 	}
 	response, err := session.requestLease(ctx, busid)
@@ -213,23 +190,11 @@ func (c *ClientService) applyControlDelta(delta controlDeviceDelta) {
 	c.applyRemoteDeviceState(values)
 }
 
-func (c *ClientService) clearControlDeviceState() {
-	c.remoteAccess.Lock()
-	c.remoteDevicesV2 = nil
-	c.remoteAccess.Unlock()
-}
-
 func (c *ClientService) syncRemoteStateAndResetControlState(ctx context.Context) error {
 	entries, err := c.fetchDevList(ctx)
 	if err != nil {
 		return err
 	}
-	c.resetControlDeviceStateFromEntries(entries)
-	c.applyRemoteEntries(entries)
-	return nil
-}
-
-func (c *ClientService) resetControlDeviceStateFromEntries(entries []DeviceEntry) {
 	devices := make(map[string]DeviceInfoV2, len(entries))
 	for _, entry := range entries {
 		device := deviceInfoV2FromEntry(entry, "", "", deviceStateAvailable, 0, deviceStateAvailable)
@@ -241,4 +206,6 @@ func (c *ClientService) resetControlDeviceStateFromEntries(entries []DeviceEntry
 	c.remoteAccess.Lock()
 	c.remoteDevicesV2 = devices
 	c.remoteAccess.Unlock()
+	c.applyRemoteEntries(entries)
+	return nil
 }

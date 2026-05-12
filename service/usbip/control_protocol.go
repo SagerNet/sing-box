@@ -130,77 +130,6 @@ type serverImportLease struct {
 	Expires      time.Time
 }
 
-func WriteControlPreface(w io.Writer) error {
-	_, err := w.Write(controlPreface[:])
-	return err
-}
-
-func IsControlPreface(raw []byte) bool {
-	if len(raw) != len(controlPreface) {
-		return false
-	}
-	for i := range controlPreface {
-		if raw[i] != controlPreface[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func WriteControlHello(w io.Writer) error {
-	return writeControlFrame(w, controlFrame{
-		Type:         controlFrameHello,
-		Version:      controlProtocolVersion,
-		Capabilities: controlCapabilities,
-	})
-}
-
-func WriteControlAck(w io.Writer, sequence uint64) error {
-	return writeControlAckWithCapabilities(w, sequence, controlCapabilities)
-}
-
-func writeControlAckWithCapabilities(w io.Writer, sequence uint64, capabilities uint32) error {
-	return writeControlFrame(w, controlFrame{
-		Type:         controlFrameAck,
-		Version:      controlProtocolVersion,
-		Capabilities: capabilities,
-		Sequence:     sequence,
-	})
-}
-
-func WriteControlChanged(w io.Writer, sequence uint64) error {
-	return writeControlFrame(w, controlFrame{
-		Type:     controlFrameChanged,
-		Version:  controlProtocolVersion,
-		Sequence: sequence,
-	})
-}
-
-func WriteControlPing(w io.Writer) error {
-	return writeControlFrame(w, controlFrame{
-		Type:    controlFramePing,
-		Version: controlProtocolVersion,
-	})
-}
-
-func WriteControlPong(w io.Writer) error {
-	return writeControlFrame(w, controlFrame{
-		Type:    controlFramePong,
-		Version: controlProtocolVersion,
-	})
-}
-
-func ReadControlFrame(r io.Reader) (controlFrame, error) {
-	message, err := readControlMessage(r)
-	if err != nil {
-		return controlFrame{}, err
-	}
-	if len(message.Payload) > 0 {
-		return controlFrame{}, E.New("unexpected control payload length ", len(message.Payload))
-	}
-	return message.Frame, nil
-}
-
 // controlReader reuses its payload scratch across successive reads on a
 // single connection. The returned payload is only valid until the next call.
 type controlReader struct {
@@ -230,11 +159,6 @@ func (cr *controlReader) read(r io.Reader) (controlMessage, error) {
 		}
 	}
 	return controlMessage{Frame: frame, Payload: payload}, nil
-}
-
-func readControlMessage(r io.Reader) (controlMessage, error) {
-	var cr controlReader
-	return cr.read(r)
 }
 
 func writeControlFrame(w io.Writer, frame controlFrame) error {
@@ -284,10 +208,6 @@ func unmarshalControlPayload(payload []byte, value any) error {
 	return json.Unmarshal(payload, value)
 }
 
-func negotiatedControlCapabilities(peer uint32) uint32 {
-	return peer & controlCapabilities
-}
-
 func supportsControlExtensions(capabilities uint32) bool {
 	return capabilities&controlExtensionCapabilities == controlExtensionCapabilities
 }
@@ -308,7 +228,7 @@ func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, s
 		BusID:              entry.Info.BusIDString(),
 		StableID:           stableID,
 		Backend:            backend,
-		Path:               entry.Info.PathString(),
+		Path:               cstring(entry.Info.Path[:]),
 		Serial:             entrySerial(entry),
 		VendorID:           entry.Info.IDVendor,
 		ProductID:          entry.Info.IDProduct,
@@ -422,10 +342,6 @@ func buildControlDeviceDelta(sequence uint64, previous map[string]DeviceInfoV2, 
 	slices.SortFunc(delta.Updated, func(a, b DeviceInfoV2) int { return strings.Compare(a.BusID, b.BusID) })
 	slices.Sort(delta.Removed)
 	return delta
-}
-
-func controlDeviceDeltaEmpty(delta controlDeviceDelta) bool {
-	return len(delta.Added) == 0 && len(delta.Updated) == 0 && len(delta.Removed) == 0
 }
 
 func deviceInfoV2Equal(a, b DeviceInfoV2) bool {

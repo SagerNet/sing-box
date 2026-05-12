@@ -32,15 +32,11 @@ type clientAssignedWorker struct {
 	updates chan string
 }
 
-type clientBusIDWorker struct {
-	cancel context.CancelFunc
-}
-
 func (c *ClientService) initializeWorkers() {
 	if !c.assignment.Matched() {
 		return
 	}
-	targets := c.assignment.Targets()
+	targets := c.assignment.targets
 	workers := make([]*clientAssignedWorker, len(targets))
 	for i, target := range targets {
 		workers[i] = &clientAssignedWorker{
@@ -61,7 +57,11 @@ func (c *ClientService) initializeWorkers() {
 func (c *ClientService) run() {
 	defer c.wg.Done()
 	for immediate := true; immediate || sleepCtx(c.ctx, clientReconnectDelay); {
-		err := c.runSession()
+		err := c.runControlSession()
+		if errors.Is(err, errControlUnsupported) {
+			c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
+			err = c.runStandardSessionWithInterval(clientReconnectDelay)
+		}
 		if c.ctx.Err() != nil {
 			break
 		}
@@ -71,15 +71,6 @@ func (c *ClientService) run() {
 		immediate = errors.Is(err, errImmediateReconnect)
 	}
 	c.stopAllWorkers()
-}
-
-func (c *ClientService) runSession() error {
-	err := c.runControlSession()
-	if errors.Is(err, errControlUnsupported) {
-		c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
-		return c.runStandardSessionWithInterval(clientReconnectDelay)
-	}
-	return err
 }
 
 func (c *ClientService) runControlSession() error {
@@ -93,19 +84,27 @@ func (c *ClientService) runControlSession() error {
 
 	_ = conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
 	_ = conn.SetReadDeadline(time.Now().Add(controlWriteTimeout))
-	err = WriteControlPreface(conn)
+	_, err = conn.Write(controlPreface[:])
 	if err != nil {
 		return E.Cause(errControlUnsupported, "write control preface: ", err)
 	}
-	err = WriteControlHello(conn)
+	err = writeControlFrame(conn, controlFrame{
+		Type:         controlFrameHello,
+		Version:      controlProtocolVersion,
+		Capabilities: controlCapabilities,
+	})
 	if err != nil {
 		return E.Cause(errControlUnsupported, "write control hello: ", err)
 	}
-	var ack controlFrame
-	ack, err = ReadControlFrame(conn)
+	var cr controlReader
+	ackMessage, err := cr.read(conn)
 	if err != nil {
 		return E.Cause(errControlUnsupported, "read control ack: ", err)
 	}
+	if len(ackMessage.Payload) > 0 {
+		return E.Cause(errControlUnsupported, "unexpected control ack payload length ", len(ackMessage.Payload))
+	}
+	ack := ackMessage.Frame
 	if ack.Type != controlFrameAck {
 		return E.Cause(errControlUnsupported, "unexpected control ack frame ", ack.Type)
 	}
@@ -121,8 +120,17 @@ func (c *ClientService) runControlSession() error {
 	session := newClientControlSession(conn, ack.Capabilities)
 	extended := supportsControlExtensions(ack.Capabilities)
 	if extended {
-		c.setControlSession(session)
-		defer c.clearControlSession(session, errClientControlSessionClosed)
+		c.controlAccess.Lock()
+		c.controlSession = session
+		c.controlAccess.Unlock()
+		defer func() {
+			c.controlAccess.Lock()
+			if c.controlSession == session {
+				c.controlSession = nil
+			}
+			c.controlAccess.Unlock()
+			session.closeWithError(errClientControlSessionClosed)
+		}()
 	} else {
 		err = c.syncRemoteStateContext(c.ctx)
 		if err != nil {
@@ -267,19 +275,19 @@ func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
 	start, stop := c.assignment.ApplyAll(entries)
 
 	c.workerAccess.Lock()
-	stopWorkers := make([]*clientBusIDWorker, 0, len(stop))
+	stopCancels := make([]context.CancelFunc, 0, len(stop))
 	for _, busid := range stop {
-		worker, ok := c.allWorkers[busid]
+		cancel, ok := c.allWorkers[busid]
 		if !ok {
 			continue
 		}
-		stopWorkers = append(stopWorkers, worker)
+		stopCancels = append(stopCancels, cancel)
 		delete(c.allWorkers, busid)
 	}
 	c.workerAccess.Unlock()
 
-	for _, worker := range stopWorkers {
-		worker.cancel()
+	for _, cancel := range stopCancels {
+		cancel()
 	}
 	slices.Sort(start)
 	for _, busid := range start {
@@ -365,10 +373,9 @@ func (w *clientAssignedWorker) setDesiredBusID(busid string) {
 
 func (c *ClientService) startRemoteBusIDWorker(busid, description string) {
 	runCtx, cancel := context.WithCancel(c.ctx)
-	worker := &clientBusIDWorker{cancel: cancel}
 
 	c.workerAccess.Lock()
-	c.allWorkers[busid] = worker
+	c.allWorkers[busid] = cancel
 	c.workerAccess.Unlock()
 
 	c.wg.Add(1)
@@ -382,15 +389,15 @@ func (c *ClientService) stopAllWorkers() {
 	c.assignment.ClearRegistered()
 
 	c.workerAccess.Lock()
-	workers := make([]*clientBusIDWorker, 0, len(c.allWorkers))
-	for _, worker := range c.allWorkers {
-		workers = append(workers, worker)
+	cancels := make([]context.CancelFunc, 0, len(c.allWorkers))
+	for _, cancel := range c.allWorkers {
+		cancels = append(cancels, cancel)
 	}
-	c.allWorkers = make(map[string]*clientBusIDWorker)
+	c.allWorkers = make(map[string]context.CancelFunc)
 	c.workerAccess.Unlock()
 
-	for _, worker := range workers {
-		worker.cancel()
+	for _, cancel := range cancels {
+		cancel()
 	}
 }
 
@@ -422,10 +429,6 @@ func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error)
 
 func (c *ClientService) setBusIDActive(busid string, active bool) {
 	c.assignment.SetActive(busid, active)
-}
-
-func (c *ClientService) isBusIDActive(busid string) bool {
-	return c.assignment.IsActive(busid)
 }
 
 func (c *ClientService) shouldRetryBusID(ctx context.Context, busid string) bool {

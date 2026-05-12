@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,30 +20,53 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// linuxExportHost adapts the Linux sysfs / usbip-host pipeline to the
-// ExportHost interface. It owns the platform-specific bind/unbind dance
-// and the per-export resource state; the service owns busy tracking
-// and broadcast lifecycle.
+func newPlatformExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch) (ExportHost, error) {
+	return newLinuxExportHost(logger, matches), nil
+}
+
+func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
+	return newLinuxImportHost(logger), nil
+}
+
+func sysBusDevicePath(busid string) string {
+	return sysBusUSBDevices + "/" + busid
+}
+
+func isMissingUSBDeviceError(err error) bool {
+	return errors.Is(err, unix.ENOENT) || errors.Is(err, unix.ENODEV)
+}
+
+func linuxUSBIPStatusReason(status int) string {
+	switch status {
+	case usbipStatusAvailable:
+		return "available"
+	case usbipStatusUsed:
+		return "used"
+	case usbipStatusError:
+		return "error"
+	default:
+		return fmt.Sprintf("status=0x%08x", uint32(status))
+	}
+}
+
 type linuxExportHost struct {
 	logger  log.ContextLogger
 	matches []option.USBIPDeviceMatch
-	ops     usbipOps
 
 	access  sync.Mutex
 	exports map[string]*linuxExport
 }
 
-func newLinuxExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch, ops usbipOps) *linuxExportHost {
+func newLinuxExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch) *linuxExportHost {
 	return &linuxExportHost{
 		logger:  logger,
 		matches: matches,
-		ops:     ops,
 		exports: make(map[string]*linuxExport),
 	}
 }
 
 func (h *linuxExportHost) Start(ctx context.Context) error {
-	return h.ops.ensureHostDriver()
+	return ensureHostDriver()
 }
 
 func (h *linuxExportHost) Close() error {
@@ -76,7 +101,7 @@ func (h *linuxExportHost) ueventLoop(ctx context.Context, ch chan<- struct{}) {
 	}
 	backoff := ueventListenerBackoffInitial
 	for {
-		listener, err := h.ops.newUEventListener()
+		listener, err := newUEventListener()
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -132,7 +157,7 @@ func nextUEventListenerBackoff(current time.Duration) time.Duration {
 }
 
 func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, error) {
-	devices, err := h.ops.listUSBDevices()
+	devices, err := listUSBDevices()
 	if err != nil {
 		return h.snapshotSelf(), nil, E.Cause(err, "enumerate usb devices")
 	}
@@ -146,7 +171,15 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 			if !matches(m, devices[i].key()) {
 				continue
 			}
-			if isVHCIImportedDevice(devices[i].Path) {
+			path := devices[i].Path
+			isVHCIImport := strings.Contains(path, "vhci_hcd")
+			if !isVHCIImport {
+				realPath, err := filepath.EvalSymlinks(path)
+				if err == nil {
+					isVHCIImport = strings.Contains(realPath, "vhci_hcd")
+				}
+			}
+			if isVHCIImport {
 				h.logger.Debug("skip vhci-imported device ", devices[i].BusID, " matched by ", describeMatch(m))
 				continue
 			}
@@ -198,7 +231,7 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 }
 
 func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
-	err := h.ops.writeUsbipSockfd(busid, -1)
+	err := writeUsbipSockfd(busid, -1)
 	if err != nil && !os.IsNotExist(err) && !isMissingUSBDeviceError(err) {
 		h.logger.Debug("release ", busid, " from usbip-host: ", err)
 	}
@@ -229,7 +262,14 @@ func (h *linuxExportHost) bindOne(d *sysfsDevice) (*linuxExport, error) {
 			break
 		}
 		h.logger.Warn("reset usbip-host after bind failure on ", d.BusID, ": ", err)
-		if resetErr := h.resetHostDriverForBindRetry(); resetErr != nil {
+		h.access.Lock()
+		active := len(h.exports) > 0
+		h.access.Unlock()
+		if active {
+			return nil, E.Cause(E.New("active usbip-host exports are present"), "reset usbip-host after bind failure")
+		}
+		resetErr := reloadHostDriver()
+		if resetErr != nil {
 			return nil, E.Cause(resetErr, "reset usbip-host after bind failure")
 		}
 	}
@@ -237,7 +277,7 @@ func (h *linuxExportHost) bindOne(d *sysfsDevice) (*linuxExport, error) {
 }
 
 func (h *linuxExportHost) bindOneOnce(d *sysfsDevice) (*linuxExport, error) {
-	driver, err := h.ops.currentDriver(d.BusID)
+	driver, err := currentDriver(d.BusID)
 	if err != nil {
 		return nil, err
 	}
@@ -246,38 +286,32 @@ func (h *linuxExportHost) bindOneOnce(d *sysfsDevice) (*linuxExport, error) {
 		return h.newExport(*d, false, ""), nil
 	}
 	if driver != "" {
-		err = h.ops.unbindFromDriver(d.BusID, driver)
+		err = unbindFromDriver(d.BusID, driver)
 		if err != nil {
 			return nil, E.Cause(err, "unbind from ", driver)
 		}
 	}
-	err = h.ops.hostMatchBusID(d.BusID, true)
+	err = hostMatchBusID(d.BusID, true)
 	if err != nil {
 		if driver != "" {
-			_ = h.ops.bindToDriver(d.BusID, driver)
+			_ = bindToDriver(d.BusID, driver)
 		}
 		return nil, E.Cause(err, "match_busid add")
 	}
-	err = h.ops.hostBind(d.BusID)
+	err = hostBind(d.BusID)
 	if err != nil {
-		_ = h.ops.hostMatchBusID(d.BusID, false)
+		_ = hostMatchBusID(d.BusID, false)
 		if driver != "" {
-			_ = h.ops.bindToDriver(d.BusID, driver)
+			_ = bindToDriver(d.BusID, driver)
 		}
 		return nil, E.Cause(err, "bind to usbip-host")
 	}
-	h.logger.Info("exported ", d.BusID, " (previously on ", driverOrNone(driver), ")")
-	return h.newExport(*d, true, driver), nil
-}
-
-func (h *linuxExportHost) resetHostDriverForBindRetry() error {
-	h.access.Lock()
-	active := len(h.exports) > 0
-	h.access.Unlock()
-	if active {
-		return E.New("active usbip-host exports are present")
+	previousDriver := driver
+	if previousDriver == "" {
+		previousDriver = "(no driver)"
 	}
-	return h.ops.reloadHostDriver()
+	h.logger.Info("exported ", d.BusID, " (previously on ", previousDriver, ")")
+	return h.newExport(*d, true, driver), nil
 }
 
 func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
@@ -285,21 +319,21 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
 		h.logger.Info("stopped tracking ", exp.busid, " on usbip-host")
 		return nil
 	}
-	status, statusErr := h.ops.readUsbipStatus(exp.busid)
+	status, statusErr := readUsbipStatus(exp.busid)
 	if statusErr != nil && !os.IsNotExist(statusErr) && !isMissingUSBDeviceError(statusErr) {
 		return statusErr
 	}
 	if statusErr == nil && status == usbipStatusUsed {
-		err := h.ops.writeUsbipSockfd(exp.busid, -1)
+		err := writeUsbipSockfd(exp.busid, -1)
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
-	err := h.ops.hostUnbind(exp.busid)
+	err := hostUnbind(exp.busid)
 	if err != nil && !os.IsNotExist(err) && !(isMissingUSBDeviceError(err) && !restore) {
 		return err
 	}
-	err = h.ops.hostMatchBusID(exp.busid, false)
+	err = hostMatchBusID(exp.busid, false)
 	if err != nil {
 		return err
 	}
@@ -311,7 +345,7 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
 		h.logger.Info("released ", exp.busid, " from usbip-host")
 		return nil
 	}
-	err = h.ops.bindToDriver(exp.busid, exp.originalDriver)
+	err = bindToDriver(exp.busid, exp.originalDriver)
 	if err != nil {
 		return err
 	}
@@ -325,20 +359,17 @@ func (h *linuxExportHost) newExport(descriptor sysfsDevice, managed bool, origin
 		descriptor:     descriptor,
 		managed:        managed,
 		originalDriver: originalDriver,
-		ops:            h.ops,
 		logger:         h.logger,
 	}
 }
 
-// linuxExport caches the device descriptor read at bind time. The
-// descriptor is immutable post-enumeration, so Snapshot only re-reads
-// usbip_status to track lease/import state changes.
+// linuxExport caches the bind-time descriptor because it is immutable
+// post-enumeration; Snapshot only re-reads usbip_status.
 type linuxExport struct {
 	busid          string
 	descriptor     sysfsDevice
 	managed        bool
 	originalDriver string
-	ops            usbipOps
 	logger         log.ContextLogger
 }
 
@@ -347,22 +378,33 @@ func (e *linuxExport) BusID() string {
 }
 
 func (e *linuxExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
-	backend := backendIDLinuxSysfs
-	stableID := linuxStableID(e.descriptor)
-	status, statusErr := e.ops.readUsbipStatus(e.busid)
-	state := linuxUSBIPStatusState(status)
-	reason := linuxUSBIPStatusReason(status)
-	if statusErr != nil {
+	stableID := "linux-busid:" + e.descriptor.BusID
+	if e.descriptor.Serial != "" {
+		stableID = fmt.Sprintf("usb:%04x:%04x:%s", e.descriptor.VendorID, e.descriptor.ProductID, e.descriptor.Serial)
+	}
+	status, statusErr := readUsbipStatus(e.busid)
+	var state, reason string
+	switch {
+	case statusErr != nil:
 		state = deviceStateUnavailable
 		reason = statusErr.Error()
-	} else if busy {
+	case busy:
 		status = usbipStatusUsed
 		state = deviceStateBusy
+		reason = linuxUSBIPStatusReason(status)
+	case status == usbipStatusAvailable:
+		state = deviceStateAvailable
+		reason = linuxUSBIPStatusReason(status)
+	case status == usbipStatusUsed:
+		state = deviceStateBusy
+		reason = linuxUSBIPStatusReason(status)
+	default:
+		state = deviceStateUnavailable
 		reason = linuxUSBIPStatusReason(status)
 	}
 	return ExportSnapshot{
 		Entry:        e.descriptor.toDeviceEntry(),
-		Backend:      backend,
+		Backend:      backendIDLinuxSysfs,
 		StableID:     stableID,
 		State:        state,
 		StatusReason: reason,
@@ -371,7 +413,7 @@ func (e *linuxExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 }
 
 func (e *linuxExport) LeaseCheck(ctx context.Context) (bool, string) {
-	status, err := e.ops.readUsbipStatus(e.busid)
+	status, err := readUsbipStatus(e.busid)
 	if err != nil {
 		return false, err.Error()
 	}
@@ -391,7 +433,7 @@ func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (
 		return nil, E.Cause(err, "prepare handoff")
 	}
 	e.logger.Debug("usbip server handoff ", e.busid, ": ", handoff.mode())
-	err = e.ops.writeUsbipSockfd(e.busid, int(handoff.kernelFD()))
+	err = writeUsbipSockfd(e.busid, int(handoff.kernelFD()))
 	if err != nil {
 		_ = handoff.Close()
 		return nil, E.Cause(err, "hand off ", e.busid, " to kernel")
@@ -404,27 +446,22 @@ func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (
 	return handoff, nil
 }
 
-// linuxImportHost adapts the Linux vhci_hcd attach pipeline to the
-// ImportHost interface. It owns per-port reservation and runs the
-// kernel handoff after vhci attach succeeds.
 type linuxImportHost struct {
 	logger log.ContextLogger
-	ops    usbipOps
 
 	portsAccess sync.Mutex
 	ports       map[int]struct{}
 }
 
-func newLinuxImportHost(logger log.ContextLogger, ops usbipOps) *linuxImportHost {
+func newLinuxImportHost(logger log.ContextLogger) *linuxImportHost {
 	return &linuxImportHost{
 		logger: logger,
-		ops:    ops,
 		ports:  make(map[int]struct{}),
 	}
 }
 
 func (h *linuxImportHost) Start(ctx context.Context) error {
-	return h.ops.ensureVHCI()
+	return ensureVHCI()
 }
 
 func (h *linuxImportHost) Close() error {
@@ -453,7 +490,7 @@ func (h *linuxImportHost) Attach(ctx context.Context, info DeviceInfoTruncated, 
 func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncated, handoff *kernelHandoffSession) (int, error) {
 	triedPorts := make(map[int]struct{})
 	for {
-		port, err := h.ops.vhciPickFreePort(info.Speed, triedPorts)
+		port, err := vhciPickFreePort(info.Speed, triedPorts)
 		if err != nil {
 			return -1, err
 		}
@@ -461,7 +498,7 @@ func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncat
 			triedPorts[port] = struct{}{}
 			continue
 		}
-		err = h.ops.vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed)
+		err = vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed)
 		if err != nil {
 			h.releasePort(port)
 			if errors.Is(err, unix.EBUSY) {
@@ -497,8 +534,6 @@ func (h *linuxImportHost) releasePort(port int) {
 	delete(h.ports, port)
 }
 
-// linuxClientSession wraps kernelHandoffSession with vhci-port cleanup
-// at Close time.
 type linuxClientSession struct {
 	handoff *kernelHandoffSession
 	host    *linuxImportHost
@@ -518,7 +553,7 @@ func (s *linuxClientSession) Err() error {
 
 func (s *linuxClientSession) Close() error {
 	s.closeOnce.Do(func() {
-		detachErr := s.host.ops.vhciDetach(s.port)
+		detachErr := vhciDetach(s.port)
 		closeErr := s.handoff.Close()
 		s.host.releasePort(s.port)
 		s.closeErr = E.Errors(detachErr, closeErr)

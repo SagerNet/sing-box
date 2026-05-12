@@ -29,21 +29,9 @@ type darwinEndpointKey struct {
 	endpoint uint8
 }
 
-type darwinControlState struct {
-	setup [8]byte
-}
-
 type darwinPendingSubmit struct {
 	direction uint32
 	reply     chan SubmitResponse
-}
-
-type darwinEndpointStateMachine interface {
-	Close()
-	respond(message darwinCIMessage, status int) error
-	processDoorbell(doorbell uint32) error
-	currentTransfer() darwinCITransfer
-	complete(transfer darwinCITransfer, status int, length int) error
 }
 
 var _ DataSession = (*darwinVirtualController)(nil)
@@ -75,8 +63,8 @@ type darwinVirtualController struct {
 	connected     bool
 	nextAddress   uint8
 	devices       map[uint8]*darwinUSBHostDeviceSM
-	endpoints     map[darwinEndpointKey]darwinEndpointStateMachine
-	controlStates map[uint8]darwinControlState
+	endpoints     map[darwinEndpointKey]*darwinUSBHostEndpointSM
+	controlStates map[uint8][8]byte
 }
 
 func newDarwinVirtualController(ctx context.Context, logger log.ContextLogger, conn net.Conn, info DeviceInfoTruncated) *darwinVirtualController {
@@ -94,8 +82,8 @@ func newDarwinVirtualController(ctx context.Context, logger log.ContextLogger, c
 		pending:       make(map[uint32]darwinPendingSubmit),
 		nextAddress:   1,
 		devices:       make(map[uint8]*darwinUSBHostDeviceSM),
-		endpoints:     make(map[darwinEndpointKey]darwinEndpointStateMachine),
-		controlStates: make(map[uint8]darwinControlState),
+		endpoints:     make(map[darwinEndpointKey]*darwinUSBHostEndpointSM),
+		controlStates: make(map[uint8][8]byte),
 	}
 }
 
@@ -134,14 +122,6 @@ func (c *darwinVirtualController) Done() <-chan struct{} {
 
 func (c *darwinVirtualController) Err() error {
 	return c.runErr
-}
-
-func (c *darwinVirtualController) enqueueCommand(message darwinCIMessage) {
-	c.enqueueEvent(darwinControllerEvent{command: &message})
-}
-
-func (c *darwinVirtualController) enqueueDoorbell(doorbell uint32) {
-	c.enqueueEvent(darwinControllerEvent{doorbell: doorbell})
 }
 
 func (c *darwinVirtualController) enqueueEvent(event darwinControllerEvent) {
@@ -342,7 +322,7 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 		if transfer.ptr == nil || !transfer.message.valid() {
 			return
 		}
-		if transfer.message.noResponse() {
+		if transfer.message.control&(1<<14) != 0 {
 			if transfer.ptr == previousNoResponse {
 				return
 			}
@@ -363,17 +343,17 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 
 func (c *darwinVirtualController) teardownIOUSBHostState() {
 	c.stateAccess.Lock()
-	endpoints := make([]darwinEndpointStateMachine, 0, len(c.endpoints))
+	endpoints := make([]*darwinUSBHostEndpointSM, 0, len(c.endpoints))
 	for _, endpoint := range c.endpoints {
 		endpoints = append(endpoints, endpoint)
 	}
-	c.endpoints = make(map[darwinEndpointKey]darwinEndpointStateMachine)
+	c.endpoints = make(map[darwinEndpointKey]*darwinUSBHostEndpointSM)
 	devices := make([]*darwinUSBHostDeviceSM, 0, len(c.devices))
 	for _, device := range c.devices {
 		devices = append(devices, device)
 	}
 	c.devices = make(map[uint8]*darwinUSBHostDeviceSM)
-	c.controlStates = make(map[uint8]darwinControlState)
+	c.controlStates = make(map[uint8][8]byte)
 	controller := c.controller
 	c.controller = nil
 	c.stateAccess.Unlock()
@@ -393,7 +373,7 @@ func (c *darwinVirtualController) handleTransfer(key darwinEndpointKey, message 
 	switch message.messageType() {
 	case ciMsgSetupTransfer:
 		c.stateAccess.Lock()
-		c.controlStates[key.device] = darwinControlState{setup: message.setup()}
+		c.controlStates[key.device] = message.setup()
 		c.stateAccess.Unlock()
 		return 0, 0
 	case ciMsgStatusTransfer:
@@ -412,7 +392,7 @@ func (c *darwinVirtualController) handleTransfer(key darwinEndpointKey, message 
 
 func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKey, message darwinCIMessage) (int32, int) {
 	c.stateAccess.Lock()
-	state, ok := c.controlStates[key.device]
+	setup, ok := c.controlStates[key.device]
 	c.stateAccess.Unlock()
 	if !ok {
 		return -int32(unix.EPROTO), 0
@@ -420,7 +400,7 @@ func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKe
 	length := int(message.normalLength())
 	direction := USBIPDirOut
 	var buffer []byte
-	if state.setup[0]&0x80 != 0 {
+	if setup[0]&0x80 != 0 {
 		direction = USBIPDirIn
 	} else {
 		buffer = bytesFromUnsafe(message.bufferPointer(), length)
@@ -434,7 +414,7 @@ func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKe
 		},
 		TransferBufferLength: int32(length),
 		NumberOfPackets:      nonIsoPacketCount,
-		Setup:                state.setup,
+		Setup:                setup,
 		Buffer:               buffer,
 	})
 	if err != nil {
@@ -448,13 +428,13 @@ func (c *darwinVirtualController) handleControlDataTransfer(key darwinEndpointKe
 
 func (c *darwinVirtualController) handleControlStatusTransfer(key darwinEndpointKey) (int32, int) {
 	c.stateAccess.Lock()
-	state, ok := c.controlStates[key.device]
+	setup, ok := c.controlStates[key.device]
 	delete(c.controlStates, key.device)
 	c.stateAccess.Unlock()
 	if !ok {
 		return 0, 0
 	}
-	if state.setup[6] != 0 || state.setup[7] != 0 {
+	if setup[6] != 0 || setup[7] != 0 {
 		return 0, 0
 	}
 	response, err := c.sendSubmit(SubmitCommand{
@@ -465,7 +445,7 @@ func (c *darwinVirtualController) handleControlStatusTransfer(key darwinEndpoint
 			Endpoint:  0,
 		},
 		NumberOfPackets: nonIsoPacketCount,
-		Setup:           state.setup,
+		Setup:           setup,
 	})
 	if err != nil {
 		return -int32(unix.EIO), 0
@@ -511,9 +491,9 @@ func (c *darwinVirtualController) handleIsoTransfer(key darwinEndpointKey, messa
 	} else {
 		buffer = bytesFromUnsafe(message.bufferPointer(), length)
 	}
-	startFrame := message.isoFrame()
+	startFrame := int32(message.control >> ciIsochronousTransferControlFramePhase & 0xff)
 	transferFlags := int32(0)
-	if message.isoASAP() {
+	if message.control&ciIsochronousTransferControlASAP != 0 {
 		startFrame = 0
 		transferFlags = usbipTransferFlagIsoASAP
 	}
@@ -559,8 +539,8 @@ func (c *darwinVirtualController) completeSubmitInTransfer(ptr unsafe.Pointer, r
 	if copyLength > len(response.Buffer) {
 		copyLength = len(response.Buffer)
 	}
-	if copyLength > 0 {
-		copyToUnsafe(ptr, response.Buffer[:copyLength])
+	if copyLength > 0 && ptr != nil {
+		copy(unsafe.Slice((*byte)(ptr), copyLength), response.Buffer[:copyLength])
 	}
 	return response.Status, actualLength
 }
@@ -636,11 +616,4 @@ func bytesFromUnsafe(ptr unsafe.Pointer, length int) []byte {
 	out := make([]byte, length)
 	copy(out, unsafe.Slice((*byte)(ptr), length))
 	return out
-}
-
-func copyToUnsafe(ptr unsafe.Pointer, data []byte) {
-	if ptr == nil || len(data) == 0 {
-		return
-	}
-	copy(unsafe.Slice((*byte)(ptr), len(data)), data)
 }

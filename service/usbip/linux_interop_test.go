@@ -261,8 +261,8 @@ func waitForAllVHCIPortsIdle(t *testing.T) {
 func waitForVHCIPortIdle(t *testing.T, port int) {
 	t.Helper()
 	require.Eventually(t, func() bool {
-		used, err := vhciPortUsed(port)
-		return err == nil && !used
+		used, err := vhciUsedPorts()
+		return err == nil && !used[port]
 	}, testUSBIPTeardownTimeout, testUSBIPTeardownPollInterval)
 }
 

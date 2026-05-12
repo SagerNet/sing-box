@@ -8,66 +8,49 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
-// clientAssignment owns the client's "which target → which busid, and is
-// it active" state machine. It serves two distinct modes that share the
-// active-busids tracking but have different result shapes:
-//
-//   - matched mode (len(targets) > 0): each target is bound to at most
-//     one busid at a time. ApplyMatched recomputes the per-target slot
-//     assignment from the latest snapshot.
-//   - import-all mode (len(targets) == 0): every advertised busid is
-//     desired. ApplyAll returns the diff of busids to start and stop.
+// clientAssignment runs in two modes that share active-busid tracking:
+// matched (len(targets) > 0) binds each target to at most one busid;
+// import-all (len(targets) == 0) marks every advertised busid as desired.
 type clientAssignment struct {
 	access sync.Mutex
 
-	// matched mode:
 	targets          []clientTarget
 	assigned         []string
 	matchedKnownKeys map[string]DeviceKey
 
-	// import-all mode:
 	allDesired map[string]struct{}
 	registered map[string]struct{}
 
-	// both modes:
 	activeBusIDs map[string]struct{}
 }
 
 func newClientAssignment(matches []option.USBIPDeviceMatch) *clientAssignment {
+	var targets []clientTarget
+	if len(matches) > 0 {
+		seenFixed := make(map[string]struct{})
+		targets = make([]clientTarget, 0, len(matches))
+		for _, m := range matches {
+			if isBusIDOnlyMatch(m) {
+				if _, seen := seenFixed[m.BusID]; seen {
+					continue
+				}
+				seenFixed[m.BusID] = struct{}{}
+				targets = append(targets, clientTarget{fixedBusID: m.BusID})
+				continue
+			}
+			targets = append(targets, clientTarget{match: m})
+		}
+	}
 	return &clientAssignment{
-		targets:      buildClientTargets(matches),
+		targets:      targets,
 		allDesired:   make(map[string]struct{}),
 		registered:   make(map[string]struct{}),
 		activeBusIDs: make(map[string]struct{}),
 	}
 }
 
-func buildClientTargets(matches []option.USBIPDeviceMatch) []clientTarget {
-	if len(matches) == 0 {
-		return nil
-	}
-	seenFixed := make(map[string]struct{})
-	targets := make([]clientTarget, 0, len(matches))
-	for _, m := range matches {
-		if isBusIDOnlyMatch(m) {
-			if _, seen := seenFixed[m.BusID]; seen {
-				continue
-			}
-			seenFixed[m.BusID] = struct{}{}
-			targets = append(targets, clientTarget{fixedBusID: m.BusID})
-			continue
-		}
-		targets = append(targets, clientTarget{match: m})
-	}
-	return targets
-}
-
 func (a *clientAssignment) Matched() bool {
 	return len(a.targets) > 0
-}
-
-func (a *clientAssignment) Targets() []clientTarget {
-	return a.targets
 }
 
 func (a *clientAssignment) SetActive(busid string, active bool) {
@@ -87,12 +70,6 @@ func (a *clientAssignment) IsActive(busid string) bool {
 	return exists
 }
 
-// ApplyMatched updates the matched-mode assignment from the latest
-// entries (and optional known keys for hidden retained busids).
-// Returns the new assignment slice, the previous one, and the indexed
-// worker slice so the caller can push update notifications only where
-// the slot actually changed. The result slices are length-aligned to
-// the target list.
 func (a *clientAssignment) ApplyMatched(entries []DeviceEntry, knownKeys map[string]DeviceKey) (next []string, previous []string) {
 	a.access.Lock()
 	defer a.access.Unlock()
@@ -111,14 +88,9 @@ func (a *clientAssignment) ApplyMatched(entries []DeviceEntry, knownKeys map[str
 	return nextAssigned, prev
 }
 
-// ApplyAll updates the import-all-mode desired set from the latest
-// entries. Returns (start, stop) busids:
-//   - start: busids newly desired that the caller must spin up workers for.
-//   - stop: busids previously desired (or active) that should be cancelled.
-//
-// Busids that are no longer desired but currently active stay registered;
-// IsRetryDesired then reports false so the runBusIDLoop exits naturally
-// after the active session ends.
+// ApplyAll keeps no-longer-desired-but-active busids registered so the
+// runBusIDLoop exits naturally after the active session ends, via
+// IsRetryDesired returning false.
 func (a *clientAssignment) ApplyAll(entries []DeviceEntry) (start []string, stop []string) {
 	desired := make(map[string]struct{}, len(entries))
 	for i := range entries {
@@ -151,10 +123,6 @@ func (a *clientAssignment) ApplyAll(entries []DeviceEntry) (start []string, stop
 	return start, stop
 }
 
-// IsRetryDesired reports whether a recently-released import-all busid
-// is still desired (so its worker should retry the attach). Returns
-// false if the busid is no longer in the desired set, in which case
-// the worker exits and the caller drops it from `registered`.
 func (a *clientAssignment) IsRetryDesired(busid string) bool {
 	a.access.Lock()
 	defer a.access.Unlock()
@@ -165,17 +133,6 @@ func (a *clientAssignment) IsRetryDesired(busid string) bool {
 	return desired
 }
 
-// DropRegistered removes a busid from the registered set, used by the
-// caller when a worker exits due to undesired-and-inactive status.
-func (a *clientAssignment) DropRegistered(busid string) {
-	a.access.Lock()
-	defer a.access.Unlock()
-	delete(a.registered, busid)
-}
-
-// ClearRegistered drops the entire registered busid set. Called by
-// stopAllWorkers at shutdown so subsequent IsRetryDesired calls report
-// false.
 func (a *clientAssignment) ClearRegistered() {
 	a.access.Lock()
 	defer a.access.Unlock()
@@ -304,25 +261,19 @@ func assignMatchedBusIDsWithRetained(
 		if target.fixedBusID != "" || nextAssigned[i] != "" {
 			continue
 		}
-		nextAssigned[i] = firstMatchingUnclaimedBusID(target.match, entries, reserved)
-		if nextAssigned[i] != "" {
-			reserved[nextAssigned[i]] = struct{}{}
+		for j := range entries {
+			key := entryDeviceKey(entries[j])
+			if _, claimed := reserved[key.BusID]; claimed {
+				continue
+			}
+			if matches(target.match, key) {
+				nextAssigned[i] = key.BusID
+				reserved[key.BusID] = struct{}{}
+				break
+			}
 		}
 	}
 	return nextAssigned
-}
-
-func firstMatchingUnclaimedBusID(match option.USBIPDeviceMatch, entries []DeviceEntry, reserved map[string]struct{}) string {
-	for i := range entries {
-		key := entryDeviceKey(entries[i])
-		if _, claimed := reserved[key.BusID]; claimed {
-			continue
-		}
-		if matches(match, key) {
-			return key.BusID
-		}
-	}
-	return ""
 }
 
 func (a *clientAssignment) activeCurrentAssignmentsLocked(current []string, knownKeys map[string]DeviceKey) map[string]struct{} {

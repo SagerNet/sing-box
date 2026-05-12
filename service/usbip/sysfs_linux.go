@@ -262,14 +262,6 @@ var (
 	vhciPortUsedFlight *vhciStatusFlight
 )
 
-func vhciPortUsed(port int) (bool, error) {
-	used, err := vhciUsedPorts()
-	if err != nil {
-		return false, err
-	}
-	return used[port], nil
-}
-
 func vhciUsedPorts() (map[int]bool, error) {
 	vhciPortUsedAccess.Lock()
 	if vhciPortUsedFlight != nil {
