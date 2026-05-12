@@ -21,6 +21,9 @@ The realm only carries control-plane signaling. Once hole-punching succeeds, all
   ... // Listen Fields
 
   "tls": {},
+
+  ... // HTTP2 Fields
+
   "users": [
     {
       "name": "",
@@ -34,6 +37,10 @@ The realm only carries control-plane signaling. Once hole-punching succeeds, all
 ### Listen Fields
 
 See [Listen Fields](/configuration/shared/listen/) for details.
+
+### HTTP2 Fields
+
+See [HTTP2 Fields](/configuration/shared/http2/) for details.
 
 ### Fields
 
