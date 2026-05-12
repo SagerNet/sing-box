@@ -152,5 +152,6 @@ type HysteriaRealmUser struct {
 type HysteriaRealmServiceOptions struct {
 	ListenOptions
 	InboundTLSOptionsContainer
+	HTTP2Options
 	Users []HysteriaRealmUser `json:"users"`
 }
