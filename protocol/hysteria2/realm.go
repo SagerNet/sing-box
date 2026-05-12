@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
@@ -23,6 +24,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func RegisterRealmService(registry *boxService.Registry) {
@@ -96,7 +98,13 @@ func NewRealmService(ctx context.Context, logger log.ContextLogger, tag string, 
 			Listen:  options.ListenOptions,
 		}),
 		httpServer: &http.Server{
-			Handler: chiRouter,
+			Handler: h2c.NewHandler(chiRouter, &http2.Server{
+				IdleTimeout:                  time.Duration(options.IdleTimeout),
+				ReadIdleTimeout:              time.Duration(options.KeepAlivePeriod),
+				MaxUploadBufferPerStream:     int32(options.StreamReceiveWindow.Value()),
+				MaxUploadBufferPerConnection: int32(options.ConnectionReceiveWindow.Value()),
+				MaxConcurrentStreams:         uint32(options.MaxConcurrentStreams),
+			}),
 			ConnContext: func(ctx context.Context, _ net.Conn) context.Context {
 				return log.ContextWithNewID(ctx)
 			},
