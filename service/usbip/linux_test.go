@@ -306,17 +306,14 @@ func newTestLinuxImportHost(t *testing.T, ops usbipOps) *linuxImportHost {
 
 func newTestServerServiceWithHost(t *testing.T, ctx context.Context, cancel context.CancelFunc, host ExportHost, matches []option.USBIPDeviceMatch) *ServerService {
 	t.Helper()
+	logger := newTestLogger(t)
 	return &ServerService{
-		ctx:          ctx,
-		cancel:       cancel,
-		logger:       newTestLogger(t),
-		matches:      matches,
-		host:         host,
-		exports:      make(map[string]Export),
-		busy:         make(map[string]bool),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		leases:       NewLeaseManager(importLeaseTTL, time.Now),
+		ctx:     ctx,
+		cancel:  cancel,
+		logger:  logger,
+		matches: matches,
+		host:    host,
+		ledger:  newExportLedger(logger, importLeaseTTL, time.Now),
 	}
 }
 
@@ -360,15 +357,15 @@ func deleteLinuxExport(host *linuxExportHost, busid string) {
 }
 
 func serverInsertExport(server *ServerService, exp Export) {
-	server.access.Lock()
-	defer server.access.Unlock()
-	server.exports[exp.BusID()] = exp
+	server.ledger.slow.Lock()
+	defer server.ledger.slow.Unlock()
+	server.ledger.exports[exp.BusID()] = exp
 }
 
 func serverDeleteExport(server *ServerService, busid string) {
-	server.access.Lock()
-	defer server.access.Unlock()
-	delete(server.exports, busid)
+	server.ledger.slow.Lock()
+	defer server.ledger.slow.Unlock()
+	delete(server.ledger.exports, busid)
 }
 
 func attachedLinuxSession(t *testing.T, session AttachedSession) *linuxClientSession {
@@ -487,9 +484,9 @@ func duplicateNetConnFromFD(fd uintptr, name string) (net.Conn, error) {
 }
 
 func linuxServerControlState(server *ServerService, busid string) string {
-	server.controlAccess.Lock()
-	defer server.controlAccess.Unlock()
-	return server.controlState[busid].State
+	server.ledger.fast.Lock()
+	defer server.ledger.fast.Unlock()
+	return server.ledger.state[busid].State
 }
 
 func duplicateHandoffKernelConn(t *testing.T, handoff *kernelHandoffSession) net.Conn {
@@ -1373,7 +1370,7 @@ func TestServerUEventLoopReconcilesWhenListenerStarts(t *testing.T) {
 	}()
 
 	require.Eventually(t, func() bool {
-		_, ok := server.getExport("1-1")
+		_, ok := server.ledger.Export("1-1")
 		return ok
 	}, 3*time.Second, 10*time.Millisecond)
 }
@@ -1393,10 +1390,8 @@ func TestServerBuildDevListEntriesFiltersUnavailable(t *testing.T) {
 
 	host := newTestLinuxExportHost(t, nil, ops)
 	server := newTestServerServiceWithHost(t, context.Background(), func() {}, host, nil)
-	server.exports = map[string]Export{
-		"1-1": newTestServerExport(store, "1-1", ops, host.logger),
-		"1-2": newTestServerExport(store, "1-2", ops, host.logger),
-	}
+	serverInsertExport(server, newTestServerExport(store, "1-1", ops, host.logger))
+	serverInsertExport(server, newTestServerExport(store, "1-2", ops, host.logger))
 
 	entries := server.buildDevListEntries()
 	require.Len(t, entries, 1)
@@ -1631,7 +1626,15 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	host := newTestLinuxExportHost(t, nil, newTestUSBIPOps(t))
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusAvailable)
+
+	ops := newTestUSBIPOps(t)
+	ops.readSysfsDevice = store.readSysfsDevice
+	ops.readUsbipStatus = store.readUsbipStatus
+
+	host := newTestLinuxExportHost(t, nil, ops)
 	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
@@ -1663,7 +1666,8 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	require.Equal(t, controlFramePong, pong.Type)
 	require.Equal(t, controlProtocolVersion, pong.Version)
 
-	server.broadcastControlState(deviceInfoV2Map(server.buildDeviceStateV2()), true)
+	serverInsertExport(server, newTestServerExport(store, "1-1", ops, host.logger))
+	require.True(t, server.ledger.BroadcastIfChanged(server.ctx))
 	changed, err := readControlMessage(conn)
 	require.NoError(t, err)
 	require.Equal(t, controlFrameDeviceDelta, changed.Frame.Type)
@@ -1671,24 +1675,31 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	var delta controlDeviceDelta
 	require.NoError(t, unmarshalControlPayload(changed.Payload, &delta))
 	require.Equal(t, uint64(1), delta.Sequence)
+	require.Len(t, delta.Added, 1)
+	require.Equal(t, "1-1", delta.Added[0].BusID)
 }
 
 func TestServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing.T) {
 	t.Parallel()
 
-	host := newTestLinuxExportHost(t, nil, newTestUSBIPOps(t))
+	device := newTestDevice("1-1", 0x1d6b, 0x0002, "serial-1", SpeedHigh)
+	store := newTestDeviceStore(device)
+	store.setStatus("1-1", usbipStatusAvailable)
+	ops := newTestUSBIPOps(t)
+	ops.readSysfsDevice = store.readSysfsDevice
+	ops.readUsbipStatus = store.readUsbipStatus
+
+	host := newTestLinuxExportHost(t, nil, ops)
 	server := newTestServerServiceWithHost(t, context.Background(), func() {}, host, nil)
 	serverConn, clientConn := net.Pipe()
 	defer serverConn.Close()
 	defer clientConn.Close()
 
-	sub, seq := server.registerControlConn(serverConn, controlCapabilities)
+	sub, seq := server.ledger.Subscribe(server.ctx, serverConn, controlCapabilities)
 	require.Zero(t, seq)
-	require.Contains(t, server.controlSubs, sub.id)
 
-	require.True(t, server.broadcastControlState(map[string]DeviceInfoV2{
-		"1-1": {BusID: "1-1", State: deviceStateAvailable},
-	}, true))
+	serverInsertExport(server, newTestServerExport(store, "1-1", ops, host.logger))
+	require.True(t, server.ledger.BroadcastIfChanged(server.ctx))
 
 	first := <-sub.send
 	require.Equal(t, controlFrameDeviceSnapshot, first.Frame.Type)
@@ -1717,7 +1728,7 @@ func TestServerReconcileBroadcastsStatusOnlyDeviceDelta(t *testing.T) {
 	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{BusID: "1-1"}}, serverOps)
 	server := newTestServerServiceWithHost(t, ctx, cancel, host, []option.USBIPDeviceMatch{{BusID: "1-1"}})
 	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
-	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
+	server.ledger.SeedBroadcastState(server.ctx)
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -1759,9 +1770,9 @@ func TestServerReconcileBroadcastsStatusOnlyDeviceDelta(t *testing.T) {
 	require.Equal(t, deviceStateAvailable, delta.Updated[0].State)
 	require.Equal(t, usbipStatusAvailable, delta.Updated[0].StatusCode)
 
-	sequence := server.currentControlSequence()
+	sequence := server.ledger.CurrentSequence()
 	require.NoError(t, server.reconcileAndBroadcast(true))
-	require.Equal(t, sequence, server.currentControlSequence())
+	require.Equal(t, sequence, server.ledger.CurrentSequence())
 
 	require.NoError(t, conn.SetReadDeadline(time.Now().Add(100*time.Millisecond)))
 	_, err = readControlMessage(conn)
@@ -1789,7 +1800,7 @@ func TestServerControlSnapshotPreservesPendingDelta(t *testing.T) {
 	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{BusID: "1-1"}}, serverOps)
 	server := newTestServerServiceWithHost(t, ctx, cancel, host, []option.USBIPDeviceMatch{{BusID: "1-1"}})
 	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
-	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
+	server.ledger.SeedBroadcastState(server.ctx)
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -1852,7 +1863,7 @@ func TestServerControlLeaseEnablesImportExt(t *testing.T) {
 	host := newTestLinuxExportHost(t, nil, serverOps)
 	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
 	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
-	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
+	server.ledger.SeedBroadcastState(server.ctx)
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -2683,7 +2694,7 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	host := newTestLinuxExportHost(t, nil, serverOps)
 	server := newTestServerServiceWithHost(t, serverCtx, serverCancel, host, nil)
 	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
-	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
+	server.ledger.SeedBroadcastState(server.ctx)
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -2718,7 +2729,7 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	store.setDevices(updatedDevice)
 	serverDeleteExport(server, "1-1")
 	serverInsertExport(server, newTestServerExport(store, "1-2", serverOps, host.logger))
-	server.broadcastControlState(deviceInfoV2Map(server.buildDeviceStateV2()), true)
+	require.True(t, server.ledger.BroadcastIfChanged(server.ctx))
 
 	require.Eventually(t, func() bool {
 		assignment.access.Lock()

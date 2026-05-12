@@ -402,7 +402,7 @@ func startRealUSBIPServer(t *testing.T, devices []option.USBIPDeviceMatch) (*Ser
 		_ = server.Close()
 	})
 
-	return server, M.SocksaddrFromNet(server.listen.Addr())
+	return server, M.SocksaddrFromNet(server.listener.TCPListener().Addr())
 }
 
 func startRealUSBIPClient(t *testing.T, destination M.Socksaddr, devices []option.USBIPDeviceMatch) *ClientService {
@@ -1155,7 +1155,7 @@ func TestUSBIPControlHotplugACMReattach(t *testing.T) {
 	first.Close()
 	waitForPathGone(t, firstImportedTTY)
 	require.Eventually(t, func() bool {
-		return len(server.currentExports()) == 0
+		return len(server.ledger.AvailableExports()) == 0
 	}, 5*time.Second, 100*time.Millisecond)
 
 	secondBefore := importedNodeSnapshot("/dev/ttyACM*")

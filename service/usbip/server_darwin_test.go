@@ -135,14 +135,12 @@ func TestDarwinServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 			return nil, nil
 		},
 	})
+	logger := newTestLogger(t)
 	server := &ServerService{
-		ctx:          ctx,
-		logger:       newTestLogger(t),
-		host:         host,
-		exports:      make(map[string]Export),
-		busy:         make(map[string]bool),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
+		ctx:    ctx,
+		logger: logger,
+		host:   host,
+		ledger: newExportLedger(logger, importLeaseTTL, time.Now),
 	}
 
 	require.NoError(t, server.reconcileAndBroadcast(true))
@@ -214,14 +212,16 @@ func TestDarwinServerBuildDeviceStateIncludesBusyExports(t *testing.T) {
 			entry:      busy,
 		},
 	}
+	logger := newTestLogger(t)
 	server := &ServerService{
-		ctx:     context.Background(),
-		logger:  newTestLogger(t),
-		exports: exports,
-		busy:    map[string]bool{"busy": true},
+		ctx:    context.Background(),
+		logger: logger,
+		ledger: newExportLedger(logger, importLeaseTTL, time.Now),
 	}
+	server.ledger.exports = exports
+	server.ledger.busy = map[string]bool{"busy": true}
 
-	devices := deviceInfoV2Map(server.buildDeviceStateV2())
+	devices := deviceInfoV2Map(server.ledger.snapshotDeviceState(server.ctx))
 	require.Equal(t, deviceStateAvailable, devices["available"].State)
 	require.Equal(t, deviceStateBusy, devices["busy"].State)
 }
@@ -316,25 +316,24 @@ func TestDarwinExportHostReconcileCapturesReplacementAfterStaleRelease(t *testin
 func TestDarwinServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing.T) {
 	t.Parallel()
 
+	logger := newTestLogger(t)
 	server := &ServerService{
-		ctx:          context.Background(),
-		logger:       newTestLogger(t),
-		exports:      make(map[string]Export),
-		busy:         make(map[string]bool),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
+		ctx:    context.Background(),
+		logger: logger,
+		ledger: newExportLedger(logger, importLeaseTTL, time.Now),
 	}
 	serverConn, clientConn := net.Pipe()
 	defer serverConn.Close()
 	defer clientConn.Close()
 
-	sub, seq := server.registerControlConn(serverConn, controlCapabilities)
+	sub, seq := server.ledger.Subscribe(server.ctx, serverConn, controlCapabilities)
 	require.Zero(t, seq)
-	require.Contains(t, server.controlSubs, sub.id)
 
 	added := standardTestDeviceEntry("added")
-	server.exports["added"] = &darwinExport{busid: "added", registryID: 1, entry: added}
-	server.broadcastChanged()
+	server.ledger.slow.Lock()
+	server.ledger.exports["added"] = &darwinExport{busid: "added", registryID: 1, entry: added}
+	server.ledger.slow.Unlock()
+	require.True(t, server.ledger.BroadcastIfChanged(server.ctx))
 
 	first := <-sub.send
 	require.Equal(t, controlFrameDeviceSnapshot, first.Frame.Type)
@@ -364,15 +363,14 @@ func TestDarwinServerImportBroadcastsBusyState(t *testing.T) {
 		entry:      entry,
 		device:     &darwinUSBHostDevice{},
 	}
+	logger := log.NewNOPFactory().NewLogger("usbip")
 	server := &ServerService{
-		ctx:          ctx,
-		logger:       log.NewNOPFactory().NewLogger("usbip"),
-		host:         host,
-		exports:      map[string]Export{busid: host.exports[busid]},
-		busy:         make(map[string]bool),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
+		ctx:    ctx,
+		logger: logger,
+		host:   host,
+		ledger: newExportLedger(logger, importLeaseTTL, time.Now),
 	}
+	server.ledger.exports = map[string]Export{busid: host.exports[busid]}
 
 	serverConn, clientConn := net.Pipe()
 	done := make(chan struct{})
@@ -405,9 +403,9 @@ func TestDarwinServerImportBroadcastsBusyState(t *testing.T) {
 }
 
 func darwinServerControlState(server *ServerService, busid string) string {
-	server.controlAccess.Lock()
-	defer server.controlAccess.Unlock()
-	return server.controlState[busid].State
+	server.ledger.fast.Lock()
+	defer server.ledger.fast.Unlock()
+	return server.ledger.state[busid].State
 }
 
 func darwinTestDeviceInfo(registryID uint64, entry DeviceEntry) darwinUSBHostDeviceInfo {

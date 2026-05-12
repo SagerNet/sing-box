@@ -6,8 +6,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -23,9 +21,9 @@ import (
 )
 
 // ServerService is the unified USB/IP server. It owns the wire-protocol
-// surface (devlist, import, import-ext, control channel), the lease
-// state machine, the broadcast bookkeeping, and the busy map.
-// Platform-specific device acquisition is delegated to an ExportHost.
+// surface (devlist, import, import-ext, control channel) and delegates
+// all mutable state to an exportLedger. Platform-specific device
+// acquisition is delegated to an ExportHost.
 type ServerService struct {
 	boxService.Adapter
 	ctx      context.Context
@@ -34,18 +32,7 @@ type ServerService struct {
 	listener *listener.Listener
 	matches  []option.USBIPDeviceMatch
 	host     ExportHost
-
-	access  sync.Mutex
-	exports map[string]Export
-	busy    map[string]bool
-	listen  net.Listener
-
-	controlAccess sync.Mutex
-	controlSeq    uint64
-	controlNextID uint64
-	controlSubs   map[uint64]*serverControlConn
-	controlState  map[string]DeviceInfoV2
-	leases        *LeaseManager
+	ledger   *exportLedger
 
 	reconcileAccess sync.Mutex
 }
@@ -72,17 +59,13 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 		logger:  logger,
 		matches: options.Devices,
 		host:    host,
-		exports: make(map[string]Export),
-		busy:    make(map[string]bool),
+		ledger:  newExportLedger(logger, importLeaseTTL, time.Now),
 		listener: listener.New(listener.Options{
 			Context: ctx,
 			Logger:  logger,
 			Network: []string{N.NetworkTCP},
 			Listen:  options.ListenOptions,
 		}),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		leases:       NewLeaseManager(importLeaseTTL, time.Now),
 	}, nil
 }
 
@@ -104,9 +87,6 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 		_ = s.host.Close()
 		return err
 	}
-	s.access.Lock()
-	s.listen = tcpListener
-	s.access.Unlock()
 	go s.acceptLoop(tcpListener)
 	go s.eventLoop()
 	return nil
@@ -116,15 +96,14 @@ func (s *ServerService) Close() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
-	s.closeControlSubscribers()
+	for _, conn := range s.ledger.CloseAllSubscribers() {
+		_ = conn.Close()
+	}
 	err := common.Close(common.PtrOrNil(s.listener))
 	s.reconcileAccess.Lock()
 	defer s.reconcileAccess.Unlock()
 	_ = s.host.Close()
-	s.access.Lock()
-	s.exports = make(map[string]Export)
-	s.busy = make(map[string]bool)
-	s.access.Unlock()
+	s.ledger.ResetForClose()
 	return err
 }
 
@@ -159,93 +138,17 @@ func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	if s.ctx != nil && s.ctx.Err() != nil {
 		return nil
 	}
-	snapshot, released, _, err := s.host.Reconcile(s.ctx, s.isBusy)
+	snapshot, released, _, err := s.host.Reconcile(s.ctx, s.ledger.IsBusy)
 	if err != nil {
 		return err
 	}
-	s.access.Lock()
-	s.exports = snapshot
-	for _, busid := range released {
-		delete(s.busy, busid)
-	}
-	s.access.Unlock()
-
-	nextState := deviceInfoV2Map(s.buildDeviceStateV2())
+	s.ledger.ApplyHostSnapshot(snapshot, released)
 	if notify {
-		s.broadcastControlState(nextState, false)
+		s.ledger.BroadcastIfChanged(s.ctx)
 	} else {
-		s.setControlState(nextState)
+		s.ledger.SeedBroadcastState(s.ctx)
 	}
 	return nil
-}
-
-func (s *ServerService) getExport(busid string) (Export, bool) {
-	s.access.Lock()
-	defer s.access.Unlock()
-	export, ok := s.exports[busid]
-	return export, ok
-}
-
-func (s *ServerService) isExported(busid string) bool {
-	_, ok := s.getExport(busid)
-	return ok
-}
-
-func (s *ServerService) isBusy(busid string) bool {
-	s.access.Lock()
-	defer s.access.Unlock()
-	return s.busy[busid]
-}
-
-func (s *ServerService) setBusy(busid string, busy bool) bool {
-	s.access.Lock()
-	defer s.access.Unlock()
-	current := s.busy[busid]
-	if current == busy {
-		return false
-	}
-	if busy {
-		s.busy[busid] = true
-	} else {
-		delete(s.busy, busid)
-	}
-	return true
-}
-
-func (s *ServerService) removeExport(busid string) {
-	s.access.Lock()
-	defer s.access.Unlock()
-	delete(s.exports, busid)
-	delete(s.busy, busid)
-}
-
-func (s *ServerService) currentExports() []Export {
-	s.access.Lock()
-	defer s.access.Unlock()
-	out := make([]Export, 0, len(s.exports))
-	for busid, export := range s.exports {
-		if s.busy[busid] {
-			continue
-		}
-		out = append(out, export)
-	}
-	slices.SortFunc(out, exportLess)
-	return out
-}
-
-func (s *ServerService) allExports() []Export {
-	s.access.Lock()
-	defer s.access.Unlock()
-	out := make([]Export, 0, len(s.exports))
-	for _, export := range s.exports {
-		out = append(out, export)
-	}
-	slices.SortFunc(out, exportLess)
-	return out
-}
-
-func exportLess(a, b Export) int {
-	return strings.Compare(a.BusID(), b.BusID())
 }
 
 func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
@@ -288,8 +191,8 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		return
 	}
 	capabilities := negotiatedControlCapabilities(hello.Capabilities)
-	sub, seq := s.registerControlConn(conn, capabilities)
-	defer s.unregisterControlConn(sub.id)
+	sub, seq := s.ledger.Subscribe(s.ctx, conn, capabilities)
+	defer s.ledger.Unsubscribe(sub)
 	err = writeControlAckWithCapabilities(conn, seq, capabilities)
 	if err != nil {
 		s.logger.Debug("write control ack: ", err)
@@ -322,7 +225,7 @@ func (s *ServerService) handleDevList(conn net.Conn) {
 }
 
 func (s *ServerService) buildDevListEntries() []DeviceEntry {
-	exports := s.currentExports()
+	exports := s.ledger.AvailableExports()
 	if len(exports) == 0 {
 		return nil
 	}
@@ -352,7 +255,7 @@ func (s *ServerService) handleImportExt(conn net.Conn) bool {
 		s.logger.Debug("read import-ext body: ", err)
 		return false
 	}
-	if !s.consumeImportLease(request) {
+	if !s.ledger.ConsumeLease(request) {
 		s.logger.Info("import-ext rejected (invalid lease): ", request.BusID)
 		_ = WriteOpRepImportExt(conn, OpStatusError, nil)
 		return false
@@ -365,45 +268,34 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 	if extended {
 		writeReply = WriteOpRepImportExt
 	}
-	export, ok := s.getExport(busid)
+	export, ok, reason := s.ledger.TryReserveForImport(s.ctx, busid)
 	if !ok {
-		s.logger.Info("import rejected (unknown busid): ", busid)
-		_ = writeReply(conn, OpStatusError, nil)
-		return false
-	}
-	if s.isBusy(busid) {
-		s.logger.Info("import rejected (busid ", busid, " already busy)")
-		_ = writeReply(conn, OpStatusError, nil)
-		return false
-	}
-	ok, reason := export.LeaseCheck(s.ctx)
-	if !ok {
-		s.logger.Info("import rejected (busid ", busid, ": ", reason, ")")
+		s.logger.Info("import rejected (", busid, ": ", reason, ")")
 		_ = writeReply(conn, OpStatusError, nil)
 		return false
 	}
 	info, err := export.DeviceInfo(s.ctx)
 	if err != nil {
+		s.ledger.ReleaseImport(s.ctx, busid, false)
 		s.logger.Warn("refresh ", busid, ": ", err)
 		_ = writeReply(conn, OpStatusError, nil)
 		return false
 	}
 	session, err := export.NewServerDataSession(s.ctx, conn)
 	if err != nil {
+		s.ledger.ReleaseImport(s.ctx, busid, false)
 		s.logger.Warn("open data session ", busid, ": ", err)
 		_ = writeReply(conn, OpStatusError, nil)
 		return false
 	}
-	s.setBusy(busid, true)
-	s.broadcastChanged()
+	s.ledger.ConfirmImport(s.ctx)
 	err = writeReply(conn, OpStatusOK, &info)
 	if err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
 		_ = session.Close()
 		<-session.Done()
-		_, _ = s.host.FinishImport(s.ctx, busid)
-		s.setBusy(busid, false)
-		s.broadcastChanged()
+		released, _ := s.host.FinishImport(s.ctx, busid)
+		s.ledger.ReleaseImport(s.ctx, busid, released)
 		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
@@ -417,55 +309,5 @@ func (s *ServerService) waitImportDone(busid string, session DataSession) {
 	if err != nil {
 		s.logger.Debug("finish import ", busid, ": ", err)
 	}
-	if released {
-		s.removeExport(busid)
-		s.broadcastChanged()
-		return
-	}
-	s.setBusy(busid, false)
-	s.broadcastChanged()
-}
-
-func (s *ServerService) broadcastChanged() {
-	s.broadcastControlState(deviceInfoV2Map(s.buildDeviceStateV2()), false)
-}
-
-func (s *ServerService) buildDeviceStateV2() []DeviceInfoV2 {
-	exports := s.allExports()
-	if len(exports) == 0 {
-		return nil
-	}
-	devices := make([]DeviceInfoV2, 0, len(exports))
-	for _, export := range exports {
-		busid := export.BusID()
-		snapshot := export.Snapshot(s.ctx, s.isBusy(busid))
-		if snapshot.Err != nil {
-			devices = append(devices, DeviceInfoV2{
-				BusID:        busid,
-				Backend:      snapshot.Backend,
-				StableID:     snapshot.StableID,
-				State:        deviceStateUnavailable,
-				StatusReason: snapshot.StatusReason,
-			})
-			continue
-		}
-		// Skip exports that the host marked unavailable (e.g. Darwin
-		// stale) — they should not appear in broadcast.
-		if snapshot.State == deviceStateUnavailable && snapshot.Entry.Info.IDVendor == 0 {
-			continue
-		}
-		devices = append(devices, deviceInfoV2FromEntry(snapshot.Entry, snapshot.Backend, snapshot.StableID, snapshot.State, snapshot.RawStatus, snapshot.StatusReason))
-	}
-	return devices
-}
-
-func (s *ServerService) leaseAvailable(busid string) (bool, string) {
-	export, ok := s.getExport(busid)
-	if !ok {
-		return false, "unknown busid"
-	}
-	if s.isBusy(busid) {
-		return false, deviceStateBusy
-	}
-	return export.LeaseCheck(s.ctx)
+	s.ledger.ReleaseImport(s.ctx, busid, released)
 }

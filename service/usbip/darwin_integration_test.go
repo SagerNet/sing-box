@@ -851,11 +851,11 @@ func TestDarwinUSBIPServerSmoke(t *testing.T) {
 	if err := server.Start(adapter.StartStateStart); err != nil {
 		t.Skipf("IOUSBHostDevice enumeration unavailable: %v", err)
 	}
-	if len(server.currentExports()) == 0 {
+	if len(server.ledger.AvailableExports()) == 0 {
 		t.Skipf("IOUSBHostDevice capture unavailable for %s", candidate.key.BusID)
 	}
 
-	destination := M.SocksaddrFromNet(server.listen.Addr())
+	destination := M.SocksaddrFromNet(server.listener.TCPListener().Addr())
 	entries := darwinFetchDevList(t, destination)
 	require.Len(t, entries, 1)
 	require.Equal(t, candidate.key.BusID, entries[0].Info.BusIDString())

@@ -51,7 +51,7 @@ func (s *ServerService) dispatchConn(conn net.Conn) {
 	s.handleStandardConn(conn, ParseOpHeader(prefix[:]))
 }
 
-func (s *ServerService) readControlConn(sub *serverControlConn, done chan<- struct{}) {
+func (s *ServerService) readControlConn(sub *exportSubscriber, done chan<- struct{}) {
 	defer close(done)
 	var reader controlReader
 	for {
@@ -62,13 +62,10 @@ func (s *ServerService) readControlConn(sub *serverControlConn, done chan<- stru
 		frame := message.Frame
 		switch frame.Type {
 		case controlFramePing:
-			s.enqueueControlFrame(sub, controlFrame{
-				Type:    controlFramePong,
-				Version: controlProtocolVersion,
-			})
+			s.ledger.HandleControlPing(sub)
 		case controlFrameLeaseRequest:
 			if supportsControlExtensions(sub.capabilities) {
-				s.handleControlLeaseRequest(sub, message.Payload)
+				s.ledger.HandleControlLeaseRequest(s.ctx, sub, message.Payload)
 				continue
 			}
 			return
