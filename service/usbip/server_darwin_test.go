@@ -5,6 +5,7 @@ package usbip
 import (
 	"context"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -66,10 +67,6 @@ func TestDarwinServerServeAbortsPendingSubmitOnClose(t *testing.T) {
 		abortNotify: make(chan struct{}),
 	}
 	session := newDarwinServerDataSession(context.Background(), newTestLogger(t), serverConn, device)
-	done := make(chan error, 1)
-	go func() {
-		done <- session.serve()
-	}()
 
 	require.NoError(t, WriteSubmitCommand(clientConn, SubmitCommand{
 		Header: DataHeader{
@@ -88,7 +85,7 @@ func TestDarwinServerServeAbortsPendingSubmitOnClose(t *testing.T) {
 
 	require.NoError(t, clientConn.Close())
 	select {
-	case <-done:
+	case <-session.Done():
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for Darwin session shutdown")
 	}
@@ -132,10 +129,18 @@ func TestDarwinServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+	host := newDarwinExportHost(newTestLogger(t), nil, darwinServerOps{
+		copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+			t.Fatal("Reconcile should not run after cancel")
+			return nil, nil
+		},
+	})
 	server := &ServerService{
 		ctx:          ctx,
 		logger:       newTestLogger(t),
-		exports:      make(map[string]serverExport),
+		host:         host,
+		exports:      make(map[string]Export),
+		busy:         make(map[string]bool),
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
 	}
@@ -143,7 +148,7 @@ func TestDarwinServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 	require.NoError(t, server.reconcileAndBroadcast(true))
 }
 
-func TestDarwinServerUSBEventWatcherTriggersReconcile(t *testing.T) {
+func TestDarwinExportHostEventTriggersReconcile(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -151,55 +156,45 @@ func TestDarwinServerUSBEventWatcherTriggersReconcile(t *testing.T) {
 
 	const busid = "mac-00000001"
 	entry := standardTestDeviceEntry(busid)
-	info := darwinUSBHostDeviceInfo{
-		registryID: 1,
-		entry:      entry,
-		key: DeviceKey{
-			BusID:     busid,
-			VendorID:  entry.Info.IDVendor,
-			ProductID: entry.Info.IDProduct,
-			Serial:    entry.Serial,
+	info := darwinTestDeviceInfo(1, entry)
+	var (
+		devices   []darwinUSBHostDeviceInfo
+		fakeWatch *fakeDarwinUSBHostDeviceWatch
+	)
+	ops := darwinServerOps{
+		copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+			return devices, nil
+		},
+		openUSBHostDevice: func(registryID uint64, capture bool) (*darwinUSBHostDevice, error) {
+			require.Equal(t, info.registryID, registryID)
+			require.True(t, capture)
+			return &darwinUSBHostDevice{info: info}, nil
+		},
+		watchUSBHostDevices: func(callback func()) (darwinUSBHostDeviceWatch, error) {
+			fakeWatch = &fakeDarwinUSBHostDeviceWatch{callback: callback}
+			return fakeWatch, nil
 		},
 	}
-	var devices []darwinUSBHostDeviceInfo
-	var fakeWatch *fakeDarwinUSBHostDeviceWatch
-	server := &ServerService{
-		ctx:          ctx,
-		logger:       newTestLogger(t),
-		matches:      []option.USBIPDeviceMatch{{BusID: busid}},
-		exports:      make(map[string]serverExport),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		ops: darwinServerOps{
-			copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
-				return devices, nil
-			},
-			openUSBHostDevice: func(registryID uint64, capture bool) (*darwinUSBHostDevice, error) {
-				require.Equal(t, info.registryID, registryID)
-				require.True(t, capture)
-				return &darwinUSBHostDevice{info: info}, nil
-			},
-			watchUSBHostDevices: func(callback func()) (darwinUSBHostDeviceWatch, error) {
-				fakeWatch = &fakeDarwinUSBHostDeviceWatch{callback: callback}
-				return fakeWatch, nil
-			},
-		},
-	}
+	host := newDarwinExportHost(newTestLogger(t), []option.USBIPDeviceMatch{{BusID: busid}}, ops)
 
-	watcher, err := server.newUSBEventWatcher()
+	events, err := host.Events(ctx)
 	require.NoError(t, err)
-	require.NotNil(t, watcher)
 	require.NotNil(t, fakeWatch)
 
 	devices = []darwinUSBHostDeviceInfo{info}
 	fakeWatch.trigger()
-	require.Eventually(t, func() bool {
-		_, ok := server.snapshotExports()[busid]
-		return ok && darwinServerControlState(server, busid) == deviceStateAvailable
-	}, time.Second, 10*time.Millisecond)
 
-	watcher.Close()
-	require.True(t, fakeWatch.closed)
+	select {
+	case <-events:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for Events channel signal")
+	}
+
+	snapshot, released, changed, err := host.Reconcile(ctx, func(string) bool { return false })
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Empty(t, released)
+	require.Contains(t, snapshot, busid)
 }
 
 func TestDarwinServerBuildDeviceStateIncludesBusyExports(t *testing.T) {
@@ -207,20 +202,23 @@ func TestDarwinServerBuildDeviceStateIncludesBusyExports(t *testing.T) {
 
 	available := standardTestDeviceEntry("available")
 	busy := standardTestDeviceEntry("busy")
-	server := &ServerService{
-		exports: map[string]serverExport{
-			"available": {
-				busid:      "available",
-				registryID: 1,
-				entry:      available,
-			},
-			"busy": {
-				busid:      "busy",
-				registryID: 2,
-				entry:      busy,
-				busy:       true,
-			},
+	exports := map[string]Export{
+		"available": &darwinExport{
+			busid:      "available",
+			registryID: 1,
+			entry:      available,
 		},
+		"busy": &darwinExport{
+			busid:      "busy",
+			registryID: 2,
+			entry:      busy,
+		},
+	}
+	server := &ServerService{
+		ctx:     context.Background(),
+		logger:  newTestLogger(t),
+		exports: exports,
+		busy:    map[string]bool{"busy": true},
 	}
 
 	devices := deviceInfoV2Map(server.buildDeviceStateV2())
@@ -228,104 +226,101 @@ func TestDarwinServerBuildDeviceStateIncludesBusyExports(t *testing.T) {
 	require.Equal(t, deviceStateBusy, devices["busy"].State)
 }
 
-func TestDarwinServerReconcileMarksBusyMissingExportStale(t *testing.T) {
+func TestDarwinExportHostReconcileMarksBusyMissingExportStale(t *testing.T) {
 	t.Parallel()
 
 	const busid = "mac-00000001"
 	entry := standardTestDeviceEntry(busid)
-	export := serverExport{
+	ops := darwinServerOps{
+		copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+			return nil, nil
+		},
+	}
+	host := newDarwinExportHost(newTestLogger(t), []option.USBIPDeviceMatch{{BusID: busid}}, ops)
+	host.exports[busid] = &darwinExport{
 		busid:      busid,
 		registryID: 1,
 		device:     &darwinUSBHostDevice{},
 		entry:      entry,
-		busy:       true,
-	}
-	server := &ServerService{
-		ctx:         context.Background(),
-		logger:      newTestLogger(t),
-		matches:     []option.USBIPDeviceMatch{{BusID: busid}},
-		exports:     map[string]serverExport{busid: export},
-		controlSubs: make(map[uint64]*serverControlConn),
-		controlState: deviceInfoV2Map([]DeviceInfoV2{
-			deviceInfoV2FromEntry(entry, backendIDDarwinIOKit, darwinStableID(export.registryID), deviceStateBusy, 0, deviceStateBusy),
-		}),
-		ops: darwinServerOps{
-			copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
-				return nil, nil
-			},
-		},
 	}
 
-	require.NoError(t, server.reconcileAndBroadcast(true))
-	snapshot := server.snapshotExports()
-	require.True(t, snapshot[busid].stale)
-	require.Equal(t, "", darwinServerControlState(server, busid))
+	snapshot, released, changed, err := host.Reconcile(context.Background(), func(b string) bool {
+		return b == busid
+	})
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Empty(t, released)
+	require.NotContains(t, snapshot, busid)
 
-	require.True(t, server.releaseClaim(export))
-	require.NotContains(t, server.snapshotExports(), busid)
+	require.True(t, host.exports[busid].stale)
+
+	releasedFinish, err := host.FinishImport(context.Background(), busid)
+	require.NoError(t, err)
+	require.True(t, releasedFinish)
+	require.NotContains(t, host.exports, busid)
 }
 
-func TestDarwinServerReconcileCapturesReplacementAfterStaleRelease(t *testing.T) {
+func TestDarwinExportHostReconcileCapturesReplacementAfterStaleRelease(t *testing.T) {
 	t.Parallel()
 
 	const busid = "mac-00000001"
 	oldEntry := standardTestDeviceEntry(busid)
-	oldExport := serverExport{
+	replacementEntry := standardTestDeviceEntry(busid)
+	replacementEntry.Info.DevNum = 2
+	replacementInfo := darwinTestDeviceInfo(2, replacementEntry)
+	var (
+		opened int
+		feed   = []darwinUSBHostDeviceInfo{replacementInfo}
+	)
+	ops := darwinServerOps{
+		copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+			return feed, nil
+		},
+		openUSBHostDevice: func(registryID uint64, capture bool) (*darwinUSBHostDevice, error) {
+			require.Equal(t, replacementInfo.registryID, registryID)
+			require.True(t, capture)
+			opened++
+			return &darwinUSBHostDevice{info: replacementInfo}, nil
+		},
+	}
+	host := newDarwinExportHost(newTestLogger(t), []option.USBIPDeviceMatch{{BusID: busid}}, ops)
+	host.exports[busid] = &darwinExport{
 		busid:      busid,
 		registryID: 1,
 		device:     &darwinUSBHostDevice{},
 		entry:      oldEntry,
-		busy:       true,
-	}
-	replacementEntry := standardTestDeviceEntry(busid)
-	replacementEntry.Info.DevNum = 2
-	replacementInfo := darwinTestDeviceInfo(2, replacementEntry)
-	opened := 0
-	server := &ServerService{
-		ctx:         context.Background(),
-		logger:      newTestLogger(t),
-		matches:     []option.USBIPDeviceMatch{{BusID: busid}},
-		exports:     map[string]serverExport{busid: oldExport},
-		controlSubs: make(map[uint64]*serverControlConn),
-		controlState: deviceInfoV2Map([]DeviceInfoV2{
-			deviceInfoV2FromEntry(oldEntry, backendIDDarwinIOKit, darwinStableID(oldExport.registryID), deviceStateBusy, 0, deviceStateBusy),
-		}),
-		ops: darwinServerOps{
-			copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
-				return []darwinUSBHostDeviceInfo{replacementInfo}, nil
-			},
-			openUSBHostDevice: func(registryID uint64, capture bool) (*darwinUSBHostDevice, error) {
-				require.Equal(t, replacementInfo.registryID, registryID)
-				require.True(t, capture)
-				opened++
-				return &darwinUSBHostDevice{info: replacementInfo}, nil
-			},
-		},
 	}
 
-	require.NoError(t, server.reconcileAndBroadcast(true))
-	snapshot := server.snapshotExports()
-	require.True(t, snapshot[busid].stale)
+	snapshot, released, changed, err := host.Reconcile(context.Background(), func(b string) bool {
+		return b == busid
+	})
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Empty(t, released)
+	require.NotContains(t, snapshot, busid)
+	require.True(t, host.exports[busid].stale)
 	require.Zero(t, opened)
-	require.Equal(t, "", darwinServerControlState(server, busid))
 
-	require.True(t, server.releaseClaim(oldExport))
-	require.NoError(t, server.reconcileAndBroadcast(true))
+	releasedFinish, err := host.FinishImport(context.Background(), busid)
+	require.NoError(t, err)
+	require.True(t, releasedFinish)
 
-	snapshot = server.snapshotExports()
-	require.Equal(t, uint64(2), snapshot[busid].registryID)
-	require.False(t, snapshot[busid].busy)
-	require.False(t, snapshot[busid].stale)
+	snapshot, released, changed, err = host.Reconcile(context.Background(), func(string) bool { return false })
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Empty(t, released)
+	require.Contains(t, snapshot, busid)
 	require.Equal(t, 1, opened)
-	require.Equal(t, deviceStateAvailable, darwinServerControlState(server, busid))
 }
 
 func TestDarwinServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing.T) {
 	t.Parallel()
 
 	server := &ServerService{
+		ctx:          context.Background(),
 		logger:       newTestLogger(t),
-		exports:      make(map[string]serverExport),
+		exports:      make(map[string]Export),
+		busy:         make(map[string]bool),
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
 	}
@@ -338,7 +333,7 @@ func TestDarwinServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing
 	require.Contains(t, server.controlSubs, sub.id)
 
 	added := standardTestDeviceEntry("added")
-	server.exports["added"] = serverExport{busid: "added", registryID: 1, entry: added}
+	server.exports["added"] = &darwinExport{busid: "added", registryID: 1, entry: added}
 	server.broadcastChanged()
 
 	first := <-sub.send
@@ -358,10 +353,23 @@ func TestDarwinServerImportBroadcastsBusyState(t *testing.T) {
 
 	const busid = "1-1"
 	entry := standardTestDeviceEntry(busid)
+	host := newDarwinExportHost(log.NewNOPFactory().NewLogger("usbip"), nil, darwinServerOps{
+		copyUSBHostDevices: func() ([]darwinUSBHostDeviceInfo, error) {
+			return nil, nil
+		},
+	})
+	host.exports[busid] = &darwinExport{
+		busid:      busid,
+		registryID: 1,
+		entry:      entry,
+		device:     &darwinUSBHostDevice{},
+	}
 	server := &ServerService{
 		ctx:          ctx,
 		logger:       log.NewNOPFactory().NewLogger("usbip"),
-		exports:      map[string]serverExport{busid: {busid: busid, registryID: 1, entry: entry}},
+		host:         host,
+		exports:      map[string]Export{busid: host.exports[busid]},
+		busy:         make(map[string]bool),
 		controlSubs:  make(map[uint64]*serverControlConn),
 		controlState: make(map[string]DeviceInfoV2),
 	}
@@ -417,14 +425,23 @@ func darwinTestDeviceInfo(registryID uint64, entry DeviceEntry) darwinUSBHostDev
 }
 
 type fakeDarwinUSBHostDeviceWatch struct {
+	access   sync.Mutex
 	callback func()
 	closed   bool
 }
 
 func (w *fakeDarwinUSBHostDeviceWatch) Close() {
+	w.access.Lock()
+	defer w.access.Unlock()
 	w.closed = true
 }
 
 func (w *fakeDarwinUSBHostDeviceWatch) trigger() {
 	w.callback()
+}
+
+func (w *fakeDarwinUSBHostDeviceWatch) isClosed() bool {
+	w.access.Lock()
+	defer w.access.Unlock()
+	return w.closed
 }

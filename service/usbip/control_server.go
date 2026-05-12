@@ -35,7 +35,7 @@ func (s *ServerService) unregisterControlConn(id uint64) {
 	s.controlAccess.Lock()
 	defer s.controlAccess.Unlock()
 	delete(s.controlSubs, id)
-	s.deleteImportLeasesForSubscriberLocked(id)
+	s.leases.RevokeSubscriber(id)
 }
 
 func (s *ServerService) closeControlSubscribers() {
@@ -121,10 +121,6 @@ func (s *ServerService) enqueueControlMessage(sub *serverControlConn, message co
 		s.logger.Debug("control subscriber ", sub.id, " lagged behind")
 		_ = sub.conn.Close()
 	}
-}
-
-func (s *ServerService) refreshControlState() {
-	s.setControlState(deviceInfoV2Map(s.buildDeviceStateV2()))
 }
 
 func (s *ServerService) setControlState(nextState map[string]DeviceInfoV2) {

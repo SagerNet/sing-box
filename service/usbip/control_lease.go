@@ -2,10 +2,6 @@
 
 package usbip
 
-import (
-	"time"
-)
-
 func (s *ServerService) handleControlLeaseRequest(sub *serverControlConn, payload []byte) {
 	var request controlLeaseRequest
 	err := unmarshalControlPayload(payload, &request)
@@ -27,80 +23,26 @@ func (s *ServerService) handleControlLeaseRequest(sub *serverControlConn, payloa
 }
 
 func (s *ServerService) createControlLeaseResponse(subID uint64, request controlLeaseRequest) controlLeaseResponse {
-	response := controlLeaseResponse{
-		BusID:       request.BusID,
-		ClientNonce: request.ClientNonce,
-	}
 	if request.BusID == "" {
-		response.ErrorCode = leaseErrorBadRequest
-		response.ErrorMessage = "missing busid"
-		return response
+		return controlLeaseResponse{
+			BusID:        request.BusID,
+			ClientNonce:  request.ClientNonce,
+			ErrorCode:    leaseErrorBadRequest,
+			ErrorMessage: "missing busid",
+		}
 	}
-	ok, reason := s.leaseAvailable(request.BusID)
-	if !ok {
-		response.ErrorCode = leaseErrorUnavailable
-		response.ErrorMessage = reason
-		return response
-	}
-	now := time.Now()
-	expires := now.Add(importLeaseTTL)
 	s.controlAccess.Lock()
-	defer s.controlAccess.Unlock()
-	s.cleanupExpiredImportLeasesLocked(now)
-	_, exists := s.leasesByBusID[request.BusID]
-	if exists {
-		response.ErrorCode = leaseErrorBusy
-		response.ErrorMessage = "lease already active"
-		return response
-	}
-	s.leaseNextID++
-	lease := serverImportLease{
-		ID:           s.leaseNextID,
-		SubscriberID: subID,
-		BusID:        request.BusID,
-		ClientNonce:  request.ClientNonce,
-		Generation:   s.controlSeq,
-		Expires:      expires,
-	}
-	s.leasesByBusID[lease.BusID] = lease
-	response.LeaseID = lease.ID
-	response.Generation = lease.Generation
-	response.TTLMillis = int64(importLeaseTTL / time.Millisecond)
-	return response
+	generation := s.controlSeq
+	s.controlAccess.Unlock()
+	return s.leases.Issue(subID, generation, request, func() (bool, string) {
+		return s.leaseAvailable(request.BusID)
+	})
 }
 
 func (s *ServerService) consumeImportLease(request ImportExtRequest) bool {
-	now := time.Now()
 	s.controlAccess.Lock()
 	defer s.controlAccess.Unlock()
-	s.cleanupExpiredImportLeasesLocked(now)
-	lease, ok := s.leasesByBusID[request.BusID]
-	if !ok {
-		return false
-	}
-	if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
-		return false
-	}
-	delete(s.leasesByBusID, request.BusID)
-	return now.Before(lease.Expires) && lease.Generation == s.controlSeq
-}
-
-func (s *ServerService) cleanupExpiredImportLeasesLocked(now time.Time) {
-	for busid, lease := range s.leasesByBusID {
-		if now.Before(lease.Expires) {
-			continue
-		}
-		delete(s.leasesByBusID, busid)
-	}
-}
-
-func (s *ServerService) deleteImportLeasesForSubscriberLocked(subID uint64) {
-	for busid, lease := range s.leasesByBusID {
-		if lease.SubscriberID != subID {
-			continue
-		}
-		delete(s.leasesByBusID, busid)
-	}
+	return s.leases.Consume(s.controlSeq, request)
 }
 
 func (s *ServerService) currentControlSequence() uint64 {

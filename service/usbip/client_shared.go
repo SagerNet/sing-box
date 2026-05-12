@@ -37,23 +37,20 @@ type clientBusIDWorker struct {
 }
 
 func (c *ClientService) initializeWorkers() {
-	targets := c.buildTargets()
-	c.stateAccess.Lock()
-	c.targets = targets
-	if len(c.matches) == 0 {
-		c.stateAccess.Unlock()
+	if !c.assignment.Matched() {
 		return
 	}
-	c.assigned = make([]string, len(targets))
-	c.assignedWorkers = make([]*clientAssignedWorker, len(targets))
+	targets := c.assignment.Targets()
+	workers := make([]*clientAssignedWorker, len(targets))
 	for i, target := range targets {
-		c.assignedWorkers[i] = &clientAssignedWorker{
+		workers[i] = &clientAssignedWorker{
 			target:  target,
 			updates: make(chan string, 1),
 		}
 	}
-	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
-	c.stateAccess.Unlock()
+	c.workerAccess.Lock()
+	c.assignedWorkers = workers
+	c.workerAccess.Unlock()
 
 	for _, worker := range workers {
 		c.wg.Add(1)
@@ -243,7 +240,7 @@ func (c *ClientService) syncRemoteStateContext(ctx context.Context) error {
 }
 
 func (c *ClientService) applyRemoteEntries(entries []DeviceEntry) {
-	if len(c.matches) == 0 {
+	if !c.assignment.Matched() {
 		c.applyRemoteExports(entries)
 		return
 	}
@@ -252,7 +249,7 @@ func (c *ClientService) applyRemoteEntries(entries []DeviceEntry) {
 
 func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
 	availableEntries := deviceInfoV2ToEntries(devices, true)
-	if len(c.matches) == 0 {
+	if !c.assignment.Matched() {
 		c.applyRemoteExports(availableEntries)
 		return
 	}
@@ -267,90 +264,43 @@ func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
 }
 
 func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
-	desired := make(map[string]struct{}, len(entries))
-	for i := range entries {
-		busid := entries[i].Info.BusIDString()
-		if busid == "" {
-			continue
-		}
-		desired[busid] = struct{}{}
-	}
+	start, stop := c.assignment.ApplyAll(entries)
 
-	c.stateAccess.Lock()
-	c.allDesired = desired
-	stopWorkers := make([]*clientBusIDWorker, 0)
-	for busid, worker := range c.allWorkers {
-		if _, ok := desired[busid]; ok {
-			continue
-		}
-		if c.isBusIDActive(busid) {
+	c.workerAccess.Lock()
+	stopWorkers := make([]*clientBusIDWorker, 0, len(stop))
+	for _, busid := range stop {
+		worker, ok := c.allWorkers[busid]
+		if !ok {
 			continue
 		}
 		stopWorkers = append(stopWorkers, worker)
 		delete(c.allWorkers, busid)
 	}
-	startBusIDs := make([]string, 0)
-	for busid := range desired {
-		if _, ok := c.allWorkers[busid]; ok {
-			continue
-		}
-		startBusIDs = append(startBusIDs, busid)
-	}
-	c.stateAccess.Unlock()
+	c.workerAccess.Unlock()
 
 	for _, worker := range stopWorkers {
 		worker.cancel()
 	}
-	slices.Sort(startBusIDs)
-	for _, busid := range startBusIDs {
+	slices.Sort(start)
+	for _, busid := range start {
 		c.startRemoteBusIDWorker(busid, busid)
 	}
 }
 
 func (c *ClientService) applyMatchedExportsWithRetained(entries []DeviceEntry, knownKeys map[string]DeviceKey) {
-	c.stateAccess.Lock()
-	if len(c.targets) == 0 {
-		c.stateAccess.Unlock()
+	next, previous := c.assignment.ApplyMatched(entries, knownKeys)
+	if next == nil {
 		return
 	}
-	assignmentKeys := c.matchedKeysForAssignmentLocked(entries, knownKeys)
-	activeCurrent := c.activeCurrentAssignmentsLocked(c.assigned, assignmentKeys)
-	nextAssigned := assignMatchedBusIDsWithRetained(c.targets, c.assigned, entries, assignmentKeys, activeCurrent)
+	c.workerAccess.Lock()
 	workers := append([]*clientAssignedWorker(nil), c.assignedWorkers...)
-	previous := append([]string(nil), c.assigned...)
-	c.assigned = nextAssigned
-	c.retainMatchedKnownKeysLocked(assignmentKeys, entries, nextAssigned)
-	c.stateAccess.Unlock()
-
+	c.workerAccess.Unlock()
 	for i, worker := range workers {
-		if previous[i] == nextAssigned[i] {
+		if previous[i] == next[i] {
 			continue
 		}
-		worker.setDesiredBusID(nextAssigned[i])
+		worker.setDesiredBusID(next[i])
 	}
-}
-
-func (c *ClientService) activeCurrentAssignmentsLocked(current []string, knownKeys map[string]DeviceKey) map[string]struct{} {
-	if len(knownKeys) == 0 {
-		return nil
-	}
-	var activeCurrent map[string]struct{}
-	for _, busid := range current {
-		if busid == "" {
-			continue
-		}
-		if _, ok := knownKeys[busid]; !ok {
-			continue
-		}
-		if !c.isBusIDActive(busid) {
-			continue
-		}
-		if activeCurrent == nil {
-			activeCurrent = make(map[string]struct{})
-		}
-		activeCurrent[busid] = struct{}{}
-	}
-	return activeCurrent
 }
 
 func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
@@ -417,9 +367,9 @@ func (c *ClientService) startRemoteBusIDWorker(busid, description string) {
 	runCtx, cancel := context.WithCancel(c.ctx)
 	worker := &clientBusIDWorker{cancel: cancel}
 
-	c.stateAccess.Lock()
+	c.workerAccess.Lock()
 	c.allWorkers[busid] = worker
-	c.stateAccess.Unlock()
+	c.workerAccess.Unlock()
 
 	c.wg.Add(1)
 	go func() {
@@ -429,37 +379,19 @@ func (c *ClientService) startRemoteBusIDWorker(busid, description string) {
 }
 
 func (c *ClientService) stopAllWorkers() {
-	c.stateAccess.Lock()
+	c.assignment.ClearRegistered()
+
+	c.workerAccess.Lock()
 	workers := make([]*clientBusIDWorker, 0, len(c.allWorkers))
 	for _, worker := range c.allWorkers {
 		workers = append(workers, worker)
 	}
 	c.allWorkers = make(map[string]*clientBusIDWorker)
-	c.stateAccess.Unlock()
+	c.workerAccess.Unlock()
 
 	for _, worker := range workers {
 		worker.cancel()
 	}
-}
-
-func (c *ClientService) buildTargets() []clientTarget {
-	if len(c.matches) == 0 {
-		return nil
-	}
-	seenFixed := make(map[string]struct{})
-	targets := make([]clientTarget, 0, len(c.matches))
-	for _, m := range c.matches {
-		if isBusIDOnlyMatch(m) {
-			if _, seen := seenFixed[m.BusID]; seen {
-				continue
-			}
-			seenFixed[m.BusID] = struct{}{}
-			targets = append(targets, clientTarget{fixedBusID: m.BusID})
-			continue
-		}
-		targets = append(targets, clientTarget{match: m})
-	}
-	return targets
 }
 
 func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error) {
@@ -489,27 +421,15 @@ func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error)
 }
 
 func (c *ClientService) setBusIDActive(busid string, active bool) {
-	c.activeAccess.Lock()
-	defer c.activeAccess.Unlock()
-	if c.activeBusIDs == nil {
-		c.activeBusIDs = make(map[string]struct{})
-	}
-	if active {
-		c.activeBusIDs[busid] = struct{}{}
-	} else {
-		delete(c.activeBusIDs, busid)
-	}
+	c.assignment.SetActive(busid, active)
 }
 
 func (c *ClientService) isBusIDActive(busid string) bool {
-	c.activeAccess.Lock()
-	defer c.activeAccess.Unlock()
-	_, exists := c.activeBusIDs[busid]
-	return exists
+	return c.assignment.IsActive(busid)
 }
 
 func (c *ClientService) shouldRetryBusID(ctx context.Context, busid string) bool {
-	if len(c.matches) != 0 {
+	if c.assignment.Matched() {
 		return true
 	}
 	err := c.syncRemoteStateContext(ctx)
@@ -517,17 +437,5 @@ func (c *ClientService) shouldRetryBusID(ctx context.Context, busid string) bool
 		c.logger.Warn("refresh remote exports after releasing ", busid, ": ", err)
 		return true
 	}
-	return c.isBusIDRetryDesired(busid)
-}
-
-func (c *ClientService) isBusIDRetryDesired(busid string) bool {
-	c.stateAccess.Lock()
-	defer c.stateAccess.Unlock()
-	if _, registered := c.allWorkers[busid]; !registered {
-		return false
-	}
-	if _, desired := c.allDesired[busid]; desired {
-		return true
-	}
-	return false
+	return c.assignment.IsRetryDesired(busid)
 }

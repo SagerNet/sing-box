@@ -55,8 +55,10 @@ func (l *ueventListener) WaitUSBEvent() error {
 	}
 }
 
-var usbSubsystemMarker = []byte("\x00SUBSYSTEM=usb\x00")
-var usbDeviceTypeMarker = []byte("\x00DEVTYPE=usb_device\x00")
+var (
+	usbSubsystemMarker  = []byte("\x00SUBSYSTEM=usb\x00")
+	usbDeviceTypeMarker = []byte("\x00DEVTYPE=usb_device\x00")
+)
 
 func isUSBDeviceUEvent(raw []byte) bool {
 	return bytes.Contains(raw, usbSubsystemMarker) && bytes.Contains(raw, usbDeviceTypeMarker)

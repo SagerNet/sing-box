@@ -47,20 +47,19 @@ func TestClientStandardSessionPollsDevList(t *testing.T) {
 		})
 	}()
 
-	target := clientTarget{fixedBusID: "1-1"}
+	matches := []option.USBIPDeviceMatch{{BusID: "1-1"}}
+	assignment := newClientAssignment(matches)
+	target := assignment.Targets()[0]
 	worker := &clientAssignedWorker{target: target, updates: make(chan string, 1)}
 	client := &ClientService{
 		ctx:             ctx,
 		logger:          log.NewNOPFactory().NewLogger("usbip"),
 		dialer:          standardTestDialer{},
 		serverAddr:      standardTestSocksaddr(listener.Addr()),
-		matches:         []option.USBIPDeviceMatch{{BusID: "1-1"}},
-		targets:         []clientTarget{target},
-		assigned:        []string{""},
+		matches:         matches,
+		assignment:      assignment,
 		assignedWorkers: []*clientAssignedWorker{worker},
 		allWorkers:      make(map[string]*clientBusIDWorker),
-		allDesired:      make(map[string]struct{}),
-		activeBusIDs:    make(map[string]struct{}),
 	}
 
 	sessionErr := make(chan error, 1)
@@ -107,35 +106,22 @@ func TestClientStandardMatchedAssignmentSurvivesHiddenActiveDevice(t *testing.T)
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			worker := &clientAssignedWorker{target: test.target, updates: make(chan string, 2)}
-			client := &ClientService{
-				matches:         []option.USBIPDeviceMatch{test.match},
-				targets:         []clientTarget{test.target},
-				assigned:        []string{"1-1"},
-				assignedWorkers: []*clientAssignedWorker{worker},
-				activeBusIDs:    map[string]struct{}{"1-1": {}},
-			}
+			assignment := newClientAssignment([]option.USBIPDeviceMatch{test.match})
+			assignment.assigned = []string{"1-1"}
+			assignment.SetActive("1-1", true)
 
-			client.applyMatchedExportsWithRetained([]DeviceEntry{entry}, nil)
-			require.Equal(t, []string{"1-1"}, client.assigned)
-			select {
-			case update := <-worker.updates:
-				t.Fatalf("unexpected assignment update %q", update)
-			default:
-			}
+			next, prev := assignment.ApplyMatched([]DeviceEntry{entry}, nil)
+			require.Equal(t, []string{"1-1"}, next)
+			require.Equal(t, []string{"1-1"}, prev)
 
-			client.applyMatchedExportsWithRetained(nil, nil)
-			require.Equal(t, []string{"1-1"}, client.assigned)
-			select {
-			case update := <-worker.updates:
-				t.Fatalf("unexpected assignment update %q", update)
-			default:
-			}
+			next, prev = assignment.ApplyMatched(nil, nil)
+			require.Equal(t, []string{"1-1"}, next)
+			require.Equal(t, []string{"1-1"}, prev)
 
-			client.setBusIDActive("1-1", false)
-			client.applyMatchedExportsWithRetained(nil, nil)
-			require.Equal(t, []string{""}, client.assigned)
-			require.Equal(t, "", <-worker.updates)
+			assignment.SetActive("1-1", false)
+			next, prev = assignment.ApplyMatched(nil, nil)
+			require.Equal(t, []string{""}, next)
+			require.Equal(t, []string{"1-1"}, prev)
 		})
 	}
 }

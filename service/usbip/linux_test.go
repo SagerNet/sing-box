@@ -22,6 +22,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
@@ -293,6 +294,105 @@ func newTestUSBIPOps(t *testing.T) usbipOps {
 	}
 }
 
+func newTestLinuxExportHost(t *testing.T, matches []option.USBIPDeviceMatch, ops usbipOps) *linuxExportHost {
+	t.Helper()
+	return newLinuxExportHost(newTestLogger(t), matches, ops)
+}
+
+func newTestLinuxImportHost(t *testing.T, ops usbipOps) *linuxImportHost {
+	t.Helper()
+	return newLinuxImportHost(newTestLogger(t), ops)
+}
+
+func newTestServerServiceWithHost(t *testing.T, ctx context.Context, cancel context.CancelFunc, host ExportHost, matches []option.USBIPDeviceMatch) *ServerService {
+	t.Helper()
+	return &ServerService{
+		ctx:          ctx,
+		cancel:       cancel,
+		logger:       newTestLogger(t),
+		matches:      matches,
+		host:         host,
+		exports:      make(map[string]Export),
+		busy:         make(map[string]bool),
+		controlSubs:  make(map[uint64]*serverControlConn),
+		controlState: make(map[string]DeviceInfoV2),
+		leases:       NewLeaseManager(importLeaseTTL, time.Now),
+	}
+}
+
+// linuxExportSnapshotEntry is a comparable snapshot of linuxExport state
+// used in tests, capturing only the fields that vary between cases.
+type linuxExportSnapshotEntry struct {
+	busid          string
+	managed        bool
+	originalDriver string
+}
+
+func linuxExportSnapshot(host *linuxExportHost) map[string]linuxExportSnapshotEntry {
+	host.access.Lock()
+	defer host.access.Unlock()
+	out := make(map[string]linuxExportSnapshotEntry, len(host.exports))
+	for busid, exp := range host.exports {
+		out[busid] = linuxExportSnapshotEntry{
+			busid:          exp.busid,
+			managed:        exp.managed,
+			originalDriver: exp.originalDriver,
+		}
+	}
+	return out
+}
+
+func setLinuxExport(host *linuxExportHost, exp *linuxExport) {
+	host.access.Lock()
+	defer host.access.Unlock()
+	host.exports[exp.busid] = exp
+}
+
+func newTestServerExport(store *testDeviceStore, busid string, ops usbipOps, logger log.ContextLogger) *linuxExport {
+	dev, _ := store.readSysfsDevice(busid, sysBusDevicePath(busid))
+	return &linuxExport{busid: busid, descriptor: dev, ops: ops, logger: logger}
+}
+
+func deleteLinuxExport(host *linuxExportHost, busid string) {
+	host.access.Lock()
+	defer host.access.Unlock()
+	delete(host.exports, busid)
+}
+
+func serverInsertExport(server *ServerService, exp Export) {
+	server.access.Lock()
+	defer server.access.Unlock()
+	server.exports[exp.BusID()] = exp
+}
+
+func serverDeleteExport(server *ServerService, busid string) {
+	server.access.Lock()
+	defer server.access.Unlock()
+	delete(server.exports, busid)
+}
+
+func attachedLinuxSession(t *testing.T, session AttachedSession) *linuxClientSession {
+	t.Helper()
+	require.NotNil(t, session)
+	linuxSession, ok := session.(*linuxClientSession)
+	require.True(t, ok, "expected *linuxClientSession, got %T", session)
+	return linuxSession
+}
+
+func newTestLinuxClientService(t *testing.T, ctx context.Context, cancel context.CancelFunc, host *linuxImportHost, dialer N.Dialer, serverAddr M.Socksaddr) *ClientService {
+	t.Helper()
+	return &ClientService{
+		ctx:        ctx,
+		cancel:     cancel,
+		logger:     newTestLogger(t),
+		dialer:     dialer,
+		serverAddr: serverAddr,
+		host:       host,
+		assignment: newClientAssignment(nil),
+		allWorkers: make(map[string]*clientBusIDWorker),
+	}
+}
+
 func newTestLogger(t testing.TB) log.ContextLogger {
 	t.Helper()
 	writer := new(testLogWriter)
@@ -392,7 +492,7 @@ func linuxServerControlState(server *ServerService, busid string) string {
 	return server.controlState[busid].State
 }
 
-func duplicateHandoffKernelConn(t *testing.T, handoff *usbipConnHandoff) net.Conn {
+func duplicateHandoffKernelConn(t *testing.T, handoff *kernelHandoffSession) net.Conn {
 	t.Helper()
 
 	conn := duplicateConnFromFD(t, handoff.kernelFD(), "usbip-test-kernel")
@@ -567,32 +667,35 @@ func newTestUSBGadget(t *testing.T) *testUSBGadget {
 func TestBuildTargetsDedupesFixedBusID(t *testing.T) {
 	t.Parallel()
 
-	client := &ClientService{
-		matches: []option.USBIPDeviceMatch{
-			{BusID: "1-1"},
-			{VendorID: 0x1d6b, ProductID: 0x0002},
-			{BusID: "1-1"},
-			{BusID: "1-2"},
-		},
+	matches := []option.USBIPDeviceMatch{
+		{BusID: "1-1"},
+		{VendorID: 0x1d6b, ProductID: 0x0002},
+		{BusID: "1-1"},
+		{BusID: "1-2"},
 	}
+	assignment := newClientAssignment(matches)
 
 	require.Equal(t, []clientTarget{
 		{fixedBusID: "1-1"},
 		{match: option.USBIPDeviceMatch{VendorID: 0x1d6b, ProductID: 0x0002}},
 		{fixedBusID: "1-2"},
-	}, client.buildTargets())
+	}, assignment.Targets())
 }
 
 func TestClientApplyRemoteExportsKeepsActiveBusIDWorker(t *testing.T) {
 	t.Parallel()
 
 	canceled := false
+	assignment := newClientAssignment(nil)
+	assignment.registered = map[string]struct{}{"1-1": {}}
+	assignment.SetActive("1-1", true)
+
 	client := &ClientService{
-		ctx:          context.Background(),
-		logger:       newTestLogger(t),
-		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
-		activeBusIDs: map[string]struct{}{"1-1": {}},
-		ops:          newTestUSBIPOps(t),
+		ctx:        context.Background(),
+		logger:     newTestLogger(t),
+		assignment: assignment,
+		allWorkers: map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
+		host:       newTestLinuxImportHost(t, newTestUSBIPOps(t)),
 	}
 
 	client.applyRemoteExports(nil)
@@ -616,17 +719,18 @@ func TestClientApplyControlDeviceStateKeepsActiveMatchedBusyBusID(t *testing.T) 
 	busyDevice := deviceInfoV2FromEntry(device.toDeviceEntry(), "linux-sysfs", "linux-busid:1-1", deviceStateBusy, usbipStatusUsed, "used")
 
 	worker := &clientAssignedWorker{target: target, updates: make(chan string, 1)}
+	assignment := newClientAssignment([]option.USBIPDeviceMatch{match})
+	assignment.assigned = []string{"1-1"}
+	assignment.SetActive("1-1", true)
 	client := &ClientService{
 		matches:         []option.USBIPDeviceMatch{match},
-		targets:         []clientTarget{target},
-		assigned:        []string{"1-1"},
+		assignment:      assignment,
 		assignedWorkers: []*clientAssignedWorker{worker},
-		activeBusIDs:    map[string]struct{}{"1-1": {}},
 	}
 
 	client.applyRemoteDeviceState([]DeviceInfoV2{busyDevice})
 
-	require.Equal(t, []string{"1-1"}, client.assigned)
+	require.Equal(t, []string{"1-1"}, assignment.assigned)
 	select {
 	case update := <-worker.updates:
 		t.Fatalf("unexpected assignment update %q", update)
@@ -634,17 +738,17 @@ func TestClientApplyControlDeviceStateKeepsActiveMatchedBusyBusID(t *testing.T) 
 	}
 
 	idleWorker := &clientAssignedWorker{target: target, updates: make(chan string, 1)}
+	idleAssignment := newClientAssignment([]option.USBIPDeviceMatch{match})
+	idleAssignment.assigned = []string{""}
 	idleClient := &ClientService{
 		matches:         []option.USBIPDeviceMatch{match},
-		targets:         []clientTarget{target},
-		assigned:        []string{""},
+		assignment:      idleAssignment,
 		assignedWorkers: []*clientAssignedWorker{idleWorker},
-		activeBusIDs:    make(map[string]struct{}),
 	}
 
 	idleClient.applyRemoteDeviceState([]DeviceInfoV2{busyDevice})
 
-	require.Equal(t, []string{""}, idleClient.assigned)
+	require.Equal(t, []string{""}, idleAssignment.assigned)
 	select {
 	case update := <-idleWorker.updates:
 		t.Fatalf("unexpected assignment update %q", update)
@@ -658,33 +762,29 @@ func TestClientShouldRetryBusIDRefreshesImportAllState(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(t),
-		exports:     make(map[string]serverExport),
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         newTestUSBIPOps(t),
-	}
+	host := newTestLinuxExportHost(t, nil, newTestUSBIPOps(t))
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
 	canceled := false
+	assignment := newClientAssignment(nil)
+	assignment.registered = map[string]struct{}{"1-1": {}}
+	assignment.allDesired = map[string]struct{}{"1-1": {}}
 	client := &ClientService{
-		ctx:          context.Background(),
-		logger:       newTestLogger(t),
-		dialer:       testDialer{},
-		serverAddr:   serverAddr,
-		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
-		allDesired:   map[string]struct{}{"1-1": {}},
-		activeBusIDs: make(map[string]struct{}),
-		ops:          newTestUSBIPOps(t),
+		ctx:        context.Background(),
+		logger:     newTestLogger(t),
+		dialer:     testDialer{},
+		serverAddr: serverAddr,
+		assignment: assignment,
+		allWorkers: map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
+		host:       newTestLinuxImportHost(t, newTestUSBIPOps(t)),
 	}
 
 	require.False(t, client.shouldRetryBusID(context.Background(), "1-1"))
 	require.True(t, canceled)
 	require.NotContains(t, client.allWorkers, "1-1")
-	require.Empty(t, client.allDesired)
+	require.False(t, assignment.IsRetryDesired("1-1"))
 }
 
 func TestClientShouldRetryBusIDKeepsRetryOnRefreshFailure(t *testing.T) {
@@ -692,21 +792,23 @@ func TestClientShouldRetryBusIDKeepsRetryOnRefreshFailure(t *testing.T) {
 
 	expectedErr := errors.New("devlist unavailable")
 	canceled := false
+	assignment := newClientAssignment(nil)
+	assignment.registered = map[string]struct{}{"1-1": {}}
+	assignment.allDesired = map[string]struct{}{"1-1": {}}
 	client := &ClientService{
-		ctx:          context.Background(),
-		logger:       newTestLogger(t),
-		dialer:       failingDialer{err: expectedErr},
-		serverAddr:   M.ParseSocksaddrHostPort("127.0.0.1", 3240),
-		allWorkers:   map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
-		allDesired:   map[string]struct{}{"1-1": {}},
-		activeBusIDs: make(map[string]struct{}),
-		ops:          newTestUSBIPOps(t),
+		ctx:        context.Background(),
+		logger:     newTestLogger(t),
+		dialer:     failingDialer{err: expectedErr},
+		serverAddr: M.ParseSocksaddrHostPort("127.0.0.1", 3240),
+		assignment: assignment,
+		allWorkers: map[string]*clientBusIDWorker{"1-1": {cancel: func() { canceled = true }}},
+		host:       newTestLinuxImportHost(t, newTestUSBIPOps(t)),
 	}
 
 	require.True(t, client.shouldRetryBusID(context.Background(), "1-1"))
 	require.False(t, canceled)
 	require.Contains(t, client.allWorkers, "1-1")
-	require.Contains(t, client.allDesired, "1-1")
+	require.True(t, assignment.IsRetryDesired("1-1"))
 }
 
 func TestAssignMatchedBusIDs(t *testing.T) {
@@ -776,20 +878,20 @@ func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
 	acceptedConn := <-accepted
 	defer acceptedConn.Close()
 
-	handoff, err := newUSBIPConnHandoff(conn)
+	handoff, err := newKernelHandoffSession(conn)
 	require.NoError(t, err)
 	defer handoff.Close()
 
 	require.False(t, handoff.relay())
 	require.Equal(t, "direct", handoff.mode())
 	requireStreamSocketFD(t, handoff.kernelFD())
-	done := handoff.startRelay(context.Background(), newTestLogger(t), "test", "direct")
+	handoff.Start(context.Background(), newTestLogger(t), "test", "direct")
 
 	_, err = conn.Write([]byte("closed"))
 	require.Error(t, err)
 	require.NoError(t, acceptedConn.Close())
 	select {
-	case <-done:
+	case <-handoff.Done():
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for direct handoff monitor")
 	}
@@ -800,7 +902,7 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 
 	left, right := net.Pipe()
 	defer right.Close()
-	handoff, err := newUSBIPConnHandoff(opaqueConn{Conn: left})
+	handoff, err := newKernelHandoffSession(opaqueConn{Conn: left})
 	require.NoError(t, err)
 	defer handoff.Close()
 	require.True(t, handoff.relay())
@@ -814,7 +916,7 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	done := handoff.startRelay(ctx, newTestLogger(t), "test", "relay")
+	handoff.Start(ctx, newTestLogger(t), "test", "relay")
 
 	_, err = right.Write([]byte("ping"))
 	require.NoError(t, err)
@@ -827,7 +929,7 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 	require.NoError(t, right.Close())
 	require.NoError(t, kernelConn.Close())
 	select {
-	case <-done:
+	case <-handoff.Done():
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for relay handoff")
 	}
@@ -837,15 +939,12 @@ func TestServerStartRequiresHostDriver(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("host driver unavailable")
-	server := &ServerService{
-		ctx:         context.Background(),
-		logger:      newTestLogger(t),
-		exports:     make(map[string]serverExport),
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops: usbipOps{
-			ensureHostDriver: func() error { return expectedErr },
-		},
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	host := newTestLinuxExportHost(t, nil, usbipOps{
+		ensureHostDriver: func() error { return expectedErr },
+	})
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
 
 	err := server.Start(adapter.StartStateStart)
 	require.ErrorIs(t, err, expectedErr)
@@ -858,9 +957,11 @@ func TestClientStartRequiresVHCI(t *testing.T) {
 	client := &ClientService{
 		ctx:    context.Background(),
 		logger: newTestLogger(t),
-		ops: usbipOps{
+		host: newTestLinuxImportHost(t, usbipOps{
 			ensureVHCI: func() error { return expectedErr },
-		},
+		}),
+		assignment: newClientAssignment(nil),
+		allWorkers: make(map[string]*clientBusIDWorker),
 	}
 
 	err := client.Start(adapter.StartStateStart)
@@ -900,16 +1001,9 @@ func TestServerReconcileExportsBindsMatchesAndSkipsHub(t *testing.T) {
 		return nil
 	}
 
-	server := &ServerService{
-		ctx:         context.Background(),
-		logger:      newTestLogger(t),
-		matches:     []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}},
-		exports:     make(map[string]serverExport),
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         ops,
-	}
+	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}}, ops)
 
-	changed, err := server.reconcileExports()
+	_, _, changed, err := host.Reconcile(context.Background(), func(string) bool { return false })
 	require.NoError(t, err)
 	require.True(t, changed)
 	require.Equal(t, []string{
@@ -917,13 +1011,13 @@ func TestServerReconcileExportsBindsMatchesAndSkipsHub(t *testing.T) {
 		"match 1-1 add",
 		"hostbind 1-1",
 	}, actions)
-	require.Equal(t, map[string]serverExport{
+	require.Equal(t, map[string]linuxExportSnapshotEntry{
 		"1-1": {
 			busid:          "1-1",
 			managed:        true,
 			originalDriver: "usbhid",
 		},
-	}, server.snapshotExports())
+	}, linuxExportSnapshot(host))
 }
 
 func TestServerBindOneRetriesAfterStaleHostMatch(t *testing.T) {
@@ -961,15 +1055,11 @@ func TestServerBindOneRetriesAfterStaleHostMatch(t *testing.T) {
 		return nil
 	}
 
-	server := &ServerService{
-		ctx:         context.Background(),
-		logger:      newTestLogger(t),
-		exports:     make(map[string]serverExport),
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         ops,
-	}
+	host := newTestLinuxExportHost(t, nil, ops)
 
-	require.NoError(t, server.bindOne(&device))
+	exp, err := host.bindOne(&device)
+	require.NoError(t, err)
+	setLinuxExport(host, exp)
 	require.Equal(t, []string{
 		"unbind 1-1 usb",
 		"match 1-1 add",
@@ -981,13 +1071,13 @@ func TestServerBindOneRetriesAfterStaleHostMatch(t *testing.T) {
 		"match 1-1 add",
 		"hostbind 1-1",
 	}, actions)
-	require.Equal(t, map[string]serverExport{
+	require.Equal(t, map[string]linuxExportSnapshotEntry{
 		"1-1": {
 			busid:          "1-1",
 			managed:        true,
 			originalDriver: "usb",
 		},
-	}, server.snapshotExports())
+	}, linuxExportSnapshot(host))
 }
 
 func TestServerReconcileExportsSkipsVHCIDevices(t *testing.T) {
@@ -1017,16 +1107,9 @@ func TestServerReconcileExportsSkipsVHCIDevices(t *testing.T) {
 		return nil
 	}
 
-	server := &ServerService{
-		ctx:         context.Background(),
-		logger:      newTestLogger(t),
-		matches:     []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}},
-		exports:     make(map[string]serverExport),
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         ops,
-	}
+	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}}, ops)
 
-	changed, err := server.reconcileExports()
+	_, _, changed, err := host.Reconcile(context.Background(), func(string) bool { return false })
 	require.NoError(t, err)
 	require.True(t, changed)
 	require.Equal(t, []string{
@@ -1034,13 +1117,13 @@ func TestServerReconcileExportsSkipsVHCIDevices(t *testing.T) {
 		"match 1-1",
 		"bind 1-1",
 	}, bound)
-	require.Equal(t, map[string]serverExport{
+	require.Equal(t, map[string]linuxExportSnapshotEntry{
 		"1-1": {
 			busid:          "1-1",
 			managed:        true,
 			originalDriver: "usb",
 		},
-	}, server.snapshotExports())
+	}, linuxExportSnapshot(host))
 }
 
 func TestServerReconcileExportsReleasesRemovedExports(t *testing.T) {
@@ -1072,17 +1155,13 @@ func TestServerReconcileExportsReleasesRemovedExports(t *testing.T) {
 	}
 	ops.readSysfsDevice = store.readSysfsDevice
 
-	server := &ServerService{
-		ctx:     context.Background(),
-		logger:  newTestLogger(t),
-		exports: map[string]serverExport{"1-1": {busid: "1-1", managed: true, originalDriver: "usbhid"}},
-		ops:     ops,
-	}
+	host := newTestLinuxExportHost(t, nil, ops)
+	setLinuxExport(host, &linuxExport{busid: "1-1", managed: true, originalDriver: "usbhid", ops: ops, logger: host.logger})
 
-	changed, err := server.reconcileExports()
+	_, _, changed, err := host.Reconcile(context.Background(), func(string) bool { return false })
 	require.NoError(t, err)
 	require.True(t, changed)
-	require.Empty(t, server.snapshotExports())
+	require.Empty(t, linuxExportSnapshot(host))
 	require.Equal(t, []string{
 		"sockfd 1-1",
 		"hostunbind 1-1",
@@ -1101,27 +1180,19 @@ func TestServerReleaseExportLeavesCooptedSocketUntouched(t *testing.T) {
 		return nil
 	}
 
-	server := &ServerService{
-		logger:  newTestLogger(t),
-		exports: map[string]serverExport{"1-1": {busid: "1-1"}},
-		ops:     ops,
-	}
+	host := newTestLinuxExportHost(t, nil, ops)
+	exp := &linuxExport{busid: "1-1", ops: ops, logger: host.logger}
+	setLinuxExport(host, exp)
 
-	err := server.releaseExport(serverExport{busid: "1-1"}, true)
+	err := host.releaseExport(exp, true)
 	require.NoError(t, err)
 	require.Empty(t, calls)
-	require.Empty(t, server.snapshotExports())
 }
 
 func TestServerReleaseExportRetainsTrackingOnFailure(t *testing.T) {
 	t.Parallel()
 
 	expectedErr := errors.New("host unbind failed")
-	export := serverExport{
-		busid:          "1-1",
-		managed:        true,
-		originalDriver: "usbhid",
-	}
 
 	ops := newTestUSBIPOps(t)
 	ops.readUsbipStatus = func(string) (int, error) {
@@ -1140,15 +1211,21 @@ func TestServerReleaseExportRetainsTrackingOnFailure(t *testing.T) {
 		return nil
 	}
 
-	server := &ServerService{
-		logger:  newTestLogger(t),
-		exports: map[string]serverExport{"1-1": export},
-		ops:     ops,
+	host := newTestLinuxExportHost(t, nil, ops)
+	exp := &linuxExport{
+		busid:          "1-1",
+		managed:        true,
+		originalDriver: "usbhid",
+		ops:            ops,
+		logger:         host.logger,
 	}
+	setLinuxExport(host, exp)
 
-	err := server.releaseExport(export, true)
+	err := host.releaseExport(exp, true)
 	require.ErrorIs(t, err, expectedErr)
-	require.Equal(t, map[string]serverExport{"1-1": export}, server.snapshotExports())
+	require.Equal(t, map[string]linuxExportSnapshotEntry{
+		"1-1": {busid: "1-1", managed: true, originalDriver: "usbhid"},
+	}, linuxExportSnapshot(host))
 }
 
 func TestServerCloseSerializesRollbackWithActiveReconcile(t *testing.T) {
@@ -1200,16 +1277,8 @@ func TestServerCloseSerializesRollbackWithActiveReconcile(t *testing.T) {
 		record("hostunbind " + busid)
 		return nil
 	}
-	server := &ServerService{
-		ctx:          ctx,
-		cancel:       cancel,
-		logger:       newTestLogger(t),
-		matches:      []option.USBIPDeviceMatch{{BusID: "1-1"}},
-		exports:      make(map[string]serverExport),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		ops:          ops,
-	}
+	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{BusID: "1-1"}}, ops)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, []option.USBIPDeviceMatch{{BusID: "1-1"}})
 
 	go func() {
 		reconcileDone <- server.reconcileAndBroadcast(true)
@@ -1245,7 +1314,7 @@ func TestServerCloseSerializesRollbackWithActiveReconcile(t *testing.T) {
 		"hostunbind 1-1",
 		"match del 1-1",
 	}, actions)
-	require.Empty(t, server.snapshotExports())
+	require.Empty(t, linuxExportSnapshot(host))
 }
 
 func TestServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
@@ -1253,15 +1322,8 @@ func TestServerReconcileAndBroadcastSkipsAfterCancel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	ops := newTestUSBIPOps(t)
-	server := &ServerService{
-		ctx:          ctx,
-		logger:       newTestLogger(t),
-		exports:      make(map[string]serverExport),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		ops:          ops,
-	}
+	host := newTestLinuxExportHost(t, nil, newTestUSBIPOps(t))
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
 
 	require.NoError(t, server.reconcileAndBroadcast(true))
 }
@@ -1303,18 +1365,11 @@ func TestServerUEventLoopReconcilesWhenListenerStarts(t *testing.T) {
 	ops.readUsbipStatus = store.readUsbipStatus
 	ops.readSysfsDevice = store.readSysfsDevice
 
-	server := &ServerService{
-		ctx:          ctx,
-		logger:       newTestLogger(t),
-		matches:      []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}},
-		exports:      make(map[string]serverExport),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		ops:          ops,
-	}
+	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}}, ops)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, []option.USBIPDeviceMatch{{VendorID: 0x1d6b, ProductID: 0x0002}})
 	go func() {
 		defer close(done)
-		server.ueventLoop()
+		server.eventLoop()
 	}()
 
 	require.Eventually(t, func() bool {
@@ -1323,27 +1378,24 @@ func TestServerUEventLoopReconcilesWhenListenerStarts(t *testing.T) {
 	}, 3*time.Second, 10*time.Millisecond)
 }
 
-func TestServerBuildDevListEntriesFiltersUnavailableAndRefreshFailures(t *testing.T) {
+func TestServerBuildDevListEntriesFiltersUnavailable(t *testing.T) {
 	t.Parallel()
 
 	available := newTestDevice("1-1", 0x1d6b, 0x0002, "ok", SpeedHigh)
-	store := newTestDeviceStore(available)
+	busy := newTestDevice("1-2", 0x1d6b, 0x0003, "busy", SpeedHigh)
+	store := newTestDeviceStore(available, busy)
 	store.setStatus("1-1", usbipStatusAvailable)
 	store.setStatus("1-2", usbipStatusUsed)
-	store.setStatus("1-3", usbipStatusAvailable)
 
 	ops := newTestUSBIPOps(t)
 	ops.readUsbipStatus = store.readUsbipStatus
 	ops.readSysfsDevice = store.readSysfsDevice
 
-	server := &ServerService{
-		logger: newTestLogger(t),
-		exports: map[string]serverExport{
-			"1-1": {busid: "1-1"},
-			"1-2": {busid: "1-2"},
-			"1-3": {busid: "1-3"},
-		},
-		ops: ops,
+	host := newTestLinuxExportHost(t, nil, ops)
+	server := newTestServerServiceWithHost(t, context.Background(), func() {}, host, nil)
+	server.exports = map[string]Export{
+		"1-1": newTestServerExport(store, "1-1", ops, host.logger),
+		"1-2": newTestServerExport(store, "1-2", ops, host.logger),
 	}
 
 	entries := server.buildDevListEntries()
@@ -1397,15 +1449,9 @@ func TestServerHandleImportWithOpaqueConnRelay(t *testing.T) {
 		return nil
 	}
 
-	server := &ServerService{
-		ctx:          ctx,
-		cancel:       cancel,
-		logger:       newTestLogger(t),
-		exports:      map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-		ops:          ops,
-	}
+	host := newTestLinuxExportHost(t, nil, ops)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
+	serverInsertExport(server, newTestServerExport(store, "1-1", ops, host.logger))
 
 	serverConn, clientConn := net.Pipe()
 	defer clientConn.Close()
@@ -1482,14 +1528,9 @@ func TestServerHandleImportRelayClosesHandoffOnSockfdFailure(t *testing.T) {
 		return expectedErr
 	}
 
-	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(t),
-		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         ops,
-	}
+	host := newTestLinuxExportHost(t, nil, ops)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
+	serverInsertExport(server, newTestServerExport(store, "1-1", ops, host.logger))
 
 	serverConn, clientConn := net.Pipe()
 	defer clientConn.Close()
@@ -1552,14 +1593,9 @@ func TestServerHandleImportRelayClosesHandoffOnReplyFailure(t *testing.T) {
 		return nil
 	}
 
-	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(t),
-		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         ops,
-	}
+	host := newTestLinuxExportHost(t, nil, ops)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
+	serverInsertExport(server, newTestServerExport(store, "1-1", ops, host.logger))
 
 	serverConn, clientConn := net.Pipe()
 	go server.dispatchConn(opaqueConn{Conn: serverConn})
@@ -1595,14 +1631,8 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(t),
-		exports:     make(map[string]serverExport),
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         newTestUSBIPOps(t),
-	}
+	host := newTestLinuxExportHost(t, nil, newTestUSBIPOps(t))
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -1646,12 +1676,8 @@ func TestServerDispatchConnHandlesControlPingAndChanged(t *testing.T) {
 func TestServerRegisterControlConnQueuesSnapshotBeforeBroadcast(t *testing.T) {
 	t.Parallel()
 
-	server := &ServerService{
-		logger:       newTestLogger(t),
-		exports:      make(map[string]serverExport),
-		controlSubs:  make(map[uint64]*serverControlConn),
-		controlState: make(map[string]DeviceInfoV2),
-	}
+	host := newTestLinuxExportHost(t, nil, newTestUSBIPOps(t))
+	server := newTestServerServiceWithHost(t, context.Background(), func() {}, host, nil)
 	serverConn, clientConn := net.Pipe()
 	defer serverConn.Close()
 	defer clientConn.Close()
@@ -1688,16 +1714,10 @@ func TestServerReconcileBroadcastsStatusOnlyDeviceDelta(t *testing.T) {
 	serverOps.readUsbipStatus = store.readUsbipStatus
 	serverOps.readSysfsDevice = store.readSysfsDevice
 
-	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(t),
-		matches:     []option.USBIPDeviceMatch{{BusID: "1-1"}},
-		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         serverOps,
-	}
-	server.refreshControlState()
+	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{BusID: "1-1"}}, serverOps)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, []option.USBIPDeviceMatch{{BusID: "1-1"}})
+	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
+	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -1766,16 +1786,10 @@ func TestServerControlSnapshotPreservesPendingDelta(t *testing.T) {
 	serverOps.readUsbipStatus = store.readUsbipStatus
 	serverOps.readSysfsDevice = store.readSysfsDevice
 
-	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(t),
-		matches:     []option.USBIPDeviceMatch{{BusID: "1-1"}},
-		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         serverOps,
-	}
-	server.refreshControlState()
+	host := newTestLinuxExportHost(t, []option.USBIPDeviceMatch{{BusID: "1-1"}}, serverOps)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, []option.USBIPDeviceMatch{{BusID: "1-1"}})
+	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
+	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -1835,17 +1849,10 @@ func TestServerControlLeaseEnablesImportExt(t *testing.T) {
 	serverOps.readSysfsDevice = store.readSysfsDevice
 	serverOps.writeUsbipSockfd = store.writeUsbipSockfd
 
-	server := &ServerService{
-		ctx:           ctx,
-		cancel:        cancel,
-		logger:        newTestLogger(t),
-		exports:       map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs:   make(map[uint64]*serverControlConn),
-		controlState:  make(map[string]DeviceInfoV2),
-		leasesByBusID: make(map[string]serverImportLease),
-		ops:           serverOps,
-	}
-	server.refreshControlState()
+	host := newTestLinuxExportHost(t, nil, serverOps)
+	server := newTestServerServiceWithHost(t, ctx, cancel, host, nil)
+	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
+	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -1931,14 +1938,9 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 	serverOps.readSysfsDevice = store.readSysfsDevice
 	serverOps.writeUsbipSockfd = store.writeUsbipSockfd
 
-	server := &ServerService{
-		ctx:         ctx,
-		cancel:      cancel,
-		logger:      newTestLogger(t),
-		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         serverOps,
-	}
+	serverHost := newTestLinuxExportHost(t, nil, serverOps)
+	server := newTestServerServiceWithHost(t, ctx, cancel, serverHost, nil)
+	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, serverHost.logger))
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -1958,19 +1960,12 @@ func TestClientAttemptAttachUsesImportReplyAndVHCIAttach(t *testing.T) {
 		return nil
 	}
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     testDialer{},
-		serverAddr: serverAddr,
-		ops:        clientOps,
-	}
+	client := newTestLinuxClientService(t, ctx, cancel, newTestLinuxImportHost(t, clientOps), testDialer{}, serverAddr)
 
-	port, done, err := client.attemptAttach(ctx, "1-1")
+	session, err := client.attemptAttach(ctx, "1-1")
 	require.NoError(t, err)
-	require.NotNil(t, done)
-	require.Equal(t, 7, port)
+	linuxSession := attachedLinuxSession(t, session)
+	require.Equal(t, 7, linuxSession.port)
 	require.Equal(t, 7, attachedPort)
 	info := device.toProtocol()
 	require.Equal(t, info.DevID(), attachedDevID)
@@ -2089,21 +2084,14 @@ func TestClientAttemptAttachUsesImportExtLease(t *testing.T) {
 		return nil
 	}
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     testDialer{},
-		serverAddr: M.SocksaddrFromNet(listener.Addr()),
-		ops:        ops,
-	}
+	client := newTestLinuxClientService(t, ctx, cancel, newTestLinuxImportHost(t, ops), testDialer{}, M.SocksaddrFromNet(listener.Addr()))
 	client.setControlSession(controlSession)
 	defer client.clearControlSession(controlSession, errClientControlSessionClosed)
 
-	port, done, err := client.attemptAttach(ctx, "1-1")
+	session, err := client.attemptAttach(ctx, "1-1")
 	require.NoError(t, err)
-	require.NotNil(t, done)
-	require.Equal(t, 4, port)
+	linuxSession := attachedLinuxSession(t, session)
+	require.Equal(t, 4, linuxSession.port)
 	require.NoError(t, <-controlErrCh)
 	require.NoError(t, <-deliverErrCh)
 	require.NoError(t, <-serverErrCh)
@@ -2181,19 +2169,12 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 		return nil
 	}
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     wrappingDialer{},
-		serverAddr: M.SocksaddrFromNet(listener.Addr()),
-		ops:        ops,
-	}
+	client := newTestLinuxClientService(t, ctx, cancel, newTestLinuxImportHost(t, ops), wrappingDialer{}, M.SocksaddrFromNet(listener.Addr()))
 
-	port, done, err := client.attemptAttach(ctx, "1-1")
+	session, err := client.attemptAttach(ctx, "1-1")
 	require.NoError(t, err)
-	require.NotNil(t, done)
-	require.Equal(t, 4, port)
+	linuxSession := attachedLinuxSession(t, session)
+	require.Equal(t, 4, linuxSession.port)
 
 	var serverConn net.Conn
 	select {
@@ -2223,7 +2204,7 @@ func TestClientAttemptAttachWithOpaqueConnRelay(t *testing.T) {
 
 	require.NoError(t, kernelConn.Close())
 	select {
-	case <-done:
+	case <-session.Done():
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for client relay handoff")
 	}
@@ -2310,24 +2291,18 @@ func TestClientAttemptAttachRetriesNextPortOnEBUSY(t *testing.T) {
 		return fmt.Errorf("unexpected vhci port %d", port)
 	}
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     wrappingDialer{},
-		serverAddr: M.SocksaddrFromNet(listener.Addr()),
-		ops:        ops,
-	}
+	importHost := newTestLinuxImportHost(t, ops)
+	client := newTestLinuxClientService(t, ctx, cancel, importHost, wrappingDialer{}, M.SocksaddrFromNet(listener.Addr()))
 
-	port, done, err := client.attemptAttach(ctx, "1-1")
+	session, err := client.attemptAttach(ctx, "1-1")
 	require.NoError(t, err)
-	require.NotNil(t, done)
-	require.Equal(t, 5, port)
+	linuxSession := attachedLinuxSession(t, session)
+	require.Equal(t, 5, linuxSession.port)
 	require.Equal(t, []int{4, 5}, attachedPorts)
 	require.Equal(t, 2, pickCalls)
 
 	select {
-	case <-done:
+	case <-session.Done():
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for client relay handoff")
 	}
@@ -2338,10 +2313,10 @@ func TestClientAttemptAttachRetriesNextPortOnEBUSY(t *testing.T) {
 		t.Fatal("timed out waiting for server side close")
 	}
 
-	client.portsAccess.Lock()
-	_, firstReserved := client.ports[4]
-	_, secondReserved := client.ports[5]
-	client.portsAccess.Unlock()
+	importHost.portsAccess.Lock()
+	_, firstReserved := importHost.ports[4]
+	_, secondReserved := importHost.ports[5]
+	importHost.portsAccess.Unlock()
 	require.False(t, firstReserved)
 	require.True(t, secondReserved)
 }
@@ -2419,18 +2394,11 @@ func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) 
 		return expectedErr
 	}
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     wrappingDialer{},
-		serverAddr: M.SocksaddrFromNet(listener.Addr()),
-		ops:        ops,
-	}
+	importHost := newTestLinuxImportHost(t, ops)
+	client := newTestLinuxClientService(t, ctx, cancel, importHost, wrappingDialer{}, M.SocksaddrFromNet(listener.Addr()))
 
-	port, done, err := client.attemptAttach(ctx, "1-1")
-	require.Equal(t, -1, port)
-	require.Nil(t, done)
+	session, err := client.attemptAttach(ctx, "1-1")
+	require.Nil(t, session)
 	require.ErrorIs(t, err, expectedErr)
 
 	var kernelConn net.Conn
@@ -2449,9 +2417,9 @@ func TestClientAttemptAttachRelayClosesHandoffOnVHCIAttachFailure(t *testing.T) 
 	case <-time.After(3 * time.Second):
 		t.Fatal("timed out waiting for server side close")
 	}
-	client.portsAccess.Lock()
-	_, reserved := client.ports[4]
-	client.portsAccess.Unlock()
+	importHost.portsAccess.Lock()
+	_, reserved := importHost.ports[4]
+	importHost.portsAccess.Unlock()
 	require.False(t, reserved)
 }
 
@@ -2498,14 +2466,7 @@ func TestClientFetchDevListRejectsUnexpectedReplyVersion(t *testing.T) {
 		serverErr <- nil
 	}()
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     testDialer{},
-		serverAddr: M.SocksaddrFromNet(listener.Addr()),
-		ops:        newTestUSBIPOps(t),
-	}
+	client := newTestLinuxClientService(t, ctx, cancel, newTestLinuxImportHost(t, newTestUSBIPOps(t)), testDialer{}, M.SocksaddrFromNet(listener.Addr()))
 
 	entries, err := client.fetchDevList(ctx)
 	require.Nil(t, entries)
@@ -2553,14 +2514,7 @@ func TestClientFetchDevListReturnsOnContextCancelWhileServerStalls(t *testing.T)
 		serverErr <- nil
 	}()
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     testDialer{},
-		serverAddr: M.SocksaddrFromNet(listener.Addr()),
-		ops:        newTestUSBIPOps(t),
-	}
+	client := newTestLinuxClientService(t, ctx, cancel, newTestLinuxImportHost(t, newTestUSBIPOps(t)), testDialer{}, M.SocksaddrFromNet(listener.Addr()))
 
 	fetchErr := make(chan error, 1)
 	go func() {
@@ -2616,14 +2570,17 @@ func TestClientSyncRemoteStateAndResetControlStateRebuildsV2Map(t *testing.T) {
 		serverErr <- WriteOpRepDevList(conn, []DeviceEntry{entry})
 	}()
 
+	matches := []option.USBIPDeviceMatch{{BusID: "unused"}}
 	client := &ClientService{
 		ctx:             ctx,
 		cancel:          cancel,
 		logger:          newTestLogger(t),
 		dialer:          testDialer{},
 		serverAddr:      M.SocksaddrFromNet(listener.Addr()),
-		matches:         []option.USBIPDeviceMatch{{BusID: "unused"}},
-		ops:             newTestUSBIPOps(t),
+		matches:         matches,
+		host:            newTestLinuxImportHost(t, newTestUSBIPOps(t)),
+		assignment:      newClientAssignment(matches),
+		allWorkers:      make(map[string]*clientBusIDWorker),
 		remoteDevicesV2: map[string]DeviceInfoV2{"stale": {BusID: "stale", State: deviceStateAvailable}},
 	}
 
@@ -2699,18 +2656,10 @@ func TestClientAttemptAttachRejectsUnexpectedReplyVersion(t *testing.T) {
 		return -1, errors.New("unexpected vhci attach path")
 	}
 
-	client := &ClientService{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     newTestLogger(t),
-		dialer:     testDialer{},
-		serverAddr: M.SocksaddrFromNet(listener.Addr()),
-		ops:        ops,
-	}
+	client := newTestLinuxClientService(t, ctx, cancel, newTestLinuxImportHost(t, ops), testDialer{}, M.SocksaddrFromNet(listener.Addr()))
 
-	port, done, err := client.attemptAttach(ctx, "1-1")
-	require.Equal(t, -1, port)
-	require.Nil(t, done)
+	session, err := client.attemptAttach(ctx, "1-1")
+	require.Nil(t, session)
 	require.ErrorContains(t, err, "unexpected reply version")
 	require.NoError(t, <-serverErr)
 }
@@ -2731,15 +2680,10 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	serverOps.readUsbipStatus = store.readUsbipStatus
 	serverOps.readSysfsDevice = store.readSysfsDevice
 
-	server := &ServerService{
-		ctx:         serverCtx,
-		cancel:      serverCancel,
-		logger:      newTestLogger(t),
-		exports:     map[string]serverExport{"1-1": {busid: "1-1"}},
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         serverOps,
-	}
-	server.refreshControlState()
+	host := newTestLinuxExportHost(t, nil, serverOps)
+	server := newTestServerServiceWithHost(t, serverCtx, serverCancel, host, nil)
+	serverInsertExport(server, newTestServerExport(store, "1-1", serverOps, host.logger))
+	server.setControlState(deviceInfoV2Map(server.buildDeviceStateV2()))
 	serverAddr, closeServer := startDispatchServer(t, server)
 	defer closeServer()
 
@@ -2747,6 +2691,7 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	defer clientCancel()
 
 	match := option.USBIPDeviceMatch{VendorID: 0x1d6b, ProductID: 0x0002}
+	assignment := newClientAssignment([]option.USBIPDeviceMatch{match})
 	client := &ClientService{
 		ctx:        clientCtx,
 		cancel:     clientCancel,
@@ -2754,9 +2699,9 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 		dialer:     testDialer{},
 		serverAddr: serverAddr,
 		matches:    []option.USBIPDeviceMatch{match},
-		targets:    []clientTarget{{match: match}},
-		assigned:   make([]string, 1),
-		ops:        newTestUSBIPOps(t),
+		assignment: assignment,
+		host:       newTestLinuxImportHost(t, newTestUSBIPOps(t)),
+		allWorkers: make(map[string]*clientBusIDWorker),
 	}
 
 	errCh := make(chan error, 1)
@@ -2765,20 +2710,20 @@ func TestClientRunControlSessionSyncsAssignmentsOnChanged(t *testing.T) {
 	}()
 
 	require.Eventually(t, func() bool {
-		client.stateAccess.Lock()
-		defer client.stateAccess.Unlock()
-		return client.assigned[0] == "1-1"
+		assignment.access.Lock()
+		defer assignment.access.Unlock()
+		return len(assignment.assigned) > 0 && assignment.assigned[0] == "1-1"
 	}, 3*time.Second, 10*time.Millisecond)
 
 	store.setDevices(updatedDevice)
-	server.deleteExport("1-1")
-	server.setExport(serverExport{busid: "1-2"})
+	serverDeleteExport(server, "1-1")
+	serverInsertExport(server, newTestServerExport(store, "1-2", serverOps, host.logger))
 	server.broadcastControlState(deviceInfoV2Map(server.buildDeviceStateV2()), true)
 
 	require.Eventually(t, func() bool {
-		client.stateAccess.Lock()
-		defer client.stateAccess.Unlock()
-		return client.assigned[0] == "1-2"
+		assignment.access.Lock()
+		defer assignment.access.Unlock()
+		return len(assignment.assigned) > 0 && assignment.assigned[0] == "1-2"
 	}, 3*time.Second, 10*time.Millisecond)
 
 	clientCancel()
@@ -2800,17 +2745,12 @@ func TestUSBIPLinuxSmoke(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, gadget.busid, device.BusID)
 
-	server := &ServerService{
-		ctx:         context.Background(),
-		logger:      newTestLogger(t),
-		exports:     make(map[string]serverExport),
-		controlSubs: make(map[uint64]*serverControlConn),
-		ops:         systemUSBIPOps,
-	}
-	require.NoError(t, server.bindOne(&device))
+	host := newLinuxExportHost(newTestLogger(t), nil, systemUSBIPOps)
+	exp, err := host.bindOne(&device)
+	require.NoError(t, err)
+	setLinuxExport(host, exp)
 
-	_, ok := server.snapshotExports()[gadget.busid]
-	require.True(t, ok)
+	require.Contains(t, linuxExportSnapshot(host), gadget.busid)
 
 	driver, err := currentDriver(gadget.busid)
 	require.NoError(t, err)
@@ -2823,7 +2763,7 @@ func TestUSBIPLinuxSmoke(t *testing.T) {
 	require.NoError(t, hostUnbind(gadget.busid))
 	require.NoError(t, hostMatchBusID(gadget.busid, false))
 	require.NoError(t, bindToDriver(gadget.busid, "usb"))
-	server.deleteExport(gadget.busid)
+	deleteLinuxExport(host, gadget.busid)
 
 	driver, err = currentDriver(gadget.busid)
 	require.NoError(t, err)

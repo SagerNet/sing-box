@@ -149,7 +149,7 @@ func TestDarwinVirtualControllerReadsCompliantSubmitResponsePayload(t *testing.T
 		DevNum: 1,
 	})
 	go controller.readLoop()
-	t.Cleanup(controller.Close)
+	t.Cleanup(func() { _ = controller.Close() })
 
 	responseCh := make(chan SubmitResponse, 1)
 	errCh := make(chan error, 1)
@@ -210,7 +210,7 @@ func TestDarwinHandleIsoTransferPreservesASAPFlag(t *testing.T) {
 		DevNum: 2,
 	})
 	go controller.readLoop()
-	t.Cleanup(controller.Close)
+	t.Cleanup(func() { _ = controller.Close() })
 
 	type transferResult struct {
 		status int32
@@ -282,19 +282,25 @@ func TestDarwinSubmitInTransferRejectsOversizedPayload(t *testing.T) {
 	}
 }
 
-func TestWaitDarwinControllerClosesOnContextCancel(t *testing.T) {
+func TestDarwinClientSessionClosesOnContextCancel(t *testing.T) {
 	t.Parallel()
 
 	clientConn, serverConn := net.Pipe()
 	defer serverConn.Close()
 	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, DeviceInfoTruncated{})
 	go controller.readLoop()
+	session := &darwinClientSession{controller: controller}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	done := make(chan struct{})
 	go func() {
-		waitDarwinController(ctx, controller)
+		select {
+		case <-session.Done():
+		case <-ctx.Done():
+			_ = session.Close()
+			<-session.Done()
+		}
 		close(done)
 	}()
 
@@ -304,7 +310,7 @@ func TestWaitDarwinControllerClosesOnContextCancel(t *testing.T) {
 		t.Fatal("timed out waiting for controller cancellation")
 	}
 	select {
-	case <-controller.done:
+	case <-controller.Done():
 	default:
 		t.Fatal("controller read loop still active after cancellation")
 	}
@@ -432,7 +438,7 @@ func TestDarwinControllerCloseWaitsForEventLoopTeardown(t *testing.T) {
 
 	closeDone := make(chan struct{})
 	go func() {
-		controller.Close()
+		_ = controller.Close()
 		close(closeDone)
 	}()
 
@@ -467,7 +473,7 @@ func TestDarwinControllerCloseWithNilConn(t *testing.T) {
 	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), nil, DeviceInfoTruncated{})
 	done := make(chan struct{})
 	go func() {
-		controller.Close()
+		_ = controller.Close()
 		close(done)
 	}()
 
