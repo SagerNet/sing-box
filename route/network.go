@@ -41,6 +41,7 @@ type NetworkManager struct {
 	autoDetectInterface    bool
 	defaultOptions         adapter.NetworkOptions
 	autoRedirectOutputMark uint32
+	autoRedirectMarkMask   uint32
 	networkMonitor         tun.NetworkUpdateMonitor
 	interfaceMonitor       tun.DefaultInterfaceMonitor
 	packageManager         tun.PackageManager
@@ -385,6 +386,7 @@ func (r *NetworkManager) RegisterAutoRedirectOutputMark(mark uint32) error {
 		return E.New("only one auto-redirect can be configured")
 	}
 	r.autoRedirectOutputMark = mark
+	r.autoRedirectMarkMask = tun.AutoRedirectMarkMask
 	return nil
 }
 
@@ -392,12 +394,19 @@ func (r *NetworkManager) AutoRedirectOutputMark() uint32 {
 	return r.autoRedirectOutputMark
 }
 
+func (r *NetworkManager) AutoRedirectMarkMask() uint32 {
+	return r.autoRedirectMarkMask
+}
+
 func (r *NetworkManager) AutoRedirectOutputMarkFunc() control.Func {
 	return func(network, address string, conn syscall.RawConn) error {
 		if r.autoRedirectOutputMark == 0 {
 			return nil
 		}
-		return control.RoutingMark(r.autoRedirectOutputMark)(network, address, conn)
+		return control.Raw(conn, func(fd uintptr) error {
+			current, _ := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_MARK)
+			return syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_MARK, current|int(r.autoRedirectOutputMark))
+		})
 	}
 }
 

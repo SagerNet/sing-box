@@ -228,12 +228,19 @@ func setMarkWrapper(networkManager adapter.NetworkManager, mark uint32, isDefaul
 		return control.RoutingMark(mark)
 	}
 	return func(network, address string, conn syscall.RawConn) error {
-		if networkManager.AutoRedirectOutputMark() != 0 {
-			if isDefault {
-				return E.New("`route.default_mark` is conflict with `tun.auto_redirect`")
-			} else {
-				return E.New("`routing_mark` is conflict with `tun.auto_redirect`")
+		autoMark := networkManager.AutoRedirectOutputMark()
+		if autoMark != 0 {
+			maskReserved := networkManager.AutoRedirectMarkMask()
+			if mark&maskReserved != 0 {
+				if isDefault {
+					return E.New("`route.default_mark` uses bits reserved for `tun.auto_redirect` (low 16 bits)")
+				}
+				return E.New("`routing_mark` uses bits reserved for `tun.auto_redirect` (low 16 bits)")
 			}
+			return control.Raw(conn, func(fd uintptr) error {
+				current, _ := syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_MARK)
+				return syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_MARK, current|int(mark))
+			})
 		}
 		return control.RoutingMark(mark)(network, address, conn)
 	}
