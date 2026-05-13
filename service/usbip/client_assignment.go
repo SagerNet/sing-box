@@ -30,7 +30,7 @@ func newClientAssignment(matches []option.USBIPDeviceMatch) *clientAssignment {
 		seenFixed := make(map[string]struct{})
 		targets = make([]clientTarget, 0, len(matches))
 		for _, m := range matches {
-			if isBusIDOnlyMatch(m) {
+			if m.BusID != "" && m.VendorID == 0 && m.ProductID == 0 && m.Serial == "" {
 				if _, seen := seenFixed[m.BusID]; seen {
 					continue
 				}
@@ -61,13 +61,6 @@ func (a *clientAssignment) SetActive(busid string, active bool) {
 	} else {
 		delete(a.activeBusIDs, busid)
 	}
-}
-
-func (a *clientAssignment) IsActive(busid string) bool {
-	a.access.Lock()
-	defer a.access.Unlock()
-	_, exists := a.activeBusIDs[busid]
-	return exists
 }
 
 func (a *clientAssignment) ApplyMatched(entries []DeviceEntry, knownKeys map[string]DeviceKey) (next []string, previous []string) {
@@ -131,15 +124,6 @@ func (a *clientAssignment) IsRetryDesired(busid string) bool {
 	}
 	_, desired := a.allDesired[busid]
 	return desired
-}
-
-func (a *clientAssignment) ClearRegistered() {
-	a.access.Lock()
-	defer a.access.Unlock()
-	if len(a.registered) == 0 {
-		return
-	}
-	a.registered = make(map[string]struct{})
 }
 
 func (a *clientAssignment) matchedKeysForAssignmentLocked(entries []DeviceEntry, knownKeys map[string]DeviceKey) map[string]DeviceKey {

@@ -82,7 +82,7 @@ func duplicateConnFromFD(t *testing.T, fd uintptr, name string) net.Conn {
 func duplicateHandoffKernelConn(t *testing.T, handoff *kernelHandoffSession) net.Conn {
 	t.Helper()
 
-	conn := duplicateConnFromFD(t, handoff.kernelFD(), "usbip-test-kernel")
+	conn := duplicateConnFromFD(t, handoff.file.Fd(), "usbip-test-kernel")
 	require.NoError(t, handoff.closeKernelFD())
 	return conn
 }
@@ -150,7 +150,7 @@ func requireKernelModule(t *testing.T, module string) {
 
 func requireUSBIPHost(t *testing.T) {
 	t.Helper()
-	err := ensureHostDriver()
+	err := ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
 	if err != nil {
 		t.Skipf("usbip-host unavailable: %v", err)
 	}
@@ -158,7 +158,7 @@ func requireUSBIPHost(t *testing.T) {
 
 func requireVHCI(t *testing.T) {
 	t.Helper()
-	err := ensureVHCI()
+	err := ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 	if err != nil {
 		t.Skipf("vhci_hcd unavailable: %v", err)
 	}
@@ -222,13 +222,13 @@ func newTestUSBGadget(t *testing.T) *testUSBGadget {
 			if err == nil {
 				switch driver {
 				case "usbip-host":
-					_ = hostUnbind(gadget.busid)
-					_ = hostMatchBusID(gadget.busid, false)
-					_ = bindToDriver(gadget.busid, "usb")
+					_ = writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), gadget.busid)
+					_ = writeSysfs(filepath.Join(sysUsbipHostDriver, "match_busid"), "del "+gadget.busid)
+					_ = writeSysfs("/sys/bus/usb/drivers/usb/bind", gadget.busid)
 				case "usb":
 				case "":
 				default:
-					_ = bindToDriver(gadget.busid, "usb")
+					_ = writeSysfs("/sys/bus/usb/drivers/usb/bind", gadget.busid)
 				}
 			}
 		}
@@ -280,8 +280,8 @@ func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
 	require.NoError(t, err)
 	defer handoff.Close()
 
-	require.Equal(t, "direct", handoff.mode())
-	requireStreamSocketFD(t, handoff.kernelFD())
+	require.Nil(t, handoff.relayConn)
+	requireStreamSocketFD(t, handoff.file.Fd())
 	handoff.Start(context.Background(), newTestLogger(t), "test", "direct")
 
 	_, err = conn.Write([]byte("closed"))
@@ -302,8 +302,8 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 	handoff, err := newKernelHandoffSession(opaqueConn{Conn: left})
 	require.NoError(t, err)
 	defer handoff.Close()
-	require.Equal(t, "relay", handoff.mode())
-	requireStreamSocketFD(t, handoff.kernelFD())
+	require.NotNil(t, handoff.relayConn)
+	requireStreamSocketFD(t, handoff.file.Fd())
 
 	kernelConn := duplicateHandoffKernelConn(t, handoff)
 	defer kernelConn.Close()
@@ -338,7 +338,7 @@ func TestUSBIPLinuxSmoke(t *testing.T) {
 	requireVHCI(t)
 
 	gadget := newTestUSBGadget(t)
-	device, err := readSysfsDevice(gadget.busid, sysBusDevicePath(gadget.busid))
+	device, err := readSysfsDevice(gadget.busid, filepath.Join(sysBusUSBDevices, gadget.busid))
 	require.NoError(t, err)
 	require.Equal(t, gadget.busid, device.BusID)
 
@@ -360,9 +360,9 @@ func TestUSBIPLinuxSmoke(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, usbipStatusAvailable, status)
 
-	require.NoError(t, hostUnbind(gadget.busid))
-	require.NoError(t, hostMatchBusID(gadget.busid, false))
-	require.NoError(t, bindToDriver(gadget.busid, "usb"))
+	require.NoError(t, writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), gadget.busid))
+	require.NoError(t, writeSysfs(filepath.Join(sysUsbipHostDriver, "match_busid"), "del "+gadget.busid))
+	require.NoError(t, writeSysfs("/sys/bus/usb/drivers/usb/bind", gadget.busid))
 	deleteLinuxExport(host, gadget.busid)
 
 	driver, err = currentDriver(gadget.busid)

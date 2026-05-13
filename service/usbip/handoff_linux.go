@@ -72,17 +72,6 @@ func newKernelHandoffSession(conn net.Conn) (*kernelHandoffSession, error) {
 	}, nil
 }
 
-func (h *kernelHandoffSession) kernelFD() uintptr {
-	return h.file.Fd()
-}
-
-func (h *kernelHandoffSession) mode() string {
-	if h.relayConn != nil {
-		return "relay"
-	}
-	return "direct"
-}
-
 func (h *kernelHandoffSession) closeKernelFD() error {
 	if h.file == nil {
 		return nil

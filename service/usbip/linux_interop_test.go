@@ -235,7 +235,7 @@ func detachUsedVHCIPorts() {
 	}
 	for _, record := range records {
 		if record.state == 6 {
-			_ = vhciDetach(record.port)
+			_ = writeSysfs(filepath.Join(sysVHCIControllerV0, "detach"), strconv.Itoa(record.port))
 		}
 	}
 }
@@ -261,8 +261,16 @@ func waitForAllVHCIPortsIdle(t *testing.T) {
 func waitForVHCIPortIdle(t *testing.T, port int) {
 	t.Helper()
 	require.Eventually(t, func() bool {
-		used, err := vhciUsedPorts()
-		return err == nil && !used[port]
+		records, err := readVHCIStatus()
+		if err != nil {
+			return true
+		}
+		for _, record := range records {
+			if record.port == port && record.state == 6 {
+				return false
+			}
+		}
+		return true
 	}, testUSBIPTeardownTimeout, testUSBIPTeardownPollInterval)
 }
 
@@ -307,12 +315,12 @@ func waitForGadgetNodesGone(nodes map[string]string) bool {
 func shutdownUSBIPHostDevice(busid string) {
 	status, err := readUsbipStatus(busid)
 	if err == nil && status == usbipStatusUsed {
-		_ = writeUsbipSockfd(busid, -1)
+		_ = writeSysfs(filepath.Join(sysBusUSBDevices, busid, "usbip_sockfd"), "-1")
 		_ = waitForUSBIPHostAvailable(busid)
 	}
 	if driver, err := currentDriver(busid); err == nil && driver == "usbip-host" {
-		_ = hostUnbind(busid)
-		_ = hostMatchBusID(busid, false)
+		_ = writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), busid)
+		_ = writeSysfs(filepath.Join(sysUsbipHostDriver, "match_busid"), "del "+busid)
 		_ = waitForDriverAway(busid, "usbip-host")
 	}
 }
@@ -333,7 +341,7 @@ func resetUSBIPInteropState(t *testing.T) {
 			continue
 		}
 		shutdownUSBIPHostDevice(device.BusID)
-		_ = bindToDriver(device.BusID, "usb")
+		_ = writeSysfs("/sys/bus/usb/drivers/usb/bind", device.BusID)
 	}
 
 	paths, _ := filepath.Glob("/sys/kernel/config/usb_gadget/codex_usbip_*")
@@ -840,7 +848,7 @@ func (g *testVirtualGadget) Close() {
 
 		_ = writeSysfsLine(filepath.Join(g.path, "UDC"), "")
 		if g.busid != "" {
-			_ = waitForSysfsPathGone(sysBusDevicePath(g.busid))
+			_ = waitForSysfsPathGone(filepath.Join(sysBusUSBDevices, g.busid))
 		}
 		_ = waitForGadgetNodesGone(g.nodes)
 

@@ -17,17 +17,6 @@ type clientTarget struct {
 	match      option.USBIPDeviceMatch
 }
 
-func (t clientTarget) description() string {
-	if t.fixedBusID != "" {
-		return describeMatch(option.USBIPDeviceMatch{BusID: t.fixedBusID})
-	}
-	return describeMatch(t.match)
-}
-
-func isBusIDOnlyMatch(m option.USBIPDeviceMatch) bool {
-	return m.BusID != "" && m.VendorID == 0 && m.ProductID == 0 && m.Serial == ""
-}
-
 func sleepCtx(ctx context.Context, d time.Duration) bool {
 	t := time.NewTimer(d)
 	defer t.Stop()

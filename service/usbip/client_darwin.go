@@ -151,9 +151,12 @@ func (c *darwinVirtualController) readLoop() {
 		}
 		switch header.Command {
 		case RetSubmit:
-			payloadDirection, ok := c.pendingSubmitDirection(header.SeqNum)
-			if !ok {
-				payloadDirection = header.Direction
+			c.pendingAccess.Lock()
+			pending, ok := c.pending[header.SeqNum]
+			c.pendingAccess.Unlock()
+			payloadDirection := header.Direction
+			if ok {
+				payloadDirection = pending.direction
 			}
 			response, err := ReadSubmitResponseBody(c.conn, header, payloadDirection)
 			if err != nil {
@@ -575,16 +578,6 @@ func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitRespo
 	case <-c.ctx.Done():
 		return SubmitResponse{}, c.ctx.Err()
 	}
-}
-
-func (c *darwinVirtualController) pendingSubmitDirection(seq uint32) (uint32, bool) {
-	c.pendingAccess.Lock()
-	defer c.pendingAccess.Unlock()
-	pending, ok := c.pending[seq]
-	if !ok {
-		return 0, false
-	}
-	return pending.direction, true
 }
 
 func (c *darwinVirtualController) deliverSubmit(response SubmitResponse) {

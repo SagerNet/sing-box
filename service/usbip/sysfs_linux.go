@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/shell"
@@ -24,8 +23,6 @@ const (
 	usbipStatusAvailable = 1
 	usbipStatusUsed      = 2
 	usbipStatusError     = 3
-
-	vhciStateUsed = 6
 )
 
 type sysfsDevice struct {
@@ -47,15 +44,6 @@ type sysfsDevice struct {
 	Interfaces     []DeviceInterface
 }
 
-func (d *sysfsDevice) key() DeviceKey {
-	return DeviceKey{
-		BusID:     d.BusID,
-		VendorID:  d.VendorID,
-		ProductID: d.ProductID,
-		Serial:    d.Serial,
-	}
-}
-
 func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 	var info DeviceInfoTruncated
 	encodePathField(&info.Path, d.Path)
@@ -75,26 +63,10 @@ func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 	return info
 }
 
-func (d *sysfsDevice) toDeviceEntry() DeviceEntry {
-	return DeviceEntry{
-		Info:       d.toProtocol(),
-		Interfaces: d.Interfaces,
-		Serial:     d.Serial,
-	}
-}
-
 type vhciStatusRecord struct {
 	hub   string
 	port  int
 	state int
-}
-
-func ensureHostDriver() error {
-	return ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
-}
-
-func ensureVHCI() error {
-	return ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 }
 
 func listUSBDevices() ([]sysfsDevice, error) {
@@ -176,33 +148,6 @@ func currentDriver(busid string) (string, error) {
 	return filepath.Base(link), nil
 }
 
-func unbindFromDriver(busid, driver string) error {
-	path := filepath.Join("/sys/bus/usb/drivers", driver, "unbind")
-	return writeSysfs(path, busid)
-}
-
-func bindToDriver(busid, driver string) error {
-	path := filepath.Join("/sys/bus/usb/drivers", driver, "bind")
-	return writeSysfs(path, busid)
-}
-
-func hostMatchBusID(busid string, add bool) error {
-	verb := "del"
-	if add {
-		verb = "add"
-	}
-	path := filepath.Join(sysUsbipHostDriver, "match_busid")
-	return writeSysfs(path, verb+" "+busid)
-}
-
-func hostBind(busid string) error {
-	return writeSysfs(filepath.Join(sysUsbipHostDriver, "bind"), busid)
-}
-
-func hostUnbind(busid string) error {
-	return writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), busid)
-}
-
 func reloadHostDriver() error {
 	modprobePath, err := findModprobePath()
 	if err != nil {
@@ -212,7 +157,7 @@ func reloadHostDriver() error {
 	if err != nil {
 		return E.Extend(E.Cause(err, "unload kernel module usbip-host"), strings.TrimSpace(output))
 	}
-	return ensureHostDriver()
+	return ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
 }
 
 func readUsbipStatus(busid string) (int, error) {
@@ -225,10 +170,6 @@ func readUsbipStatus(busid string) (int, error) {
 		return 0, err
 	}
 	return v, nil
-}
-
-func writeUsbipSockfd(busid string, fd int) error {
-	return writeSysfs(filepath.Join(sysBusUSBDevices, busid, "usbip_sockfd"), strconv.Itoa(fd))
 }
 
 func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
@@ -249,54 +190,9 @@ func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
 	return -1, E.New("no free ", targetHub, " vhci port")
 }
 
-type vhciStatusFlight struct {
-	done chan struct{}
-	used map[int]bool
-	err  error
-}
-
-// vhciPortUsedAccess coalesces concurrent callers into a single
-// status-file read: the first goroutine reads, later arrivals share its result.
-var (
-	vhciPortUsedAccess sync.Mutex
-	vhciPortUsedFlight *vhciStatusFlight
-)
-
-func vhciUsedPorts() (map[int]bool, error) {
-	vhciPortUsedAccess.Lock()
-	if vhciPortUsedFlight != nil {
-		flight := vhciPortUsedFlight
-		vhciPortUsedAccess.Unlock()
-		<-flight.done
-		return flight.used, flight.err
-	}
-	flight := &vhciStatusFlight{done: make(chan struct{})}
-	vhciPortUsedFlight = flight
-	vhciPortUsedAccess.Unlock()
-
-	records, err := readVHCIStatus()
-	if err == nil {
-		flight.used = make(map[int]bool, len(records))
-		for _, record := range records {
-			flight.used[record.port] = record.state == vhciStateUsed
-		}
-	}
-	flight.err = err
-
-	vhciPortUsedAccess.Lock()
-	vhciPortUsedFlight = nil
-	vhciPortUsedAccess.Unlock()
-	close(flight.done)
-	return flight.used, flight.err
-}
-
 func vhciAttach(port int, fd uintptr, devid uint32, speed uint32) error {
 	line := fmt.Sprintf("%d %d %d %d", port, int(fd), devid, speed)
 	return writeSysfs(filepath.Join(sysVHCIControllerV0, "attach"), line)
-}
-
-func vhciDetach(port int) error {
-	return writeSysfs(filepath.Join(sysVHCIControllerV0, "detach"), strconv.Itoa(port))
 }
 
 func readVHCIStatus() ([]vhciStatusRecord, error) {

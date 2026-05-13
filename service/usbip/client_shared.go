@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -60,7 +61,17 @@ func (c *ClientService) run() {
 		err := c.runControlSession()
 		if errors.Is(err, errControlUnsupported) {
 			c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
-			err = c.runStandardSessionWithInterval(clientReconnectDelay)
+			for {
+				err = c.syncRemoteStateContext(c.ctx)
+				if err != nil {
+					err = E.Cause(err, "devlist sync")
+					break
+				}
+				if !sleepCtx(c.ctx, clientReconnectDelay) {
+					err = nil
+					break
+				}
+			}
 		}
 		if c.ctx.Err() != nil {
 			break
@@ -266,7 +277,12 @@ func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
 		if device.BusID == "" {
 			continue
 		}
-		knownKeys[device.BusID] = device.key()
+		knownKeys[device.BusID] = DeviceKey{
+			BusID:     device.BusID,
+			VendorID:  device.VendorID,
+			ProductID: device.ProductID,
+			Serial:    device.Serial,
+		}
 	}
 	c.applyMatchedExportsWithRetained(availableEntries, knownKeys)
 }
@@ -348,12 +364,16 @@ func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
 			runnerCancel = cancel
 			runnerDone = done
 
+			match := worker.target.match
+			if worker.target.fixedBusID != "" {
+				match = option.USBIPDeviceMatch{BusID: worker.target.fixedBusID}
+			}
 			c.wg.Add(1)
-			go func(busid string) {
+			go func(busid, description string) {
 				defer c.wg.Done()
 				defer close(done)
-				c.runBusIDLoop(runCtx, busid, worker.target.description())
-			}(desired)
+				c.runBusIDLoop(runCtx, busid, description)
+			}(desired, describeMatch(match))
 		}
 	}
 }
@@ -386,7 +406,9 @@ func (c *ClientService) startRemoteBusIDWorker(busid, description string) {
 }
 
 func (c *ClientService) stopAllWorkers() {
-	c.assignment.ClearRegistered()
+	c.assignment.access.Lock()
+	c.assignment.registered = make(map[string]struct{})
+	c.assignment.access.Unlock()
 
 	c.workerAccess.Lock()
 	cancels := make([]context.CancelFunc, 0, len(c.allWorkers))
@@ -425,10 +447,6 @@ func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error)
 		return nil, E.New(fmt.Sprintf("OP_REP_DEVLIST status=%d code=0x%04x", header.Status, header.Code))
 	}
 	return ReadOpRepDevListBody(conn)
-}
-
-func (c *ClientService) setBusIDActive(busid string, active bool) {
-	c.assignment.SetActive(busid, active)
 }
 
 func (c *ClientService) shouldRetryBusID(ctx context.Context, busid string) bool {

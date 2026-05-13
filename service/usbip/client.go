@@ -116,10 +116,10 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		if ctx.Err() != nil {
 			return
 		}
-		c.setBusIDActive(busid, true)
+		c.assignment.SetActive(busid, true)
 		session, err := c.attemptAttach(ctx, busid)
 		if err != nil {
-			c.setBusIDActive(busid, false)
+			c.assignment.SetActive(busid, false)
 			c.logger.Error("attach ", description, " (", busid, "): ", err)
 			if !sleepCtx(ctx, clientReconnectDelay) {
 				return
@@ -135,7 +135,7 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 			<-session.Done()
 		}
 		_ = session.Close()
-		c.setBusIDActive(busid, false)
+		c.assignment.SetActive(busid, false)
 		if ctx.Err() != nil {
 			return
 		}

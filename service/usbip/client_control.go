@@ -144,18 +144,6 @@ func (c *ClientService) requestImportLease(ctx context.Context, busid string) (c
 	}, nil
 }
 
-func (c *ClientService) runStandardSessionWithInterval(interval time.Duration) error {
-	for {
-		err := c.syncRemoteStateContext(c.ctx)
-		if err != nil {
-			return E.Cause(err, "devlist sync")
-		}
-		if !sleepCtx(c.ctx, interval) {
-			return nil
-		}
-	}
-}
-
 func (c *ClientService) applyControlSnapshot(snapshot controlDeviceSnapshot) {
 	devices := deviceInfoV2Map(snapshot.Devices)
 	values := sortedDeviceInfoV2Values(devices)

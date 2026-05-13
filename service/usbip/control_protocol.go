@@ -247,44 +247,6 @@ func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, s
 	}
 }
 
-func (d DeviceInfoV2) toDeviceEntry() DeviceEntry {
-	var info DeviceInfoTruncated
-	encodePathField(&info.Path, d.Path)
-	copy(info.BusID[:], d.BusID)
-	info.Speed = d.Speed
-	info.IDVendor = d.VendorID
-	info.IDProduct = d.ProductID
-	info.BCDDevice = d.BCDDevice
-	info.BDeviceClass = d.DeviceClass
-	info.BDeviceSubClass = d.DeviceSubClass
-	info.BDeviceProtocol = d.DeviceProtocol
-	info.BConfigurationValue = d.ConfigurationValue
-	info.BNumConfigurations = d.NumConfigurations
-	info.BNumInterfaces = d.NumInterfaces
-	interfaces := make([]DeviceInterface, len(d.Interfaces))
-	for i := range d.Interfaces {
-		interfaces[i] = DeviceInterface{
-			BInterfaceClass:    d.Interfaces[i].Class,
-			BInterfaceSubClass: d.Interfaces[i].SubClass,
-			BInterfaceProtocol: d.Interfaces[i].Protocol,
-		}
-	}
-	return DeviceEntry{Info: info, Interfaces: interfaces, Serial: d.Serial}
-}
-
-func (d DeviceInfoV2) key() DeviceKey {
-	return DeviceKey{
-		BusID:     d.BusID,
-		VendorID:  d.VendorID,
-		ProductID: d.ProductID,
-		Serial:    d.Serial,
-	}
-}
-
-func (d DeviceInfoV2) available() bool {
-	return d.State == "" || d.State == deviceStateAvailable
-}
-
 func deviceInfoV2Map(devices []DeviceInfoV2) map[string]DeviceInfoV2 {
 	out := make(map[string]DeviceInfoV2, len(devices))
 	for _, device := range devices {
@@ -312,10 +274,31 @@ func sortedDeviceInfoV2Values(devices map[string]DeviceInfoV2) []DeviceInfoV2 {
 func deviceInfoV2ToEntries(devices []DeviceInfoV2, availableOnly bool) []DeviceEntry {
 	entries := make([]DeviceEntry, 0, len(devices))
 	for _, device := range devices {
-		if availableOnly && !device.available() {
+		if availableOnly && device.State != "" && device.State != deviceStateAvailable {
 			continue
 		}
-		entries = append(entries, device.toDeviceEntry())
+		var info DeviceInfoTruncated
+		encodePathField(&info.Path, device.Path)
+		copy(info.BusID[:], device.BusID)
+		info.Speed = device.Speed
+		info.IDVendor = device.VendorID
+		info.IDProduct = device.ProductID
+		info.BCDDevice = device.BCDDevice
+		info.BDeviceClass = device.DeviceClass
+		info.BDeviceSubClass = device.DeviceSubClass
+		info.BDeviceProtocol = device.DeviceProtocol
+		info.BConfigurationValue = device.ConfigurationValue
+		info.BNumConfigurations = device.NumConfigurations
+		info.BNumInterfaces = device.NumInterfaces
+		interfaces := make([]DeviceInterface, len(device.Interfaces))
+		for i := range device.Interfaces {
+			interfaces[i] = DeviceInterface{
+				BInterfaceClass:    device.Interfaces[i].Class,
+				BInterfaceSubClass: device.Interfaces[i].SubClass,
+				BInterfaceProtocol: device.Interfaces[i].Protocol,
+			}
+		}
+		entries = append(entries, DeviceEntry{Info: info, Interfaces: interfaces, Serial: device.Serial})
 	}
 	return entries
 }

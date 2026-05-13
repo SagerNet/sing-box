@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -26,10 +27,6 @@ func newPlatformExportHost(logger log.ContextLogger, matches []option.USBIPDevic
 
 func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
 	return newLinuxImportHost(logger), nil
-}
-
-func sysBusDevicePath(busid string) string {
-	return sysBusUSBDevices + "/" + busid
 }
 
 func isMissingUSBDeviceError(err error) bool {
@@ -66,7 +63,7 @@ func newLinuxExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMa
 }
 
 func (h *linuxExportHost) Start(ctx context.Context) error {
-	return ensureHostDriver()
+	return ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
 }
 
 func (h *linuxExportHost) Close() error {
@@ -75,7 +72,7 @@ func (h *linuxExportHost) Close() error {
 	h.exports = make(map[string]*linuxExport)
 	h.access.Unlock()
 	for _, exp := range exports {
-		_, statErr := os.Stat(sysBusDevicePath(exp.busid))
+		_, statErr := os.Stat(filepath.Join(sysBusUSBDevices, exp.busid))
 		restore := statErr == nil
 		releaseErr := h.releaseExport(exp, restore)
 		if releaseErr != nil {
@@ -110,7 +107,10 @@ func (h *linuxExportHost) ueventLoop(ctx context.Context, ch chan<- struct{}) {
 			if !sleepCtx(ctx, backoff) {
 				return
 			}
-			backoff = nextUEventListenerBackoff(backoff)
+			backoff *= 2
+			if backoff > ueventListenerBackoffMax {
+				backoff = ueventListenerBackoffMax
+			}
 			continue
 		}
 		backoff = ueventListenerBackoffInitial
@@ -135,7 +135,10 @@ func (h *linuxExportHost) ueventLoop(ctx context.Context, ch chan<- struct{}) {
 				if !sleepCtx(ctx, backoff) {
 					return
 				}
-				backoff = nextUEventListenerBackoff(backoff)
+				backoff *= 2
+				if backoff > ueventListenerBackoffMax {
+					backoff = ueventListenerBackoffMax
+				}
 				break
 			}
 			signal()
@@ -147,14 +150,6 @@ const (
 	ueventListenerBackoffInitial = time.Second
 	ueventListenerBackoffMax     = 30 * time.Second
 )
-
-func nextUEventListenerBackoff(current time.Duration) time.Duration {
-	next := current * 2
-	if next > ueventListenerBackoffMax {
-		return ueventListenerBackoffMax
-	}
-	return next
-}
 
 func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := listUSBDevices()
@@ -168,7 +163,13 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 	}
 	for _, m := range h.matches {
 		for i := range devices {
-			if !matches(m, devices[i].key()) {
+			deviceKey := DeviceKey{
+				BusID:     devices[i].BusID,
+				VendorID:  devices[i].VendorID,
+				ProductID: devices[i].ProductID,
+				Serial:    devices[i].Serial,
+			}
+			if !matches(m, deviceKey) {
 				continue
 			}
 			path := devices[i].Path
@@ -231,7 +232,7 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 }
 
 func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
-	err := writeUsbipSockfd(busid, -1)
+	err := writeSysfs(filepath.Join(sysBusUSBDevices, busid, "usbip_sockfd"), "-1")
 	if err != nil && !os.IsNotExist(err) && !isMissingUSBDeviceError(err) {
 		h.logger.Debug("release ", busid, " from usbip-host: ", err)
 	}
@@ -286,23 +287,24 @@ func (h *linuxExportHost) bindOneOnce(d *sysfsDevice) (*linuxExport, error) {
 		return h.newExport(*d, false, ""), nil
 	}
 	if driver != "" {
-		err = unbindFromDriver(d.BusID, driver)
+		err = writeSysfs(filepath.Join("/sys/bus/usb/drivers", driver, "unbind"), d.BusID)
 		if err != nil {
 			return nil, E.Cause(err, "unbind from ", driver)
 		}
 	}
-	err = hostMatchBusID(d.BusID, true)
+	matchBusIDPath := filepath.Join(sysUsbipHostDriver, "match_busid")
+	err = writeSysfs(matchBusIDPath, "add "+d.BusID)
 	if err != nil {
 		if driver != "" {
-			_ = bindToDriver(d.BusID, driver)
+			_ = writeSysfs(filepath.Join("/sys/bus/usb/drivers", driver, "bind"), d.BusID)
 		}
 		return nil, E.Cause(err, "match_busid add")
 	}
-	err = hostBind(d.BusID)
+	err = writeSysfs(filepath.Join(sysUsbipHostDriver, "bind"), d.BusID)
 	if err != nil {
-		_ = hostMatchBusID(d.BusID, false)
+		_ = writeSysfs(matchBusIDPath, "del "+d.BusID)
 		if driver != "" {
-			_ = bindToDriver(d.BusID, driver)
+			_ = writeSysfs(filepath.Join("/sys/bus/usb/drivers", driver, "bind"), d.BusID)
 		}
 		return nil, E.Cause(err, "bind to usbip-host")
 	}
@@ -324,16 +326,16 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
 		return statusErr
 	}
 	if statusErr == nil && status == usbipStatusUsed {
-		err := writeUsbipSockfd(exp.busid, -1)
+		err := writeSysfs(filepath.Join(sysBusUSBDevices, exp.busid, "usbip_sockfd"), "-1")
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
-	err := hostUnbind(exp.busid)
+	err := writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), exp.busid)
 	if err != nil && !os.IsNotExist(err) && !(isMissingUSBDeviceError(err) && !restore) {
 		return err
 	}
-	err = hostMatchBusID(exp.busid, false)
+	err = writeSysfs(filepath.Join(sysUsbipHostDriver, "match_busid"), "del "+exp.busid)
 	if err != nil {
 		return err
 	}
@@ -345,7 +347,7 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
 		h.logger.Info("released ", exp.busid, " from usbip-host")
 		return nil
 	}
-	err = bindToDriver(exp.busid, exp.originalDriver)
+	err = writeSysfs(filepath.Join("/sys/bus/usb/drivers", exp.originalDriver, "bind"), exp.busid)
 	if err != nil {
 		return err
 	}
@@ -403,7 +405,11 @@ func (e *linuxExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 		reason = linuxUSBIPStatusReason(status)
 	}
 	return ExportSnapshot{
-		Entry:        e.descriptor.toDeviceEntry(),
+		Entry: DeviceEntry{
+			Info:       e.descriptor.toProtocol(),
+			Interfaces: e.descriptor.Interfaces,
+			Serial:     e.descriptor.Serial,
+		},
 		Backend:      backendIDLinuxSysfs,
 		StableID:     stableID,
 		State:        state,
@@ -432,8 +438,12 @@ func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (
 	if err != nil {
 		return nil, E.Cause(err, "prepare handoff")
 	}
-	e.logger.Debug("usbip server handoff ", e.busid, ": ", handoff.mode())
-	err = writeUsbipSockfd(e.busid, int(handoff.kernelFD()))
+	mode := "direct"
+	if handoff.relayConn != nil {
+		mode = "relay"
+	}
+	e.logger.Debug("usbip server handoff ", e.busid, ": ", mode)
+	err = writeSysfs(filepath.Join(sysBusUSBDevices, e.busid, "usbip_sockfd"), strconv.Itoa(int(handoff.file.Fd())))
 	if err != nil {
 		_ = handoff.Close()
 		return nil, E.Cause(err, "hand off ", e.busid, " to kernel")
@@ -461,7 +471,7 @@ func newLinuxImportHost(logger log.ContextLogger) *linuxImportHost {
 }
 
 func (h *linuxImportHost) Start(ctx context.Context) error {
-	return ensureVHCI()
+	return ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 }
 
 func (h *linuxImportHost) Close() error {
@@ -473,7 +483,11 @@ func (h *linuxImportHost) Attach(ctx context.Context, info DeviceInfoTruncated, 
 	if err != nil {
 		return nil, E.Cause(err, "prepare handoff")
 	}
-	h.logger.Debug("usbip client handoff ", info.BusIDString(), ": ", handoff.mode())
+	mode := "direct"
+	if handoff.relayConn != nil {
+		mode = "relay"
+	}
+	h.logger.Debug("usbip client handoff ", info.BusIDString(), ": ", mode)
 	port, attachErr := h.attachOnce(ctx, info, handoff)
 	if attachErr != nil {
 		_ = handoff.Close()
@@ -498,7 +512,7 @@ func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncat
 			triedPorts[port] = struct{}{}
 			continue
 		}
-		err = vhciAttach(port, handoff.kernelFD(), info.DevID(), info.Speed)
+		err = vhciAttach(port, handoff.file.Fd(), info.DevID(), info.Speed)
 		if err != nil {
 			h.releasePort(port)
 			if errors.Is(err, unix.EBUSY) {
@@ -553,7 +567,7 @@ func (s *linuxClientSession) Err() error {
 
 func (s *linuxClientSession) Close() error {
 	s.closeOnce.Do(func() {
-		detachErr := vhciDetach(s.port)
+		detachErr := writeSysfs(filepath.Join(sysVHCIControllerV0, "detach"), strconv.Itoa(s.port))
 		closeErr := s.handoff.Close()
 		s.host.releasePort(s.port)
 		s.closeErr = E.Errors(detachErr, closeErr)

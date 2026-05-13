@@ -326,7 +326,15 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 	}
 	sequence := l.seq
 	if supportsControlExtensions(capabilities) {
-		l.enqueueSnapshotLocked(sub, sequence, snapshot)
+		l.enqueuePayload(sub, controlFrame{
+			Type:     controlFrameDeviceSnapshot,
+			Version:  controlProtocolVersion,
+			Sequence: sequence,
+		}, controlDeviceSnapshot{Sequence: sequence, Devices: snapshot}, controlFrame{
+			Type:     controlFrameChanged,
+			Version:  controlProtocolVersion,
+			Sequence: sequence,
+		})
 	}
 	l.subs[sub.id] = sub
 	return sub, sequence
@@ -422,18 +430,6 @@ func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 		out = append(out, deviceInfoV2FromEntry(snapshot.Entry, snapshot.Backend, snapshot.StableID, snapshot.State, snapshot.RawStatus, snapshot.StatusReason))
 	}
 	return out
-}
-
-func (l *exportLedger) enqueueSnapshotLocked(sub *exportSubscriber, sequence uint64, devices []DeviceInfoV2) {
-	l.enqueuePayload(sub, controlFrame{
-		Type:     controlFrameDeviceSnapshot,
-		Version:  controlProtocolVersion,
-		Sequence: sequence,
-	}, controlDeviceSnapshot{Sequence: sequence, Devices: devices}, controlFrame{
-		Type:     controlFrameChanged,
-		Version:  controlProtocolVersion,
-		Sequence: sequence,
-	})
 }
 
 func (l *exportLedger) enqueueFrame(sub *exportSubscriber, frame controlFrame) {
