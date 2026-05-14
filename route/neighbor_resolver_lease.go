@@ -220,20 +220,20 @@ func parseISCDhcpd(file *os.File, ipToMAC map[netip.Addr]net.HardwareAddr, ipToH
 		if !inLease {
 			continue
 		}
-		if strings.HasPrefix(line, "hardware ethernet ") {
-			macString := strings.TrimSuffix(strings.TrimPrefix(line, "hardware ethernet "), ";")
+		if rest, ok := strings.CutPrefix(line, "hardware ethernet "); ok {
+			macString := strings.TrimSuffix(rest, ";")
 			parsed, macErr := net.ParseMAC(macString)
 			if macErr == nil {
 				currentMAC = parsed
 			}
-		} else if strings.HasPrefix(line, "client-hostname ") {
-			hostname := strings.TrimSuffix(strings.TrimPrefix(line, "client-hostname "), ";")
+		} else if rest, ok := strings.CutPrefix(line, "client-hostname "); ok {
+			hostname := strings.TrimSuffix(rest, ";")
 			hostname = strings.Trim(hostname, "\"")
 			if hostname != "" {
 				currentHostname = hostname
 			}
-		} else if strings.HasPrefix(line, "binding state ") {
-			state := strings.TrimSuffix(strings.TrimPrefix(line, "binding state "), ";")
+		} else if rest, ok := strings.CutPrefix(line, "binding state "); ok {
+			state := strings.TrimSuffix(rest, ";")
 			currentActive = state == "active"
 		}
 	}

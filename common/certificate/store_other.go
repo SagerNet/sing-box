@@ -2,6 +2,7 @@
 
 package certificate
 
+//nolint:unused // referenced by Store.platform; populated only in store_darwin.go.
 type storePlatform struct{}
 
 func (s *Store) updatePlatformLocked(_ []byte) error {

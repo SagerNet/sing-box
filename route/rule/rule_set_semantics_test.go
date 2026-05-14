@@ -769,7 +769,6 @@ func TestDNSAddressLimitIgnoresDestinationAddresses(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 			rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
@@ -825,7 +824,6 @@ func TestDNSLegacyAddressLimitPreLookupDefersDirectRules(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -925,7 +923,6 @@ func TestDNSLegacyInvertAddressLimitPreLookupRegression(t *testing.T) {
 		},
 	}
 	for _, testCase := range testCases {
-		testCase := testCase
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 

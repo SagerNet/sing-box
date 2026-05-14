@@ -72,14 +72,14 @@ func TestIntegrationRecvAbortsOnClose(t *testing.T) {
 func TestIntegrationConcurrentOpen(t *testing.T) {
 	errCh := make(chan error, 2)
 	handles := make(chan *Handle, 2)
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		go func() {
 			h, err := Open(nil, LayerNetwork, 0, FlagSendOnly)
 			handles <- h
 			errCh <- err
 		}()
 	}
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		err := <-errCh
 		h := <-handles
 		require.NoError(t, err)

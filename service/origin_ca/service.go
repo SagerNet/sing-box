@@ -210,10 +210,7 @@ func (s *Service) refreshLoop() {
 				waitDuration = minimumRenewRetryDelay
 			} else {
 				refreshAt := leaf.NotAfter.Add(-s.effectiveRenewBefore(leaf))
-				waitDuration = refreshAt.Sub(s.timeFunc())
-				if waitDuration < minimumRenewRetryDelay {
-					waitDuration = minimumRenewRetryDelay
-				}
+				waitDuration = max(refreshAt.Sub(s.timeFunc()), minimumRenewRetryDelay)
 			}
 		}
 		timer := time.NewTimer(waitDuration)
