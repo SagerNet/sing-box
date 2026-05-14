@@ -532,7 +532,7 @@ func TestAppleTransportRoundTripHTTPS(t *testing.T) {
 	}
 	var normalizedValues []string
 	for _, value := range observed.values {
-		for _, part := range strings.Split(value, ",") {
+		for part := range strings.SplitSeq(value, ",") {
 			normalizedValues = append(normalizedValues, strings.TrimSpace(part))
 		}
 	}
@@ -687,7 +687,7 @@ func TestAppleTransportCancellationRecovery(t *testing.T) {
 		},
 	})
 
-	for index := 0; index < appleHTTPRecoveryLoops; index++ {
+	for index := range appleHTTPRecoveryLoops {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		request := newAppleHTTPRequestWithContext(t, ctx, http.MethodGet, server.URL("/block"), nil)
 		response, err := transport.RoundTrip(request)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -113,14 +112,6 @@ func (r *fakeRouter) RuleSet(tag string) (adapter.RuleSet, bool) {
 	return ruleSet, loaded
 }
 
-func (r *fakeRouter) setRuleSet(tag string, ruleSet adapter.RuleSet) {
-	r.access.Lock()
-	defer r.access.Unlock()
-	if r.ruleSets == nil {
-		r.ruleSets = make(map[string]adapter.RuleSet)
-	}
-	r.ruleSets[tag] = ruleSet
-}
 func (r *fakeRouter) Rules() []adapter.Rule                      { return nil }
 func (r *fakeRouter) NeedFindProcess() bool                      { return false }
 func (r *fakeRouter) NeedFindNeighbor() bool                     { return false }
@@ -208,12 +199,6 @@ func (s *fakeRuleSet) updateMetadata(metadata adapter.RuleSetMetadata) {
 	for _, callback := range callbacks {
 		callback(s)
 	}
-}
-
-func (s *fakeRuleSet) snapshotCallbacks() []adapter.RuleSetUpdateCallback {
-	s.access.Lock()
-	defer s.access.Unlock()
-	return s.callbacks.Array()
 }
 
 func (s *fakeRuleSet) refCount() int {
@@ -320,26 +305,6 @@ func newTestRouterWithContextAndLogger(t *testing.T, ctx context.Context, rules 
 		require.NoError(t, err)
 	}
 	return router
-}
-
-func waitForLogMessageContaining(t *testing.T, entries <-chan log.Entry, done <-chan struct{}, substring string) log.Entry {
-	t.Helper()
-	timeout := time.After(time.Second)
-	for {
-		select {
-		case entry, ok := <-entries:
-			if !ok {
-				t.Fatal("log subscription closed")
-			}
-			if strings.Contains(entry.Message, substring) {
-				return entry
-			}
-		case <-done:
-			t.Fatal("log subscription closed")
-		case <-timeout:
-			t.Fatalf("timed out waiting for log message containing %q", substring)
-		}
-	}
 }
 
 func fixedQuestion(name string, qType uint16) mDNS.Question {

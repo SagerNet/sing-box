@@ -14,7 +14,10 @@ func isExecutable(protection int32) bool {
 }
 
 func (b *profileBuilder) readMapping() {
-	if !machVMInfo(b.addMapping) {
+	added := machVMInfo(func(lo, hi, offset uint64, file, buildID string) {
+		b.addMappingEntry(lo, hi, offset, file, buildID, false)
+	})
+	if !added {
 		b.addMappingEntry(0, 0, 0, "", "", true)
 	}
 }
