@@ -39,7 +39,7 @@ var (
 
 func TestAppleClientHandshakeAppliesALPNAndVersion(t *testing.T) {
 	serverCertificate, serverCertificatePEM := newAppleTestCertificate(t, "localhost")
-	for index := 0; index < appleTLSSuccessHandshakeLoops; index++ {
+	for index := range appleTLSSuccessHandshakeLoops {
 		serverResult, serverAddress := startAppleTLSTestServer(t, &stdtls.Config{
 			Certificates: []stdtls.Certificate{serverCertificate},
 			MinVersion:   stdtls.VersionTLS12,
@@ -201,7 +201,7 @@ func TestAppleClientHandshakeRecoversAfterFailure(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			for index := 0; index < appleTLSFailureRecoveryLoops; index++ {
+			for index := range appleTLSFailureRecoveryLoops {
 				failedResult, failedAddress := startAppleTLSTestServer(t, testCase.serverConfig)
 				failedConn, err := newAppleTestClientConn(t, failedAddress, testCase.clientOptions)
 				if err == nil {
@@ -271,7 +271,7 @@ func TestAppleClientConfigCloneWithInlineCertificate(t *testing.T) {
 		t.Fatalf("Clone shares ALPN slice with original: %v", nextProtos)
 	}
 
-	for index := 0; index < appleTLSFailureRecoveryLoops; index++ {
+	for index := range appleTLSFailureRecoveryLoops {
 		serverResult, serverAddress := startAppleTLSTestServer(t, &stdtls.Config{
 			Certificates: []stdtls.Certificate{serverCertificate},
 			MinVersion:   stdtls.VersionTLS12,

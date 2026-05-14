@@ -48,7 +48,7 @@ type Address struct {
 	Timestamp int64
 	bits      uint32
 	Reserved2 uint32
-	union     [64]byte
+	_         [64]byte
 }
 
 var _ [80]byte = [unsafe.Sizeof(Address{})]byte{}

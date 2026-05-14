@@ -3,6 +3,7 @@ package option
 import (
 	"context"
 	"reflect"
+	"slices"
 	"strings"
 
 	E "github.com/sagernet/sing/common/exceptions"
@@ -59,12 +60,7 @@ func hasAnyJSONKey(ctx context.Context, content []byte, keys ...string) (bool, e
 	if err != nil {
 		return false, err
 	}
-	for _, key := range keys {
-		if object.ContainsKey(key) {
-			return true, nil
-		}
-	}
-	return false, nil
+	return slices.ContainsFunc(keys, object.ContainsKey), nil
 }
 
 func inspectRouteRuleAction(ctx context.Context, content []byte) (string, RouteActionOptions, error) {
