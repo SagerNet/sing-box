@@ -30,7 +30,8 @@ type Store struct {
 	certificatePaths          []string
 	certificateDirectoryPaths []string
 	watcher                   *fswatch.Watcher
-	platform                  storePlatform
+	//nolint:unused // populated only on darwin && cgo via the storePlatform embed.
+	platform storePlatform
 }
 
 func NewStore(ctx context.Context, logger logger.Logger, options option.CertificateOptions) (*Store, error) {

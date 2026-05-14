@@ -1110,7 +1110,7 @@ func TestWindowsClientMultipleRoundtrips(t *testing.T) {
 	clientConn, serverDone := startWindowsEchoServer(t, stdtls.VersionTLS12)
 	defer clientConn.Close()
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		payload := []byte("msg" + string(rune('A'+(i%26))))
 		_, err := clientConn.Write(payload)
 		if err != nil {
@@ -1148,7 +1148,7 @@ func TestWindowsClientConcurrentReadWrite(t *testing.T) {
 	readErr := make(chan error, 1)
 	readBack := make(chan []byte, messageCount)
 	go func() {
-		for i := 0; i < messageCount; i++ {
+		for range messageCount {
 			reply := make([]byte, messageSize)
 			_, err := io.ReadFull(clientConn, reply)
 			if err != nil {
@@ -1171,7 +1171,7 @@ func TestWindowsClientConcurrentReadWrite(t *testing.T) {
 	if readResult != nil {
 		t.Fatal(readResult)
 	}
-	for i := 0; i < messageCount; i++ {
+	for i := range messageCount {
 		got := <-readBack
 		if !bytes.Equal(payloads[i], got) {
 			t.Fatalf("iteration %d: payload mismatch", i)

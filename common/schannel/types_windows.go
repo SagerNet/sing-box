@@ -109,12 +109,12 @@ type schCredentials struct {
 }
 
 type tlsParameters struct {
-	cAlpnIds               uint32
-	rgstrAlpnIds           uintptr
+	_                      uint32  // cAlpnIds
+	_                      uintptr // rgstrAlpnIds
 	grbitDisabledProtocols uint32
-	cDisabledCrypto        uint32
-	pDisabledCrypto        uintptr
-	dwFlags                uint32
+	_                      uint32  // cDisabledCrypto
+	_                      uintptr // pDisabledCrypto
+	_                      uint32  // dwFlags
 }
 
 type secPkgContextStreamSizes struct {
