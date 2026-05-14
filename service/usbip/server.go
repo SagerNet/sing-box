@@ -198,12 +198,12 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 	capabilities := hello.Capabilities & controlCapabilities
 	sub, seq := s.ledger.Subscribe(s.ctx, conn, capabilities)
 	defer s.ledger.Unsubscribe(sub)
-	err = writeControlFrame(conn, controlFrame{
+	err = writeControlMessage(conn, controlFrame{
 		Type:         controlFrameAck,
 		Version:      controlProtocolVersion,
 		Capabilities: capabilities,
 		Sequence:     seq,
-	})
+	}, nil)
 	if err != nil {
 		s.logger.Debug("write control ack: ", err)
 		return

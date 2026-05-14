@@ -144,7 +144,7 @@ func TestDarwinClientSessionClosesOnContextCancel(t *testing.T) {
 	defer serverConn.Close()
 	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, DeviceInfoTruncated{})
 	go controller.readLoop()
-	session := &darwinClientSession{controller: controller}
+	session := controller
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -304,11 +304,11 @@ func (s *darwinFakeUSBIPServer) handleControlConn(conn net.Conn) {
 		return
 	}
 	capabilities := hello.Capabilities & controlCapabilities
-	err = writeControlFrame(conn, controlFrame{
+	err = writeControlMessage(conn, controlFrame{
 		Type:         controlFrameAck,
 		Version:      controlProtocolVersion,
 		Capabilities: capabilities,
-	})
+	}, nil)
 	if err != nil {
 		return
 	}
@@ -345,7 +345,7 @@ func (s *darwinFakeUSBIPServer) handleControlConn(conn net.Conn) {
 			}
 			return
 		}
-		err = writeControlFrame(conn, controlFrame{Type: controlFramePong, Version: controlProtocolVersion})
+		err = writeControlMessage(conn, controlFrame{Type: controlFramePong, Version: controlProtocolVersion}, nil)
 		if err != nil {
 			return
 		}

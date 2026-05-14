@@ -177,7 +177,11 @@ func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
 	if err != nil {
 		return -1, err
 	}
-	targetHub := vhciHubForSpeed(speed)
+	targetHub := "hs"
+	switch speed {
+	case SpeedSuper, SpeedSuperPlus:
+		targetHub = "ss"
+	}
 	for _, record := range records {
 		if record.hub != targetHub || record.state != 4 {
 			continue
@@ -188,11 +192,6 @@ func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
 		return record.port, nil
 	}
 	return -1, E.New("no free ", targetHub, " vhci port")
-}
-
-func vhciAttach(port int, fd uintptr, devid uint32, speed uint32) error {
-	line := fmt.Sprintf("%d %d %d %d", port, int(fd), devid, speed)
-	return writeSysfs(filepath.Join(sysVHCIControllerV0, "attach"), line)
 }
 
 func readVHCIStatus() ([]vhciStatusRecord, error) {
@@ -235,15 +234,6 @@ func parseVHCIStatus(raw string) []vhciStatusRecord {
 		})
 	}
 	return records
-}
-
-func vhciHubForSpeed(speed uint32) string {
-	switch speed {
-	case SpeedSuper, SpeedSuperPlus:
-		return "ss"
-	default:
-		return "hs"
-	}
 }
 
 func ensureKernelPath(path string, module string, description string) error {

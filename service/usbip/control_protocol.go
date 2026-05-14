@@ -161,10 +161,6 @@ func (cr *controlReader) read(r io.Reader) (controlMessage, error) {
 	return controlMessage{Frame: frame, Payload: payload}, nil
 }
 
-func writeControlFrame(w io.Writer, frame controlFrame) error {
-	return writeControlMessage(w, frame, nil)
-}
-
 func writeControlMessage(w io.Writer, frame controlFrame, payload any) error {
 	rawPayload, err := marshalControlPayload(payload)
 	if err != nil {
@@ -224,12 +220,16 @@ func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, s
 	if state == "" {
 		state = deviceStateAvailable
 	}
+	serial := entry.Serial
+	if serial == "" {
+		serial = entry.Info.SerialString()
+	}
 	return DeviceInfoV2{
 		BusID:              entry.Info.BusIDString(),
 		StableID:           stableID,
 		Backend:            backend,
 		Path:               cstring(entry.Info.Path[:]),
-		Serial:             entrySerial(entry),
+		Serial:             serial,
 		VendorID:           entry.Info.IDVendor,
 		ProductID:          entry.Info.IDProduct,
 		BCDDevice:          entry.Info.BCDDevice,

@@ -99,11 +99,11 @@ func (c *ClientService) runControlSession() error {
 	if err != nil {
 		return E.Cause(errControlUnsupported, "write control preface: ", err)
 	}
-	err = writeControlFrame(conn, controlFrame{
+	err = writeControlMessage(conn, controlFrame{
 		Type:         controlFrameHello,
 		Version:      controlProtocolVersion,
 		Capabilities: controlCapabilities,
-	})
+	}, nil)
 	if err != nil {
 		return E.Cause(errControlUnsupported, "write control hello: ", err)
 	}
@@ -190,7 +190,12 @@ func (c *ClientService) runControlSession() error {
 				return E.Cause(errImmediateReconnect, "read device snapshot: ", err)
 			}
 			lastSeq = frame.Sequence
-			c.applyControlSnapshot(snapshot)
+			devices := deviceInfoV2Map(snapshot.Devices)
+			values := sortedDeviceInfoV2Values(devices)
+			c.remoteAccess.Lock()
+			c.remoteDevicesV2 = devices
+			c.remoteAccess.Unlock()
+			c.applyRemoteDeviceState(values)
 		case controlFrameDeviceDelta:
 			if !extended {
 				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
@@ -254,16 +259,12 @@ func (c *ClientService) syncRemoteStateContext(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.applyRemoteEntries(entries)
-	return nil
-}
-
-func (c *ClientService) applyRemoteEntries(entries []DeviceEntry) {
 	if !c.assignment.Matched() {
 		c.applyRemoteExports(entries)
-		return
+		return nil
 	}
 	c.applyMatchedExportsWithRetained(entries, nil)
+	return nil
 }
 
 func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
@@ -447,16 +448,4 @@ func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error)
 		return nil, E.New(fmt.Sprintf("OP_REP_DEVLIST status=%d code=0x%04x", header.Status, header.Code))
 	}
 	return ReadOpRepDevListBody(conn)
-}
-
-func (c *ClientService) shouldRetryBusID(ctx context.Context, busid string) bool {
-	if c.assignment.Matched() {
-		return true
-	}
-	err := c.syncRemoteStateContext(ctx)
-	if err != nil {
-		c.logger.Warn("refresh remote exports after releasing ", busid, ": ", err)
-		return true
-	}
-	return c.assignment.IsRetryDesired(busid)
 }

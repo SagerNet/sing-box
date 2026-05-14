@@ -139,7 +139,16 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 		if ctx.Err() != nil {
 			return
 		}
-		if !c.shouldRetryBusID(ctx, busid) {
+		retry := true
+		if !c.assignment.Matched() {
+			err = c.syncRemoteStateContext(ctx)
+			if err != nil {
+				c.logger.Warn("refresh remote exports after releasing ", busid, ": ", err)
+			} else {
+				retry = c.assignment.IsRetryDesired(busid)
+			}
+		}
+		if !retry {
 			c.logger.Info("remote export ", busid, " disappeared; stopping import worker")
 			return
 		}

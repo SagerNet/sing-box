@@ -24,7 +24,7 @@ func newPlatformExportHost(logger log.ContextLogger, matches []option.USBIPDevic
 }
 
 func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
-	return newDarwinImportHost(logger), nil
+	return &darwinImportHost{logger: logger}, nil
 }
 
 // darwinExportHost retains stale captures: devices that reconcile
@@ -285,10 +285,6 @@ type darwinImportHost struct {
 	logger log.ContextLogger
 }
 
-func newDarwinImportHost(logger log.ContextLogger) *darwinImportHost {
-	return &darwinImportHost{logger: logger}
-}
-
 func (h *darwinImportHost) Start(ctx context.Context) error {
 	return nil
 }
@@ -304,27 +300,7 @@ func (h *darwinImportHost) Attach(ctx context.Context, info DeviceInfoTruncated,
 		_ = controller.Close()
 		return nil, err
 	}
-	return &darwinClientSession{controller: controller}, nil
-}
-
-type darwinClientSession struct {
-	controller *darwinVirtualController
-}
-
-func (s *darwinClientSession) Done() <-chan struct{} {
-	return s.controller.Done()
-}
-
-func (s *darwinClientSession) Err() error {
-	return s.controller.Err()
-}
-
-func (s *darwinClientSession) Close() error {
-	return s.controller.Close()
-}
-
-func (s *darwinClientSession) Description() string {
-	return "IOUSBHostControllerInterface"
+	return controller, nil
 }
 
 var _ DataSession = (*darwinServerDataSession)(nil)

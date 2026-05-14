@@ -72,7 +72,9 @@ func (s *clientControlSession) requestLease(ctx context.Context, busid string) (
 		Version: controlProtocolVersion,
 	}, request)
 	if err != nil {
-		s.removeLeaseWaiter(nonce)
+		s.access.Lock()
+		delete(s.pending, nonce)
+		s.access.Unlock()
 		return controlLeaseResponse{}, err
 	}
 
@@ -80,7 +82,9 @@ func (s *clientControlSession) requestLease(ctx context.Context, busid string) (
 	case result := <-waiter:
 		return result.response, result.err
 	case <-ctx.Done():
-		s.removeLeaseWaiter(nonce)
+		s.access.Lock()
+		delete(s.pending, nonce)
+		s.access.Unlock()
 		return controlLeaseResponse{}, ctx.Err()
 	}
 }
@@ -98,12 +102,6 @@ func (s *clientControlSession) deliverLeaseResponse(response controlLeaseRespons
 	waiter <- clientLeaseResult{response: response}
 	close(waiter)
 	return true
-}
-
-func (s *clientControlSession) removeLeaseWaiter(nonce uint64) {
-	s.access.Lock()
-	delete(s.pending, nonce)
-	s.access.Unlock()
 }
 
 func (s *clientControlSession) closeWithError(err error) {
@@ -142,15 +140,6 @@ func (c *ClientService) requestImportLease(ctx context.Context, busid string) (c
 		ID:          response.LeaseID,
 		ClientNonce: response.ClientNonce,
 	}, nil
-}
-
-func (c *ClientService) applyControlSnapshot(snapshot controlDeviceSnapshot) {
-	devices := deviceInfoV2Map(snapshot.Devices)
-	values := sortedDeviceInfoV2Values(devices)
-	c.remoteAccess.Lock()
-	c.remoteDevicesV2 = devices
-	c.remoteAccess.Unlock()
-	c.applyRemoteDeviceState(values)
 }
 
 func (c *ClientService) applyControlDelta(delta controlDeviceDelta) {
@@ -194,6 +183,10 @@ func (c *ClientService) syncRemoteStateAndResetControlState(ctx context.Context)
 	c.remoteAccess.Lock()
 	c.remoteDevicesV2 = devices
 	c.remoteAccess.Unlock()
-	c.applyRemoteEntries(entries)
+	if !c.assignment.Matched() {
+		c.applyRemoteExports(entries)
+		return nil
+	}
+	c.applyMatchedExportsWithRetained(entries, nil)
 	return nil
 }

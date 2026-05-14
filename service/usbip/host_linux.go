@@ -26,7 +26,10 @@ func newPlatformExportHost(logger log.ContextLogger, matches []option.USBIPDevic
 }
 
 func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
-	return newLinuxImportHost(logger), nil
+	return &linuxImportHost{
+		logger: logger,
+		ports:  make(map[int]struct{}),
+	}, nil
 }
 
 func isMissingUSBDeviceError(err error) bool {
@@ -463,13 +466,6 @@ type linuxImportHost struct {
 	ports       map[int]struct{}
 }
 
-func newLinuxImportHost(logger log.ContextLogger) *linuxImportHost {
-	return &linuxImportHost{
-		logger: logger,
-		ports:  make(map[int]struct{}),
-	}
-}
-
 func (h *linuxImportHost) Start(ctx context.Context) error {
 	return ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 }
@@ -512,7 +508,8 @@ func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncat
 			triedPorts[port] = struct{}{}
 			continue
 		}
-		err = vhciAttach(port, handoff.file.Fd(), info.DevID(), info.Speed)
+		attachLine := fmt.Sprintf("%d %d %d %d", port, int(handoff.file.Fd()), info.DevID(), info.Speed)
+		err = writeSysfs(filepath.Join(sysVHCIControllerV0, "attach"), attachLine)
 		if err != nil {
 			h.releasePort(port)
 			if errors.Is(err, unix.EBUSY) {

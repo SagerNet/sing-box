@@ -34,7 +34,7 @@ type darwinPendingSubmit struct {
 	reply     chan SubmitResponse
 }
 
-var _ DataSession = (*darwinVirtualController)(nil)
+var _ AttachedSession = (*darwinVirtualController)(nil)
 
 type darwinVirtualController struct {
 	ctx       context.Context
@@ -122,6 +122,10 @@ func (c *darwinVirtualController) Done() <-chan struct{} {
 
 func (c *darwinVirtualController) Err() error {
 	return c.runErr
+}
+
+func (c *darwinVirtualController) Description() string {
+	return "IOUSBHostControllerInterface"
 }
 
 func (c *darwinVirtualController) enqueueEvent(event darwinControllerEvent) {

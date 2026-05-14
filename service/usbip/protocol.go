@@ -287,18 +287,15 @@ func trailingCString(b []byte) string {
 	return ""
 }
 
-func entrySerial(entry DeviceEntry) string {
-	if entry.Serial != "" {
-		return entry.Serial
-	}
-	return entry.Info.SerialString()
-}
-
 func entryDeviceKey(entry DeviceEntry) DeviceKey {
+	serial := entry.Serial
+	if serial == "" {
+		serial = entry.Info.SerialString()
+	}
 	return DeviceKey{
 		BusID:     entry.Info.BusIDString(),
 		VendorID:  entry.Info.IDVendor,
 		ProductID: entry.Info.IDProduct,
-		Serial:    entrySerial(entry),
+		Serial:    serial,
 	}
 }
