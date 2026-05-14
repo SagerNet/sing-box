@@ -314,8 +314,28 @@ func (l *exportLedger) cleanupExpiredLocked(now time.Time) {
 // still receive the next BroadcastIfChanged delta against the previous
 // baseline.
 func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilities uint32) (*exportSubscriber, uint64) {
-	snapshot := l.snapshotDeviceState(ctx)
-	l.fast.Lock()
+	extended := supportsControlExtensions(capabilities)
+	var snapshot []DeviceInfoV2
+	var sequence uint64
+	if extended {
+		// Keep the snapshot and sequence from the same stable generation.
+		for {
+			l.fast.Lock()
+			sequence = l.seq
+			l.fast.Unlock()
+
+			snapshot = l.snapshotDeviceState(ctx)
+
+			l.fast.Lock()
+			if sequence == l.seq {
+				break
+			}
+			l.fast.Unlock()
+		}
+	} else {
+		l.fast.Lock()
+		sequence = l.seq
+	}
 	defer l.fast.Unlock()
 	l.nextSubID++
 	sub := &exportSubscriber{
@@ -324,8 +344,7 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 		conn:         conn,
 		send:         make(chan controlMessage, controlSubscriberSendBuffer),
 	}
-	sequence := l.seq
-	if supportsControlExtensions(capabilities) {
+	if extended {
 		l.enqueuePayload(sub, controlFrame{
 			Type:     controlFrameDeviceSnapshot,
 			Version:  controlProtocolVersion,
