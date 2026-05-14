@@ -1011,33 +1011,6 @@ func lookupDNSRuleSetMetadata(router adapter.Router, tag string, metadataOverrid
 	return ruleSet.Metadata(), nil
 }
 
-func referencedDNSRuleSetTags(rules []option.DNSRule) []string {
-	tagMap := make(map[string]bool)
-	var walkRule func(rule option.DNSRule)
-	walkRule = func(rule option.DNSRule) {
-		switch rule.Type {
-		case "", C.RuleTypeDefault:
-			for _, tag := range rule.DefaultOptions.RuleSet {
-				tagMap[tag] = true
-			}
-		case C.RuleTypeLogical:
-			for _, subRule := range rule.LogicalOptions.Rules {
-				walkRule(subRule)
-			}
-		}
-	}
-	for _, rule := range rules {
-		walkRule(rule)
-	}
-	tags := make([]string, 0, len(tagMap))
-	for tag := range tagMap {
-		if tag != "" {
-			tags = append(tags, tag)
-		}
-	}
-	return tags
-}
-
 func validateLegacyDNSModeDisabledRules(router adapter.Router, rules []option.DNSRule, metadataOverrides map[string]adapter.RuleSetMetadata) error {
 	var seenEvaluate bool
 	for i, rule := range rules {
