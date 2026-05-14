@@ -54,6 +54,8 @@ type CacheFile struct {
 	DB                 *bbolt.DB
 	resetAccess        sync.Mutex
 	saveMetadataTimer  *time.Timer
+	saveMetadataAccess sync.Mutex
+	latestFakeIPMetadata *adapter.FakeIPMetadata
 	saveFakeIPAccess   sync.RWMutex
 	saveDomain         map[netip.Addr]string
 	saveAddress4       map[string]netip.Addr
