@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -513,10 +514,7 @@ func (r *directionRunner) swapIntervalProbeValues() []float64 {
 }
 
 func (r *directionRunner) setResponsivenessWindow(currentInterval int) {
-	lower := currentInterval - settings.movingAvgDistance + 1
-	if lower < 0 {
-		lower = 0
-	}
+	lower := max(currentInterval-settings.movingAvgDistance+1, 0)
 	r.probeMu.Lock()
 	r.responsivenessWindow = &intervalWindow{lower: lower, upper: currentInterval}
 	r.probeMu.Unlock()
@@ -529,10 +527,7 @@ func (r *directionRunner) recordThroughput(interval int, bps float64) {
 }
 
 func (r *directionRunner) setThroughputWindow(currentInterval int) {
-	lower := currentInterval - settings.movingAvgDistance + 1
-	if lower < 0 {
-		lower = 0
-	}
+	lower := max(currentInterval-settings.movingAvgDistance+1, 0)
 	r.probeMu.Lock()
 	r.throughputWindow = &intervalWindow{lower: lower, upper: currentInterval}
 	r.probeMu.Unlock()
@@ -956,7 +951,7 @@ func measureIdleLatency(ctx context.Context, factory MeasurementClientFactory, c
 			maxProbeBytes = measurement.bytes
 		}
 	}
-	sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+	slices.Sort(latencies)
 	return int32(latencies[len(latencies)/2]), maxProbeBytes, nil
 }
 
