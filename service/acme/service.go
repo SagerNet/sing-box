@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 	"unsafe"
@@ -113,13 +114,8 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	}
 
 	profile := options.Profile
-	if profile == "" && acmeServer == certmagic.LetsEncryptProductionCA {
-		for _, domain := range options.Domain {
-			if certmagic.SubjectIsIP(domain) {
-				profile = "shortlived"
-				break
-			}
-		}
+	if profile == "" && acmeServer == certmagic.LetsEncryptProductionCA && slices.ContainsFunc(options.Domain, certmagic.SubjectIsIP) {
+		profile = "shortlived"
 	}
 
 	acmeIssuer := certmagic.ACMEIssuer{
