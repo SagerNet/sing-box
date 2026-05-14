@@ -1,6 +1,7 @@
 package rule
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -31,10 +32,8 @@ func (r *DNSResponseRecordItem) Match(metadata *adapter.InboundContext) bool {
 	}
 	records := r.selector(metadata.DNSResponse)
 	for _, expected := range r.records {
-		for _, record := range records {
-			if expected.Match(record) {
-				return true
-			}
+		if slices.ContainsFunc(records, expected.Match) {
+			return true
 		}
 	}
 	return false

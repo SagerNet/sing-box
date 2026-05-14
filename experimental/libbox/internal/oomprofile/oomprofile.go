@@ -320,7 +320,7 @@ func writeHeapProto(w io.Writer, profile []memProfileRecord, rate int64, default
 	var locs []uint64
 	for _, record := range profile {
 		hideRuntime := true
-		for tries := 0; tries < 2; tries++ {
+		for range 2 {
 			stk := record.Stack
 			if hideRuntime {
 				for i, addr := range stk {
