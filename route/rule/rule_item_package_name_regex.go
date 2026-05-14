@@ -2,6 +2,7 @@ package rule
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -42,10 +43,8 @@ func (r *PackageNameRegexItem) Match(metadata *adapter.InboundContext) bool {
 		return false
 	}
 	for _, matcher := range r.matchers {
-		for _, packageName := range metadata.ProcessInfo.AndroidPackageNames {
-			if matcher.MatchString(packageName) {
-				return true
-			}
+		if slices.ContainsFunc(metadata.ProcessInfo.AndroidPackageNames, matcher.MatchString) {
+			return true
 		}
 	}
 	return false
