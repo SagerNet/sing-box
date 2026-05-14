@@ -1,3 +1,5 @@
+//go:build linux || darwin || (windows && (amd64 || 386))
+
 package tlsspoof
 
 // realClientHello is a captured Chrome ClientHello for github.com.

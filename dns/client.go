@@ -61,10 +61,7 @@ type ClientOptions struct {
 }
 
 func NewClient(options ClientOptions) *Client {
-	cacheCapacity := options.CacheCapacity
-	if cacheCapacity < 1024 {
-		cacheCapacity = 1024
-	}
+	cacheCapacity := max(options.CacheCapacity, 1024)
 	client := &Client{
 		ctx:               options.Context,
 		timeout:           options.Timeout,
@@ -426,10 +423,7 @@ func (c *Client) loadResponse(question dns.Question, transport adapter.DNSTransp
 		c.cache.Remove(key)
 		return nil, 0, false
 	}
-	nowTTL := int(expireAt.Sub(timeNow).Seconds())
-	if nowTTL < 0 {
-		nowTTL = 0
-	}
+	nowTTL := max(int(expireAt.Sub(timeNow).Seconds()), 0)
 	response = response.Copy()
 	normalizeTTL(response, uint32(nowTTL))
 	return response, nowTTL, false
