@@ -52,9 +52,16 @@ type ExportSnapshot struct {
 // when the session terminates for any reason. Err is only valid after
 // Done is closed; it returns nil for a clean detach. Close is idempotent
 // and safe to call from any goroutine.
+//
+// Start transfers the session from "prepared" to "running". The session
+// is returned in the prepared state with the userspace conn still alive
+// so the server can send OP_REP_IMPORT before the kernel takes wire
+// ownership. Start is idempotent. Close before Start releases all
+// resources, including the userspace conn.
 type DataSession interface {
 	Done() <-chan struct{}
 	Err() error
+	Start() error
 	Close() error
 }
 

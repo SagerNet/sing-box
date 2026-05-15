@@ -248,7 +248,7 @@ func (h *darwinExportHost) FinishImport(ctx context.Context, busid string) (bool
 		exp.device.Close()
 	}
 	h.logger.Info("re-exported ", busid, " through IOUSBHost re-capture (registry ", pending, ")")
-	return false, nil
+	return true, nil
 }
 
 func (h *darwinExportHost) snapshotSelf() map[string]Export {
@@ -359,6 +359,7 @@ type darwinServerDataSession struct {
 	done      chan struct{}
 	doneOnce  sync.Once
 	runErr    error
+	startOnce sync.Once
 	closeOnce sync.Once
 	closeErr  error
 }
@@ -369,7 +370,7 @@ type darwinServerPendingSubmit struct {
 }
 
 func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, conn net.Conn, device *darwinUSBHostDevice) *darwinServerDataSession {
-	session := &darwinServerDataSession{
+	return &darwinServerDataSession{
 		ctx:     ctx,
 		logger:  logger,
 		conn:    conn,
@@ -377,8 +378,6 @@ func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, c
 		pending: make(map[uint32]darwinServerPendingSubmit),
 		done:    make(chan struct{}),
 	}
-	go session.run()
-	return session
 }
 
 func (s *darwinServerDataSession) Done() <-chan struct{} {
@@ -389,10 +388,18 @@ func (s *darwinServerDataSession) Err() error {
 	return s.runErr
 }
 
+func (s *darwinServerDataSession) Start() error {
+	s.startOnce.Do(func() {
+		go s.run()
+	})
+	return nil
+}
+
 func (s *darwinServerDataSession) Close() error {
 	s.closeOnce.Do(func() {
 		s.closeErr = common.Close(s.conn)
 	})
+	s.markDone(nil)
 	<-s.done
 	return s.closeErr
 }

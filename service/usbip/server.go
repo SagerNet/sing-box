@@ -127,6 +127,19 @@ func (s *ServerService) eventLoop() {
 	}
 }
 
+func (s *ServerService) tearDownPreparedSession(busid string, session DataSession) {
+	_ = session.Close()
+	<-session.Done()
+	released, _ := s.host.FinishImport(s.ctx, busid)
+	s.ledger.ReleaseImport(s.ctx, busid, released)
+	if released {
+		err := s.reconcileAndBroadcast(true)
+		if err != nil {
+			s.logger.Debug("reconcile after ", busid, ": ", err)
+		}
+	}
+}
+
 func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	s.reconcileAccess.Lock()
 	defer s.reconcileAccess.Unlock()
@@ -285,16 +298,13 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 	err = WriteOpRepImport(conn, opCode, OpStatusOK, &info)
 	if err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
-		_ = session.Close()
-		<-session.Done()
-		released, _ := s.host.FinishImport(s.ctx, busid)
-		s.ledger.ReleaseImport(s.ctx, busid, released)
-		if released {
-			reconcileErr := s.reconcileAndBroadcast(true)
-			if reconcileErr != nil {
-				s.logger.Debug("reconcile after ", busid, ": ", reconcileErr)
-			}
-		}
+		s.tearDownPreparedSession(busid, session)
+		return false
+	}
+	err = session.Start()
+	if err != nil {
+		s.logger.Warn("start data session ", busid, ": ", err)
+		s.tearDownPreparedSession(busid, session)
 		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())

@@ -437,7 +437,7 @@ func (e *linuxExport) DeviceInfo(ctx context.Context) (DeviceInfoTruncated, erro
 }
 
 func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error) {
-	handoff, err := newKernelHandoffSession(conn)
+	handoff, err := newKernelHandoffSession(ctx, conn, e.logger, "server", e.busid)
 	if err != nil {
 		return nil, E.Cause(err, "prepare handoff")
 	}
@@ -455,7 +455,6 @@ func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (
 	if closeErr != nil {
 		e.logger.Debug("close kernel fd ", e.busid, ": ", closeErr)
 	}
-	handoff.Start(ctx, e.logger, "server", e.busid)
 	return handoff, nil
 }
 
@@ -475,7 +474,7 @@ func (h *linuxImportHost) Close() error {
 }
 
 func (h *linuxImportHost) Attach(ctx context.Context, info DeviceInfoTruncated, conn net.Conn) (AttachedSession, error) {
-	handoff, err := newKernelHandoffSession(conn)
+	handoff, err := newKernelHandoffSession(ctx, conn, h.logger, "client", info.BusIDString())
 	if err != nil {
 		return nil, E.Cause(err, "prepare handoff")
 	}
@@ -489,7 +488,7 @@ func (h *linuxImportHost) Attach(ctx context.Context, info DeviceInfoTruncated, 
 		_ = handoff.Close()
 		return nil, attachErr
 	}
-	handoff.Start(ctx, h.logger, "client", info.BusIDString())
+	_ = handoff.Start()
 	return &linuxClientSession{
 		handoff: handoff,
 		host:    h,
@@ -560,6 +559,10 @@ func (s *linuxClientSession) Done() <-chan struct{} {
 
 func (s *linuxClientSession) Err() error {
 	return s.handoff.Err()
+}
+
+func (s *linuxClientSession) Start() error {
+	return s.handoff.Start()
 }
 
 func (s *linuxClientSession) Close() error {

@@ -276,13 +276,13 @@ func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
 	acceptedConn := <-accepted
 	defer acceptedConn.Close()
 
-	handoff, err := newKernelHandoffSession(conn)
+	handoff, err := newKernelHandoffSession(context.Background(), conn, newTestLogger(t), "test", "direct")
 	require.NoError(t, err)
 	defer handoff.Close()
 
 	require.Nil(t, handoff.relayConn)
 	requireStreamSocketFD(t, handoff.file.Fd())
-	handoff.Start(context.Background(), newTestLogger(t), "test", "direct")
+	require.NoError(t, handoff.Start())
 
 	_, err = conn.Write([]byte("closed"))
 	require.Error(t, err)
@@ -299,7 +299,9 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 
 	left, right := net.Pipe()
 	defer right.Close()
-	handoff, err := newKernelHandoffSession(opaqueConn{Conn: left})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	handoff, err := newKernelHandoffSession(ctx, opaqueConn{Conn: left}, newTestLogger(t), "test", "relay")
 	require.NoError(t, err)
 	defer handoff.Close()
 	require.NotNil(t, handoff.relayConn)
@@ -310,9 +312,7 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 	setConnDeadline(t, right)
 	setConnDeadline(t, kernelConn)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	handoff.Start(ctx, newTestLogger(t), "test", "relay")
+	require.NoError(t, handoff.Start())
 
 	_, err = right.Write([]byte("ping"))
 	require.NoError(t, err)

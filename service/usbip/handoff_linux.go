@@ -21,6 +21,10 @@ import (
 var _ DataSession = (*kernelHandoffSession)(nil)
 
 type kernelHandoffSession struct {
+	ctx         context.Context
+	logger      log.ContextLogger
+	side        string
+	busid       string
 	conn        net.Conn
 	file        *os.File
 	monitorFile *os.File
@@ -29,11 +33,12 @@ type kernelHandoffSession struct {
 	done      chan struct{}
 	doneOnce  sync.Once
 	runErr    error
+	startOnce sync.Once
 	closeOnce sync.Once
 	closeErr  error
 }
 
-func newKernelHandoffSession(conn net.Conn) (*kernelHandoffSession, error) {
+func newKernelHandoffSession(ctx context.Context, conn net.Conn, logger log.ContextLogger, side string, busid string) (*kernelHandoffSession, error) {
 	if tcpConn, _ := N.UnwrapReader(conn).(*net.TCPConn); tcpConn != nil {
 		file, err := tcpConn.File()
 		if err != nil {
@@ -45,6 +50,10 @@ func newKernelHandoffSession(conn net.Conn) (*kernelHandoffSession, error) {
 			return nil, E.Cause(err, "dup TCP socket monitor fd")
 		}
 		return &kernelHandoffSession{
+			ctx:         ctx,
+			logger:      logger,
+			side:        side,
+			busid:       busid,
 			conn:        conn,
 			file:        file,
 			monitorFile: monitorFile,
@@ -65,6 +74,10 @@ func newKernelHandoffSession(conn net.Conn) (*kernelHandoffSession, error) {
 		return nil, E.Cause(err, "wrap USB/IP relay socket")
 	}
 	return &kernelHandoffSession{
+		ctx:       ctx,
+		logger:    logger,
+		side:      side,
+		busid:     busid,
 		conn:      conn,
 		file:      kernelFile,
 		relayConn: relayConn,
@@ -95,9 +108,11 @@ func (h *kernelHandoffSession) Close() error {
 			h.closeKernelFD(),
 			common.Close(h.monitorFile),
 			common.Close(h.relayConn),
+			common.Close(h.conn),
 		)
 		h.monitorFile = nil
 		h.relayConn = nil
+		h.conn = nil
 	})
 	h.markDone(nil)
 	return h.closeErr
@@ -110,20 +125,24 @@ func (h *kernelHandoffSession) markDone(err error) {
 	})
 }
 
-func (h *kernelHandoffSession) Start(ctx context.Context, logger log.ContextLogger, side string, busid string) {
-	if h.relayConn == nil {
-		err := h.conn.Close()
-		if err != nil && !E.IsClosedOrCanceled(err) {
-			logger.Debug("close usbip ", side, " userspace socket ", busid, ": ", err)
+func (h *kernelHandoffSession) Start() error {
+	h.startOnce.Do(func() {
+		if h.relayConn == nil {
+			err := h.conn.Close()
+			if err != nil && !E.IsClosedOrCanceled(err) {
+				h.logger.Debug("close usbip ", h.side, " userspace socket ", h.busid, ": ", err)
+			}
+			h.conn = nil
+			monitorFile := h.monitorFile
+			h.monitorFile = nil
+			go h.runDirect(h.ctx, h.logger, h.side, h.busid, monitorFile)
+			return
 		}
-		monitorFile := h.monitorFile
-		h.monitorFile = nil
-		go h.runDirect(ctx, logger, side, busid, monitorFile)
-		return
-	}
-	relayConn := h.relayConn
-	h.relayConn = nil
-	go h.runRelay(ctx, logger, side, busid, relayConn)
+		relayConn := h.relayConn
+		h.relayConn = nil
+		go h.runRelay(h.ctx, h.logger, h.side, h.busid, relayConn)
+	})
+	return nil
 }
 
 func (h *kernelHandoffSession) runDirect(ctx context.Context, logger log.ContextLogger, side string, busid string, file *os.File) {
