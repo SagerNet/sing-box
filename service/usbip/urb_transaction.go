@@ -53,7 +53,7 @@ func (t *UrbTransaction) Cancel(ctx context.Context) error {
 	type writeResult struct{ err error }
 	resultCh := make(chan writeResult, 1)
 	go func() {
-		resultCh <- writeResult{err: t.peer.writeUnlink(t.seqnum)}
+		resultCh <- writeResult{err: t.peer.cancel(t.seqnum)}
 	}()
 
 	select {

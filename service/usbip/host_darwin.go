@@ -186,13 +186,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 	for _, exp := range toAdd {
 		h.exports[exp.busid] = exp
 	}
-	out := make(map[string]Export, len(h.exports))
-	for busid, exp := range h.exports {
-		if exp.stale {
-			continue
-		}
-		out[busid] = exp
-	}
+	out := snapshotDarwinExports(h.exports)
 	h.access.Unlock()
 
 	for _, exp := range toRemove {
@@ -253,11 +247,16 @@ func (h *darwinExportHost) FinishImport(ctx context.Context, busid string) (bool
 func (h *darwinExportHost) snapshotSelf() map[string]Export {
 	h.access.Lock()
 	defer h.access.Unlock()
-	out := make(map[string]Export, len(h.exports))
-	for busid, exp := range h.exports {
-		if exp.stale {
-			continue
-		}
+	return snapshotDarwinExports(h.exports)
+}
+
+// snapshotDarwinExports returns every tracked export, including stale
+// ones, matching the ExportSnapshot contract: stale exports surface
+// to the ledger so they broadcast as State: unavailable updates
+// instead of disappearing.
+func snapshotDarwinExports(exports map[string]*darwinExport) map[string]Export {
+	out := make(map[string]Export, len(exports))
+	for busid, exp := range exports {
 		out[busid] = exp
 	}
 	return out

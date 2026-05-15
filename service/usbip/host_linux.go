@@ -430,12 +430,14 @@ func (h *linuxExportHost) snapshotSelf() map[string]Export {
 	return snapshotLinuxExports(h.exports)
 }
 
+// snapshotLinuxExports returns every tracked export, including stale
+// ones. The ledger treats stale entries as broadcastable State:
+// unavailable updates via Export.Snapshot, which is what the
+// ExportSnapshot contract requires; filtering here would surface a
+// removed device instead of an updated one.
 func snapshotLinuxExports(exports map[string]*linuxExport) map[string]Export {
 	out := make(map[string]Export, len(exports))
 	for busid, exp := range exports {
-		if exp.stale {
-			continue
-		}
 		out[busid] = exp
 	}
 	return out

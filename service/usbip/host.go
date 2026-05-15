@@ -42,10 +42,12 @@ type Export interface {
 }
 
 // ExportSnapshot Backend and StableID fields are populated
-// unconditionally. Unavailable snapshots should keep a cached Entry,
+// unconditionally. Unavailable snapshots keep a cached Entry,
 // including BusID, so the caller can broadcast a state transition
 // instead of removing the device outright; snapshots without a BusID
-// are treated as non-broadcastable.
+// are treated as non-broadcastable. ExportHost.Reconcile returns
+// stale entries in its snapshot for the same reason — the ledger
+// filters non-broadcastable snapshots in one place, not the host.
 type ExportSnapshot struct {
 	Entry        DeviceEntry
 	Backend      string

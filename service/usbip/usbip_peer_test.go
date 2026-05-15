@@ -144,6 +144,10 @@ func TestUsbIpPeerSessionCloseFailsPending(t *testing.T) {
 	require.ErrorIs(t, err, ErrPeerClosed)
 }
 
+// TestUsbIpPeerCancelMidFlight uses the canonical Linux cancel wire:
+// after CMD_UNLINK the server emits only RET_UNLINK (status
+// ECONNRESET), never a parallel RET_SUBMIT. The peer finalizes the
+// transaction off RET_UNLINK alone.
 func TestUsbIpPeerCancelMidFlight(t *testing.T) {
 	peer, server, _ := newPeerPair(t)
 
@@ -156,9 +160,8 @@ func TestUsbIpPeerCancelMidFlight(t *testing.T) {
 		require.Equal(t, USBIPDirIn, submit.Header.Direction)
 		unlink := server.readUnlink(t)
 		require.Equal(t, submit.Header.SeqNum, unlink.SeqNum)
-		// RET_SUBMIT with ECONNRESET (canceled), buffer empty.
-		server.writeSubmitResponse(t, USBIPDirIn, submit.Header.SeqNum, usbipStatusECONNRESET, nil, nil)
-		server.writeUnlinkResponse(t, unlink.Header.SeqNum, 0)
+		require.Equal(t, submit.Header.DevID, unlink.Header.DevID)
+		server.writeUnlinkResponse(t, unlink.Header.SeqNum, usbipStatusECONNRESET)
 	}()
 
 	transaction, err := peer.Submit(SubmitCommand{
