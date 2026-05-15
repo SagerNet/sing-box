@@ -664,14 +664,23 @@ bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint
 
 bool box_usbhost_device_abort_endpoint(box_usbhost_device_t *device, uint8_t endpoint, char **error_out) {
 	BoxUSBHostDevice *box = box_device(device);
-	IOUSBHostPipe *pipe = box_pipe_for_endpoint(box, endpoint);
-	if (pipe == nil) {
-		return true;
+	if (box == nil) {
+		box_set_error_string(error_out, @"IOUSBHost abort: invalid device handle");
+		return false;
 	}
 	NSError *error = nil;
-	BOOL ok = [pipe abortWithOption:IOUSBHostAbortOptionAsynchronous error:&error];
+	BOOL ok;
+	if ((endpoint & kIOUSBEndpointDescriptorNumber) == 0) {
+		ok = [box.device abortDeviceRequestsWithOption:IOUSBHostAbortOptionSynchronous error:&error];
+	} else {
+		IOUSBHostPipe *pipe = box_pipe_for_endpoint(box, endpoint);
+		if (pipe == nil) {
+			return true;
+		}
+		ok = [pipe abortWithOption:IOUSBHostAbortOptionSynchronous error:&error];
+	}
 	if (!ok) {
-		box_set_error_from_nserror(error_out, @"IOUSBHostPipe abortWithOption", error);
+		box_set_error_from_nserror(error_out, @"IOUSBHost abort", error);
 	}
 	return ok;
 }

@@ -369,6 +369,7 @@ type darwinServerDataSession struct {
 type darwinServerPendingSubmit struct {
 	endpoint uint8
 	unlinked bool
+	drained  chan struct{}
 }
 
 func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, conn net.Conn, device *darwinUSBHostDevice) *darwinServerDataSession {
@@ -474,11 +475,13 @@ func (s *darwinServerDataSession) serve() error {
 				return err
 			}
 			status := int32(0)
-			if endpoint, ok := s.markSubmitUnlinked(command.SeqNum); ok {
+			endpoint, drained, found := s.markSubmitUnlinked(command.SeqNum)
+			if found {
 				abortErr := s.device.abortEndpoint(endpoint)
 				if abortErr != nil {
 					s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", abortErr)
 				}
+				<-drained
 				status = usbipStatusECONNRESET
 			}
 			s.writeAccess.Lock()
@@ -588,27 +591,36 @@ func (s *darwinServerDataSession) trackSubmit(seq uint32, endpoint uint8) {
 	s.pending[seq] = darwinServerPendingSubmit{endpoint: endpoint}
 }
 
-func (s *darwinServerDataSession) markSubmitUnlinked(seq uint32) (uint8, bool) {
+func (s *darwinServerDataSession) markSubmitUnlinked(seq uint32) (uint8, <-chan struct{}, bool) {
 	s.access.Lock()
 	defer s.access.Unlock()
-	pending, ok := s.pending[seq]
-	if !ok {
-		return 0, false
+	pending, found := s.pending[seq]
+	if !found {
+		return 0, nil, false
 	}
 	pending.unlinked = true
+	if pending.drained == nil {
+		pending.drained = make(chan struct{})
+	}
 	s.pending[seq] = pending
-	return pending.endpoint, true
+	return pending.endpoint, pending.drained, true
 }
 
 func (s *darwinServerDataSession) finishSubmit(seq uint32) bool {
 	s.access.Lock()
-	defer s.access.Unlock()
-	pending, ok := s.pending[seq]
-	if !ok {
+	pending, found := s.pending[seq]
+	if !found {
+		s.access.Unlock()
 		return true
 	}
 	delete(s.pending, seq)
-	return !pending.unlinked
+	drained := pending.drained
+	unlinked := pending.unlinked
+	s.access.Unlock()
+	if drained != nil {
+		close(drained)
+	}
+	return !unlinked
 }
 
 func (s *darwinServerDataSession) abortPendingSubmits() {

@@ -29,7 +29,7 @@ func newPlatformExportHost(logger log.ContextLogger, matches []option.USBIPDevic
 func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
 	return &linuxImportHost{
 		logger: logger,
-		ports:  make(map[vhciPortKey]struct{}),
+		ports:  make(map[int]struct{}),
 	}, nil
 }
 
@@ -459,33 +459,14 @@ func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (
 }
 
 type linuxImportHost struct {
-	logger      log.ContextLogger
-	controllers []vhciController
+	logger log.ContextLogger
 
 	portsAccess sync.Mutex
-	ports       map[vhciPortKey]struct{}
+	ports       map[int]struct{}
 }
 
 func (h *linuxImportHost) Start(ctx context.Context) error {
-	controllers, err := discoverVHCIControllers()
-	if err != nil {
-		return E.Cause(err, "discover vhci controllers")
-	}
-	if len(controllers) == 0 {
-		err = ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
-		if err != nil {
-			return err
-		}
-		controllers, err = discoverVHCIControllers()
-		if err != nil {
-			return E.Cause(err, "discover vhci controllers")
-		}
-		if len(controllers) == 0 {
-			return E.New("no vhci controllers present after loading vhci-hcd")
-		}
-	}
-	h.controllers = controllers
-	return nil
+	return ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 }
 
 func (h *linuxImportHost) Close() error {
@@ -502,75 +483,87 @@ func (h *linuxImportHost) Attach(ctx context.Context, info DeviceInfoTruncated, 
 		mode = "relay"
 	}
 	h.logger.Debug("usbip client handoff ", info.BusIDString(), ": ", mode)
-	ctrl, port, attachErr := h.attachOnce(ctx, info, handoff)
+	port, secondary, attachErr := h.attachOnce(ctx, info, handoff)
 	if attachErr != nil {
 		_ = handoff.Close()
 		return nil, attachErr
 	}
 	_ = handoff.Start()
 	return &linuxClientSession{
-		handoff:    handoff,
-		host:       h,
-		controller: ctrl,
-		port:       port,
+		handoff:   handoff,
+		host:      h,
+		port:      port,
+		secondary: secondary,
 	}, nil
 }
 
-func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncated, handoff *kernelHandoffSession) (vhciController, int, error) {
-	triedPorts := make(map[vhciPortKey]struct{})
+func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncated, handoff *kernelHandoffSession) (int, int, error) {
+	triedPorts := make(map[int]struct{})
 	for {
-		ctrl, port, err := vhciPickFreePort(h.controllers, info.Speed, triedPorts)
+		port, err := vhciPickFreePort(info.Speed, triedPorts)
 		if err != nil {
-			return "", -1, err
+			return -1, 0, err
 		}
-		key := vhciPortKey{controller: ctrl, port: port}
-		if !h.reservePort(ctrl, port) {
-			triedPorts[key] = struct{}{}
+		if !h.reservePort(port) {
+			triedPorts[port] = struct{}{}
 			continue
 		}
 		attachLine := fmt.Sprintf("%d %d %d %d", port, int(handoff.file.Fd()), info.DevID(), info.Speed)
-		err = writeSysfs(filepath.Join(string(ctrl), "attach"), attachLine)
+		err = writeSysfs(filepath.Join(sysVHCIControllerV0, "attach"), attachLine)
 		if err != nil {
-			h.releasePort(ctrl, port)
+			h.releasePort(port)
 			if errors.Is(err, unix.EBUSY) {
-				triedPorts[key] = struct{}{}
+				triedPorts[port] = struct{}{}
 				continue
 			}
-			return "", -1, E.Cause(err, "vhci attach")
+			return -1, 0, E.Cause(err, "vhci attach")
 		}
 		err = handoff.closeKernelFD()
 		if err != nil {
 			h.logger.Debug("close kernel fd ", info.BusIDString(), ": ", err)
 		}
-		return ctrl, port, nil
+		return port, lookupSecondaryForPort(port), nil
 	}
 }
 
-func (h *linuxImportHost) reservePort(ctrl vhciController, port int) bool {
-	key := vhciPortKey{controller: ctrl, port: port}
+func lookupSecondaryForPort(port int) int {
+	records, err := readPrimaryVHCIStatus()
+	if err != nil {
+		return 0
+	}
+	for _, record := range records {
+		if record.port == port {
+			return record.secondary
+		}
+	}
+	return 0
+}
+
+func (h *linuxImportHost) reservePort(port int) bool {
 	h.portsAccess.Lock()
 	defer h.portsAccess.Unlock()
-	if _, exists := h.ports[key]; exists {
-		h.logger.Debug(ctrl.name(), " port ", port, " already reserved locally")
+	_, exists := h.ports[port]
+	if exists {
+		h.logger.Debug("vhci port ", port, " already reserved locally")
 		return false
 	}
-	h.logger.Debug("reserve ", ctrl.name(), " port ", port)
-	h.ports[key] = struct{}{}
+	h.logger.Debug("reserve vhci port ", port)
+	h.ports[port] = struct{}{}
 	return true
 }
 
-func (h *linuxImportHost) releasePort(ctrl vhciController, port int) {
+func (h *linuxImportHost) releasePort(port int) {
 	h.portsAccess.Lock()
 	defer h.portsAccess.Unlock()
-	h.logger.Debug("release ", ctrl.name(), " port ", port)
-	delete(h.ports, vhciPortKey{controller: ctrl, port: port})
+	h.logger.Debug("release vhci port ", port)
+	delete(h.ports, port)
 }
 
 type linuxClientSession struct {
-	handoff    *kernelHandoffSession
-	host       *linuxImportHost
-	controller vhciController
-	port       int
+	handoff   *kernelHandoffSession
+	host      *linuxImportHost
+	port      int
+	secondary int
 
 	closeOnce sync.Once
 	closeErr  error
@@ -590,14 +583,17 @@ func (s *linuxClientSession) Start() error {
 
 func (s *linuxClientSession) Close() error {
 	s.closeOnce.Do(func() {
-		detachErr := writeSysfs(filepath.Join(string(s.controller), "detach"), strconv.Itoa(s.port))
+		detachErr := writeSysfs(filepath.Join(sysVHCIControllerV0, "detach"), strconv.Itoa(s.port))
 		closeErr := s.handoff.Close()
-		s.host.releasePort(s.controller, s.port)
+		s.host.releasePort(s.port)
 		s.closeErr = E.Errors(detachErr, closeErr)
 	})
 	return s.closeErr
 }
 
 func (s *linuxClientSession) Description() string {
-	return fmt.Sprintf("%s port %d", s.controller.name(), s.port)
+	if s.secondary == 0 {
+		return fmt.Sprintf("vhci_hcd.0 port %d", s.port)
+	}
+	return fmt.Sprintf("vhci_hcd.0 (controller %d) port %d", s.secondary, s.port)
 }

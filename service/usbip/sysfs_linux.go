@@ -21,25 +21,12 @@ import (
 const (
 	sysBusUSBDevices    = "/sys/bus/usb/devices"
 	sysUsbipHostDriver  = "/sys/bus/usb/drivers/usbip-host"
-	sysVHCIPlatform     = "/sys/devices/platform"
 	sysVHCIControllerV0 = "/sys/devices/platform/vhci_hcd.0"
 
 	usbipStatusAvailable = 1
 	usbipStatusUsed      = 2
 	usbipStatusError     = 3
 )
-
-// vhciController is the canonical sysfs path of a vhci_hcd platform device,
-// e.g. /sys/devices/platform/vhci_hcd.0. The kernel module instantiates
-// controllers at load time and never adds more at runtime.
-type vhciController string
-
-func (c vhciController) name() string { return filepath.Base(string(c)) }
-
-type vhciPortKey struct {
-	controller vhciController
-	port       int
-}
 
 type sysfsDevice struct {
 	BusID          string
@@ -79,11 +66,15 @@ func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 	return info
 }
 
+// vhciStatusRecord is one row of /sys/devices/platform/vhci_hcd.0/status
+// or status.N. The kernel emits globally unique port numbers across every
+// status* file; secondary identifies which file the row came from
+// (0 for status, N for status.N) and exists only for diagnostic logging.
 type vhciStatusRecord struct {
-	controller vhciController
-	hub        string
-	port       int
-	state      int
+	secondary int
+	hub       string
+	port      int
+	state     int
 }
 
 func listUSBDevices() ([]sysfsDevice, error) {
@@ -218,76 +209,74 @@ func waitForUsbipStatusCleared(ctx context.Context, busid string) {
 	}
 }
 
-func discoverVHCIControllers() ([]vhciController, error) {
-	matches, err := filepath.Glob(filepath.Join(sysVHCIPlatform, "vhci_hcd.*"))
+// readPrimaryVHCIStatus reads every status* file under
+// /sys/devices/platform/vhci_hcd.0 and concatenates the rows in lexical
+// order. status reports controller 0; status.N reports controller N.
+// Port numbers are already globally unique — no remapping is needed.
+func readPrimaryVHCIStatus() ([]vhciStatusRecord, error) {
+	matches, err := filepath.Glob(filepath.Join(sysVHCIControllerV0, "status*"))
 	if err != nil {
 		return nil, err
 	}
 	sort.Strings(matches)
-	out := make([]vhciController, 0, len(matches))
+	records := make([]vhciStatusRecord, 0)
 	for _, path := range matches {
-		out = append(out, vhciController(path))
+		secondary, parseErr := vhciSecondaryFromStatusFile(filepath.Base(path))
+		if parseErr != nil {
+			continue
+		}
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, readErr
+		}
+		records = append(records, parseVHCIStatus(secondary, string(raw))...)
 	}
-	return out, nil
+	return records, nil
 }
 
-func vhciPickFreePort(controllers []vhciController, speed uint32, skip map[vhciPortKey]struct{}) (vhciController, int, error) {
+func readAllVHCIStatus() []vhciStatusRecord {
+	records, err := readPrimaryVHCIStatus()
+	if err != nil {
+		return nil
+	}
+	return records
+}
+
+func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
 	targetHub := "hs"
 	switch speed {
 	case SpeedSuper, SpeedSuperPlus:
 		targetHub = "ss"
 	}
-	var firstErr error
-	for _, ctrl := range controllers {
-		records, err := readVHCIStatus(ctrl)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
+	records, err := readPrimaryVHCIStatus()
+	if err != nil {
+		return -1, err
+	}
+	for _, record := range records {
+		if record.hub != targetHub || record.state != 4 {
 			continue
 		}
-		for _, record := range records {
-			if record.hub != targetHub || record.state != 4 {
-				continue
-			}
-			key := vhciPortKey{controller: ctrl, port: record.port}
-			if _, skipped := skip[key]; skipped {
-				continue
-			}
-			return ctrl, record.port, nil
-		}
-	}
-	if firstErr != nil {
-		return "", -1, firstErr
-	}
-	return "", -1, E.New("no free ", targetHub, " vhci port")
-}
-
-func readVHCIStatus(ctrl vhciController) ([]vhciStatusRecord, error) {
-	raw, err := os.ReadFile(filepath.Join(string(ctrl), "status"))
-	if err != nil {
-		return nil, err
-	}
-	return parseVHCIStatus(ctrl, string(raw)), nil
-}
-
-func readAllVHCIStatus() []vhciStatusRecord {
-	controllers, err := discoverVHCIControllers()
-	if err != nil {
-		return nil
-	}
-	var out []vhciStatusRecord
-	for _, ctrl := range controllers {
-		records, err := readVHCIStatus(ctrl)
-		if err != nil {
+		_, skipped := skip[record.port]
+		if skipped {
 			continue
 		}
-		out = append(out, records...)
+		return record.port, nil
 	}
-	return out
+	return -1, E.New("no free ", targetHub, " vhci port")
 }
 
-func parseVHCIStatus(ctrl vhciController, raw string) []vhciStatusRecord {
+func vhciSecondaryFromStatusFile(name string) (int, error) {
+	if name == "status" {
+		return 0, nil
+	}
+	suffix := strings.TrimPrefix(name, "status.")
+	if suffix == name {
+		return 0, E.New("not a status file: ", name)
+	}
+	return strconv.Atoi(suffix)
+}
+
+func parseVHCIStatus(secondary int, raw string) []vhciStatusRecord {
 	scanner := bufio.NewScanner(strings.NewReader(raw))
 	records := make([]vhciStatusRecord, 0)
 	first := true
@@ -313,10 +302,10 @@ func parseVHCIStatus(ctrl vhciController, raw string) []vhciStatusRecord {
 			continue
 		}
 		records = append(records, vhciStatusRecord{
-			controller: ctrl,
-			hub:        fields[0],
-			port:       port,
-			state:      state,
+			secondary: secondary,
+			hub:       fields[0],
+			port:      port,
+			state:     state,
 		})
 	}
 	return records

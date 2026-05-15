@@ -277,57 +277,57 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 
 // ConsumeLeaseAndReserve atomically validates a lease, removes its entry,
 // and marks the busid busy under a single slow-lock critical section so
-// no concurrent import can observe the consume-before-reserve gap. It
-// keeps the consume-on-read semantics of the old ConsumeLease: the entry
-// is removed on every outcome except a nonce/ID mismatch, which preserves
-// the lease for the legitimate holder. LeaseCheck is not re-run — the
-// lease itself attests that LeaseCheck passed at issue time, and the
-// generation equality test below confirms the export has not been
-// reconciled since. The caller must pair every success with a later
-// ReleaseImport.
+// no concurrent import can observe the consume-before-reserve gap, and
+// no concurrent broadcast can observe a transient busy=true that we
+// later roll back. The generation snapshot is taken before the slow
+// critical section so the comparison either matches the lease exactly
+// or is strictly stale (the safe rejection direction): a broadcast that
+// fires between the snapshot and slow.Lock can only advance seq.
+//
+// Consume-on-read semantics from the old ConsumeLease are preserved:
+// the lease entry is removed on every outcome except a nonce/ID
+// mismatch (which preserves the lease for the legitimate holder).
+// LeaseCheck is not re-run — the lease attests that it passed at issue
+// time, and the generation equality test confirms the export has not
+// been reconciled since. The caller must pair every success with a
+// later ReleaseImport.
 func (l *exportLedger) ConsumeLeaseAndReserve(request ImportExtRequest) (Export, bool, string) {
+	l.fast.Lock()
+	currentGeneration := l.seq
+	l.fast.Unlock()
+
 	l.slow.Lock()
+	defer l.slow.Unlock()
+
 	now := l.now()
 	l.cleanupExpiredLocked(now)
+
 	lease, found := l.leases[request.BusID]
 	if !found {
-		l.slow.Unlock()
 		return nil, false, "lease not found"
 	}
 	if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
-		l.slow.Unlock()
 		return nil, false, "lease mismatch"
+	}
+	if lease.Generation != currentGeneration {
+		delete(l.leases, request.BusID)
+		return nil, false, "lease stale"
 	}
 	if !now.Before(lease.Expires) {
 		delete(l.leases, request.BusID)
-		l.slow.Unlock()
 		return nil, false, "lease expired"
 	}
 	export, stillExported := l.exports[request.BusID]
 	if !stillExported {
 		delete(l.leases, request.BusID)
-		l.slow.Unlock()
 		return nil, false, "unknown busid"
 	}
 	if l.busy[request.BusID] {
 		delete(l.leases, request.BusID)
-		l.slow.Unlock()
 		return nil, false, deviceStateBusy
 	}
 	delete(l.leases, request.BusID)
 	l.busy[request.BusID] = true
-	leaseGeneration := lease.Generation
-	l.slow.Unlock()
-
-	l.fast.Lock()
-	currentGeneration := l.seq
-	l.fast.Unlock()
-	if leaseGeneration != currentGeneration {
-		l.slow.Lock()
-		delete(l.busy, request.BusID)
-		l.slow.Unlock()
-		return nil, false, "lease stale"
-	}
 	return export, true, ""
 }
 

@@ -230,7 +230,7 @@ func waitForUSBIPTeardown(condition func() bool) bool {
 func detachUsedVHCIPorts() {
 	for _, record := range readAllVHCIStatus() {
 		if record.state == 6 {
-			_ = writeSysfs(filepath.Join(string(record.controller), "detach"), strconv.Itoa(record.port))
+			_ = writeSysfs(filepath.Join(sysVHCIControllerV0, "detach"), strconv.Itoa(record.port))
 		}
 	}
 }
