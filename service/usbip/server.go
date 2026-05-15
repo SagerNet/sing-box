@@ -331,6 +331,8 @@ func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export
 		s.tearDownPreparedSession(busid, session)
 		return false
 	}
+	// Close may observe a prepared session before Start runs, so
+	// DataSession implementations must treat Close-before-Start as valid.
 	s.sessions[session] = struct{}{}
 	s.sessionsWG.Add(1)
 	s.sessionsAccess.Unlock()

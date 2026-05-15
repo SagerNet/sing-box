@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-box/option"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
@@ -294,6 +295,42 @@ func TestUSBIPConnHandoffDirectTCP(t *testing.T) {
 	}
 }
 
+func TestUSBIPConnHandoffCloseBeforeStartIsSafe(t *testing.T) {
+	t.Parallel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, _ := listener.Accept()
+		accepted <- conn
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	require.NoError(t, err)
+	acceptedConn := <-accepted
+	defer acceptedConn.Close()
+
+	handoff, err := newKernelHandoffSession(context.Background(), conn, newTestLogger(t), "test", "close-before-start")
+	require.NoError(t, err)
+
+	require.NoError(t, handoff.Close())
+	require.NoError(t, handoff.Start())
+
+	select {
+	case <-handoff.Done():
+	default:
+		t.Fatal("expected close-before-start handoff to be done")
+	}
+
+	setConnDeadline(t, acceptedConn)
+	buffer := make([]byte, 1)
+	_, err = acceptedConn.Read(buffer)
+	require.ErrorIs(t, err, io.EOF)
+}
+
 func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 	t.Parallel()
 
@@ -362,6 +399,37 @@ func TestUSBIPLinuxSmoke(t *testing.T) {
 	require.NoError(t, writeSysfs(filepath.Join(sysUsbipHostDriver, "match_busid"), "del "+gadget.busid))
 	require.NoError(t, writeSysfs("/sys/bus/usb/drivers/usb/bind", gadget.busid))
 	deleteLinuxExport(host, gadget.busid)
+
+	driver, err = currentDriver(gadget.busid)
+	require.NoError(t, err)
+	require.Equal(t, "usb", driver)
+}
+
+func TestUSBIPLinuxReconcileReleaseRestoresOriginalDriver(t *testing.T) {
+	requireRoot(t)
+
+	requireUSBIPHost(t)
+	requireVHCI(t)
+
+	gadget := newTestUSBGadget(t)
+	host := newLinuxExportHost(newTestLogger(t), []option.USBIPDeviceMatch{{BusID: gadget.busid}})
+	require.NoError(t, host.Start(context.Background()))
+
+	snapshot, released, err := host.Reconcile(context.Background(), func(string) bool { return false })
+	require.NoError(t, err)
+	require.Empty(t, released)
+	_, exported := snapshot[gadget.busid]
+	require.True(t, exported)
+
+	driver, err := currentDriver(gadget.busid)
+	require.NoError(t, err)
+	require.Equal(t, "usbip-host", driver)
+
+	host.matches = nil
+	snapshot, released, err = host.Reconcile(context.Background(), func(string) bool { return false })
+	require.NoError(t, err)
+	require.Equal(t, []string{gadget.busid}, released)
+	require.Empty(t, snapshot)
 
 	driver, err = currentDriver(gadget.busid)
 	require.NoError(t, err)

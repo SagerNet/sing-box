@@ -168,7 +168,7 @@ func (h *linuxExportHost) Close() error {
 	h.exports = make(map[string]*linuxExport)
 	h.access.Unlock()
 	for _, exp := range exports {
-		releaseErr := h.releaseExport(exp, exp.shouldRestoreCurrentDevice())
+		releaseErr := h.releaseExport(exp)
 		if releaseErr != nil {
 			h.logger.Warn("rollback ", exp.busid, ": ", releaseErr)
 		}
@@ -338,7 +338,7 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 	}
 
 	for _, exp := range plan.toRelease {
-		releaseErr := h.releaseExport(exp, false)
+		releaseErr := h.releaseExport(exp)
 		if releaseErr != nil {
 			h.logger.Warn("release ", exp.busid, ": ", releaseErr)
 			reconcileErrors = append(reconcileErrors, E.Cause(releaseErr, "release ", exp.busid))
@@ -411,7 +411,7 @@ func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool,
 	if !ok || !exp.stale {
 		return false, nil
 	}
-	releaseErr := h.releaseExport(exp, false)
+	releaseErr := h.releaseExport(exp)
 	h.access.Lock()
 	current, stillPresent := h.exports[busid]
 	if stillPresent && current == exp {
@@ -569,7 +569,7 @@ func (h *linuxExportHost) bindOneOnce(d *sysfsDevice) (*linuxExport, error) {
 	return h.newExport(*d, true, driver), nil
 }
 
-func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
+func (h *linuxExportHost) releaseExport(exp *linuxExport) error {
 	if !exp.managed {
 		h.logger.Info("stopped tracking ", exp.busid, " on usbip-host")
 		return nil
@@ -585,14 +585,18 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
 		}
 	}
 	err := writeSysfs(filepath.Join(sysUsbipHostDriver, "unbind"), exp.busid)
-	if err != nil && !os.IsNotExist(err) && !(isMissingUSBDeviceError(err) && !restore) {
+	if err != nil && !os.IsNotExist(err) && !isMissingUSBDeviceError(err) {
 		return err
 	}
 	err = writeSysfs(filepath.Join(sysUsbipHostDriver, "match_busid"), "del "+exp.busid)
 	if err != nil {
 		return err
 	}
-	if !restore {
+	restoreCurrentDevice, err := h.shouldRestoreCurrentDevice(exp)
+	if err != nil {
+		return err
+	}
+	if !restoreCurrentDevice {
 		h.logger.Info("removed export state for ", exp.busid)
 		return nil
 	}
@@ -606,6 +610,17 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
 	}
 	h.logger.Info("restored ", exp.busid, " to ", exp.originalDriver)
 	return nil
+}
+
+func (h *linuxExportHost) shouldRestoreCurrentDevice(exp *linuxExport) (bool, error) {
+	descriptor, err := readSysfsDevice(exp.busid, filepath.Join(sysBusUSBDevices, exp.busid))
+	if err != nil {
+		if os.IsNotExist(err) || isMissingUSBDeviceError(err) {
+			return false, nil
+		}
+		return false, E.Cause(err, "read current device ", exp.busid)
+	}
+	return exp.identity.Equal(newLinuxExportIdentity(descriptor)), nil
 }
 
 func (h *linuxExportHost) newExport(descriptor sysfsDevice, managed bool, originalDriver string) *linuxExport {
@@ -732,17 +747,6 @@ func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (
 		e.logger.Debug("close kernel fd ", e.busid, ": ", closeErr)
 	}
 	return handoff, nil
-}
-
-func (e *linuxExport) shouldRestoreCurrentDevice() bool {
-	if e.originalDriver == "" || e.stale {
-		return false
-	}
-	descriptor, err := readSysfsDevice(e.busid, filepath.Join(sysBusUSBDevices, e.busid))
-	if err != nil {
-		return false
-	}
-	return e.identity.Equal(newLinuxExportIdentity(descriptor))
 }
 
 type linuxImportHost struct {

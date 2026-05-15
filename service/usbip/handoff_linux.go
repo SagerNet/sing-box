@@ -33,9 +33,12 @@ type kernelHandoffSession struct {
 	done      chan struct{}
 	doneOnce  sync.Once
 	runErr    error
-	startOnce sync.Once
 	closeOnce sync.Once
 	closeErr  error
+
+	stateAccess sync.Mutex
+	started     bool
+	closed      bool
 }
 
 func newKernelHandoffSession(ctx context.Context, conn net.Conn, logger log.ContextLogger, side string, busid string) (*kernelHandoffSession, error) {
@@ -103,6 +106,9 @@ func (h *kernelHandoffSession) Err() error {
 }
 
 func (h *kernelHandoffSession) Close() error {
+	h.stateAccess.Lock()
+	h.closed = true
+	h.stateAccess.Unlock()
 	h.closeOnce.Do(func() {
 		h.closeErr = E.Errors(
 			h.closeKernelFD(),
@@ -126,22 +132,31 @@ func (h *kernelHandoffSession) markDone(err error) {
 }
 
 func (h *kernelHandoffSession) Start() error {
-	h.startOnce.Do(func() {
-		if h.relayConn == nil {
-			err := h.conn.Close()
-			if err != nil && !E.IsClosedOrCanceled(err) {
-				h.logger.Debug("close usbip ", h.side, " userspace socket ", h.busid, ": ", err)
-			}
-			h.conn = nil
-			monitorFile := h.monitorFile
-			h.monitorFile = nil
-			go h.runDirect(h.ctx, h.logger, h.side, h.busid, monitorFile)
-			return
+	h.stateAccess.Lock()
+	if h.started || h.closed {
+		h.stateAccess.Unlock()
+		return nil
+	}
+	h.started = true
+	conn := h.conn
+	relayConn := h.relayConn
+	monitorFile := h.monitorFile
+	h.stateAccess.Unlock()
+
+	if relayConn == nil {
+		err := common.Close(conn)
+		if err != nil && !E.IsClosedOrCanceled(err) {
+			h.logger.Debug("close usbip ", h.side, " userspace socket ", h.busid, ": ", err)
 		}
-		relayConn := h.relayConn
-		h.relayConn = nil
-		go h.runRelay(h.ctx, h.logger, h.side, h.busid, relayConn)
-	})
+		h.stateAccess.Lock()
+		if h.conn == conn {
+			h.conn = nil
+		}
+		h.stateAccess.Unlock()
+		go h.runDirect(h.ctx, h.logger, h.side, h.busid, monitorFile)
+		return nil
+	}
+	go h.runRelay(h.ctx, h.logger, h.side, h.busid, conn, relayConn)
 	return nil
 }
 
@@ -182,8 +197,8 @@ func (h *kernelHandoffSession) runDirect(ctx context.Context, logger log.Context
 	}
 }
 
-func (h *kernelHandoffSession) runRelay(ctx context.Context, logger log.ContextLogger, side string, busid string, relayConn net.Conn) {
-	err := sBufio.CopyConn(ctx, h.conn, relayConn)
+func (h *kernelHandoffSession) runRelay(ctx context.Context, logger log.ContextLogger, side string, busid string, conn net.Conn, relayConn net.Conn) {
+	err := sBufio.CopyConn(ctx, conn, relayConn)
 	var runErr error
 	switch {
 	case err == nil:
