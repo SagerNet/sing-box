@@ -155,16 +155,22 @@ func (c *darwinVirtualController) readLoop() {
 		}
 		switch header.Command {
 		case RetSubmit:
-			c.pendingAccess.Lock()
-			pending, ok := c.pending[header.SeqNum]
-			c.pendingAccess.Unlock()
-			payloadDirection := header.Direction
-			if ok {
-				payloadDirection = pending.direction
+			pending, ok := c.pendingSubmit(header.SeqNum)
+			if !ok {
+				err = E.New("unexpected RET_SUBMIT seq ", header.SeqNum)
+				c.logger.Debug(err)
+				c.runErr = err
+				c.requestClose()
+				c.failPending()
+				return
 			}
-			response, err := ReadSubmitResponseBody(c.conn, header, payloadDirection)
+			response, err := ReadSubmitResponseBody(c.conn, header, pending.direction)
 			if err != nil {
 				c.logger.Debug("read RET_SUBMIT: ", err)
+				if !E.IsClosedOrCanceled(err) {
+					c.runErr = err
+				}
+				c.requestClose()
 				c.failPending()
 				return
 			}
@@ -173,11 +179,18 @@ func (c *darwinVirtualController) readLoop() {
 			_, err := ReadUnlinkResponseBody(c.conn, header)
 			if err != nil {
 				c.logger.Debug("read RET_UNLINK: ", err)
+				if !E.IsClosedOrCanceled(err) {
+					c.runErr = err
+				}
+				c.requestClose()
 				c.failPending()
 				return
 			}
 		default:
-			c.logger.Debug(fmt.Sprintf("unexpected USB/IP response 0x%08x", header.Command))
+			err = E.New(fmt.Sprintf("unexpected USB/IP response 0x%08x", header.Command))
+			c.logger.Debug(err)
+			c.runErr = err
+			c.requestClose()
 			c.failPending()
 			return
 		}
@@ -588,15 +601,11 @@ func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitRespo
 	c.pendingAccess.Lock()
 	c.pending[seq] = darwinPendingSubmit{direction: command.Header.Direction, reply: reply}
 	c.pendingAccess.Unlock()
-	defer func() {
-		c.pendingAccess.Lock()
-		delete(c.pending, seq)
-		c.pendingAccess.Unlock()
-	}()
 	c.writeAccess.Lock()
 	err := WriteSubmitCommand(c.conn, command)
 	c.writeAccess.Unlock()
 	if err != nil {
+		c.removePendingSubmit(seq)
 		return SubmitResponse{}, err
 	}
 	select {
@@ -608,6 +617,19 @@ func (c *darwinVirtualController) sendSubmit(command SubmitCommand) (SubmitRespo
 	case <-c.ctx.Done():
 		return SubmitResponse{}, c.ctx.Err()
 	}
+}
+
+func (c *darwinVirtualController) pendingSubmit(seq uint32) (darwinPendingSubmit, bool) {
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
+	pending, ok := c.pending[seq]
+	return pending, ok
+}
+
+func (c *darwinVirtualController) removePendingSubmit(seq uint32) {
+	c.pendingAccess.Lock()
+	delete(c.pending, seq)
+	c.pendingAccess.Unlock()
 }
 
 func (c *darwinVirtualController) deliverSubmit(response SubmitResponse) {

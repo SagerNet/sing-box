@@ -42,8 +42,10 @@ type Export interface {
 }
 
 // ExportSnapshot Backend and StableID fields are populated
-// unconditionally so the caller can build an unavailable record even
-// when Entry could not be read.
+// unconditionally. Unavailable snapshots should keep a cached Entry,
+// including BusID, so the caller can broadcast a state transition
+// instead of removing the device outright; snapshots without a BusID
+// are treated as non-broadcastable.
 type ExportSnapshot struct {
 	Entry        DeviceEntry
 	Backend      string

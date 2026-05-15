@@ -286,13 +286,22 @@ func (e *darwinExport) LeaseIdentity() ExportLeaseIdentity {
 	return ExportLeaseIdentity(fmt.Sprintf("darwin:%016x", e.registryID))
 }
 
+func (e *darwinExport) staleReason() string {
+	if e.pendingRegistryID != 0 {
+		return "device replaced"
+	}
+	return "capture released"
+}
+
 func (e *darwinExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 	stableID := fmt.Sprintf("darwin-registry:%016x", e.registryID)
 	if e.stale {
 		return ExportSnapshot{
-			Backend:  backendIDDarwinIOKit,
-			StableID: stableID,
-			State:    deviceStateUnavailable,
+			Entry:        e.entry,
+			Backend:      backendIDDarwinIOKit,
+			StableID:     stableID,
+			State:        deviceStateUnavailable,
+			StatusReason: e.staleReason(),
 		}
 	}
 	state := deviceStateAvailable
@@ -309,7 +318,7 @@ func (e *darwinExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 
 func (e *darwinExport) LeaseCheck(ctx context.Context) (bool, string) {
 	if e.stale {
-		return false, "capture released"
+		return false, e.staleReason()
 	}
 	return true, ""
 }

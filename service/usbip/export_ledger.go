@@ -516,7 +516,7 @@ func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 	out := make([]DeviceInfoV2, 0, len(entries))
 	for _, e := range entries {
 		snapshot := e.export.Snapshot(ctx, e.busy)
-		if snapshot.State == deviceStateUnavailable && snapshot.Entry.Info.IDVendor == 0 {
+		if snapshot.State == deviceStateUnavailable && snapshot.Entry.Info.BusIDString() == "" {
 			continue
 		}
 		out = append(out, deviceInfoV2FromEntry(snapshot.Entry, snapshot.Backend, snapshot.StableID, snapshot.State, snapshot.RawStatus, snapshot.StatusReason))

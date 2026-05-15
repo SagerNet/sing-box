@@ -548,6 +548,9 @@ func darwinIOReturnToUSBIPStatus(status int32) int32 {
 	}
 }
 
+// darwinUSBIPStatusToCIStatus maps USB/IP transfer completion status to the
+// corresponding IOUSBHostCI completion status. This is only used for real
+// transfer completion, not for EndpointPause-driven state machine events.
 func darwinUSBIPStatusToCIStatus(status int32) int {
 	if status == 0 {
 		return int(C.IOUSBHostCIMessageStatusSuccess)
@@ -555,6 +558,8 @@ func darwinUSBIPStatusToCIStatus(status int32) int {
 	switch -status {
 	case int32(unix.EPIPE):
 		return int(C.IOUSBHostCIMessageStatusStallError)
+	case int32(unix.ENODEV), int32(unix.ECONNRESET):
+		return int(C.IOUSBHostCIMessageStatusOffline)
 	case int32(unix.ETIMEDOUT):
 		return int(C.IOUSBHostCIMessageStatusTimeout)
 	case int32(unix.ENOMEM):
@@ -563,8 +568,8 @@ func darwinUSBIPStatusToCIStatus(status int32) int {
 		return int(C.IOUSBHostCIMessageStatusBadArgument)
 	case int32(unix.EPERM):
 		return int(C.IOUSBHostCIMessageStatusNotPermitted)
-	case int32(unix.ECONNRESET):
-		return int(C.IOUSBHostCIMessageStatusEndpointStopped)
+	case int32(unix.EOVERFLOW):
+		return int(C.IOUSBHostCIMessageStatusOverrunError)
 	default:
 		return int(C.IOUSBHostCIMessageStatusError)
 	}
