@@ -229,23 +229,15 @@ func waitForUSBIPTeardown(condition func() bool) bool {
 }
 
 func detachUsedVHCIPorts() {
-	records, err := readVHCIStatus()
-	if err != nil {
-		return
-	}
-	for _, record := range records {
+	for _, record := range readAllVHCIStatus() {
 		if record.state == 6 {
-			_ = writeSysfs(filepath.Join(sysVHCIControllerV0, "detach"), strconv.Itoa(record.port))
+			_ = writeSysfs(filepath.Join(string(record.controller), "detach"), strconv.Itoa(record.port))
 		}
 	}
 }
 
 func allVHCIPortsIdle() bool {
-	records, err := readVHCIStatus()
-	if err != nil {
-		return true
-	}
-	for _, record := range records {
+	for _, record := range readAllVHCIStatus() {
 		if record.state == 6 {
 			return false
 		}
@@ -261,11 +253,7 @@ func waitForAllVHCIPortsIdle(t *testing.T) {
 func waitForVHCIPortIdle(t *testing.T, port int) {
 	t.Helper()
 	require.Eventually(t, func() bool {
-		records, err := readVHCIStatus()
-		if err != nil {
-			return true
-		}
-		for _, record := range records {
+		for _, record := range readAllVHCIStatus() {
 			if record.port == port && record.state == 6 {
 				return false
 			}
@@ -639,11 +627,8 @@ func ensureNoNewImportedNode(t *testing.T, pattern string, before map[string]str
 func usedVHCIPorts(t *testing.T) map[int]struct{} {
 	t.Helper()
 
-	records, err := readVHCIStatus()
-	require.NoError(t, err)
-
 	ports := make(map[int]struct{})
-	for _, record := range records {
+	for _, record := range readAllVHCIStatus() {
 		if record.state == 6 {
 			ports[record.port] = struct{}{}
 		}
@@ -656,11 +641,7 @@ func waitForNewUsedVHCIPort(t *testing.T, before map[int]struct{}) int {
 
 	var port int
 	require.Eventually(t, func() bool {
-		records, err := readVHCIStatus()
-		if err != nil {
-			return false
-		}
-		for _, record := range records {
+		for _, record := range readAllVHCIStatus() {
 			if record.state != 6 {
 				continue
 			}

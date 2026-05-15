@@ -4,12 +4,15 @@ package usbip
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/shell"
@@ -18,12 +21,25 @@ import (
 const (
 	sysBusUSBDevices    = "/sys/bus/usb/devices"
 	sysUsbipHostDriver  = "/sys/bus/usb/drivers/usbip-host"
+	sysVHCIPlatform     = "/sys/devices/platform"
 	sysVHCIControllerV0 = "/sys/devices/platform/vhci_hcd.0"
 
 	usbipStatusAvailable = 1
 	usbipStatusUsed      = 2
 	usbipStatusError     = 3
 )
+
+// vhciController is the canonical sysfs path of a vhci_hcd platform device,
+// e.g. /sys/devices/platform/vhci_hcd.0. The kernel module instantiates
+// controllers at load time and never adds more at runtime.
+type vhciController string
+
+func (c vhciController) name() string { return filepath.Base(string(c)) }
+
+type vhciPortKey struct {
+	controller vhciController
+	port       int
+}
 
 type sysfsDevice struct {
 	BusID          string
@@ -64,9 +80,10 @@ func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 }
 
 type vhciStatusRecord struct {
-	hub   string
-	port  int
-	state int
+	controller vhciController
+	hub        string
+	port       int
+	state      int
 }
 
 func listUSBDevices() ([]sysfsDevice, error) {
@@ -172,37 +189,105 @@ func readUsbipStatus(busid string) (int, error) {
 	return v, nil
 }
 
-func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
-	records, err := readVHCIStatus()
-	if err != nil {
-		return -1, err
+// finishImportStatusTimeout is the upper bound for waitForUsbipStatusCleared.
+// It is a var (not const) so interop tests can shrink it without changing the
+// polling cadence.
+var finishImportStatusTimeout = 2 * time.Second
+
+const finishImportStatusPollInterval = 25 * time.Millisecond
+
+// waitForUsbipStatusCleared blocks until usbip_status leaves the "used"
+// state, the device disappears, the bounded timeout fires, or ctx is
+// cancelled. Writing -1 to usbip_sockfd only schedules the kernel-side down
+// event; without this wait the broadcast that follows ReleaseImport would
+// re-read the still-"used" status and emit no delta, leaving subscribers
+// stuck on the busy view.
+func waitForUsbipStatusCleared(ctx context.Context, busid string) {
+	deadline := time.Now().Add(finishImportStatusTimeout)
+	for {
+		status, err := readUsbipStatus(busid)
+		if err != nil || status != usbipStatusUsed {
+			return
+		}
+		if !time.Now().Before(deadline) {
+			return
+		}
+		if !sleepCtx(ctx, finishImportStatusPollInterval) {
+			return
+		}
 	}
+}
+
+func discoverVHCIControllers() ([]vhciController, error) {
+	matches, err := filepath.Glob(filepath.Join(sysVHCIPlatform, "vhci_hcd.*"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(matches)
+	out := make([]vhciController, 0, len(matches))
+	for _, path := range matches {
+		out = append(out, vhciController(path))
+	}
+	return out, nil
+}
+
+func vhciPickFreePort(controllers []vhciController, speed uint32, skip map[vhciPortKey]struct{}) (vhciController, int, error) {
 	targetHub := "hs"
 	switch speed {
 	case SpeedSuper, SpeedSuperPlus:
 		targetHub = "ss"
 	}
-	for _, record := range records {
-		if record.hub != targetHub || record.state != 4 {
+	var firstErr error
+	for _, ctrl := range controllers {
+		records, err := readVHCIStatus(ctrl)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
-		if _, skipped := skip[record.port]; skipped {
-			continue
+		for _, record := range records {
+			if record.hub != targetHub || record.state != 4 {
+				continue
+			}
+			key := vhciPortKey{controller: ctrl, port: record.port}
+			if _, skipped := skip[key]; skipped {
+				continue
+			}
+			return ctrl, record.port, nil
 		}
-		return record.port, nil
 	}
-	return -1, E.New("no free ", targetHub, " vhci port")
+	if firstErr != nil {
+		return "", -1, firstErr
+	}
+	return "", -1, E.New("no free ", targetHub, " vhci port")
 }
 
-func readVHCIStatus() ([]vhciStatusRecord, error) {
-	raw, err := os.ReadFile(filepath.Join(sysVHCIControllerV0, "status"))
+func readVHCIStatus(ctrl vhciController) ([]vhciStatusRecord, error) {
+	raw, err := os.ReadFile(filepath.Join(string(ctrl), "status"))
 	if err != nil {
 		return nil, err
 	}
-	return parseVHCIStatus(string(raw)), nil
+	return parseVHCIStatus(ctrl, string(raw)), nil
 }
 
-func parseVHCIStatus(raw string) []vhciStatusRecord {
+func readAllVHCIStatus() []vhciStatusRecord {
+	controllers, err := discoverVHCIControllers()
+	if err != nil {
+		return nil
+	}
+	var out []vhciStatusRecord
+	for _, ctrl := range controllers {
+		records, err := readVHCIStatus(ctrl)
+		if err != nil {
+			continue
+		}
+		out = append(out, records...)
+	}
+	return out
+}
+
+func parseVHCIStatus(ctrl vhciController, raw string) []vhciStatusRecord {
 	scanner := bufio.NewScanner(strings.NewReader(raw))
 	records := make([]vhciStatusRecord, 0)
 	first := true
@@ -228,9 +313,10 @@ func parseVHCIStatus(raw string) []vhciStatusRecord {
 			continue
 		}
 		records = append(records, vhciStatusRecord{
-			hub:   fields[0],
-			port:  port,
-			state: state,
+			controller: ctrl,
+			hub:        fields[0],
+			port:       port,
+			state:      state,
 		})
 	}
 	return records
