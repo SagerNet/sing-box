@@ -17,11 +17,11 @@ type darwinEndpoint struct {
 	cancel context.CancelFunc
 	logger log.ContextLogger
 
-	sm    *darwinUSBHostEndpointSM
-	peer  *UsbIpPeer
-	iso   *IsoScheduler
-	devID uint32
-	key   darwinEndpointKey
+	sm           *darwinUSBHostEndpointSM
+	peer         *UsbIpPeer
+	currentFrame func() uint64
+	devID        uint32
+	key          darwinEndpointKey
 
 	cmdCh      chan darwinCIMessage
 	doorbellCh chan uint32
@@ -40,20 +40,20 @@ type pendingTransfer struct {
 	noResponse  bool
 }
 
-func newDarwinEndpoint(ctx context.Context, logger log.ContextLogger, sm *darwinUSBHostEndpointSM, peer *UsbIpPeer, iso *IsoScheduler, devID uint32, key darwinEndpointKey) *darwinEndpoint {
+func newDarwinEndpoint(ctx context.Context, logger log.ContextLogger, sm *darwinUSBHostEndpointSM, peer *UsbIpPeer, currentFrame func() uint64, devID uint32, key darwinEndpointKey) *darwinEndpoint {
 	ctx, cancel := context.WithCancel(ctx)
 	e := &darwinEndpoint{
-		ctx:        ctx,
-		cancel:     cancel,
-		logger:     logger,
-		sm:         sm,
-		peer:       peer,
-		iso:        iso,
-		devID:      devID,
-		key:        key,
-		cmdCh:      make(chan darwinCIMessage, 4),
-		doorbellCh: make(chan uint32, 16),
-		workerDone: make(chan struct{}),
+		ctx:          ctx,
+		cancel:       cancel,
+		logger:       logger,
+		sm:           sm,
+		peer:         peer,
+		currentFrame: currentFrame,
+		devID:        devID,
+		key:          key,
+		cmdCh:        make(chan darwinCIMessage, 4),
+		doorbellCh:   make(chan uint32, 16),
+		workerDone:   make(chan struct{}),
 	}
 	go e.worker()
 	return e
@@ -384,7 +384,7 @@ func (e *darwinEndpoint) startIsoTransfer(transfer darwinCITransfer, message dar
 	}
 	ciFrame := uint8(message.control >> ciIsochronousTransferControlFramePhase)
 	asap := message.control&ciIsochronousTransferControlASAP != 0
-	command := e.iso.EncodeSubmit(SubmitCommand{
+	command := EncodeIsoSubmit(e.currentFrame(), SubmitCommand{
 		Header: DataHeader{
 			Command:   CmdSubmit,
 			DevID:     e.devID,

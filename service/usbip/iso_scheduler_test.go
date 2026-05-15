@@ -6,40 +6,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type frameOracleStub uint64
-
-func (f frameOracleStub) CurrentFrame() uint64 { return uint64(f) }
-
-func TestRebaseFrameAcrossWraps(t *testing.T) {
-	tests := []struct {
-		current uint64
-		low8    uint8
-		want    uint64
-	}{
-		{0, 0, 0},
-		{0, 5, 5},
-		{255, 0, 256},
-		{255, 255, 255},
-		{300, 0, 256},
-		{300, 44, 300},
-		{300, 100, 356},
-		{300, 200, 200},
-		{700, 10, 778},
-		{700, 188, 700},
-		{1<<32 - 1, 0, 1 << 32},
-		{128, 0, 256},
-		{127, 0, 0},
-		{1024, 254, 1022},
+func TestRebaseFrameIsLeastUpperBound(t *testing.T) {
+	samples := []uint64{
+		0, 1, 127, 128, 255, 256, 300, 1024,
+		1<<31 - 1, 1 << 31, 1<<32 - 1, 1 << 32, 1 << 63,
 	}
-	for _, tt := range tests {
-		got := RebaseFrame(tt.current, tt.low8)
-		require.Equalf(t, tt.want, got, "RebaseFrame(%d, %d)", tt.current, tt.low8)
+	for _, current := range samples {
+		for low := range 256 {
+			got := RebaseFrame(current, uint8(low))
+			require.GreaterOrEqualf(t, got, current, "current=%d low=%d", current, low)
+			require.Lessf(t, got-current, uint64(256), "current=%d low=%d got=%d", current, low, got)
+			require.Equalf(t, uint64(low), got&0xff, "current=%d low=%d got=%d", current, low, got)
+		}
 	}
 }
 
-func TestIsoSchedulerEncodeSubmitASAP(t *testing.T) {
-	scheduler := NewIsoScheduler(frameOracleStub(500))
-	command := scheduler.EncodeSubmit(SubmitCommand{
+func TestEncodeIsoSubmitASAP(t *testing.T) {
+	command := EncodeIsoSubmit(500, SubmitCommand{
 		Header:               DataHeader{Command: CmdSubmit, Direction: USBIPDirOut, Endpoint: 1},
 		TransferBufferLength: 16,
 	}, 99, true)
@@ -47,14 +30,13 @@ func TestIsoSchedulerEncodeSubmitASAP(t *testing.T) {
 	require.Equal(t, int32(0), command.StartFrame)
 }
 
-func TestIsoSchedulerEncodeSubmitScheduled(t *testing.T) {
-	scheduler := NewIsoScheduler(frameOracleStub(700))
-	command := scheduler.EncodeSubmit(SubmitCommand{
+func TestEncodeIsoSubmitScheduled(t *testing.T) {
+	command := EncodeIsoSubmit(300, SubmitCommand{
 		Header:               DataHeader{Command: CmdSubmit, Direction: USBIPDirIn, Endpoint: 0x82},
 		TransferBufferLength: 64,
-	}, 10, false)
+	}, 200, false)
 	require.Equal(t, int32(0), command.TransferFlags&usbipTransferFlagIsoASAP)
-	require.Equal(t, int32(778), command.StartFrame)
+	require.Equal(t, int32(456), command.StartFrame)
 }
 
 func TestScatterIsoResponseHonorsPacketOffsets(t *testing.T) {

@@ -1,44 +1,30 @@
 package usbip
 
-type FrameOracle interface {
-	CurrentFrame() uint64
-}
-
-type IsoScheduler struct {
-	oracle FrameOracle
-}
-
-func NewIsoScheduler(oracle FrameOracle) *IsoScheduler {
-	return &IsoScheduler{oracle: oracle}
-}
-
-func (s *IsoScheduler) EncodeSubmit(base SubmitCommand, ciFrame uint8, asap bool) SubmitCommand {
+// EncodeIsoSubmit fills the isochronous SUBMIT fields on base. When asap is
+// true, the wire-level ASAP flag is set and StartFrame is zeroed. Otherwise
+// RebaseFrame recovers the absolute frame number from the controller's
+// monotonic counter and ciFrame's 8 bits, then StartFrame carries the low 32
+// bits across the wire.
+func EncodeIsoSubmit(currentFrame uint64, base SubmitCommand, ciFrame uint8, asap bool) SubmitCommand {
 	if asap {
 		base.TransferFlags |= usbipTransferFlagIsoASAP
 		base.StartFrame = 0
 		return base
 	}
-	rebased := RebaseFrame(s.oracle.CurrentFrame(), ciFrame)
+	rebased := RebaseFrame(currentFrame, ciFrame)
 	base.StartFrame = int32(uint32(rebased))
 	return base
 }
 
-// RebaseFrame returns the absolute USB frame number whose low 8 bits equal
-// low8 and is closest to currentFrame. Apple's IOUSBHostCI iso messages only
-// carry the low 8 bits of the frame number; this rebases against the
-// controller's monotonic frame counter so the wire start_frame survives the
-// 256-frame wrap.
+// RebaseFrame returns the smallest absolute USB frame number whose low 8
+// bits equal low8 and is >= currentFrame. Apple's IOUSBHostCI iso messages
+// only carry the low 8 bits; the host recovers the high bits against the
+// controller's monotonic counter. firstFrameNumber must be in the future;
+// 0 is reserved for ASAP and handled separately by the caller.
 func RebaseFrame(currentFrame uint64, low8 uint8) uint64 {
-	target := uint64(low8)
-	if currentFrame < target {
-		return target
-	}
-	delta := currentFrame - target
-	high := delta / 256
-	base := high*256 + target
-	nextBase := base + 256
-	if nextBase-currentFrame <= currentFrame-base {
-		return nextBase
+	base := currentFrame&^0xff | uint64(low8)
+	if base < currentFrame {
+		base += 256
 	}
 	return base
 }

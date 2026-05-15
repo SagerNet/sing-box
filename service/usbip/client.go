@@ -43,6 +43,9 @@ type ClientService struct {
 }
 
 func NewClientService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPClientServiceOptions) (adapter.Service, error) {
+	if len(options.Devices) == 0 {
+		return nil, E.New("devices: at least one match is required")
+	}
 	for i, m := range options.Devices {
 		if m.IsZero() {
 			return nil, E.New("devices[", i, "]: at least one of busid/vendor_id/product_id/serial is required")

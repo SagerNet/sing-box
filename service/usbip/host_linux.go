@@ -245,18 +245,18 @@ const (
 	ueventListenerBackoffMax     = 30 * time.Second
 )
 
-func classifyLinuxReconcile(current map[string]*linuxExport, desired map[string]sysfsDevice, isBusy func(busid string) bool) linuxReconcilePlan {
+func classifyLinuxReconcile(current map[string]*linuxExport, desired map[string]sysfsDevice, isReserved func(busid string) bool) linuxReconcilePlan {
 	remainingDesired := maps.Clone(desired)
 	plan := linuxReconcilePlan{
 		toBind: make(map[string]sysfsDevice),
 	}
 	for busid, exp := range current {
 		device, wanted := remainingDesired[busid]
-		busy := isBusy(busid)
+		reserved := isReserved(busid)
 		identityMatches := wanted && exp.identity.Equal(newLinuxExportIdentity(device))
 		switch {
 		case exp.stale:
-			if busy {
+			if reserved {
 				delete(remainingDesired, busid)
 				continue
 			}
@@ -264,7 +264,7 @@ func classifyLinuxReconcile(current map[string]*linuxExport, desired map[string]
 			plan.released = append(plan.released, busid)
 		case identityMatches:
 			delete(remainingDesired, busid)
-		case busy:
+		case reserved:
 			plan.toStale = append(plan.toStale, busid)
 			delete(remainingDesired, busid)
 		default:
@@ -273,7 +273,7 @@ func classifyLinuxReconcile(current map[string]*linuxExport, desired map[string]
 		}
 	}
 	for busid, device := range remainingDesired {
-		if isBusy(busid) {
+		if isReserved(busid) {
 			continue
 		}
 		plan.toBind[busid] = device
@@ -281,41 +281,39 @@ func classifyLinuxReconcile(current map[string]*linuxExport, desired map[string]
 	return plan
 }
 
-func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, error) {
+func (h *linuxExportHost) Reconcile(ctx context.Context, isReserved func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := listUSBDevices()
 	if err != nil {
 		return h.snapshotSelf(), nil, E.Cause(err, "enumerate usb devices")
 	}
-	desired := make(map[string]sysfsDevice)
-	for _, m := range h.matches {
-		for i := range devices {
-			deviceKey := DeviceKey{
-				BusID:     devices[i].BusID,
-				VendorID:  devices[i].VendorID,
-				ProductID: devices[i].ProductID,
-				Serial:    devices[i].Serial,
-			}
-			if !matches(m, deviceKey) {
-				continue
-			}
-			path := devices[i].Path
-			isVHCIImport := strings.Contains(path, "vhci_hcd")
-			if !isVHCIImport {
-				realPath, err := filepath.EvalSymlinks(path)
-				if err == nil {
-					isVHCIImport = strings.Contains(realPath, "vhci_hcd")
-				}
-			}
-			if isVHCIImport {
-				h.logger.Debug("skip vhci-imported device ", devices[i].BusID, " matched by ", describeMatch(m))
-				continue
-			}
-			if devices[i].DeviceClass == 0x09 {
-				h.logger.Warn("skip hub device ", devices[i].BusID, " matched by ", describeMatch(m))
-				continue
-			}
-			desired[devices[i].BusID] = devices[i]
+	keys := make([]DeviceKey, len(devices))
+	for i := range devices {
+		keys[i] = DeviceKey{
+			BusID:     devices[i].BusID,
+			VendorID:  devices[i].VendorID,
+			ProductID: devices[i].ProductID,
+			Serial:    devices[i].Serial,
 		}
+	}
+	desired := make(map[string]sysfsDevice)
+	for _, idx := range SelectMatches(h.matches, keys) {
+		path := devices[idx].Path
+		isVHCIImport := strings.Contains(path, "vhci_hcd")
+		if !isVHCIImport {
+			realPath, err := filepath.EvalSymlinks(path)
+			if err == nil {
+				isVHCIImport = strings.Contains(realPath, "vhci_hcd")
+			}
+		}
+		if isVHCIImport {
+			h.logger.Debug("skip vhci-imported device ", devices[idx].BusID)
+			continue
+		}
+		if devices[idx].DeviceClass == 0x09 {
+			h.logger.Warn("skip hub device ", devices[idx].BusID)
+			continue
+		}
+		desired[devices[idx].BusID] = devices[idx]
 	}
 
 	h.access.Lock()
@@ -323,7 +321,7 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 	maps.Copy(current, h.exports)
 	h.access.Unlock()
 
-	plan := classifyLinuxReconcile(current, desired, isBusy)
+	plan := classifyLinuxReconcile(current, desired, isReserved)
 	committed := make(map[string]*linuxExport, len(current)+len(plan.toBind))
 	maps.Copy(committed, current)
 	var reconcileErrors []error

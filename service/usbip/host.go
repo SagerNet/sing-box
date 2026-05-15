@@ -16,7 +16,7 @@ import (
 type ExportHost interface {
 	Start(ctx context.Context) error
 	Close() error
-	Reconcile(ctx context.Context, isBusy func(busid string) bool) (snapshot map[string]Export, released []string, err error)
+	Reconcile(ctx context.Context, isReserved func(busid string) bool) (snapshot map[string]Export, released []string, err error)
 	FinishImport(ctx context.Context, busid string) (released bool, err error)
 	// Events returning (nil, nil) means "no native event source; rely
 	// on polling".

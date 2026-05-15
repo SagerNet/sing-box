@@ -689,11 +689,10 @@ bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint
 		}
 		NSError *error = nil;
 		// Apple's IOUSBHostPipe iso API uses firstFrameNumber=0 as the ASAP
-		// signal; there is no separate options bit. Honor the wire-level ASAP
-		// flag explicitly so a caller that genuinely wants "scheduled at
-		// frame 0" (rare) cannot be mistaken for ASAP via the old start_frame>0
-		// sentinel.
-		uint64_t firstFrameNumber = asap ? 0 : (start_frame > 0 ? (uint64_t)start_frame : 0);
+		// signal. Trust the wire-level ASAP flag end-to-end; round-trip the
+		// int32 bit pattern through uint32 so a Go-side wraparound stays
+		// non-negative when widened to uint64.
+		uint64_t firstFrameNumber = asap ? 0 : (uint64_t)(uint32_t)start_frame;
 		BOOL ok = [pipe sendIORequestWithData:payload
 		                      transactionList:transactions
 		                 transactionListCount:packet_count

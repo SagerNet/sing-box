@@ -63,17 +63,31 @@ func newExportLedger(logger log.ContextLogger, ttl time.Duration, now func() tim
 	}
 }
 
-func (l *exportLedger) IsBusy(busid string) bool {
+func (l *exportLedger) IsReserved(busid string) bool {
 	l.slow.Lock()
 	defer l.slow.Unlock()
-	return l.busy[busid]
+	return l.reservedLocked(busid)
+}
+
+// reservedLocked reports whether busid is unavailable for new admission:
+// either marked busy by an active session or covered by an unexpired
+// import lease. Caller must hold l.slow.
+func (l *exportLedger) reservedLocked(busid string) bool {
+	if l.busy[busid] {
+		return true
+	}
+	lease, found := l.leases[busid]
+	if !found {
+		return false
+	}
+	return l.now().Before(lease.Expires)
 }
 
 func (l *exportLedger) AvailableExports() []Export {
 	l.slow.Lock()
 	out := make([]Export, 0, len(l.exports))
 	for busid, export := range l.exports {
-		if l.busy[busid] {
+		if l.reservedLocked(busid) {
 			continue
 		}
 		out = append(out, export)
@@ -151,14 +165,13 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
 	l.slow.Lock()
 	export, found := l.exports[busid]
-	busy := l.busy[busid]
-	_, leased := l.leases[busid]
+	reserved := found && l.reservedLocked(busid)
 	l.slow.Unlock()
 	if !found {
 		return nil, false, "unknown busid"
 	}
 	identity := export.LeaseIdentity()
-	if busy || leased {
+	if reserved {
 		return nil, false, deviceStateBusy
 	}
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
@@ -171,10 +184,7 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	if !stillExported || current.LeaseIdentity() != identity {
 		return nil, false, "unknown busid"
 	}
-	if l.busy[busid] {
-		return nil, false, deviceStateBusy
-	}
-	if _, leasedNow := l.leases[busid]; leasedNow {
+	if l.reservedLocked(busid) {
 		return nil, false, deviceStateBusy
 	}
 	l.busy[busid] = true
@@ -504,7 +514,7 @@ func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 	l.slow.Lock()
 	entries := make([]entry, 0, len(l.exports))
 	for busid, export := range l.exports {
-		entries = append(entries, entry{export: export, busy: l.busy[busid]})
+		entries = append(entries, entry{export: export, busy: l.reservedLocked(busid)})
 	}
 	l.slow.Unlock()
 	if len(entries) == 0 {

@@ -140,8 +140,8 @@ func TestConsumeLeaseAndReserveMarksBusyOnSuccess(t *testing.T) {
 	if reserved != exp {
 		t.Fatal("expected to reserve the original export instance")
 	}
-	if !ledger.IsBusy(exp.busid) {
-		t.Fatal("expected successful lease reservation to mark busid busy")
+	if !ledger.IsReserved(exp.busid) {
+		t.Fatal("expected successful lease reservation to mark busid reserved")
 	}
 }
 

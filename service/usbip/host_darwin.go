@@ -99,23 +99,22 @@ func (h *darwinExportHost) Events(ctx context.Context) (<-chan struct{}, error) 
 	return ch, nil
 }
 
-func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, error) {
+func (h *darwinExportHost) Reconcile(ctx context.Context, isReserved func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := darwinCopyUSBHostDevices()
 	if err != nil {
 		return h.snapshotSelf(), nil, E.Cause(err, "enumerate IOUSBHost devices")
 	}
+	keys := make([]DeviceKey, len(devices))
+	for i := range devices {
+		keys[i] = devices[i].key
+	}
 	desired := make(map[string]darwinUSBHostDeviceInfo)
-	for _, match := range h.matches {
-		for i := range devices {
-			if !matches(match, devices[i].key) {
-				continue
-			}
-			if devices[i].entry.Info.BDeviceClass == 0x09 {
-				h.logger.Warn("skip hub device ", devices[i].key.BusID, " matched by ", describeMatch(match))
-				continue
-			}
-			desired[devices[i].key.BusID] = devices[i]
+	for _, idx := range SelectMatches(h.matches, keys) {
+		if devices[idx].entry.Info.BDeviceClass == 0x09 {
+			h.logger.Warn("skip hub device ", devices[idx].key.BusID)
+			continue
 		}
+		desired[devices[idx].key.BusID] = devices[idx]
 	}
 
 	h.access.Lock()
@@ -134,7 +133,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 			continue
 		}
 		if exp, ok := current[busid]; ok {
-			if isBusy(busid) {
+			if isReserved(busid) {
 				toStale = append(toStale, darwinStaleMark{busid: busid, pendingRegistryID: info.registryID})
 				continue
 			}
@@ -160,7 +159,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 		if _, ok := desired[busid]; ok {
 			continue
 		}
-		if isBusy(busid) {
+		if isReserved(busid) {
 			toStale = append(toStale, darwinStaleMark{busid: busid})
 			continue
 		}

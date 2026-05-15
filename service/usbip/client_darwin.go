@@ -33,7 +33,6 @@ type darwinVirtualController struct {
 	startTime time.Time
 
 	peer *UsbIpPeer
-	iso  *IsoScheduler
 
 	controller   *darwinUSBHostController
 	events       chan darwinControllerEvent
@@ -67,7 +66,6 @@ func newDarwinVirtualController(ctx context.Context, logger log.ContextLogger, c
 		devices:     make(map[uint8]*darwinUSBHostDeviceSM),
 		endpoints:   make(map[darwinEndpointKey]*darwinEndpoint),
 	}
-	c.iso = NewIsoScheduler(c)
 	return c
 }
 
@@ -234,7 +232,7 @@ func (c *darwinVirtualController) handleEndpointCreate(message darwinCIMessage) 
 		return err
 	}
 	key := darwinEndpointKey{device: message.deviceAddress(), endpoint: message.endpointAddress()}
-	endpoint := newDarwinEndpoint(c.ctx, c.logger, sm, c.peer, c.iso, c.info.DevID(), key)
+	endpoint := newDarwinEndpoint(c.ctx, c.logger, sm, c.peer, c.CurrentFrame, c.info.DevID(), key)
 	c.stateAccess.Lock()
 	c.endpoints[key] = endpoint
 	c.stateAccess.Unlock()

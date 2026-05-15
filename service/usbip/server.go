@@ -39,6 +39,9 @@ type ServerService struct {
 }
 
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
+	if len(options.Devices) == 0 {
+		return nil, E.New("devices: at least one match is required")
+	}
 	for i, m := range options.Devices {
 		if m.IsZero() {
 			return nil, E.New("devices[", i, "]: at least one of busid/vendor_id/product_id/serial is required")
@@ -167,7 +170,7 @@ func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	if s.ctx != nil && s.ctx.Err() != nil {
 		return nil
 	}
-	snapshot, released, err := s.host.Reconcile(s.ctx, s.ledger.IsBusy)
+	snapshot, released, err := s.host.Reconcile(s.ctx, s.ledger.IsReserved)
 	s.ledger.ApplyHostSnapshot(snapshot, released)
 	if notify {
 		s.ledger.BroadcastIfChanged(s.ctx)

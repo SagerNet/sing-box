@@ -1,6 +1,8 @@
 package usbip
 
 import (
+	"slices"
+
 	"github.com/sagernet/sing-box/option"
 )
 
@@ -28,4 +30,27 @@ func matches(m option.USBIPDeviceMatch, d DeviceKey) bool {
 		return false
 	}
 	return true
+}
+
+// SelectMatches returns the indexes of keys that match at least one
+// non-zero pattern. Indexes are deduplicated and returned in ascending
+// order so callers iterate devices in a stable sequence.
+func SelectMatches(patterns []option.USBIPDeviceMatch, keys []DeviceKey) []int {
+	if len(patterns) == 0 || len(keys) == 0 {
+		return nil
+	}
+	hit := make(map[int]struct{})
+	for _, pattern := range patterns {
+		for i := range keys {
+			if matches(pattern, keys[i]) {
+				hit[i] = struct{}{}
+			}
+		}
+	}
+	out := make([]int, 0, len(hit))
+	for i := range hit {
+		out = append(out, i)
+	}
+	slices.Sort(out)
+	return out
 }
