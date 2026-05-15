@@ -419,7 +419,7 @@ func (d *darwinUSBHostDevice) io(endpoint uint8, buffer []byte) (int32, int32, [
 	return darwinIOReturnToUSBIPStatus(int32(status)), int32(actual), buffer, nil
 }
 
-func (d *darwinUSBHostDevice) iso(endpoint uint8, buffer []byte, startFrame int32, packets []IsoPacketDescriptor) (int32, int32, []byte, []IsoPacketDescriptor, error) {
+func (d *darwinUSBHostDevice) iso(endpoint uint8, buffer []byte, startFrame int32, asap bool, packets []IsoPacketDescriptor) (int32, int32, []byte, []IsoPacketDescriptor, error) {
 	if d == nil || d.handle == nil {
 		return -int32(unix.ENODEV), 0, nil, nil, E.New("IOUSBHostPipe isochronous IO: closed")
 	}
@@ -441,7 +441,7 @@ func (d *darwinUSBHostDevice) iso(endpoint uint8, buffer []byte, startFrame int3
 	if len(cPackets) > 0 {
 		packetsPtr = (*C.box_usbhost_iso_packet_t)(unsafe.Pointer(&cPackets[0]))
 	}
-	if !bool(C.box_usbhost_device_iso(d.handle, C.uint8_t(endpoint), dataPtr, C.size_t(len(buffer)), C.int32_t(startFrame), packetsPtr, C.size_t(len(cPackets)), &actual, &status, &errorPtr)) {
+	if !bool(C.box_usbhost_device_iso(d.handle, C.uint8_t(endpoint), dataPtr, C.size_t(len(buffer)), C.int32_t(startFrame), C.bool(asap), packetsPtr, C.size_t(len(cPackets)), &actual, &status, &errorPtr)) {
 		return -int32(unix.EIO), 0, nil, nil, darwinCError(errorPtr)
 	}
 	for i := range packets {

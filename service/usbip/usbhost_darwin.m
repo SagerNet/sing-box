@@ -662,7 +662,7 @@ bool box_usbhost_device_io(box_usbhost_device_t *device, uint8_t endpoint, uint8
 	}
 }
 
-bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint8_t *data, size_t data_len, int32_t start_frame, box_usbhost_iso_packet_t *packets, size_t packet_count, size_t *actual_out, int32_t *status_out, char **error_out) {
+bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint8_t *data, size_t data_len, int32_t start_frame, bool asap, box_usbhost_iso_packet_t *packets, size_t packet_count, size_t *actual_out, int32_t *status_out, char **error_out) {
 	BoxUSBHostDevice *box = box_device(device);
 	if (box == nil) {
 		box_set_error_string(error_out, @"IOUSBHostPipe isochronous IO: invalid handle");
@@ -688,10 +688,16 @@ bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint
 			transactions[i].offset = packets[i].offset > 0 ? (uint32_t)packets[i].offset : 0;
 		}
 		NSError *error = nil;
+		// Apple's IOUSBHostPipe iso API uses firstFrameNumber=0 as the ASAP
+		// signal; there is no separate options bit. Honor the wire-level ASAP
+		// flag explicitly so a caller that genuinely wants "scheduled at
+		// frame 0" (rare) cannot be mistaken for ASAP via the old start_frame>0
+		// sentinel.
+		uint64_t firstFrameNumber = asap ? 0 : (start_frame > 0 ? (uint64_t)start_frame : 0);
 		BOOL ok = [pipe sendIORequestWithData:payload
 		                      transactionList:transactions
 		                 transactionListCount:packet_count
-		                     firstFrameNumber:start_frame > 0 ? (uint64_t)start_frame : 0
+		                     firstFrameNumber:firstFrameNumber
 		                              options:IOUSBHostIsochronousTransferOptionsNone
 		                                error:&error];
 		size_t actual = 0;

@@ -595,7 +595,8 @@ func (s *darwinServerDataSession) handleSubmit(command SubmitCommand) SubmitResp
 	case command.Header.Endpoint == 0:
 		status, actual, buffer, err = s.device.control(command.Setup, buffer)
 	case command.NumberOfPackets > 0:
-		status, actual, buffer, response.IsoPackets, err = s.device.iso(endpoint, buffer, command.StartFrame, response.IsoPackets)
+		asap := command.TransferFlags&usbipTransferFlagIsoASAP != 0
+		status, actual, buffer, response.IsoPackets, err = s.device.iso(endpoint, buffer, command.StartFrame, asap, response.IsoPackets)
 	default:
 		status, actual, buffer, err = s.device.io(endpoint, buffer)
 	}

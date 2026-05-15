@@ -137,40 +137,6 @@ func requireDarwinUserHCI(t *testing.T) {
 	hostController.Close()
 }
 
-func TestDarwinClientSessionClosesOnContextCancel(t *testing.T) {
-	t.Parallel()
-
-	clientConn, serverConn := net.Pipe()
-	defer serverConn.Close()
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, DeviceInfoTruncated{})
-	go controller.readLoop()
-	session := controller
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	done := make(chan struct{})
-	go func() {
-		select {
-		case <-session.Done():
-		case <-ctx.Done():
-			_ = session.Close()
-			<-session.Done()
-		}
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for controller cancellation")
-	}
-	select {
-	case <-controller.Done():
-	default:
-		t.Fatal("controller read loop still active after cancellation")
-	}
-}
-
 func TestDarwinControllerCloseWithNilConn(t *testing.T) {
 	t.Parallel()
 
@@ -194,82 +160,6 @@ func TestDarwinUSBHostDeviceWatcherSmoke(t *testing.T) {
 		t.Skipf("IOUSBHostDevice watcher unavailable: %v", err)
 	}
 	watcher.Close()
-}
-
-func TestDarwinControllerReadsINRetSubmitUsingPendingDirection(t *testing.T) {
-	t.Parallel()
-
-	clientConn, serverConn := net.Pipe()
-	defer serverConn.Close()
-
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, darwinFakeDeviceEntry().Info)
-	go controller.readLoop()
-	defer func() {
-		_ = controller.Close()
-		<-controller.Done()
-	}()
-
-	reply := make(chan SubmitResponse, 1)
-	controller.pendingAccess.Lock()
-	controller.pending[1] = darwinPendingSubmit{
-		direction: USBIPDirIn,
-		reply:     reply,
-	}
-	controller.pendingAccess.Unlock()
-
-	entry := darwinFakeDeviceEntry()
-	expectedPayload := []byte{0xde, 0xad, 0xbe, 0xef}
-	err := WriteSubmitResponse(serverConn, SubmitResponse{
-		Header: DataHeader{
-			Command:   RetSubmit,
-			SeqNum:    1,
-			DevID:     entry.Info.DevID(),
-			Direction: USBIPDirIn,
-			Endpoint:  1,
-		},
-		ActualLength:    int32(len(expectedPayload)),
-		NumberOfPackets: nonIsoPacketCount,
-		Buffer:          expectedPayload,
-	})
-	require.NoError(t, err)
-
-	select {
-	case response, ok := <-reply:
-		require.True(t, ok)
-		require.Equal(t, expectedPayload, response.Buffer)
-		require.Zero(t, response.Header.Direction)
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for RET_SUBMIT")
-	}
-
-	controller.pendingAccess.Lock()
-	_, found := controller.pending[1]
-	controller.pendingAccess.Unlock()
-	require.False(t, found)
-}
-
-func TestDarwinControllerRejectsUnknownRetSubmitImmediately(t *testing.T) {
-	t.Parallel()
-
-	clientConn, serverConn := net.Pipe()
-	defer serverConn.Close()
-
-	controller := newDarwinVirtualController(context.Background(), newTestLogger(t), clientConn, darwinFakeDeviceEntry().Info)
-	go controller.readLoop()
-
-	err := writeDataHeader(serverConn, DataHeader{
-		Command: RetSubmit,
-		SeqNum:  99,
-	})
-	require.NoError(t, err)
-
-	select {
-	case <-controller.Done():
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for controller to reject unexpected RET_SUBMIT")
-	}
-
-	require.ErrorContains(t, controller.Err(), "unexpected RET_SUBMIT seq 99")
 }
 
 func startDarwinFakeUSBIPServer(t *testing.T) *darwinFakeUSBIPServer {

@@ -63,7 +63,7 @@ box_usbhost_device_t *box_usbhost_device_open(uint64_t registry_id, bool capture
 void box_usbhost_device_close(box_usbhost_device_t *device);
 bool box_usbhost_device_control(box_usbhost_device_t *device, const uint8_t setup[8], uint8_t *data, size_t data_len, size_t *actual_out, int32_t *status_out, char **error_out);
 bool box_usbhost_device_io(box_usbhost_device_t *device, uint8_t endpoint, uint8_t *data, size_t data_len, size_t *actual_out, int32_t *status_out, char **error_out);
-bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint8_t *data, size_t data_len, int32_t start_frame, box_usbhost_iso_packet_t *packets, size_t packet_count, size_t *actual_out, int32_t *status_out, char **error_out);
+bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint8_t *data, size_t data_len, int32_t start_frame, bool asap, box_usbhost_iso_packet_t *packets, size_t packet_count, size_t *actual_out, int32_t *status_out, char **error_out);
 bool box_usbhost_device_abort_endpoint(box_usbhost_device_t *device, uint8_t endpoint, char **error_out);
 
 box_usbhost_controller_t *box_usbhost_controller_create(uintptr_t ref, uint8_t port_count, uint32_t speed, char **error_out);
