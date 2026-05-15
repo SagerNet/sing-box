@@ -144,17 +144,20 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 
 // TryReserveForImport runs Export.LeaseCheck outside the slow lock; the
 // busy mark is inserted only after a second availability re-check
-// confirms no goroutine raced in. The caller must pair every success
-// with a later ReleaseImport.
+// confirms no goroutine raced in. An outstanding lease counts as busy so
+// legacy OP_REQ_IMPORT cannot steal a slot a control client has already
+// reserved via IssueLease. The caller must pair every success with a
+// later ReleaseImport.
 func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
 	l.slow.Lock()
 	export, found := l.exports[busid]
 	busy := l.busy[busid]
+	_, leased := l.leases[busid]
 	l.slow.Unlock()
 	if !found {
 		return nil, false, "unknown busid"
 	}
-	if busy {
+	if busy || leased {
 		return nil, false, deviceStateBusy
 	}
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
@@ -168,6 +171,9 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 		return nil, false, "unknown busid"
 	}
 	if l.busy[busid] {
+		return nil, false, deviceStateBusy
+	}
+	if _, leasedNow := l.leases[busid]; leasedNow {
 		return nil, false, deviceStateBusy
 	}
 	l.busy[busid] = true
@@ -185,7 +191,8 @@ func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeEx
 }
 
 // IssueLease captures the seq generation at entry so a subsequent
-// ConsumeLease can reject stale leases issued before a topology change.
+// ConsumeLeaseAndReserve can reject stale leases issued before a
+// topology change.
 func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request controlLeaseRequest) controlLeaseResponse {
 	response := controlLeaseResponse{
 		BusID:       request.BusID,
@@ -268,33 +275,60 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	return response
 }
 
-// ConsumeLease has consume-on-read semantics: the entry is removed
-// regardless of outcome, except on mismatched nonce — which preserves
-// the lease for the legitimate holder.
-func (l *exportLedger) ConsumeLease(request ImportExtRequest) bool {
+// ConsumeLeaseAndReserve atomically validates a lease, removes its entry,
+// and marks the busid busy under a single slow-lock critical section so
+// no concurrent import can observe the consume-before-reserve gap. It
+// keeps the consume-on-read semantics of the old ConsumeLease: the entry
+// is removed on every outcome except a nonce/ID mismatch, which preserves
+// the lease for the legitimate holder. LeaseCheck is not re-run — the
+// lease itself attests that LeaseCheck passed at issue time, and the
+// generation equality test below confirms the export has not been
+// reconciled since. The caller must pair every success with a later
+// ReleaseImport.
+func (l *exportLedger) ConsumeLeaseAndReserve(request ImportExtRequest) (Export, bool, string) {
 	l.slow.Lock()
 	now := l.now()
 	l.cleanupExpiredLocked(now)
 	lease, found := l.leases[request.BusID]
 	if !found {
 		l.slow.Unlock()
-		return false
+		return nil, false, "lease not found"
 	}
 	if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
 		l.slow.Unlock()
-		return false
+		return nil, false, "lease mismatch"
+	}
+	if !now.Before(lease.Expires) {
+		delete(l.leases, request.BusID)
+		l.slow.Unlock()
+		return nil, false, "lease expired"
+	}
+	export, stillExported := l.exports[request.BusID]
+	if !stillExported {
+		delete(l.leases, request.BusID)
+		l.slow.Unlock()
+		return nil, false, "unknown busid"
+	}
+	if l.busy[request.BusID] {
+		delete(l.leases, request.BusID)
+		l.slow.Unlock()
+		return nil, false, deviceStateBusy
 	}
 	delete(l.leases, request.BusID)
-	leaseExpiry := lease.Expires
+	l.busy[request.BusID] = true
 	leaseGeneration := lease.Generation
 	l.slow.Unlock()
-	if !now.Before(leaseExpiry) {
-		return false
-	}
+
 	l.fast.Lock()
 	currentGeneration := l.seq
 	l.fast.Unlock()
-	return leaseGeneration == currentGeneration
+	if leaseGeneration != currentGeneration {
+		l.slow.Lock()
+		delete(l.busy, request.BusID)
+		l.slow.Unlock()
+		return nil, false, "lease stale"
+	}
+	return export, true, ""
 }
 
 func (l *exportLedger) cleanupExpiredLocked(now time.Time) {

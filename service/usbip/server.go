@@ -200,7 +200,7 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 			s.logger.Debug("read import body: ", err)
 			break
 		}
-		closeConn = !s.handleImportBusID(conn, busid, false)
+		closeConn = !s.handleImportBusID(conn, busid)
 	case OpReqImportExt:
 		closeConn = !s.handleImportExt(conn)
 	default:
@@ -282,24 +282,29 @@ func (s *ServerService) handleImportExt(conn net.Conn) bool {
 		s.logger.Debug("read import-ext body: ", err)
 		return false
 	}
-	if !s.ledger.ConsumeLease(request) {
-		s.logger.Info("import-ext rejected (invalid lease): ", request.BusID)
+	export, ok, reason := s.ledger.ConsumeLeaseAndReserve(request)
+	if !ok {
+		s.logger.Info("import-ext rejected (", request.BusID, ": ", reason, ")")
 		_ = WriteOpRepImport(conn, OpRepImportExt, OpStatusError, nil)
 		return false
 	}
-	return s.handleImportBusID(conn, request.BusID, true)
+	return s.handleImportReserved(conn, request.BusID, export, true)
 }
 
-func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended bool) bool {
-	opCode := uint16(OpRepImport)
-	if extended {
-		opCode = OpRepImportExt
-	}
+func (s *ServerService) handleImportBusID(conn net.Conn, busid string) bool {
 	export, ok, reason := s.ledger.TryReserveForImport(s.ctx, busid)
 	if !ok {
 		s.logger.Info("import rejected (", busid, ": ", reason, ")")
-		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
+		_ = WriteOpRepImport(conn, OpRepImport, OpStatusError, nil)
 		return false
+	}
+	return s.handleImportReserved(conn, busid, export, false)
+}
+
+func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export Export, extended bool) bool {
+	opCode := uint16(OpRepImport)
+	if extended {
+		opCode = OpRepImportExt
 	}
 	info, err := export.DeviceInfo(s.ctx)
 	if err != nil {

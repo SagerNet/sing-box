@@ -355,12 +355,15 @@ type darwinServerDataSession struct {
 	pending     map[uint32]darwinServerPendingSubmit
 	wg          sync.WaitGroup
 
-	done      chan struct{}
-	doneOnce  sync.Once
-	runErr    error
-	startOnce sync.Once
-	closeOnce sync.Once
-	closeErr  error
+	done     chan struct{}
+	doneOnce sync.Once
+	runErr   error
+
+	stateAccess sync.Mutex
+	started     bool
+	closed      bool
+	closeOnce   sync.Once
+	closeErr    error
 }
 
 type darwinServerPendingSubmit struct {
@@ -388,9 +391,13 @@ func (s *darwinServerDataSession) Err() error {
 }
 
 func (s *darwinServerDataSession) Start() error {
-	s.startOnce.Do(func() {
-		go s.run()
-	})
+	s.stateAccess.Lock()
+	defer s.stateAccess.Unlock()
+	if s.started || s.closed {
+		return nil
+	}
+	s.started = true
+	go s.run()
 	return nil
 }
 
@@ -398,8 +405,15 @@ func (s *darwinServerDataSession) Close() error {
 	s.closeOnce.Do(func() {
 		s.closeErr = common.Close(s.conn)
 	})
-	s.markDone(nil)
-	<-s.done
+	s.stateAccess.Lock()
+	started := s.started
+	s.closed = true
+	s.stateAccess.Unlock()
+	if started {
+		<-s.done
+	} else {
+		s.markDone(nil)
+	}
 	return s.closeErr
 }
 
