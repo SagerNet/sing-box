@@ -5,16 +5,32 @@
 #import <IOUSBHost/AppleUSBDescriptorParsing.h>
 #import <dispatch/dispatch.h>
 #import <mach/mach_time.h>
+#import <os/lock.h>
 #import <stdlib.h>
 #import <string.h>
 
-@interface BoxUSBHostDevice : NSObject
+@interface BoxUSBHostDevice : NSObject {
+	os_unfair_lock _stateLock;
+}
 @property(nonatomic, strong) IOUSBHostDevice *device;
 @property(nonatomic, strong) NSMutableArray<IOUSBHostInterface *> *interfaces;
 @property(nonatomic, strong) NSMutableDictionary<NSNumber *, IOUSBHostPipe *> *pipes;
+- (void)withStateLock:(NS_NOESCAPE void (^)(void))block;
 @end
 
 @implementation BoxUSBHostDevice
+- (instancetype)init {
+	self = [super init];
+	if (self != nil) {
+		_stateLock = OS_UNFAIR_LOCK_INIT;
+	}
+	return self;
+}
+- (void)withStateLock:(NS_NOESCAPE void (^)(void))block {
+	os_unfair_lock_lock(&_stateLock);
+	block();
+	os_unfair_lock_unlock(&_stateLock);
+}
 @end
 
 @interface BoxUSBHostController : NSObject
@@ -283,20 +299,25 @@ static IOUSBHostPipe *box_find_pipe_for_endpoint(BoxUSBHostDevice *box, uint8_t 
 }
 
 static IOUSBHostPipe *box_pipe_for_endpoint(BoxUSBHostDevice *box, uint8_t endpoint) {
-	NSNumber *key = @(endpoint);
-	IOUSBHostPipe *cached = box.pipes[key];
-	if (cached != nil) {
-		return cached;
-	}
-	IOUSBHostPipe *pipe = box_find_pipe_for_endpoint(box, endpoint);
-	if (pipe == nil) {
-		box_load_interfaces(box);
-		pipe = box_find_pipe_for_endpoint(box, endpoint);
-	}
-	if (pipe != nil) {
-		box.pipes[key] = pipe;
-	}
-	return pipe;
+	__block IOUSBHostPipe *result = nil;
+	[box withStateLock:^{
+		NSNumber *key = @(endpoint);
+		IOUSBHostPipe *cached = box.pipes[key];
+		if (cached != nil) {
+			result = cached;
+			return;
+		}
+		IOUSBHostPipe *pipe = box_find_pipe_for_endpoint(box, endpoint);
+		if (pipe == nil) {
+			box_load_interfaces(box);
+			pipe = box_find_pipe_for_endpoint(box, endpoint);
+		}
+		if (pipe != nil) {
+			box.pipes[key] = pipe;
+		}
+		result = pipe;
+	}];
+	return result;
 }
 
 static IOUSBHostInterface *box_interface_for_number(BoxUSBHostDevice *box, uint8_t interface_number) {
@@ -493,18 +514,25 @@ bool box_usbhost_device_control(box_usbhost_device_t *device, const uint8_t setu
 		if (request.bmRequestType == 0 && request.bRequest == kIOUSBDeviceRequestSetConfiguration && request.wIndex == 0 && request.wLength == 0) {
 			ok = [box.device configureWithValue:request.wValue matchInterfaces:YES error:&error];
 			if (ok) {
-				box.pipes = [NSMutableDictionary dictionary];
-				box_load_interfaces(box);
+				[box withStateLock:^{
+					box.pipes = [NSMutableDictionary dictionary];
+					box_load_interfaces(box);
+				}];
 			}
 		} else if (request.bmRequestType == kIOUSBDeviceRequestRecipientInterface && request.bRequest == kIOUSBDeviceRequestSetInterface && request.wLength == 0) {
-			IOUSBHostInterface *interface = box_interface_for_number(box, request.wIndex & 0xff);
+			__block IOUSBHostInterface *interface = nil;
+			[box withStateLock:^{
+				interface = box_interface_for_number(box, request.wIndex & 0xff);
+			}];
 			if (interface == nil) {
 				error = [NSError errorWithDomain:NSMachErrorDomain code:kIOReturnNotFound userInfo:nil];
 			} else {
 				ok = [interface selectAlternateSetting:request.wValue error:&error];
 				if (ok) {
-					box.pipes = [NSMutableDictionary dictionary];
-					box_load_interfaces(box);
+					[box withStateLock:^{
+						box.pipes = [NSMutableDictionary dictionary];
+						box_load_interfaces(box);
+					}];
 				}
 			}
 		} else {
@@ -601,7 +629,23 @@ bool box_usbhost_device_iso(box_usbhost_device_t *device, uint8_t endpoint, uint
 			*status_out = ok ? 0 : (int32_t)(error != nil ? error.code : kIOReturnError);
 		}
 		if (ok && (endpoint & kIOUSBEndpointDescriptorDirection) == kIOUSBEndpointDescriptorDirectionIn && data_len > 0 && data != NULL) {
-			memcpy(data, payload.bytes, actual <= data_len ? actual : data_len);
+			const uint8_t *src = payload.bytes;
+			for (size_t i = 0; i < packet_count; i++) {
+				int32_t signed_offset = packets[i].offset;
+				int32_t signed_length = packets[i].actual_length;
+				if (signed_length <= 0 || signed_offset < 0) {
+					continue;
+				}
+				size_t offset = (size_t)signed_offset;
+				size_t length = (size_t)signed_length;
+				if (offset >= data_len) {
+					continue;
+				}
+				if (offset + length > data_len) {
+					length = data_len - offset;
+				}
+				memcpy(data + offset, src + offset, length);
+			}
 		}
 		return true;
 	}

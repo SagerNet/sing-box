@@ -525,9 +525,48 @@ func (s *darwinServerDataSession) handleSubmit(command SubmitCommand) SubmitResp
 	}
 	response.ActualLength = actual
 	if command.Header.Direction == USBIPDirIn && actual > 0 {
-		response.Buffer = buffer[:min(int(actual), len(buffer))]
+		if command.NumberOfPackets > 0 {
+			response.Buffer = packIsoInResponseBuffer(buffer, response.IsoPackets)
+			response.ActualLength = int32(len(response.Buffer))
+		} else {
+			response.Buffer = buffer[:min(int(actual), len(buffer))]
+		}
 	}
 	return response
+}
+
+func packIsoInResponseBuffer(buffer []byte, packets []IsoPacketDescriptor) []byte {
+	var total int
+	for i := range packets {
+		length := int(packets[i].ActualLength)
+		if length <= 0 {
+			packets[i].ActualLength = 0
+			continue
+		}
+		offset := int(packets[i].Offset)
+		if offset < 0 || offset >= len(buffer) {
+			packets[i].ActualLength = 0
+			continue
+		}
+		if offset+length > len(buffer) {
+			length = len(buffer) - offset
+			packets[i].ActualLength = int32(length)
+		}
+		total += length
+	}
+	if total == 0 {
+		return nil
+	}
+	packed := make([]byte, 0, total)
+	for i := range packets {
+		length := int(packets[i].ActualLength)
+		if length <= 0 {
+			continue
+		}
+		offset := int(packets[i].Offset)
+		packed = append(packed, buffer[offset:offset+length]...)
+	}
+	return packed
 }
 
 func (s *darwinServerDataSession) trackSubmit(seq uint32, endpoint uint8) {
