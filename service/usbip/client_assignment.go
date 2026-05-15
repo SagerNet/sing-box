@@ -3,6 +3,7 @@
 package usbip
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/sagernet/sing-box/option"
@@ -131,9 +132,7 @@ func (a *clientAssignment) matchedKeysForAssignmentLocked(entries []DeviceEntry,
 		return nil
 	}
 	assignmentKeys := make(map[string]DeviceKey, len(a.matchedKnownKeys)+len(entries)+len(knownKeys))
-	for busid, key := range a.matchedKnownKeys {
-		assignmentKeys[busid] = key
-	}
+	maps.Copy(assignmentKeys, a.matchedKnownKeys)
 	for i := range entries {
 		key := entryDeviceKey(entries[i])
 		if key.BusID == "" {

@@ -139,7 +139,7 @@ func readInterfaces(devicePath, busid string, configValue uint8, count int) []De
 		return nil
 	}
 	interfaces := make([]DeviceInterface, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		name := fmt.Sprintf("%s:%d.%d", busid, configValue, i)
 		ipath := filepath.Join(filepath.Dir(devicePath), name)
 		class, _ := readHexU8(ipath, "bInterfaceClass")

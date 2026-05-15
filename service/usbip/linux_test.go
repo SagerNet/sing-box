@@ -299,9 +299,7 @@ func TestUSBIPConnHandoffRelaySocketpairCopies(t *testing.T) {
 
 	left, right := net.Pipe()
 	defer right.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	handoff, err := newKernelHandoffSession(ctx, opaqueConn{Conn: left}, newTestLogger(t), "test", "relay")
+	handoff, err := newKernelHandoffSession(t.Context(), opaqueConn{Conn: left}, newTestLogger(t), "test", "relay")
 	require.NoError(t, err)
 	defer handoff.Close()
 	require.NotNil(t, handoff.relayConn)

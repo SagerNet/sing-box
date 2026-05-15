@@ -542,10 +542,7 @@ func (c *darwinVirtualController) completeSubmitInTransfer(ptr unsafe.Pointer, r
 		c.requestClose()
 		return -int32(unix.EOVERFLOW), 0
 	}
-	copyLength := actualLength
-	if copyLength > len(response.Buffer) {
-		copyLength = len(response.Buffer)
-	}
+	copyLength := min(actualLength, len(response.Buffer))
 	if copyLength > 0 && ptr != nil {
 		if len(response.IsoPackets) > 0 {
 			dst := unsafe.Slice((*byte)(ptr), requestLength)
@@ -575,10 +572,7 @@ func scatterIsoInResponseBuffer(dst []byte, payload []byte, packets []IsoPacketD
 			cursor += length
 			continue
 		}
-		end := offset + length
-		if end > len(dst) {
-			end = len(dst)
-		}
+		end := min(offset+length, len(dst))
 		copy(dst[offset:end], payload[cursor:cursor+(end-offset)])
 		cursor += length
 	}

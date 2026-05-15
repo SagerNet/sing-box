@@ -126,10 +126,7 @@ func ReadSubmitResponseBody(r io.Reader, header DataHeader, payloadDirection uin
 		ErrorCount:      int32(binary.BigEndian.Uint32(raw[16:20])),
 	}
 	copy(response.Setup[:], raw[20:28])
-	bufferLength := response.ActualLength
-	if bufferLength < 0 {
-		bufferLength = 0
-	}
+	bufferLength := max(response.ActualLength, 0)
 	buffer, isoPackets, err := readUSBIPPayload(r, payloadDirection, bufferLength, response.NumberOfPackets, false)
 	if err != nil {
 		return SubmitResponse{}, err

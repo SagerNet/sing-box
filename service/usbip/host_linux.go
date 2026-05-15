@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"os"
 	"path/filepath"
@@ -197,9 +198,7 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 
 	h.access.Lock()
 	current := make(map[string]*linuxExport, len(h.exports))
-	for busid, exp := range h.exports {
-		current[busid] = exp
-	}
+	maps.Copy(current, h.exports)
 	h.access.Unlock()
 
 	for busid, device := range desired {
@@ -258,7 +257,7 @@ func (h *linuxExportHost) bindOne(d *sysfsDevice) (*linuxExport, error) {
 		exp *linuxExport
 		err error
 	)
-	for attempt := 0; attempt < 2; attempt++ {
+	for attempt := range 2 {
 		exp, err = h.bindOneOnce(d)
 		if err == nil {
 			return exp, nil

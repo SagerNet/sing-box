@@ -67,14 +67,13 @@ type testVirtualFunction struct {
 }
 
 type testVirtualGadget struct {
-	path       string
-	serial     string
-	busid      string
-	functions  []testVirtualFunction
-	nodes      map[string]string
-	closeOnce  sync.Once
-	removeOnce sync.Once
-	udcName    string
+	path      string
+	serial    string
+	busid     string
+	functions []testVirtualFunction
+	nodes     map[string]string
+	closeOnce sync.Once
+	udcName   string
 }
 
 type testACMGadget struct {
@@ -724,14 +723,6 @@ func (r *rawFile) Close() {
 	}
 	_ = term.Restore(int(r.file.Fd()), r.state)
 	_ = r.file.Close()
-}
-
-func openBinaryDevice(t *testing.T, path string) *os.File {
-	t.Helper()
-
-	file, err := os.OpenFile(path, os.O_RDWR, 0)
-	require.NoError(t, err)
-	return file
 }
 
 func newTestVirtualGadget(t *testing.T, productID uint16, productName string, functions []testVirtualFunction) *testVirtualGadget {

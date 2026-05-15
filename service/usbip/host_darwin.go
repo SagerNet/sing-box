@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"slices"
 	"sync"
@@ -119,9 +120,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 
 	h.access.Lock()
 	current := make(map[string]*darwinExport, len(h.exports))
-	for busid, exp := range h.exports {
-		current[busid] = exp
-	}
+	maps.Copy(current, h.exports)
 	h.access.Unlock()
 
 	var (
