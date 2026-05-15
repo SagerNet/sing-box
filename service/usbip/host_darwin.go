@@ -127,7 +127,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 	var (
 		toAdd    []*darwinExport
 		toRemove []*darwinExport
-		toStale  []string
+		toStale  []darwinStaleMark
 		released []string
 	)
 	for busid, info := range desired {
@@ -136,7 +136,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 		}
 		if exp, ok := current[busid]; ok {
 			if isBusy(busid) {
-				toStale = append(toStale, busid)
+				toStale = append(toStale, darwinStaleMark{busid: busid, pendingRegistryID: info.registryID})
 				continue
 			}
 			toRemove = append(toRemove, exp)
@@ -162,7 +162,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 			continue
 		}
 		if isBusy(busid) {
-			toStale = append(toStale, busid)
+			toStale = append(toStale, darwinStaleMark{busid: busid})
 			continue
 		}
 		toRemove = append(toRemove, exp)
@@ -171,12 +171,15 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isBusy func(busid stri
 	}
 
 	h.access.Lock()
-	for _, busid := range toStale {
-		exp, ok := h.exports[busid]
-		if !ok || exp.stale {
+	for _, mark := range toStale {
+		exp, ok := h.exports[mark.busid]
+		if !ok {
 			continue
 		}
 		exp.stale = true
+		if mark.pendingRegistryID != 0 {
+			exp.pendingRegistryID = mark.pendingRegistryID
+		}
 	}
 	for _, exp := range toRemove {
 		delete(h.exports, exp.busid)
@@ -208,12 +211,44 @@ func (h *darwinExportHost) FinishImport(ctx context.Context, busid string) (bool
 		h.access.Unlock()
 		return false, nil
 	}
-	delete(h.exports, busid)
+	pending := exp.pendingRegistryID
+	if pending == 0 {
+		delete(h.exports, busid)
+		h.access.Unlock()
+		if exp.device != nil {
+			exp.device.Close()
+		}
+		return true, nil
+	}
+	h.access.Unlock()
+
+	device, err := darwinOpenUSBHostDevice(pending, true)
+	if err != nil {
+		h.logger.Warn("re-capture ", busid, " (registry ", pending, "): ", err)
+		h.access.Lock()
+		delete(h.exports, busid)
+		h.access.Unlock()
+		if exp.device != nil {
+			exp.device.Close()
+		}
+		return true, nil
+	}
+	info := device.info
+	replacement := &darwinExport{
+		busid:      info.key.BusID,
+		registryID: info.registryID,
+		device:     device,
+		entry:      info.entry,
+		logger:     h.logger,
+	}
+	h.access.Lock()
+	h.exports[busid] = replacement
 	h.access.Unlock()
 	if exp.device != nil {
 		exp.device.Close()
 	}
-	return true, nil
+	h.logger.Info("re-exported ", busid, " through IOUSBHost re-capture (registry ", pending, ")")
+	return false, nil
 }
 
 func (h *darwinExportHost) snapshotSelf() map[string]Export {
@@ -230,12 +265,18 @@ func (h *darwinExportHost) snapshotSelf() map[string]Export {
 }
 
 type darwinExport struct {
-	busid      string
-	registryID uint64
-	device     *darwinUSBHostDevice
-	entry      DeviceEntry
-	logger     log.ContextLogger
-	stale      bool
+	busid             string
+	registryID        uint64
+	pendingRegistryID uint64
+	device            *darwinUSBHostDevice
+	entry             DeviceEntry
+	logger            log.ContextLogger
+	stale             bool
+}
+
+type darwinStaleMark struct {
+	busid             string
+	pendingRegistryID uint64
 }
 
 func (e *darwinExport) BusID() string {

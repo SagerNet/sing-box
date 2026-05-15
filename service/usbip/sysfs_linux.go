@@ -46,7 +46,7 @@ type sysfsDevice struct {
 
 func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 	var info DeviceInfoTruncated
-	encodePathField(&info.Path, d.Path)
+	encodePathField(&info.Path, d.Path, d.Serial)
 	copy(info.BusID[:], d.BusID)
 	info.BusNum = d.BusNum
 	info.DevNum = d.DevNum

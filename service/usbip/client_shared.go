@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"time"
 
@@ -15,17 +16,21 @@ import (
 )
 
 const (
-	clientReconnectDelay   = 5 * time.Second
-	clientShutdownTimeout  = 15 * time.Second
-	controlPingInterval    = 10 * time.Second
-	controlReadTimeout     = 30 * time.Second
-	controlWriteTimeout    = 5 * time.Second
-	controlSessionIdleHint = "control session lost"
+	clientReconnectDelay         = 5 * time.Second
+	clientShutdownTimeout        = 15 * time.Second
+	controlPingInterval          = 10 * time.Second
+	controlReadTimeout           = 30 * time.Second
+	controlWriteTimeout          = 5 * time.Second
+	controlSessionIdleHint       = "control session lost"
+	controlHandshakeBackoffStart = time.Second
+	controlHandshakeBackoffMax   = 30 * time.Second
+	controlHandshakeMaxTransient = 3
 )
 
 var (
 	errImmediateReconnect = E.New("usbip control reconnect")
 	errControlUnsupported = E.New("usbip control unsupported")
+	errControlTransient   = E.New("usbip control transient")
 )
 
 type clientAssignedWorker struct {
@@ -57,31 +62,79 @@ func (c *ClientService) initializeWorkers() {
 
 func (c *ClientService) run() {
 	defer c.wg.Done()
-	for immediate := true; immediate || sleepCtx(c.ctx, clientReconnectDelay); {
-		err := c.runControlSession()
-		if errors.Is(err, errControlUnsupported) {
-			c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
-			for {
-				err = c.syncRemoteStateContext(c.ctx)
-				if err != nil {
-					err = E.Cause(err, "devlist sync")
-					break
-				}
-				if !sleepCtx(c.ctx, clientReconnectDelay) {
-					err = nil
-					break
+	defer c.stopAllWorkers()
+
+	var transientStreak int
+	backoff := controlHandshakeBackoffStart
+	immediate := true
+
+	for {
+		if !immediate {
+			delay := clientReconnectDelay
+			if transientStreak > 0 {
+				delay = backoff
+				backoff *= 2
+				if backoff > controlHandshakeBackoffMax {
+					backoff = controlHandshakeBackoffMax
 				}
 			}
+			if !sleepCtx(c.ctx, delay) {
+				return
+			}
 		}
+		immediate = false
+
+		err := c.runControlSession()
 		if c.ctx.Err() != nil {
-			break
+			return
 		}
+
+		if errors.Is(err, errControlUnsupported) {
+			c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
+			c.runStandardPollLoop()
+			if c.ctx.Err() != nil {
+				return
+			}
+			transientStreak = 0
+			backoff = controlHandshakeBackoffStart
+			continue
+		}
+
+		if errors.Is(err, errControlTransient) {
+			transientStreak++
+			c.logger.Warn("control handshake ", c.serverAddr, ": ", err)
+			if transientStreak >= controlHandshakeMaxTransient {
+				c.logger.Info("control handshake failed ", transientStreak, " times against ", c.serverAddr, "; using standard usbip mode")
+				c.runStandardPollLoop()
+				if c.ctx.Err() != nil {
+					return
+				}
+				transientStreak = 0
+				backoff = controlHandshakeBackoffStart
+			}
+			continue
+		}
+
 		if err != nil {
 			c.logger.Error("control ", c.serverAddr, ": ", err)
 		}
+		transientStreak = 0
+		backoff = controlHandshakeBackoffStart
 		immediate = errors.Is(err, errImmediateReconnect)
 	}
-	c.stopAllWorkers()
+}
+
+func (c *ClientService) runStandardPollLoop() {
+	for {
+		err := c.syncRemoteStateContext(c.ctx)
+		if err != nil {
+			c.logger.Error("control ", c.serverAddr, ": ", E.Cause(err, "devlist sync"))
+			return
+		}
+		if !sleepCtx(c.ctx, clientReconnectDelay) {
+			return
+		}
+	}
 }
 
 func (c *ClientService) runControlSession() error {
@@ -97,7 +150,7 @@ func (c *ClientService) runControlSession() error {
 	_ = conn.SetReadDeadline(time.Now().Add(controlWriteTimeout))
 	_, err = conn.Write(controlPreface[:])
 	if err != nil {
-		return E.Cause(errControlUnsupported, "write control preface: ", err)
+		return E.Cause(errControlTransient, "write control preface: ", err)
 	}
 	err = writeControlMessage(conn, controlFrame{
 		Type:         controlFrameHello,
@@ -105,12 +158,19 @@ func (c *ClientService) runControlSession() error {
 		Capabilities: controlCapabilities,
 	}, nil)
 	if err != nil {
-		return E.Cause(errControlUnsupported, "write control hello: ", err)
+		return E.Cause(errControlTransient, "write control hello: ", err)
 	}
 	var cr controlReader
 	ackMessage, err := cr.read(conn)
 	if err != nil {
-		return E.Cause(errControlUnsupported, "read control ack: ", err)
+		// A plain usbipd reads our preface as an op-header, finds a bogus
+		// version, and closes cleanly: the client sees io.EOF. Other I/O
+		// errors (timeout, RST, partial read) point at a transient
+		// network problem, not "server lacks CONTROL".
+		if errors.Is(err, io.EOF) {
+			return E.Cause(errControlUnsupported, "read control ack: ", err)
+		}
+		return E.Cause(errControlTransient, "read control ack: ", err)
 	}
 	if len(ackMessage.Payload) > 0 {
 		return E.Cause(errControlUnsupported, "unexpected control ack payload length ", len(ackMessage.Payload))

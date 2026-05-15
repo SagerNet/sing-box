@@ -484,7 +484,7 @@ func darwinDeviceInfoFromC(info *C.box_usbhost_device_info_t) darwinUSBHostDevic
 		Serial: serial,
 	}
 	copy(entry.Info.BusID[:], busid)
-	encodePathField(&entry.Info.Path, path)
+	encodePathField(&entry.Info.Path, path, serial)
 	interfaceCount := int(info.interface_count)
 	if interfaceCount > C.BOX_USBHOST_MAX_INTERFACES {
 		interfaceCount = C.BOX_USBHOST_MAX_INTERFACES

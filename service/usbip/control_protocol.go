@@ -278,7 +278,7 @@ func deviceInfoV2ToEntries(devices []DeviceInfoV2, availableOnly bool) []DeviceE
 			continue
 		}
 		var info DeviceInfoTruncated
-		encodePathField(&info.Path, device.Path)
+		encodePathField(&info.Path, device.Path, device.Serial)
 		copy(info.BusID[:], device.BusID)
 		info.Speed = device.Speed
 		info.IDVendor = device.VendorID

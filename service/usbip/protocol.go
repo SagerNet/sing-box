@@ -222,6 +222,7 @@ func ReadOpRepDevListBody(r io.Reader) ([]DeviceEntry, error) {
 		if err != nil {
 			return nil, err
 		}
+		entries[i].Serial = entries[i].Info.SerialString()
 		bodyBytes += deviceInfoWireSize
 		if bodyBytes > maxOpRepDevListBodyBytes {
 			return nil, E.New("OP_REP_DEVLIST body too large")
@@ -261,8 +262,18 @@ func (d *DeviceInfoTruncated) DevID() uint32 {
 	return (d.BusNum << 16) | (d.DevNum & 0xffff)
 }
 
-func encodePathField(dst *[256]byte, path string) {
-	copy(dst[:], path)
+func encodePathField(dst *[256]byte, path string, serial string) {
+	*dst = [256]byte{}
+	pathLen := copy(dst[:len(dst)-1], path)
+	if serial == "" {
+		return
+	}
+	trailer := "serial=" + serial
+	trailerStart := pathLen + 1
+	if trailerStart+len(trailer)+1 > len(dst) {
+		return
+	}
+	copy(dst[trailerStart:], trailer)
 }
 
 func cstring(b []byte) string {

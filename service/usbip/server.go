@@ -289,6 +289,12 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 		<-session.Done()
 		released, _ := s.host.FinishImport(s.ctx, busid)
 		s.ledger.ReleaseImport(s.ctx, busid, released)
+		if released {
+			reconcileErr := s.reconcileAndBroadcast(true)
+			if reconcileErr != nil {
+				s.logger.Debug("reconcile after ", busid, ": ", reconcileErr)
+			}
+		}
 		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
@@ -299,6 +305,12 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 			s.logger.Debug("finish import ", busid, ": ", err)
 		}
 		s.ledger.ReleaseImport(s.ctx, busid, released)
+		if released {
+			err = s.reconcileAndBroadcast(true)
+			if err != nil {
+				s.logger.Debug("reconcile after ", busid, ": ", err)
+			}
+		}
 	}()
 	return true
 }
