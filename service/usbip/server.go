@@ -168,16 +168,13 @@ func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 		return nil
 	}
 	snapshot, released, err := s.host.Reconcile(s.ctx, s.ledger.IsBusy)
-	if err != nil {
-		return err
-	}
 	s.ledger.ApplyHostSnapshot(snapshot, released)
 	if notify {
 		s.ledger.BroadcastIfChanged(s.ctx)
 	} else {
 		s.ledger.SeedBroadcastState(s.ctx)
 	}
-	return nil
+	return err
 }
 
 func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {

@@ -324,41 +324,79 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 	h.access.Unlock()
 
 	plan := classifyLinuxReconcile(current, desired, isBusy)
-	toAdd := make([]*linuxExport, 0, len(plan.toBind))
-	for _, exp := range plan.toRelease {
-		err := h.releaseExport(exp, false)
-		if err != nil {
-			h.logger.Warn("release ", exp.busid, ": ", err)
+	committed := make(map[string]*linuxExport, len(current)+len(plan.toBind))
+	maps.Copy(committed, current)
+	var reconcileErrors []error
+
+	for _, busid := range plan.toStale {
+		exp, found := committed[busid]
+		if found {
+			staleExport := cloneLinuxExport(exp)
+			staleExport.stale = true
+			committed[busid] = staleExport
 		}
+	}
+
+	for _, exp := range plan.toRelease {
+		releaseErr := h.releaseExport(exp, false)
+		if releaseErr != nil {
+			h.logger.Warn("release ", exp.busid, ": ", releaseErr)
+			reconcileErrors = append(reconcileErrors, E.Cause(releaseErr, "release ", exp.busid))
+		}
+		var desiredDevice *sysfsDevice
+		desiredEntry, found := desired[exp.busid]
+		if found {
+			desiredDevice = &desiredEntry
+		}
+		resolved, resolveErr := h.resolveCommittedRelease(exp, desiredDevice)
+		if resolveErr != nil {
+			reconcileErrors = append(reconcileErrors, resolveErr)
+		}
+		if resolved == nil {
+			delete(committed, exp.busid)
+			continue
+		}
+		committed[exp.busid] = resolved
 	}
 
 	for busid, device := range plan.toBind {
-		exp, bindErr := h.bindOne(&device)
-		if bindErr != nil {
-			return h.snapshotSelf(), nil, E.Cause(bindErr, "bind ", busid)
+		_, found := committed[busid]
+		if found {
+			continue
 		}
-		toAdd = append(toAdd, exp)
+		previousDriver, probeErr := currentDriver(busid)
+		if probeErr != nil {
+			reconcileErrors = append(reconcileErrors, E.Cause(probeErr, "probe driver before bind ", busid))
+		}
+		exp, bindErr := h.bindOne(&device)
+		if bindErr == nil {
+			committed[busid] = exp
+			continue
+		}
+		reconcileErrors = append(reconcileErrors, E.Cause(bindErr, "bind ", busid))
+		resolved, resolveErr := h.resolveCommittedBind(busid, &device, previousDriver)
+		if resolveErr != nil {
+			reconcileErrors = append(reconcileErrors, resolveErr)
+		}
+		if resolved != nil {
+			committed[busid] = resolved
+		}
+	}
+
+	released := make([]string, 0, len(plan.released))
+	for _, busid := range plan.released {
+		exp, found := committed[busid]
+		if found && !exp.stale {
+			continue
+		}
+		released = append(released, busid)
 	}
 
 	h.access.Lock()
-	for _, busid := range plan.toStale {
-		exp, ok := h.exports[busid]
-		if ok {
-			exp.stale = true
-		}
-	}
-	for _, exp := range plan.toRelease {
-		currentExport, ok := h.exports[exp.busid]
-		if ok && currentExport == exp {
-			delete(h.exports, exp.busid)
-		}
-	}
-	for _, exp := range toAdd {
-		h.exports[exp.busid] = exp
-	}
+	h.exports = committed
 	h.access.Unlock()
 
-	return h.snapshotSelf(), plan.released, nil
+	return snapshotLinuxExports(committed), released, E.Errors(reconcileErrors...)
 }
 
 func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
@@ -389,14 +427,79 @@ func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool,
 func (h *linuxExportHost) snapshotSelf() map[string]Export {
 	h.access.Lock()
 	defer h.access.Unlock()
-	out := make(map[string]Export, len(h.exports))
-	for busid, exp := range h.exports {
+	return snapshotLinuxExports(h.exports)
+}
+
+func snapshotLinuxExports(exports map[string]*linuxExport) map[string]Export {
+	out := make(map[string]Export, len(exports))
+	for busid, exp := range exports {
 		if exp.stale {
 			continue
 		}
 		out[busid] = exp
 	}
 	return out
+}
+
+func cloneLinuxExport(exp *linuxExport) *linuxExport {
+	if exp == nil {
+		return nil
+	}
+	clone := *exp
+	clone.descriptor.Interfaces = slices.Clone(exp.descriptor.Interfaces)
+	clone.identity.Interfaces = slices.Clone(exp.identity.Interfaces)
+	return &clone
+}
+
+func (h *linuxExportHost) resolveCommittedRelease(exp *linuxExport, desired *sysfsDevice) (*linuxExport, error) {
+	if desired != nil {
+		resolved, found, err := h.probeDesiredBoundExport(exp.busid, desired, exp.managed, exp.originalDriver)
+		if err != nil {
+			return exp, err
+		}
+		if found {
+			return resolved, nil
+		}
+	}
+	driver, err := currentDriver(exp.busid)
+	if err != nil {
+		return exp, E.Cause(err, "probe driver ", exp.busid)
+	}
+	if driver != "usbip-host" {
+		return nil, nil
+	}
+	return exp, nil
+}
+
+func (h *linuxExportHost) resolveCommittedBind(busid string, desired *sysfsDevice, originalDriver string) (*linuxExport, error) {
+	if desired == nil {
+		return nil, nil
+	}
+	resolved, found, err := h.probeDesiredBoundExport(busid, desired, true, originalDriver)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, nil
+	}
+	return resolved, nil
+}
+
+func (h *linuxExportHost) probeDesiredBoundExport(busid string, desired *sysfsDevice, managed bool, originalDriver string) (*linuxExport, bool, error) {
+	driver, err := currentDriver(busid)
+	if err != nil {
+		return nil, false, E.Cause(err, "probe driver ", busid)
+	}
+	if driver != "usbip-host" {
+		return nil, false, nil
+	}
+	descriptor, err := readSysfsDevice(busid, filepath.Join(sysBusUSBDevices, busid))
+	if err != nil {
+		descriptor = *desired
+	} else if !newLinuxExportIdentity(descriptor).Equal(newLinuxExportIdentity(*desired)) {
+		return nil, false, nil
+	}
+	return h.newExport(descriptor, managed, originalDriver), true, nil
 }
 
 func (h *linuxExportHost) bindOne(d *sysfsDevice) (*linuxExport, error) {

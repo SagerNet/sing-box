@@ -356,7 +356,8 @@ type darwinServerDataSession struct {
 	device      *darwinUSBHostDevice
 	writeAccess sync.Mutex
 	access      sync.Mutex
-	pending     map[uint32]darwinServerPendingSubmit
+	pending     map[uint32]darwinServerSubmitState
+	endpoints   map[uint8]*darwinServerEndpointState
 	wg          sync.WaitGroup
 
 	done     chan struct{}
@@ -370,20 +371,33 @@ type darwinServerDataSession struct {
 	closeErr    error
 }
 
-type darwinServerPendingSubmit struct {
+type darwinServerSubmitState struct {
+	command  SubmitCommand
 	endpoint uint8
+	started  bool
 	unlinked bool
 	drained  chan struct{}
 }
 
+type darwinServerEndpointState struct {
+	active uint32
+	queued []uint32
+}
+
+type darwinServerNextSubmit struct {
+	sequence uint32
+	command  SubmitCommand
+}
+
 func newDarwinServerDataSession(ctx context.Context, logger log.ContextLogger, conn net.Conn, device *darwinUSBHostDevice) *darwinServerDataSession {
 	return &darwinServerDataSession{
-		ctx:     ctx,
-		logger:  logger,
-		conn:    conn,
-		device:  device,
-		pending: make(map[uint32]darwinServerPendingSubmit),
-		done:    make(chan struct{}),
+		ctx:       ctx,
+		logger:    logger,
+		conn:      conn,
+		device:    device,
+		pending:   make(map[uint32]darwinServerSubmitState),
+		endpoints: make(map[uint8]*darwinServerEndpointState),
+		done:      make(chan struct{}),
 	}
 }
 
@@ -458,32 +472,23 @@ func (s *darwinServerDataSession) serve() error {
 			if err != nil {
 				return err
 			}
-			s.trackSubmit(command.Header.SeqNum, commandEndpoint(command))
-			s.wg.Add(1)
-			go func() {
-				defer s.wg.Done()
-				response := s.handleSubmit(command)
-				if !s.finishSubmit(command.Header.SeqNum) {
-					return
-				}
-				s.writeAccess.Lock()
-				err := WriteSubmitResponse(s.conn, response)
-				s.writeAccess.Unlock()
-				if err != nil {
-					_ = s.conn.Close()
-				}
-			}()
+			next, shouldStart := s.enqueueSubmit(command)
+			if shouldStart {
+				s.startSubmit(next)
+			}
 		case CmdUnlink:
 			command, err := ReadUnlinkCommandBody(s.conn, header)
 			if err != nil {
 				return err
 			}
 			status := int32(0)
-			endpoint, drained, found := s.markSubmitUnlinked(command.SeqNum)
+			endpoint, drained, shouldAbort, found := s.unlinkSubmit(command.SeqNum)
 			if found {
-				abortErr := s.device.abortEndpoint(endpoint)
-				if abortErr != nil {
-					s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", abortErr)
+				if shouldAbort {
+					abortErr := s.device.abortEndpoint(endpoint)
+					if abortErr != nil {
+						s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", abortErr)
+					}
 				}
 				<-drained
 				status = usbipStatusECONNRESET
@@ -501,6 +506,57 @@ func (s *darwinServerDataSession) serve() error {
 			return E.New(fmt.Sprintf("unexpected USB/IP command 0x%08x", header.Command))
 		}
 	}
+}
+
+func (s *darwinServerDataSession) enqueueSubmit(command SubmitCommand) (darwinServerNextSubmit, bool) {
+	endpoint := submitScheduleEndpoint(command)
+	sequence := command.Header.SeqNum
+
+	s.access.Lock()
+	defer s.access.Unlock()
+
+	state := darwinServerSubmitState{
+		command:  command,
+		endpoint: endpoint,
+	}
+	endpointState, found := s.endpoints[endpoint]
+	if !found {
+		endpointState = &darwinServerEndpointState{}
+		s.endpoints[endpoint] = endpointState
+	}
+	if endpointState.active == 0 {
+		state.started = true
+		s.pending[sequence] = state
+		endpointState.active = sequence
+		return darwinServerNextSubmit{
+			sequence: sequence,
+			command:  command,
+		}, true
+	}
+	s.pending[sequence] = state
+	endpointState.queued = append(endpointState.queued, sequence)
+	return darwinServerNextSubmit{}, false
+}
+
+func (s *darwinServerDataSession) startSubmit(next darwinServerNextSubmit) {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+
+		response := s.handleSubmit(next.command)
+		shouldSend, followUp, hasFollowUp := s.finishSubmit(next.sequence)
+		if shouldSend {
+			s.writeAccess.Lock()
+			err := WriteSubmitResponse(s.conn, response)
+			s.writeAccess.Unlock()
+			if err != nil {
+				_ = s.conn.Close()
+			}
+		}
+		if hasFollowUp {
+			s.startSubmit(followUp)
+		}
+	}()
 }
 
 func (s *darwinServerDataSession) handleSubmit(command SubmitCommand) SubmitResponse {
@@ -589,69 +645,150 @@ func packIsoInResponseBuffer(buffer []byte, packets []IsoPacketDescriptor) []byt
 	return packed
 }
 
-func (s *darwinServerDataSession) trackSubmit(seq uint32, endpoint uint8) {
-	s.access.Lock()
-	defer s.access.Unlock()
-	s.pending[seq] = darwinServerPendingSubmit{endpoint: endpoint}
-}
+func (s *darwinServerDataSession) unlinkSubmit(seq uint32) (uint8, <-chan struct{}, bool, bool) {
+	var drained chan struct{}
 
-func (s *darwinServerDataSession) markSubmitUnlinked(seq uint32) (uint8, <-chan struct{}, bool) {
-	s.access.Lock()
-	defer s.access.Unlock()
-	pending, found := s.pending[seq]
-	if !found {
-		return 0, nil, false
-	}
-	pending.unlinked = true
-	if pending.drained == nil {
-		pending.drained = make(chan struct{})
-	}
-	s.pending[seq] = pending
-	return pending.endpoint, pending.drained, true
-}
-
-func (s *darwinServerDataSession) finishSubmit(seq uint32) bool {
 	s.access.Lock()
 	pending, found := s.pending[seq]
 	if !found {
 		s.access.Unlock()
-		return true
+		return 0, nil, false, false
+	}
+	if pending.drained == nil {
+		pending.drained = make(chan struct{})
+	}
+	drained = pending.drained
+	if !pending.started {
+		endpointState := s.endpoints[pending.endpoint]
+		if endpointState != nil {
+			endpointState.queued = removeQueuedSequence(endpointState.queued, seq)
+			if endpointState.active == 0 && len(endpointState.queued) == 0 {
+				delete(s.endpoints, pending.endpoint)
+			}
+		}
+		delete(s.pending, seq)
+		s.access.Unlock()
+		close(drained)
+		return pending.endpoint, drained, false, true
+	}
+	shouldAbort := !pending.unlinked
+	pending.unlinked = true
+	s.pending[seq] = pending
+	s.access.Unlock()
+	return pending.endpoint, drained, shouldAbort, true
+}
+
+func (s *darwinServerDataSession) finishSubmit(seq uint32) (bool, darwinServerNextSubmit, bool) {
+	var drained chan struct{}
+	var followUp darwinServerNextSubmit
+	var hasFollowUp bool
+
+	s.access.Lock()
+	pending, found := s.pending[seq]
+	if !found {
+		s.access.Unlock()
+		return true, darwinServerNextSubmit{}, false
+	}
+	endpointState := s.endpoints[pending.endpoint]
+	if endpointState != nil && endpointState.active == seq {
+		endpointState.active = 0
 	}
 	delete(s.pending, seq)
-	drained := pending.drained
+	if endpointState != nil {
+		for len(endpointState.queued) > 0 {
+			nextSequence := endpointState.queued[0]
+			endpointState.queued = endpointState.queued[1:]
+			nextPending, nextFound := s.pending[nextSequence]
+			if !nextFound {
+				continue
+			}
+			nextPending.started = true
+			s.pending[nextSequence] = nextPending
+			endpointState.active = nextSequence
+			followUp = darwinServerNextSubmit{
+				sequence: nextSequence,
+				command:  nextPending.command,
+			}
+			hasFollowUp = true
+			break
+		}
+		if endpointState.active == 0 && len(endpointState.queued) == 0 {
+			delete(s.endpoints, pending.endpoint)
+		}
+	}
+	drained = pending.drained
 	unlinked := pending.unlinked
 	s.access.Unlock()
 	if drained != nil {
 		close(drained)
 	}
-	return !unlinked
+	return !unlinked, followUp, hasFollowUp
 }
 
 func (s *darwinServerDataSession) abortPendingSubmits() {
+	var (
+		activeEndpoints []uint8
+		drained         []chan struct{}
+	)
+
 	s.access.Lock()
 	seen := make(map[uint8]struct{})
 	for seq, pending := range s.pending {
+		if !pending.started {
+			delete(s.pending, seq)
+			if pending.drained != nil {
+				drained = append(drained, pending.drained)
+			}
+			continue
+		}
 		if !pending.unlinked {
 			seen[pending.endpoint] = struct{}{}
 		}
 		pending.unlinked = true
 		s.pending[seq] = pending
 	}
-	endpoints := make([]uint8, 0, len(seen))
-	for endpoint := range seen {
-		endpoints = append(endpoints, endpoint)
+	for endpoint := range s.endpoints {
+		endpointState := s.endpoints[endpoint]
+		if endpointState != nil {
+			endpointState.queued = nil
+		}
 	}
-	slices.Sort(endpoints)
 	s.access.Unlock()
+
+	for _, drainedChannel := range drained {
+		close(drainedChannel)
+	}
+	activeEndpoints = make([]uint8, 0, len(seen))
+	for endpoint := range seen {
+		activeEndpoints = append(activeEndpoints, endpoint)
+	}
+	slices.Sort(activeEndpoints)
 	if s.device == nil {
 		return
 	}
-	for _, endpoint := range endpoints {
+	for _, endpoint := range activeEndpoints {
 		err := s.device.abortEndpoint(endpoint)
 		if err != nil {
 			s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", err)
 		}
 	}
+}
+
+func removeQueuedSequence(queue []uint32, sequence uint32) []uint32 {
+	for index, current := range queue {
+		if current != sequence {
+			continue
+		}
+		return append(queue[:index], queue[index+1:]...)
+	}
+	return queue
+}
+
+func submitScheduleEndpoint(command SubmitCommand) uint8 {
+	if command.Header.Endpoint == 0 {
+		return 0
+	}
+	return commandEndpoint(command)
 }
 
 func commandEndpoint(command SubmitCommand) uint8 {

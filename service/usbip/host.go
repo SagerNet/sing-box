@@ -8,9 +8,11 @@ import (
 )
 
 // ExportHost lifecycle: Start → Reconcile* → Close. Reconcile may be
-// called many times; FinishImport runs after each data session ends so
-// the platform can do post-import cleanup (Linux: write -1 to
-// usbip_sockfd; Darwin: release stale-marked captures).
+// called many times; it returns the committed post-reconcile export
+// state, and callers must apply snapshot/released even when err != nil.
+// FinishImport runs after each data session ends so the platform can do
+// post-import cleanup (Linux: write -1 to usbip_sockfd; Darwin:
+// release stale-marked captures).
 type ExportHost interface {
 	Start(ctx context.Context) error
 	Close() error
