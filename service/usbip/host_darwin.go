@@ -282,6 +282,10 @@ func (e *darwinExport) BusID() string {
 	return e.busid
 }
 
+func (e *darwinExport) LeaseIdentity() ExportLeaseIdentity {
+	return ExportLeaseIdentity(fmt.Sprintf("darwin:%016x", e.registryID))
+}
+
 func (e *darwinExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 	stableID := fmt.Sprintf("darwin-registry:%016x", e.registryID)
 	if e.stale {

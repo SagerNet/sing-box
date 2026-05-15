@@ -3,6 +3,8 @@
 #include <stdint.h>
 
 #include <IOUSBHost/IOUSBHost.h>
+#include <IOKit/usb/IOUSBHostFamilyDefinitions.h>
+#include <IOKit/usb/USB.h>
 
 #define BOX_USBHOST_MAX_INTERFACES 255
 

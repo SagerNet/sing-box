@@ -157,6 +157,7 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	if !found {
 		return nil, false, "unknown busid"
 	}
+	identity := export.LeaseIdentity()
 	if busy || leased {
 		return nil, false, deviceStateBusy
 	}
@@ -167,7 +168,7 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	l.slow.Lock()
 	defer l.slow.Unlock()
 	current, stillExported := l.exports[busid]
-	if !stillExported || current != export {
+	if !stillExported || current.LeaseIdentity() != identity {
 		return nil, false, "unknown busid"
 	}
 	if l.busy[busid] {
@@ -190,9 +191,9 @@ func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeEx
 	l.BroadcastIfChanged(ctx)
 }
 
-// IssueLease captures the seq generation at entry so a subsequent
-// ConsumeLeaseAndReserve can reject stale leases issued before a
-// topology change.
+// IssueLease captures the current broadcast sequence as opaque metadata
+// for control clients. Lease correctness itself is pinned to the
+// export's internal identity, not to that sequence number.
 func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request controlLeaseRequest) controlLeaseResponse {
 	response := controlLeaseResponse{
 		BusID:       request.BusID,
@@ -232,6 +233,7 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	}
 	l.slow.Unlock()
 
+	identity := export.LeaseIdentity()
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
 	if !leaseOK {
 		response.ErrorCode = leaseErrorUnavailable
@@ -244,7 +246,7 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	now = l.now()
 	l.cleanupExpiredLocked(now)
 	current, stillExported := l.exports[request.BusID]
-	if !stillExported || current != export {
+	if !stillExported || current.LeaseIdentity() != identity {
 		response.ErrorCode = leaseErrorUnavailable
 		response.ErrorMessage = "unknown busid"
 		return response
@@ -266,6 +268,7 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 		BusID:        request.BusID,
 		ClientNonce:  request.ClientNonce,
 		Generation:   generation,
+		Identity:     current.LeaseIdentity(),
 		Expires:      now.Add(l.ttl),
 	}
 	l.leases[request.BusID] = lease
@@ -275,52 +278,93 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	return response
 }
 
-// ConsumeLeaseAndReserve atomically validates a lease, removes its entry,
-// and marks the busid busy under a single slow-lock critical section so
-// no concurrent import can observe the consume-before-reserve gap, and
-// no concurrent broadcast can observe a transient busy=true that we
-// later roll back. The generation snapshot is taken before the slow
-// critical section so the comparison either matches the lease exactly
-// or is strictly stale (the safe rejection direction): a broadcast that
-// fires between the snapshot and slow.Lock can only advance seq.
+// ConsumeLeaseAndReserve validates the requested lease against the
+// current export identity, reruns LeaseCheck outside the slow lock, then
+// atomically consumes the lease and marks the busid busy. Correctness is
+// tied to the export identity rather than to the control sequence.
 //
 // Consume-on-read semantics from the old ConsumeLease are preserved:
 // the lease entry is removed on every outcome except a nonce/ID
 // mismatch (which preserves the lease for the legitimate holder).
-// LeaseCheck is not re-run — the lease attests that it passed at issue
-// time, and the generation equality test confirms the export has not
-// been reconciled since. The caller must pair every success with a
-// later ReleaseImport.
-func (l *exportLedger) ConsumeLeaseAndReserve(request ImportExtRequest) (Export, bool, string) {
-	l.fast.Lock()
-	currentGeneration := l.seq
-	l.fast.Unlock()
-
+// The caller must pair every success with a later ReleaseImport.
+func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request ImportExtRequest) (Export, bool, string) {
+	var (
+		export   Export
+		identity ExportLeaseIdentity
+	)
 	l.slow.Lock()
-	defer l.slow.Unlock()
-
 	now := l.now()
 	l.cleanupExpiredLocked(now)
 
 	lease, found := l.leases[request.BusID]
+	if !found {
+		l.slow.Unlock()
+		return nil, false, "lease not found"
+	}
+	if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
+		l.slow.Unlock()
+		return nil, false, "lease mismatch"
+	}
+	if !now.Before(lease.Expires) {
+		delete(l.leases, request.BusID)
+		l.slow.Unlock()
+		return nil, false, "lease expired"
+	}
+	export, stillExported := l.exports[request.BusID]
+	if !stillExported {
+		delete(l.leases, request.BusID)
+		l.slow.Unlock()
+		return nil, false, "unknown busid"
+	}
+	identity = export.LeaseIdentity()
+	if identity != lease.Identity {
+		delete(l.leases, request.BusID)
+		l.slow.Unlock()
+		return nil, false, "lease stale"
+	}
+	if l.busy[request.BusID] {
+		delete(l.leases, request.BusID)
+		l.slow.Unlock()
+		return nil, false, deviceStateBusy
+	}
+	l.slow.Unlock()
+
+	leaseOK, leaseReason := export.LeaseCheck(ctx)
+	if !leaseOK {
+		l.slow.Lock()
+		currentLease, exists := l.leases[request.BusID]
+		if exists && currentLease.ID == request.LeaseID && currentLease.ClientNonce == request.ClientNonce {
+			delete(l.leases, request.BusID)
+		}
+		l.slow.Unlock()
+		return nil, false, leaseReason
+	}
+
+	l.slow.Lock()
+	defer l.slow.Unlock()
+
+	now = l.now()
+	l.cleanupExpiredLocked(now)
+
+	lease, found = l.leases[request.BusID]
 	if !found {
 		return nil, false, "lease not found"
 	}
 	if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
 		return nil, false, "lease mismatch"
 	}
-	if lease.Generation != currentGeneration {
-		delete(l.leases, request.BusID)
-		return nil, false, "lease stale"
-	}
 	if !now.Before(lease.Expires) {
 		delete(l.leases, request.BusID)
 		return nil, false, "lease expired"
 	}
-	export, stillExported := l.exports[request.BusID]
+	current, stillExported := l.exports[request.BusID]
 	if !stillExported {
 		delete(l.leases, request.BusID)
 		return nil, false, "unknown busid"
+	}
+	if lease.Identity != identity || current.LeaseIdentity() != identity {
+		delete(l.leases, request.BusID)
+		return nil, false, "lease stale"
 	}
 	if l.busy[request.BusID] {
 		delete(l.leases, request.BusID)
@@ -328,7 +372,7 @@ func (l *exportLedger) ConsumeLeaseAndReserve(request ImportExtRequest) (Export,
 	}
 	delete(l.leases, request.BusID)
 	l.busy[request.BusID] = true
-	return export, true, ""
+	return current, true, ""
 }
 
 func (l *exportLedger) cleanupExpiredLocked(now time.Time) {

@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,12 +51,103 @@ func linuxUSBIPStatusReason(status int) string {
 	}
 }
 
+type linuxExportIdentity struct {
+	BusNum         uint32
+	DevNum         uint32
+	Speed          uint32
+	VendorID       uint16
+	ProductID      uint16
+	BCDDevice      uint16
+	DeviceClass    uint8
+	DeviceSubClass uint8
+	DeviceProtocol uint8
+	ConfigValue    uint8
+	NumConfigs     uint8
+	NumInterfaces  uint8
+	Serial         string
+	Interfaces     []DeviceInterface
+}
+
+func newLinuxExportIdentity(descriptor sysfsDevice) linuxExportIdentity {
+	return linuxExportIdentity{
+		BusNum:         descriptor.BusNum,
+		DevNum:         descriptor.DevNum,
+		Speed:          descriptor.Speed,
+		VendorID:       descriptor.VendorID,
+		ProductID:      descriptor.ProductID,
+		BCDDevice:      descriptor.BCDDevice,
+		DeviceClass:    descriptor.DeviceClass,
+		DeviceSubClass: descriptor.DeviceSubClass,
+		DeviceProtocol: descriptor.DeviceProtocol,
+		ConfigValue:    descriptor.ConfigValue,
+		NumConfigs:     descriptor.NumConfigs,
+		NumInterfaces:  descriptor.NumInterfaces,
+		Serial:         descriptor.Serial,
+		Interfaces:     slices.Clone(descriptor.Interfaces),
+	}
+}
+
+func (i linuxExportIdentity) Equal(other linuxExportIdentity) bool {
+	if i.BusNum != other.BusNum ||
+		i.DevNum != other.DevNum ||
+		i.Speed != other.Speed ||
+		i.VendorID != other.VendorID ||
+		i.ProductID != other.ProductID ||
+		i.BCDDevice != other.BCDDevice ||
+		i.DeviceClass != other.DeviceClass ||
+		i.DeviceSubClass != other.DeviceSubClass ||
+		i.DeviceProtocol != other.DeviceProtocol ||
+		i.ConfigValue != other.ConfigValue ||
+		i.NumConfigs != other.NumConfigs ||
+		i.NumInterfaces != other.NumInterfaces ||
+		i.Serial != other.Serial ||
+		len(i.Interfaces) != len(other.Interfaces) {
+		return false
+	}
+	for index := range i.Interfaces {
+		if i.Interfaces[index] != other.Interfaces[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func (i linuxExportIdentity) LeaseIdentity() ExportLeaseIdentity {
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "linux:%d:%d:%d:%04x:%04x:%04x:%02x:%02x:%02x:%02x:%02x:%02x:%s",
+		i.BusNum,
+		i.DevNum,
+		i.Speed,
+		i.VendorID,
+		i.ProductID,
+		i.BCDDevice,
+		i.DeviceClass,
+		i.DeviceSubClass,
+		i.DeviceProtocol,
+		i.ConfigValue,
+		i.NumConfigs,
+		i.NumInterfaces,
+		i.Serial,
+	)
+	for _, iface := range i.Interfaces {
+		fmt.Fprintf(&builder, "|%02x.%02x.%02x", iface.BInterfaceClass, iface.BInterfaceSubClass, iface.BInterfaceProtocol)
+	}
+	return ExportLeaseIdentity(builder.String())
+}
+
 type linuxExportHost struct {
 	logger  log.ContextLogger
 	matches []option.USBIPDeviceMatch
 
 	access  sync.Mutex
 	exports map[string]*linuxExport
+}
+
+type linuxReconcilePlan struct {
+	toRelease []*linuxExport
+	toStale   []string
+	toBind    map[string]sysfsDevice
+	released  []string
 }
 
 func newLinuxExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch) *linuxExportHost {
@@ -76,9 +168,7 @@ func (h *linuxExportHost) Close() error {
 	h.exports = make(map[string]*linuxExport)
 	h.access.Unlock()
 	for _, exp := range exports {
-		_, statErr := os.Stat(filepath.Join(sysBusUSBDevices, exp.busid))
-		restore := statErr == nil
-		releaseErr := h.releaseExport(exp, restore)
+		releaseErr := h.releaseExport(exp, exp.shouldRestoreCurrentDevice())
 		if releaseErr != nil {
 			h.logger.Warn("rollback ", exp.busid, ": ", releaseErr)
 		}
@@ -155,16 +245,48 @@ const (
 	ueventListenerBackoffMax     = 30 * time.Second
 )
 
+func classifyLinuxReconcile(current map[string]*linuxExport, desired map[string]sysfsDevice, isBusy func(busid string) bool) linuxReconcilePlan {
+	remainingDesired := maps.Clone(desired)
+	plan := linuxReconcilePlan{
+		toBind: make(map[string]sysfsDevice),
+	}
+	for busid, exp := range current {
+		device, wanted := remainingDesired[busid]
+		busy := isBusy(busid)
+		identityMatches := wanted && exp.identity.Equal(newLinuxExportIdentity(device))
+		switch {
+		case exp.stale:
+			if busy {
+				delete(remainingDesired, busid)
+				continue
+			}
+			plan.toRelease = append(plan.toRelease, exp)
+			plan.released = append(plan.released, busid)
+		case identityMatches:
+			delete(remainingDesired, busid)
+		case busy:
+			plan.toStale = append(plan.toStale, busid)
+			delete(remainingDesired, busid)
+		default:
+			plan.toRelease = append(plan.toRelease, exp)
+			plan.released = append(plan.released, busid)
+		}
+	}
+	for busid, device := range remainingDesired {
+		if isBusy(busid) {
+			continue
+		}
+		plan.toBind[busid] = device
+	}
+	return plan
+}
+
 func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := listUSBDevices()
 	if err != nil {
 		return h.snapshotSelf(), nil, E.Cause(err, "enumerate usb devices")
 	}
 	desired := make(map[string]sysfsDevice)
-	present := make(map[string]struct{}, len(devices))
-	for i := range devices {
-		present[devices[i].BusID] = struct{}{}
-	}
 	for _, m := range h.matches {
 		for i := range devices {
 			deviceKey := DeviceKey{
@@ -201,36 +323,42 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isBusy func(busid strin
 	maps.Copy(current, h.exports)
 	h.access.Unlock()
 
-	for busid, device := range desired {
-		if _, ok := current[busid]; ok {
-			continue
+	plan := classifyLinuxReconcile(current, desired, isBusy)
+	toAdd := make([]*linuxExport, 0, len(plan.toBind))
+	for _, exp := range plan.toRelease {
+		err := h.releaseExport(exp, false)
+		if err != nil {
+			h.logger.Warn("release ", exp.busid, ": ", err)
 		}
+	}
+
+	for busid, device := range plan.toBind {
 		exp, bindErr := h.bindOne(&device)
 		if bindErr != nil {
 			return h.snapshotSelf(), nil, E.Cause(bindErr, "bind ", busid)
 		}
-		h.access.Lock()
-		h.exports[busid] = exp
-		h.access.Unlock()
+		toAdd = append(toAdd, exp)
 	}
 
-	var released []string
-	for busid, exp := range current {
-		if _, ok := desired[busid]; ok {
-			continue
+	h.access.Lock()
+	for _, busid := range plan.toStale {
+		exp, ok := h.exports[busid]
+		if ok {
+			exp.stale = true
 		}
-		_, restore := present[busid]
-		err := h.releaseExport(exp, restore)
-		if err != nil {
-			h.logger.Warn("release ", busid, ": ", err)
-		}
-		h.access.Lock()
-		delete(h.exports, busid)
-		h.access.Unlock()
-		released = append(released, busid)
 	}
+	for _, exp := range plan.toRelease {
+		currentExport, ok := h.exports[exp.busid]
+		if ok && currentExport == exp {
+			delete(h.exports, exp.busid)
+		}
+	}
+	for _, exp := range toAdd {
+		h.exports[exp.busid] = exp
+	}
+	h.access.Unlock()
 
-	return h.snapshotSelf(), released, nil
+	return h.snapshotSelf(), plan.released, nil
 }
 
 func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
@@ -239,7 +367,23 @@ func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool,
 		h.logger.Debug("release ", busid, " from usbip-host: ", err)
 	}
 	waitForUsbipStatusCleared(ctx, busid)
-	return false, nil
+	h.access.Lock()
+	exp, ok := h.exports[busid]
+	h.access.Unlock()
+	if !ok || !exp.stale {
+		return false, nil
+	}
+	releaseErr := h.releaseExport(exp, false)
+	h.access.Lock()
+	current, stillPresent := h.exports[busid]
+	if stillPresent && current == exp {
+		delete(h.exports, busid)
+	}
+	h.access.Unlock()
+	if releaseErr != nil {
+		h.logger.Warn("release stale ", busid, ": ", releaseErr)
+	}
+	return true, E.Errors(err, releaseErr)
 }
 
 func (h *linuxExportHost) snapshotSelf() map[string]Export {
@@ -247,6 +391,9 @@ func (h *linuxExportHost) snapshotSelf() map[string]Export {
 	defer h.access.Unlock()
 	out := make(map[string]Export, len(h.exports))
 	for busid, exp := range h.exports {
+		if exp.stale {
+			continue
+		}
 		out[busid] = exp
 	}
 	return out
@@ -343,7 +490,7 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport, restore bool) error {
 		return err
 	}
 	if !restore {
-		h.logger.Info("removed export state for disappeared device ", exp.busid)
+		h.logger.Info("removed export state for ", exp.busid)
 		return nil
 	}
 	if exp.originalDriver == "" {
@@ -362,6 +509,7 @@ func (h *linuxExportHost) newExport(descriptor sysfsDevice, managed bool, origin
 	return &linuxExport{
 		busid:          descriptor.BusID,
 		descriptor:     descriptor,
+		identity:       newLinuxExportIdentity(descriptor),
 		managed:        managed,
 		originalDriver: originalDriver,
 		logger:         h.logger,
@@ -373,19 +521,38 @@ func (h *linuxExportHost) newExport(descriptor sysfsDevice, managed bool, origin
 type linuxExport struct {
 	busid          string
 	descriptor     sysfsDevice
+	identity       linuxExportIdentity
 	managed        bool
 	originalDriver string
 	logger         log.ContextLogger
+	stale          bool
 }
 
 func (e *linuxExport) BusID() string {
 	return e.busid
 }
 
+func (e *linuxExport) LeaseIdentity() ExportLeaseIdentity {
+	return e.identity.LeaseIdentity()
+}
+
 func (e *linuxExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 	stableID := "linux-busid:" + e.descriptor.BusID
 	if e.descriptor.Serial != "" {
 		stableID = fmt.Sprintf("usb:%04x:%04x:%s", e.descriptor.VendorID, e.descriptor.ProductID, e.descriptor.Serial)
+	}
+	if e.stale {
+		return ExportSnapshot{
+			Entry: DeviceEntry{
+				Info:       e.descriptor.toProtocol(),
+				Interfaces: e.descriptor.Interfaces,
+				Serial:     e.descriptor.Serial,
+			},
+			Backend:      backendIDLinuxSysfs,
+			StableID:     stableID,
+			State:        deviceStateUnavailable,
+			StatusReason: "device replaced",
+		}
 	}
 	status, statusErr := readUsbipStatus(e.busid)
 	var state, reason string
@@ -422,6 +589,9 @@ func (e *linuxExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 }
 
 func (e *linuxExport) LeaseCheck(ctx context.Context) (bool, string) {
+	if e.stale {
+		return false, "device replaced"
+	}
 	status, err := readUsbipStatus(e.busid)
 	if err != nil {
 		return false, err.Error()
@@ -437,6 +607,9 @@ func (e *linuxExport) DeviceInfo(ctx context.Context) (DeviceInfoTruncated, erro
 }
 
 func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error) {
+	if e.stale {
+		return nil, E.New("linux export ", e.busid, " is stale")
+	}
 	handoff, err := newKernelHandoffSession(ctx, conn, e.logger, "server", e.busid)
 	if err != nil {
 		return nil, E.Cause(err, "prepare handoff")
@@ -456,6 +629,17 @@ func (e *linuxExport) NewServerDataSession(ctx context.Context, conn net.Conn) (
 		e.logger.Debug("close kernel fd ", e.busid, ": ", closeErr)
 	}
 	return handoff, nil
+}
+
+func (e *linuxExport) shouldRestoreCurrentDevice() bool {
+	if e.originalDriver == "" || e.stale {
+		return false
+	}
+	descriptor, err := readSysfsDevice(e.busid, filepath.Join(sysBusUSBDevices, e.busid))
+	if err != nil {
+		return false
+	}
+	return e.identity.Equal(newLinuxExportIdentity(descriptor))
 }
 
 type linuxImportHost struct {

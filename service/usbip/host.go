@@ -28,9 +28,12 @@ type ImportHost interface {
 	Attach(ctx context.Context, info DeviceInfoTruncated, conn net.Conn) (AttachedSession, error)
 }
 
+type ExportLeaseIdentity string
+
 type Export interface {
 	BusID() string
 	Snapshot(ctx context.Context, busy bool) ExportSnapshot
+	LeaseIdentity() ExportLeaseIdentity
 	LeaseCheck(ctx context.Context) (ok bool, reason string)
 	DeviceInfo(ctx context.Context) (DeviceInfoTruncated, error)
 	NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error)

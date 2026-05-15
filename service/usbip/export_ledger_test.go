@@ -53,16 +53,117 @@ func TestSubscribeRetriesSnapshotWhenSequenceAdvances(t *testing.T) {
 	}
 }
 
+func TestConsumeLeaseAndReserveRejectsIdentityReplacement(t *testing.T) {
+	ctx := context.Background()
+	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
+	original := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001, identity: "linux:original"}
+	replacement := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001, identity: "linux:replacement"}
+
+	ledger.ApplyHostSnapshot(map[string]Export{original.busid: original}, nil)
+	lease := ledger.IssueLease(ctx, 1, controlLeaseRequest{BusID: original.busid, ClientNonce: 7})
+	ledger.ApplyHostSnapshot(map[string]Export{replacement.busid: replacement}, nil)
+
+	_, ok, reason := ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+		BusID:       original.busid,
+		LeaseID:     lease.LeaseID,
+		ClientNonce: lease.ClientNonce,
+	})
+	if ok {
+		t.Fatal("expected replaced export lease to be rejected")
+	}
+	if reason != "lease stale" {
+		t.Fatalf("expected lease stale, got %q", reason)
+	}
+}
+
+func TestConsumeLeaseAndReserveRejectsUnavailableExport(t *testing.T) {
+	ctx := context.Background()
+	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
+	available := true
+	exp := &testExport{
+		busid:     "1-1",
+		vendorID:  0x1111,
+		productID: 0x0001,
+		leaseCheck: func(context.Context) (bool, string) {
+			if available {
+				return true, ""
+			}
+			return false, "capture released"
+		},
+	}
+
+	ledger.ApplyHostSnapshot(map[string]Export{exp.busid: exp}, nil)
+	lease := ledger.IssueLease(ctx, 1, controlLeaseRequest{BusID: exp.busid, ClientNonce: 9})
+	available = false
+
+	_, ok, reason := ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+		BusID:       exp.busid,
+		LeaseID:     lease.LeaseID,
+		ClientNonce: lease.ClientNonce,
+	})
+	if ok {
+		t.Fatal("expected unavailable export lease to be rejected")
+	}
+	if reason != "capture released" {
+		t.Fatalf("expected capture released, got %q", reason)
+	}
+
+	_, ok, reason = ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+		BusID:       exp.busid,
+		LeaseID:     lease.LeaseID,
+		ClientNonce: lease.ClientNonce,
+	})
+	if ok {
+		t.Fatal("expected consumed lease to stay unavailable on retry")
+	}
+	if reason != "lease not found" {
+		t.Fatalf("expected consumed lease to disappear, got %q", reason)
+	}
+}
+
+func TestConsumeLeaseAndReserveMarksBusyOnSuccess(t *testing.T) {
+	ctx := context.Background()
+	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
+	exp := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001}
+
+	ledger.ApplyHostSnapshot(map[string]Export{exp.busid: exp}, nil)
+	lease := ledger.IssueLease(ctx, 1, controlLeaseRequest{BusID: exp.busid, ClientNonce: 11})
+
+	reserved, ok, reason := ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+		BusID:       exp.busid,
+		LeaseID:     lease.LeaseID,
+		ClientNonce: lease.ClientNonce,
+	})
+	if !ok {
+		t.Fatalf("expected lease reservation success, got %q", reason)
+	}
+	if reserved != exp {
+		t.Fatal("expected to reserve the original export instance")
+	}
+	if !ledger.IsBusy(exp.busid) {
+		t.Fatal("expected successful lease reservation to mark busid busy")
+	}
+}
+
 type testExport struct {
 	busid     string
 	vendorID  uint16
 	productID uint16
 
+	identity   ExportLeaseIdentity
+	leaseCheck func(context.Context) (bool, string)
 	onSnapshot func()
 }
 
 func (e *testExport) BusID() string {
 	return e.busid
+}
+
+func (e *testExport) LeaseIdentity() ExportLeaseIdentity {
+	if e.identity != "" {
+		return e.identity
+	}
+	return ExportLeaseIdentity(e.busid)
 }
 
 func (e *testExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
@@ -80,6 +181,9 @@ func (e *testExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 }
 
 func (e *testExport) LeaseCheck(ctx context.Context) (bool, string) {
+	if e.leaseCheck != nil {
+		return e.leaseCheck(ctx)
+	}
 	return true, ""
 }
 

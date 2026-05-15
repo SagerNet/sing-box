@@ -331,6 +331,101 @@ static IOUSBHostInterface *box_interface_for_number(BoxUSBHostDevice *box, uint8
 	return nil;
 }
 
+static void box_refresh_interfaces(BoxUSBHostDevice *box) {
+	[box withStateLock:^{
+		box.pipes = [NSMutableDictionary dictionary];
+		box_load_interfaces(box);
+	}];
+}
+
+static uint8_t box_request_direction(IOUSBDeviceRequest request) {
+	return request.bmRequestType & kIOUSBDeviceRequestDirectionMask;
+}
+
+static uint8_t box_request_type(IOUSBDeviceRequest request) {
+	return request.bmRequestType & kIOUSBDeviceRequestTypeMask;
+}
+
+static uint8_t box_request_recipient(IOUSBDeviceRequest request) {
+	return request.bmRequestType & kIOUSBDeviceRequestRecipientMask;
+}
+
+static BOOL box_request_is_set_configuration(IOUSBDeviceRequest request) {
+	return box_request_direction(request) == kIOUSBDeviceRequestDirectionOut &&
+		box_request_type(request) == kIOUSBDeviceRequestTypeStandard &&
+		box_request_recipient(request) == kIOUSBDeviceRequestRecipientDevice &&
+		request.bRequest == kIOUSBDeviceRequestSetConfiguration &&
+		request.wIndex == 0 &&
+		request.wLength == 0;
+}
+
+static BOOL box_request_is_set_interface(IOUSBDeviceRequest request) {
+	return box_request_direction(request) == kIOUSBDeviceRequestDirectionOut &&
+		box_request_type(request) == kIOUSBDeviceRequestTypeStandard &&
+		box_request_recipient(request) == kIOUSBDeviceRequestRecipientInterface &&
+		request.bRequest == kIOUSBDeviceRequestSetInterface &&
+		request.wLength == 0;
+}
+
+static BOOL box_request_is_clear_endpoint_halt(IOUSBDeviceRequest request) {
+	return box_request_direction(request) == kIOUSBDeviceRequestDirectionOut &&
+		box_request_type(request) == kIOUSBDeviceRequestTypeStandard &&
+		box_request_recipient(request) == kIOUSBDeviceRequestRecipientEndpoint &&
+		request.bRequest == kIOUSBDeviceRequestClearFeature &&
+		request.wValue == IOUSBEndpointFeatureSelectorStall &&
+		request.wLength == 0;
+}
+
+static BOOL box_handle_set_configuration(BoxUSBHostDevice *box, IOUSBDeviceRequest request, NSError **error) {
+	BOOL ok = [box.device configureWithValue:request.wValue matchInterfaces:YES error:error];
+	if (ok) {
+		box_refresh_interfaces(box);
+	}
+	return ok;
+}
+
+static BOOL box_handle_set_interface(BoxUSBHostDevice *box, IOUSBDeviceRequest request, NSError **error) {
+	__block IOUSBHostInterface *interface = nil;
+	[box withStateLock:^{
+		interface = box_interface_for_number(box, request.wIndex & 0xff);
+	}];
+	if (interface == nil) {
+		*error = [NSError errorWithDomain:NSMachErrorDomain code:kIOReturnNotFound userInfo:nil];
+		return NO;
+	}
+	BOOL ok = [interface selectAlternateSetting:request.wValue error:error];
+	if (ok) {
+		box_refresh_interfaces(box);
+	}
+	return ok;
+}
+
+static BOOL box_handle_clear_endpoint_halt(BoxUSBHostDevice *box, IOUSBDeviceRequest request, NSError **error) {
+	uint8_t endpoint = (uint8_t)(request.wIndex & 0xff);
+	if ((endpoint & kIOUSBEndpointDescriptorNumber) == 0) {
+		return [box.device sendDeviceRequest:request data:nil bytesTransferred:NULL completionTimeout:IOUSBHostDefaultControlCompletionTimeout error:error];
+	}
+	IOUSBHostPipe *pipe = box_pipe_for_endpoint(box, endpoint);
+	if (pipe == nil) {
+		*error = [NSError errorWithDomain:NSMachErrorDomain code:kIOReturnNotFound userInfo:nil];
+		return NO;
+	}
+	return [pipe clearStallWithError:error];
+}
+
+static BOOL box_dispatch_control_request(BoxUSBHostDevice *box, IOUSBDeviceRequest request, NSMutableData *payload, NSUInteger *actual, NSError **error) {
+	if (box_request_is_set_configuration(request)) {
+		return box_handle_set_configuration(box, request, error);
+	}
+	if (box_request_is_set_interface(request)) {
+		return box_handle_set_interface(box, request, error);
+	}
+	if (box_request_is_clear_endpoint_halt(request)) {
+		return box_handle_clear_endpoint_halt(box, request, error);
+	}
+	return [box.device sendDeviceRequest:request data:payload bytesTransferred:actual completionTimeout:IOUSBHostDefaultControlCompletionTimeout error:error];
+}
+
 bool box_usbhost_copy_devices(box_usbhost_device_list_t *out, char **error_out) {
 	if (out == NULL) {
 		box_set_error_string(error_out, @"IOUSBHost copy devices: missing output");
@@ -521,34 +616,7 @@ bool box_usbhost_device_control(box_usbhost_device_t *device, const uint8_t setu
 		}
 		NSError *error = nil;
 		NSUInteger actual = 0;
-		BOOL ok = NO;
-		if (request.bmRequestType == 0 && request.bRequest == kIOUSBDeviceRequestSetConfiguration && request.wIndex == 0 && request.wLength == 0) {
-			ok = [box.device configureWithValue:request.wValue matchInterfaces:YES error:&error];
-			if (ok) {
-				[box withStateLock:^{
-					box.pipes = [NSMutableDictionary dictionary];
-					box_load_interfaces(box);
-				}];
-			}
-		} else if (request.bmRequestType == kIOUSBDeviceRequestRecipientInterface && request.bRequest == kIOUSBDeviceRequestSetInterface && request.wLength == 0) {
-			__block IOUSBHostInterface *interface = nil;
-			[box withStateLock:^{
-				interface = box_interface_for_number(box, request.wIndex & 0xff);
-			}];
-			if (interface == nil) {
-				error = [NSError errorWithDomain:NSMachErrorDomain code:kIOReturnNotFound userInfo:nil];
-			} else {
-				ok = [interface selectAlternateSetting:request.wValue error:&error];
-				if (ok) {
-					[box withStateLock:^{
-						box.pipes = [NSMutableDictionary dictionary];
-						box_load_interfaces(box);
-					}];
-				}
-			}
-		} else {
-			ok = [box.device sendDeviceRequest:request data:payload bytesTransferred:&actual completionTimeout:IOUSBHostDefaultControlCompletionTimeout error:&error];
-		}
+		BOOL ok = box_dispatch_control_request(box, request, payload, &actual, &error);
 		if (actual_out != NULL) {
 			*actual_out = actual;
 		}

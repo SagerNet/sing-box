@@ -282,7 +282,7 @@ func (s *ServerService) handleImportExt(conn net.Conn) bool {
 		s.logger.Debug("read import-ext body: ", err)
 		return false
 	}
-	export, ok, reason := s.ledger.ConsumeLeaseAndReserve(request)
+	export, ok, reason := s.ledger.ConsumeLeaseAndReserve(s.ctx, request)
 	if !ok {
 		s.logger.Info("import-ext rejected (", request.BusID, ": ", reason, ")")
 		_ = WriteOpRepImport(conn, OpRepImportExt, OpStatusError, nil)

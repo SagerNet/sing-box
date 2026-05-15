@@ -127,6 +127,7 @@ type serverImportLease struct {
 	BusID        string
 	ClientNonce  uint64
 	Generation   uint64
+	Identity     ExportLeaseIdentity
 	Expires      time.Time
 }
 

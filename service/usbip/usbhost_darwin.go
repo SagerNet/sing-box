@@ -529,6 +529,8 @@ func darwinIOReturnToUSBIPStatus(status int32) int32 {
 		return 0
 	}
 	switch status {
+	case int32(C.kIOUSBPipeStalled), int32(C.kUSBHostReturnPipeStalled):
+		return -int32(unix.EPIPE)
 	case int32(C.kIOReturnAborted), int32(C.kIOReturnNotResponding):
 		return -int32(unix.ECONNRESET)
 	case int32(C.kIOReturnNoDevice), int32(C.kIOReturnOffline):
@@ -551,6 +553,8 @@ func darwinUSBIPStatusToCIStatus(status int32) int {
 		return int(C.IOUSBHostCIMessageStatusSuccess)
 	}
 	switch -status {
+	case int32(unix.EPIPE):
+		return int(C.IOUSBHostCIMessageStatusStallError)
 	case int32(unix.ETIMEDOUT):
 		return int(C.IOUSBHostCIMessageStatusTimeout)
 	case int32(unix.ENOMEM):
