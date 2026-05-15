@@ -31,6 +31,11 @@ type ServerService struct {
 	ledger   *exportLedger
 
 	reconcileAccess sync.Mutex
+
+	sessionsAccess sync.Mutex
+	sessions       map[DataSession]struct{}
+	sessionsClosed bool
+	sessionsWG     sync.WaitGroup
 }
 
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
@@ -48,13 +53,14 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	return &ServerService{
-		Adapter: boxService.NewAdapter(C.TypeUSBIPServer, tag),
-		ctx:     ctx,
-		cancel:  cancel,
-		logger:  logger,
-		matches: options.Devices,
-		host:    host,
-		ledger:  newExportLedger(logger, importLeaseTTL, time.Now),
+		Adapter:  boxService.NewAdapter(C.TypeUSBIPServer, tag),
+		ctx:      ctx,
+		cancel:   cancel,
+		logger:   logger,
+		matches:  options.Devices,
+		host:     host,
+		ledger:   newExportLedger(logger, importLeaseTTL, time.Now),
+		sessions: make(map[DataSession]struct{}),
 		listener: listener.New(listener.Options{
 			Context: ctx,
 			Logger:  logger,
@@ -91,10 +97,25 @@ func (s *ServerService) Close() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
+
+	s.sessionsAccess.Lock()
+	s.sessionsClosed = true
+	sessions := make([]DataSession, 0, len(s.sessions))
+	for session := range s.sessions {
+		sessions = append(sessions, session)
+	}
+	s.sessionsAccess.Unlock()
+
 	for _, conn := range s.ledger.CloseAllSubscribers() {
 		_ = conn.Close()
 	}
 	err := common.Close(common.PtrOrNil(s.listener))
+
+	for _, session := range sessions {
+		_ = session.Close()
+	}
+	s.sessionsWG.Wait()
+
 	s.reconcileAccess.Lock()
 	defer s.reconcileAccess.Unlock()
 	_ = s.host.Close()
@@ -301,15 +322,34 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string, extended 
 		s.tearDownPreparedSession(busid, session)
 		return false
 	}
+
+	s.sessionsAccess.Lock()
+	if s.sessionsClosed {
+		s.sessionsAccess.Unlock()
+		s.tearDownPreparedSession(busid, session)
+		return false
+	}
+	s.sessions[session] = struct{}{}
+	s.sessionsWG.Add(1)
+	s.sessionsAccess.Unlock()
+
 	err = session.Start()
 	if err != nil {
+		s.sessionsAccess.Lock()
+		delete(s.sessions, session)
+		s.sessionsAccess.Unlock()
+		s.sessionsWG.Done()
 		s.logger.Warn("start data session ", busid, ": ", err)
 		s.tearDownPreparedSession(busid, session)
 		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
 	go func() {
+		defer s.sessionsWG.Done()
 		<-session.Done()
+		s.sessionsAccess.Lock()
+		delete(s.sessions, session)
+		s.sessionsAccess.Unlock()
 		released, err := s.host.FinishImport(s.ctx, busid)
 		if err != nil {
 			s.logger.Debug("finish import ", busid, ": ", err)

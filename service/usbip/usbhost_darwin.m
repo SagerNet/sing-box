@@ -49,6 +49,7 @@ struct box_usbhost_device_watcher {
 	IONotificationPortRef port;
 	io_iterator_t matched;
 	io_iterator_t terminated;
+	void *queue;
 	uintptr_t ref;
 };
 
@@ -391,6 +392,7 @@ box_usbhost_device_watcher_t *box_usbhost_device_watcher_create(uintptr_t ref, c
 			return NULL;
 		}
 		dispatch_queue_t queue = dispatch_queue_create("io.nekohasekai.sing-box.usbhost-watch", DISPATCH_QUEUE_SERIAL);
+		watcher->queue = (void *)CFBridgingRetain(queue);
 		IONotificationPortSetDispatchQueue(watcher->port, queue);
 
 		CFMutableDictionaryRef matching = box_usbhost_device_matching_dictionary();
@@ -439,6 +441,15 @@ void box_usbhost_device_watcher_destroy(box_usbhost_device_watcher_t *watcher) {
 	if (watcher->port != NULL) {
 		IONotificationPortDestroy(watcher->port);
 		watcher->port = NULL;
+	}
+	if (watcher->queue != NULL) {
+		// Drain pending IOKit notification callbacks before releasing the
+		// cgo.Handle: the serial queue guarantees any block already
+		// enqueued (or executing) finishes before this empty block runs.
+		dispatch_queue_t queue = (__bridge dispatch_queue_t)watcher->queue;
+		dispatch_sync(queue, ^{});
+		CFRelease(watcher->queue);
+		watcher->queue = NULL;
 	}
 	free(watcher);
 }
