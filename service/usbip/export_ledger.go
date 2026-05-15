@@ -69,8 +69,6 @@ func (l *exportLedger) IsBusy(busid string) bool {
 	return l.busy[busid]
 }
 
-// AvailableExports returns exports not currently busy; Snapshot may be
-// called on each entry outside the ledger's lock.
 func (l *exportLedger) AvailableExports() []Export {
 	l.slow.Lock()
 	out := make([]Export, 0, len(l.exports))
@@ -98,7 +96,6 @@ func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []
 	l.slow.Unlock()
 }
 
-// SeedBroadcastState stores the recomputed state without emitting a frame.
 func (l *exportLedger) SeedBroadcastState(ctx context.Context) {
 	nextState := deviceInfoV2Map(l.snapshotDeviceState(ctx))
 	l.fast.Lock()
@@ -147,8 +144,8 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 
 // TryReserveForImport runs Export.LeaseCheck outside the slow lock; the
 // busy mark is inserted only after a second availability re-check
-// confirms no goroutine raced in. On success, the caller must follow up
-// with ConfirmImport or ReleaseImport on the failure path.
+// confirms no goroutine raced in. The caller must pair every success
+// with a later ReleaseImport.
 func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
 	l.slow.Lock()
 	export, found := l.exports[busid]
@@ -421,8 +418,6 @@ func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *expor
 	}, response, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: sequence})
 }
 
-// snapshotDeviceState gathers refs under slow, releases, then calls
-// Export.Snapshot for each entry outside the lock.
 func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 	type entry struct {
 		export Export
