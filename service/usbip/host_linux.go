@@ -139,6 +139,9 @@ type linuxExportHost struct {
 	logger  log.ContextLogger
 	matches []option.USBIPDeviceMatch
 
+	runCtx    context.Context
+	runCancel context.CancelFunc
+
 	access  sync.Mutex
 	exports map[string]*linuxExport
 }
@@ -159,10 +162,18 @@ func newLinuxExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMa
 }
 
 func (h *linuxExportHost) Start(ctx context.Context) error {
-	return ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
+	err := ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
+	if err != nil {
+		return err
+	}
+	h.runCtx, h.runCancel = context.WithCancel(ctx)
+	return nil
 }
 
 func (h *linuxExportHost) Close() error {
+	if h.runCancel != nil {
+		h.runCancel()
+	}
 	h.access.Lock()
 	exports := h.exports
 	h.exports = make(map[string]*linuxExport)
@@ -176,9 +187,12 @@ func (h *linuxExportHost) Close() error {
 	return nil
 }
 
-func (h *linuxExportHost) Events(ctx context.Context) (<-chan struct{}, error) {
+func (h *linuxExportHost) Events() (<-chan struct{}, error) {
+	if h.runCtx == nil {
+		return nil, E.New("usbip host: Events called before Start")
+	}
 	ch := make(chan struct{}, 1)
-	go h.ueventLoop(ctx, ch)
+	go h.ueventLoop(h.runCtx, ch)
 	return ch, nil
 }
 

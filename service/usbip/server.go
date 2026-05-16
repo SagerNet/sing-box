@@ -73,27 +73,30 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 	}, nil
 }
 
-func (s *ServerService) Start(stage adapter.StartStage) error {
+func (s *ServerService) Start(stage adapter.StartStage) (err error) {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	err := s.host.Start(s.ctx)
+	defer func() {
+		if err != nil {
+			s.cancel()
+			_ = s.host.Close()
+		}
+	}()
+	err = s.host.Start(s.ctx)
 	if err != nil {
 		return err
 	}
-	events, err := s.host.Events(s.ctx)
+	events, err := s.host.Events()
 	if err != nil {
-		_ = s.host.Close()
 		return E.Cause(err, "subscribe topology events")
 	}
 	err = s.reconcileAndBroadcast(false)
 	if err != nil {
-		_ = s.host.Close()
 		return err
 	}
 	tcpListener, err := s.listener.ListenTCP()
 	if err != nil {
-		_ = s.host.Close()
 		return err
 	}
 	go s.acceptLoop(tcpListener)

@@ -19,10 +19,11 @@ type ExportHost interface {
 	Reconcile(ctx context.Context, isReserved func(busid string) bool) (snapshot map[string]Export, released []string, err error)
 	FinishImport(ctx context.Context, busid string) (released bool, err error)
 	// Events returns a coalescing channel that signals topology
-	// changes; the channel is closed when ctx is cancelled. A non-nil
-	// error means the host could not subscribe and the server must not
-	// continue.
-	Events(ctx context.Context) (<-chan struct{}, error)
+	// changes. The channel is closed when Close() is called, which
+	// also stops the host's background goroutines. Events MUST be
+	// called after Start succeeds. A non-nil error means the host
+	// could not subscribe and the server must not continue.
+	Events() (<-chan struct{}, error)
 }
 
 type ImportHost interface {

@@ -34,6 +34,9 @@ type darwinExportHost struct {
 	logger  log.ContextLogger
 	matches []option.USBIPDeviceMatch
 
+	runCtx    context.Context
+	runCancel context.CancelFunc
+
 	access  sync.Mutex
 	exports map[string]*darwinExport
 	watcher *darwinUSBHostDeviceWatcher
@@ -48,10 +51,14 @@ func newDarwinExportHost(logger log.ContextLogger, matches []option.USBIPDeviceM
 }
 
 func (h *darwinExportHost) Start(ctx context.Context) error {
+	h.runCtx, h.runCancel = context.WithCancel(ctx)
 	return nil
 }
 
 func (h *darwinExportHost) Close() error {
+	if h.runCancel != nil {
+		h.runCancel()
+	}
 	h.access.Lock()
 	watcher := h.watcher
 	h.watcher = nil
@@ -69,7 +76,10 @@ func (h *darwinExportHost) Close() error {
 	return nil
 }
 
-func (h *darwinExportHost) Events(ctx context.Context) (<-chan struct{}, error) {
+func (h *darwinExportHost) Events() (<-chan struct{}, error) {
+	if h.runCtx == nil {
+		return nil, E.New("usbip host: Events called before Start")
+	}
 	ch := make(chan struct{}, 1)
 	signal := func() {
 		select {
@@ -86,7 +96,7 @@ func (h *darwinExportHost) Events(ctx context.Context) (<-chan struct{}, error) 
 	h.watcher = watcher
 	h.access.Unlock()
 	go func() {
-		<-ctx.Done()
+		<-h.runCtx.Done()
 		h.access.Lock()
 		w := h.watcher
 		h.watcher = nil
