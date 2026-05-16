@@ -340,9 +340,15 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isReserved func(busid s
 	maps.Copy(committed, current)
 	var reconcileErrors []error
 
-	applyStaleClones(committed, plan.toStale, cloneLinuxExport, func(exp *linuxExport) {
-		exp.stale = true
-	})
+	for _, busid := range plan.toStale {
+		exp, found := committed[busid]
+		if !found {
+			continue
+		}
+		cloned := cloneLinuxExport(exp)
+		cloned.stale = true
+		committed[busid] = cloned
+	}
 
 	for _, exp := range plan.toRelease {
 		releaseErr := h.releaseExport(exp)

@@ -75,13 +75,8 @@ type darwinCITransfer struct {
 	message darwinCIMessage
 }
 
-// cgoCallbackHandle pairs a cgo.Handle whose value is invoked asynchronously
-// from C with the ordering rule that the handle MUST NOT be deleted until the
-// C-side producer has been destroyed AND any in-flight callbacks have been
-// drained. closeAfter encodes that ordering: the destroyC callback runs first,
-// and only on its return is the handle deleted. destroyC MUST NOT return
-// until the C-side serial dispatch queue has been synchronously drained (see
-// box_usbhost_drain_and_release_queue in usbhost_darwin.m).
+// cgoCallbackHandle: destroyC MUST synchronously drain the C-side queue
+// before returning; only then is it safe to delete the handle.
 type cgoCallbackHandle struct {
 	handle cgo.Handle
 }
@@ -94,8 +89,7 @@ func (c cgoCallbackHandle) token() C.uintptr_t {
 	return C.uintptr_t(c.handle)
 }
 
-// deleteRaw releases the handle without waiting for any C-side drain. Use only
-// to roll back a failed C-side create; otherwise prefer closeAfter.
+// deleteRaw rolls back a failed C-side create without a drain.
 func (c cgoCallbackHandle) deleteRaw() {
 	c.handle.Delete()
 }

@@ -178,25 +178,20 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isReserved func(busid 
 		released = append(released, busid)
 	}
 
-	// Build the committed map off-lock so we can clone any stale entry
-	// before mutating it. The ledger reads Snapshot/LeaseCheck on the
-	// previously published pointers without locks; mutating them in
-	// place is a data race. See docs/adr/0001-export-pointer-immutability.md.
 	committed := make(map[string]*darwinExport, len(current)+len(toAdd))
 	maps.Copy(committed, current)
-	staleBusIDs := make([]string, 0, len(toStale))
-	pendingByBusID := make(map[string]uint64, len(toStale))
 	for _, mark := range toStale {
-		staleBusIDs = append(staleBusIDs, mark.busid)
-		pendingByBusID[mark.busid] = mark.pendingRegistryID
-	}
-	applyStaleClones(committed, staleBusIDs, cloneDarwinExport, func(exp *darwinExport) {
-		exp.stale = true
-		pending := pendingByBusID[exp.busid]
-		if pending != 0 {
-			exp.pendingRegistryID = pending
+		exp, found := committed[mark.busid]
+		if !found {
+			continue
 		}
-	})
+		cloned := cloneDarwinExport(exp)
+		cloned.stale = true
+		if mark.pendingRegistryID != 0 {
+			cloned.pendingRegistryID = mark.pendingRegistryID
+		}
+		committed[mark.busid] = cloned
+	}
 	for _, exp := range toRemove {
 		delete(committed, exp.busid)
 	}
@@ -281,11 +276,6 @@ func snapshotDarwinExports(exports map[string]*darwinExport) map[string]Export {
 	return out
 }
 
-// cloneDarwinExport returns a fresh *darwinExport with the slice fields
-// inside entry duplicated so callers can mutate the clone without
-// affecting the previously published pointer. The device handle and
-// logger are shared because they are externally synchronised. See
-// docs/adr/0001-export-pointer-immutability.md.
 func cloneDarwinExport(exp *darwinExport) *darwinExport {
 	if exp == nil {
 		return nil

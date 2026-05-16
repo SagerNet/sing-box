@@ -13,34 +13,25 @@ import (
 	"github.com/sagernet/sing-box/log"
 )
 
-// exportLedger uses two internal mutexes that are NEVER held
-// simultaneously. Each public method acquires at most one at a time;
-// multi-stage methods acquire one, do unlocked work (including
-// syscalls), then acquire the other.
-//
-//	fast: broadcast bookkeeping. seq, nextSubID, subs, state.
-//	inventory: exports, busy, leases, nextLeaseID. Direct access is
-//	          forbidden; route every read/write through one of
-//	          withInventoryRead / withInventoryWrite / withInventoryWriteQuiet
-//	          so the broadcast-on-mutation invariant cannot be skipped by
-//	          a future caller. The field is unexported within the package
-//	          to make any l.inventory.Lock() bypass obvious in review.
+// exportLedger holds two mutexes that are never acquired together. The
+// inventory lock must be released before BroadcastIfChanged re-takes it
+// through snapshotDeviceState.
 type exportLedger struct {
 	logger log.ContextLogger
 	now    func() time.Time
 	ttl    time.Duration
 
-	fast      sync.Mutex
-	seq       uint64
-	nextSubID uint64
-	subs      map[uint64]*exportSubscriber
-	state     map[string]DeviceInfoV2
+	broadcastAccess sync.Mutex
+	seq             uint64
+	nextSubID       uint64
+	subs            map[uint64]*exportSubscriber
+	state           map[string]DeviceInfoV2
 
-	inventory   sync.Mutex
-	exports     map[string]Export
-	busy        map[string]bool
-	leases      map[string]serverImportLease
-	nextLeaseID uint64
+	inventoryAccess sync.Mutex
+	exports         map[string]Export
+	busy            map[string]bool
+	leases          map[string]serverImportLease
+	nextLeaseID     uint64
 }
 
 type exportSubscriber struct {
@@ -81,43 +72,28 @@ func newExportLedger(logger log.ContextLogger, ttl time.Duration, now func() tim
 	}
 }
 
-// withInventoryWrite holds the inventory lock for body, then broadcasts
-// iff body reports a change. This is the only path that may both mutate
-// reserved state AND fire the resulting broadcast; routing every
-// mutation through here makes the "any reservedLocked-affecting change
-// must broadcast" invariant structural rather than a discipline rule.
-// body must NOT acquire fast (lock-ordering rule documented on
-// exportLedger).
+// withInventoryWrite broadcasts iff body returns true. body must not
+// acquire the broadcast lock.
 func (l *exportLedger) withInventoryWrite(ctx context.Context, body func() bool) {
-	l.inventory.Lock()
+	l.inventoryAccess.Lock()
 	changed := body()
-	l.inventory.Unlock()
+	l.inventoryAccess.Unlock()
 	if changed {
 		l.BroadcastIfChanged(ctx)
 	}
 }
 
-// withInventoryRead holds the inventory lock for body without
-// broadcasting. Use for read-only sections that observe reserved state.
 func (l *exportLedger) withInventoryRead(body func()) {
-	l.inventory.Lock()
-	defer l.inventory.Unlock()
+	l.inventoryAccess.Lock()
+	defer l.inventoryAccess.Unlock()
 	body()
 }
 
-// withInventoryWriteQuiet holds the inventory lock for body without
-// broadcasting. Use ONLY when the caller is contractually responsible
-// for the broadcast at a different point in its flow:
-//
-//   - ApplyHostSnapshot: paired with reconcileAndBroadcast in server.go.
-//   - TryReserveForImport stage 2: the server's import setup broadcasts
-//     after the full session is wired up.
-//   - ResetForClose: shutdown path; subscribers are about to be closed.
-//
-// Every other write site MUST use withInventoryWrite.
+// withInventoryWriteQuiet is for mutations whose broadcast is the
+// caller's responsibility (paired with BroadcastIfChanged or shutdown).
 func (l *exportLedger) withInventoryWriteQuiet(body func()) {
-	l.inventory.Lock()
-	defer l.inventory.Unlock()
+	l.inventoryAccess.Lock()
+	defer l.inventoryAccess.Unlock()
 	body()
 }
 
@@ -129,9 +105,7 @@ func (l *exportLedger) IsReserved(busid string) bool {
 	return reserved
 }
 
-// reservedLocked reports whether busid is unavailable for new admission:
-// either marked busy by an active session or covered by an unexpired
-// import lease. Caller must hold l.inventory.
+// reservedLocked: caller must hold l.inventoryAccess.
 func (l *exportLedger) reservedLocked(busid string) bool {
 	if l.busy[busid] {
 		return true
@@ -173,20 +147,20 @@ func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []
 
 func (l *exportLedger) SeedBroadcastState(ctx context.Context) {
 	nextState := deviceInfoV2Map(l.snapshotDeviceState(ctx))
-	l.fast.Lock()
+	l.broadcastAccess.Lock()
 	l.state = nextState
-	l.fast.Unlock()
+	l.broadcastAccess.Unlock()
 }
 
 func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 	nextState := deviceInfoV2Map(l.snapshotDeviceState(ctx))
 
-	l.fast.Lock()
+	l.broadcastAccess.Lock()
 	nextSequence := l.seq + 1
 	delta := buildControlDeviceDelta(nextSequence, l.state, nextState)
 	if len(delta.Added) == 0 && len(delta.Updated) == 0 && len(delta.Removed) == 0 {
 		l.state = nextState
-		l.fast.Unlock()
+		l.broadcastAccess.Unlock()
 		return false
 	}
 	l.seq = nextSequence
@@ -196,7 +170,7 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 	for _, sub := range l.subs {
 		targets = append(targets, sub)
 	}
-	l.fast.Unlock()
+	l.broadcastAccess.Unlock()
 
 	frame := controlFrame{
 		Type:     controlFrameChanged,
@@ -217,13 +191,9 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 	return true
 }
 
-// TryReserveForImport runs Export.LeaseCheck outside the inventory lock;
-// the busy mark is inserted only after a second availability re-check
-// confirms no goroutine raced in. An outstanding lease counts as busy so
-// legacy OP_REQ_IMPORT cannot steal a slot a control client has already
-// reserved via IssueLease. The caller must pair every success with a
-// later ReleaseImport, and is responsible for broadcasting the busy
-// transition once the session is fully wired up.
+// TryReserveForImport runs LeaseCheck outside the lock and re-checks
+// availability before marking busy. Caller must pair success with
+// ReleaseImport and broadcast once the session is wired up.
 func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
 	var (
 		export   Export
@@ -278,13 +248,8 @@ func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeEx
 	})
 }
 
-// IssueLease captures the current broadcast sequence as opaque metadata
-// for control clients. Lease correctness itself is pinned to the
-// export's internal identity, not to that sequence number. Both
-// inventory stages run through withInventoryWrite so any lease insert,
-// re-validation, or TTL sweep broadcasts the resulting reserved-state
-// change to subscribers — without this, an unexpired lease would block
-// new imports while extended clients still saw the device as available.
+// IssueLease pins lease correctness to the export identity; the
+// broadcast sequence on the response is opaque metadata for clients.
 func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request controlLeaseRequest) controlLeaseResponse {
 	response := controlLeaseResponse{
 		BusID:       request.BusID,
@@ -296,9 +261,9 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 		return response
 	}
 
-	l.fast.Lock()
+	l.broadcastAccess.Lock()
 	generation := l.seq
-	l.fast.Unlock()
+	l.broadcastAccess.Unlock()
 
 	var (
 		export     Export
@@ -378,16 +343,9 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	return response
 }
 
-// ConsumeLeaseAndReserve validates the requested lease against the
-// current export identity, reruns LeaseCheck outside the inventory lock,
-// then atomically consumes the lease and marks the busid busy.
-// Correctness is tied to the export identity rather than to the control
-// sequence.
-//
-// Consume-on-read semantics from the old ConsumeLease are preserved:
-// the lease entry is removed on every outcome except a nonce/ID
-// mismatch (which preserves the lease for the legitimate holder).
-// The caller must pair every success with a later ReleaseImport.
+// ConsumeLeaseAndReserve consumes the lease on every outcome except an
+// ID/nonce mismatch (the latter preserves the lease for the legitimate
+// holder). Caller must pair success with ReleaseImport.
 func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request ImportExtRequest) (Export, bool, string) {
 	var (
 		export   Export
@@ -527,23 +485,23 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 	if extended {
 		// Keep the snapshot and sequence from the same stable generation.
 		for {
-			l.fast.Lock()
+			l.broadcastAccess.Lock()
 			sequence = l.seq
-			l.fast.Unlock()
+			l.broadcastAccess.Unlock()
 
 			snapshot = l.snapshotDeviceState(ctx)
 
-			l.fast.Lock()
+			l.broadcastAccess.Lock()
 			if sequence == l.seq {
 				break
 			}
-			l.fast.Unlock()
+			l.broadcastAccess.Unlock()
 		}
 	} else {
-		l.fast.Lock()
+		l.broadcastAccess.Lock()
 		sequence = l.seq
 	}
-	defer l.fast.Unlock()
+	defer l.broadcastAccess.Unlock()
 	l.nextSubID++
 	sub := &exportSubscriber{
 		id:           l.nextSubID,
@@ -572,9 +530,9 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 // broadcast so remaining subscribers see the busid become available
 // again.
 func (l *exportLedger) Unsubscribe(ctx context.Context, sub *exportSubscriber) {
-	l.fast.Lock()
+	l.broadcastAccess.Lock()
 	delete(l.subs, sub.id)
-	l.fast.Unlock()
+	l.broadcastAccess.Unlock()
 	l.withInventoryWrite(ctx, func() bool {
 		released := false
 		for busid, lease := range l.leases {
@@ -590,13 +548,13 @@ func (l *exportLedger) Unsubscribe(ctx context.Context, sub *exportSubscriber) {
 // CloseAllSubscribers returns the underlying connections so the caller
 // can close them outside any lock.
 func (l *exportLedger) CloseAllSubscribers() []net.Conn {
-	l.fast.Lock()
+	l.broadcastAccess.Lock()
 	conns := make([]net.Conn, 0, len(l.subs))
 	for _, sub := range l.subs {
 		conns = append(conns, sub.conn)
 	}
 	l.subs = make(map[uint64]*exportSubscriber)
-	l.fast.Unlock()
+	l.broadcastAccess.Unlock()
 	return conns
 }
 
@@ -612,9 +570,9 @@ func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *expor
 	var request controlLeaseRequest
 	err := unmarshalControlPayload(payload, &request)
 	if err != nil {
-		l.fast.Lock()
+		l.broadcastAccess.Lock()
 		sequence := l.seq
-		l.fast.Unlock()
+		l.broadcastAccess.Unlock()
 		l.enqueuePayload(sub, controlFrame{
 			Type:    controlFrameLeaseResponse,
 			Version: controlProtocolVersion,
@@ -625,9 +583,9 @@ func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *expor
 		return
 	}
 	response := l.IssueLease(ctx, sub.id, request)
-	l.fast.Lock()
+	l.broadcastAccess.Lock()
 	sequence := l.seq
-	l.fast.Unlock()
+	l.broadcastAccess.Unlock()
 	l.enqueuePayload(sub, controlFrame{
 		Type:    controlFrameLeaseResponse,
 		Version: controlProtocolVersion,

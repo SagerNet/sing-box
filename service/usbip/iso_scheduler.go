@@ -35,36 +35,26 @@ func RebaseFrame(currentFrame uint64, low8 uint8) uint64 {
 	return base
 }
 
-var (
-	errIsoDescriptorCount        = E.New("RET_SUBMIT iso descriptor count mismatch")
-	errIsoDescriptorRange        = E.New("RET_SUBMIT iso descriptor range mismatch")
-	errIsoDescriptorActualLength = E.New("RET_SUBMIT iso descriptor actual_length exceeds length")
-	errIsoDescriptorSum          = E.New("RET_SUBMIT iso descriptor actual_length sum does not match header")
-	errIsoPayloadShort           = E.New("RET_SUBMIT iso payload shorter than descriptor range")
-)
-
 // ValidateIsoResponse enforces the per-descriptor invariants of a RET_SUBMIT
 // against the original CMD_SUBMIT shape. startIsoTransfer emits single-packet
 // CMD_SUBMITs that cover the whole request, so the response must mirror that
-// exact shape. If multi-packet ISO submits are added later, the count check
-// relaxes to a non-empty count and the offset/length check becomes a per-
-// descriptor walk that proves coverage is non-overlapping and in-range.
+// exact shape.
 func ValidateIsoResponse(requestLen int, actualLength int, packets []IsoPacketDescriptor, payloadLen int) error {
 	if len(packets) != 1 {
-		return E.Extend(errIsoDescriptorCount, "expected 1, got ", len(packets))
+		return E.New("RET_SUBMIT iso descriptor count mismatch: expected 1, got ", len(packets))
 	}
 	descriptor := packets[0]
 	if descriptor.Offset != 0 || int(descriptor.Length) != requestLen {
-		return E.Extend(errIsoDescriptorRange, "offset ", descriptor.Offset, ", length ", descriptor.Length, ", request ", requestLen)
+		return E.New("RET_SUBMIT iso descriptor range mismatch: offset ", descriptor.Offset, ", length ", descriptor.Length, ", request ", requestLen)
 	}
 	if descriptor.ActualLength < 0 || descriptor.ActualLength > descriptor.Length {
-		return E.Extend(errIsoDescriptorActualLength, "actual_length ", descriptor.ActualLength, ", length ", descriptor.Length)
+		return E.New("RET_SUBMIT iso descriptor actual_length exceeds length: actual_length ", descriptor.ActualLength, ", length ", descriptor.Length)
 	}
 	if int(descriptor.ActualLength) != actualLength {
-		return E.Extend(errIsoDescriptorSum, "sum ", descriptor.ActualLength, " != header ", actualLength)
+		return E.New("RET_SUBMIT iso descriptor actual_length sum does not match header: sum ", descriptor.ActualLength, " != header ", actualLength)
 	}
 	if int(descriptor.ActualLength) > payloadLen {
-		return E.Extend(errIsoPayloadShort, "actual_length ", descriptor.ActualLength, " > payload ", payloadLen)
+		return E.New("RET_SUBMIT iso payload shorter than descriptor range: actual_length ", descriptor.ActualLength, " > payload ", payloadLen)
 	}
 	return nil
 }

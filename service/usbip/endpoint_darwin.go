@@ -13,11 +13,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var (
-	errResponseNegativeActualLength = E.New("RET_SUBMIT actual_length is negative")
-	errResponseOverflow             = E.New("RET_SUBMIT actual_length exceeds request length")
-)
-
 type darwinEndpoint struct {
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -208,21 +203,19 @@ func (e *darwinEndpoint) finalizePending(pending *pendingTransfer) {
 }
 
 // validateResponse reconciles a RET_SUBMIT against the original request shape.
-// Every wire-shape rule lives here so accept can assume well-formed input and
-// future defects land in one place. Returns the wire-level errno status and a
-// non-nil err on protocol violation.
+// All wire-shape rules live here so accept can assume well-formed input.
 func (p *pendingTransfer) validateResponse(response SubmitResponse) (int32, error) {
 	if response.ActualLength < 0 {
-		return -int32(unix.EPROTO), errResponseNegativeActualLength
+		return -int32(unix.EPROTO), E.New("RET_SUBMIT actual_length is negative: ", response.ActualLength)
 	}
 	if int(response.ActualLength) > p.requestLen {
-		return -int32(unix.EOVERFLOW), errResponseOverflow
+		return -int32(unix.EOVERFLOW), E.New("RET_SUBMIT actual_length exceeds request length: actual_length ", response.ActualLength, ", request ", p.requestLen)
 	}
 	if p.direction != USBIPDirIn {
 		return 0, nil
 	}
 	if len(response.Buffer) > p.requestLen {
-		return -int32(unix.EOVERFLOW), errResponseOverflow
+		return -int32(unix.EOVERFLOW), E.New("RET_SUBMIT buffer exceeds request length: buffer ", len(response.Buffer), ", request ", p.requestLen)
 	}
 	if len(response.IsoPackets) > 0 {
 		err := ValidateIsoResponse(p.requestLen, int(response.ActualLength), response.IsoPackets, len(response.Buffer))
