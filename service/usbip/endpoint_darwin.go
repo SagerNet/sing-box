@@ -8,8 +8,14 @@ import (
 	"unsafe"
 
 	"github.com/sagernet/sing-box/log"
+	E "github.com/sagernet/sing/common/exceptions"
 
 	"golang.org/x/sys/unix"
+)
+
+var (
+	errResponseNegativeActualLength = E.New("RET_SUBMIT actual_length is negative")
+	errResponseOverflow             = E.New("RET_SUBMIT actual_length exceeds request length")
 )
 
 type darwinEndpoint struct {
@@ -184,7 +190,12 @@ func (e *darwinEndpoint) finalizePending(pending *pendingTransfer) {
 		status = -int32(unix.EIO)
 		length = 0
 	default:
-		status, length = e.scatterResponse(pending, response)
+		var acceptErr error
+		status, length, acceptErr = pending.accept(response)
+		if acceptErr != nil {
+			e.logger.Debug("RET_SUBMIT validation: ", acceptErr, " (request length ", pending.requestLen, ")")
+			e.cancel()
+		}
 	}
 	if pending.noResponse {
 		return
@@ -196,31 +207,36 @@ func (e *darwinEndpoint) finalizePending(pending *pendingTransfer) {
 	}
 }
 
-func (e *darwinEndpoint) scatterResponse(pending *pendingTransfer, response SubmitResponse) (int32, int) {
-	if pending.direction != USBIPDirIn {
-		return response.Status, int(response.ActualLength)
-	}
+// accept validates a RET_SUBMIT against the original request and, for IN
+// transfers, scatters the payload into the Apple-owned buffer. The returned
+// length is guaranteed to be in [0, p.requestLen] regardless of direction.
+// A non-nil err signals a protocol violation; the caller is expected to
+// cancel the endpoint so no further wire-corrupt completions are delivered
+// to IOUSBHost.
+func (p *pendingTransfer) accept(response SubmitResponse) (int32, int, error) {
 	if response.ActualLength < 0 {
-		e.logger.Debug("RET_SUBMIT actual_length is negative: ", response.ActualLength)
-		e.cancel()
-		return -int32(unix.EPROTO), 0
+		return -int32(unix.EPROTO), 0, errResponseNegativeActualLength
 	}
 	actualLength := int(response.ActualLength)
-	if actualLength > pending.requestLen || len(response.Buffer) > pending.requestLen {
-		e.logger.Debug("RET_SUBMIT actual_length ", actualLength, " exceeds request length ", pending.requestLen)
-		e.cancel()
-		return -int32(unix.EOVERFLOW), 0
+	if actualLength > p.requestLen {
+		return -int32(unix.EOVERFLOW), 0, errResponseOverflow
+	}
+	if p.direction != USBIPDirIn {
+		return response.Status, actualLength, nil
+	}
+	if len(response.Buffer) > p.requestLen {
+		return -int32(unix.EOVERFLOW), 0, errResponseOverflow
 	}
 	copyLength := min(actualLength, len(response.Buffer))
-	if copyLength > 0 && pending.bufferPtr != nil {
+	if copyLength > 0 && p.bufferPtr != nil {
 		if len(response.IsoPackets) > 0 {
-			dst := unsafe.Slice((*byte)(pending.bufferPtr), pending.requestLen)
+			dst := unsafe.Slice((*byte)(p.bufferPtr), p.requestLen)
 			ScatterIsoResponse(dst, response.Buffer[:copyLength], response.IsoPackets)
 		} else {
-			copy(unsafe.Slice((*byte)(pending.bufferPtr), copyLength), response.Buffer[:copyLength])
+			copy(unsafe.Slice((*byte)(p.bufferPtr), copyLength), response.Buffer[:copyLength])
 		}
 	}
-	return response.Status, actualLength
+	return response.Status, actualLength, nil
 }
 
 func (e *darwinEndpoint) startTransfer(transfer darwinCITransfer, noResponse bool) *pendingTransfer {

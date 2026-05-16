@@ -75,9 +75,39 @@ type darwinCITransfer struct {
 	message darwinCIMessage
 }
 
+// cgoCallbackHandle pairs a cgo.Handle whose value is invoked asynchronously
+// from C with the ordering rule that the handle MUST NOT be deleted until the
+// C-side producer has been destroyed AND any in-flight callbacks have been
+// drained. closeAfter encodes that ordering: the destroyC callback runs first,
+// and only on its return is the handle deleted. destroyC MUST NOT return
+// until the C-side serial dispatch queue has been synchronously drained (see
+// box_usbhost_drain_and_release_queue in usbhost_darwin.m).
+type cgoCallbackHandle struct {
+	handle cgo.Handle
+}
+
+func newCgoCallbackHandle(value any) cgoCallbackHandle {
+	return cgoCallbackHandle{handle: cgo.NewHandle(value)}
+}
+
+func (c cgoCallbackHandle) token() C.uintptr_t {
+	return C.uintptr_t(c.handle)
+}
+
+// deleteRaw releases the handle without waiting for any C-side drain. Use only
+// to roll back a failed C-side create; otherwise prefer closeAfter.
+func (c cgoCallbackHandle) deleteRaw() {
+	c.handle.Delete()
+}
+
+func (c cgoCallbackHandle) closeAfter(destroyC func()) {
+	destroyC()
+	c.handle.Delete()
+}
+
 type darwinUSBHostController struct {
-	handle *C.box_usbhost_controller_t
-	ref    cgo.Handle
+	handle   *C.box_usbhost_controller_t
+	callback cgoCallbackHandle
 }
 
 type darwinUSBHostDeviceSM struct {
@@ -131,48 +161,50 @@ func darwinOpenUSBHostDevice(registryID uint64, capture bool) (*darwinUSBHostDev
 }
 
 type darwinUSBHostDeviceWatcher struct {
-	handle *C.box_usbhost_device_watcher_t
-	ref    cgo.Handle
+	handle   *C.box_usbhost_device_watcher_t
+	callback cgoCallbackHandle
 }
 
 func darwinWatchUSBHostDevices(callback func()) (*darwinUSBHostDeviceWatcher, error) {
-	ref := cgo.NewHandle(callback)
+	ref := newCgoCallbackHandle(callback)
 	var errorPtr *C.char
-	handle := C.box_usbhost_device_watcher_create(C.uintptr_t(ref), &errorPtr)
+	handle := C.box_usbhost_device_watcher_create(ref.token(), &errorPtr)
 	if handle == nil {
-		ref.Delete()
+		ref.deleteRaw()
 		return nil, darwinCError(errorPtr)
 	}
-	return &darwinUSBHostDeviceWatcher{handle: handle, ref: ref}, nil
+	return &darwinUSBHostDeviceWatcher{handle: handle, callback: ref}, nil
 }
 
 func (w *darwinUSBHostDeviceWatcher) Close() {
 	if w == nil || w.handle == nil {
 		return
 	}
-	C.box_usbhost_device_watcher_destroy(w.handle)
-	w.handle = nil
-	w.ref.Delete()
+	w.callback.closeAfter(func() {
+		C.box_usbhost_device_watcher_destroy(w.handle)
+		w.handle = nil
+	})
 }
 
 func darwinCreateUSBHostController(controller *darwinVirtualController, portCount uint8, speed uint32) (*darwinUSBHostController, error) {
-	ref := cgo.NewHandle(controller)
+	ref := newCgoCallbackHandle(controller)
 	var errorPtr *C.char
-	handle := C.box_usbhost_controller_create(C.uintptr_t(ref), C.uint8_t(portCount), C.uint32_t(speed), &errorPtr)
+	handle := C.box_usbhost_controller_create(ref.token(), C.uint8_t(portCount), C.uint32_t(speed), &errorPtr)
 	if handle == nil {
-		ref.Delete()
+		ref.deleteRaw()
 		return nil, darwinCError(errorPtr)
 	}
-	return &darwinUSBHostController{handle: handle, ref: ref}, nil
+	return &darwinUSBHostController{handle: handle, callback: ref}, nil
 }
 
 func (c *darwinUSBHostController) Close() {
 	if c == nil || c.handle == nil {
 		return
 	}
-	C.box_usbhost_controller_destroy(c.handle)
-	c.handle = nil
-	c.ref.Delete()
+	c.callback.closeAfter(func() {
+		C.box_usbhost_controller_destroy(c.handle)
+		c.handle = nil
+	})
 }
 
 func (c *darwinUSBHostController) respond(message darwinCIMessage, status int) error {

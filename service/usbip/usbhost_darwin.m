@@ -55,6 +55,7 @@ struct box_usbhost_device_watcher {
 
 struct box_usbhost_controller {
 	void *object;
+	void *queue;
 };
 
 struct box_usbhost_device_sm {
@@ -100,6 +101,24 @@ static void box_set_error_from_nserror(char **error_out, NSString *prefix, NSErr
 
 void box_usbhost_free_error(char *error) {
 	free(error);
+}
+
+// box_usbhost_drain_and_release_queue empties any blocks already enqueued or
+// executing on the serial dispatch queue referenced by *queue_slot and releases
+// the CFBridgingRetain reference. The caller MUST first stop the producer of
+// new callbacks (IONotificationPortDestroy, [IOUSBHostControllerInterface
+// destroy], ...) so the drain converges; otherwise new blocks could keep
+// arriving. After this returns, the Go-side cgo.Handle paired with the
+// callbacks is safe to Delete.
+static void box_usbhost_drain_and_release_queue(void **queue_slot) {
+	if (queue_slot == NULL || *queue_slot == NULL) {
+		return;
+	}
+	dispatch_queue_t queue = (__bridge dispatch_queue_t)*queue_slot;
+	dispatch_sync(queue, ^{
+	});
+	CFRelease(*queue_slot);
+	*queue_slot = NULL;
 }
 
 static CFMutableDictionaryRef box_usbhost_device_matching_dictionary(void) {
@@ -537,15 +556,7 @@ void box_usbhost_device_watcher_destroy(box_usbhost_device_watcher_t *watcher) {
 		IONotificationPortDestroy(watcher->port);
 		watcher->port = NULL;
 	}
-	if (watcher->queue != NULL) {
-		// Drain pending IOKit notification callbacks before releasing the
-		// cgo.Handle: the serial queue guarantees any block already
-		// enqueued (or executing) finishes before this empty block runs.
-		dispatch_queue_t queue = (__bridge dispatch_queue_t)watcher->queue;
-		dispatch_sync(queue, ^{});
-		CFRelease(watcher->queue);
-		watcher->queue = NULL;
-	}
+	box_usbhost_drain_and_release_queue(&watcher->queue);
 	free(watcher);
 }
 
@@ -794,9 +805,10 @@ box_usbhost_controller_t *box_usbhost_controller_create(uintptr_t ref, uint8_t p
 				box_usbip_darwin_controller_doorbell(ref, doorbells[i]);
 			}
 		};
+		dispatch_queue_t queue = dispatch_queue_create("io.nekohasekai.sing-box.usbhost-controller", DISPATCH_QUEUE_SERIAL);
 		NSError *error = nil;
 		IOUSBHostControllerInterface *controller = [[IOUSBHostControllerInterface alloc] initWithCapabilities:capabilities
-		                                                                                                queue:nil
+		                                                                                                queue:queue
 		                                                                                      interruptRateHz:0
 		                                                                                                error:&error
 		                                                                                       commandHandler:command_handler
@@ -811,15 +823,27 @@ box_usbhost_controller_t *box_usbhost_controller_create(uintptr_t ref, uint8_t p
 		box.ref = ref;
 		box_usbhost_controller_t *handle = calloc(1, sizeof(*handle));
 		handle->object = (void *)CFBridgingRetain(box);
+		handle->queue = (void *)CFBridgingRetain(queue);
 		return handle;
 	}
 }
 
 void box_usbhost_controller_destroy(box_usbhost_controller_t *controller) {
+	if (controller == NULL) {
+		return;
+	}
 	BoxUSBHostController *box = box_controller(controller);
 	if (box != nil) {
 		[box.controller destroy];
+	}
+	// Drain the serial command/doorbell queue before releasing the
+	// BoxUSBHostController wrapper (and, on the Go side, before deleting the
+	// cgo.Handle paired with the callback ref). This mirrors the watcher's
+	// teardown.
+	box_usbhost_drain_and_release_queue(&controller->queue);
+	if (controller->object != NULL) {
 		CFBridgingRelease(controller->object);
+		controller->object = NULL;
 	}
 	free(controller);
 }
