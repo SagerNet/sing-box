@@ -1109,7 +1109,11 @@ func TestUSBIPOfficialServerHasStaticDiscoveryOnly(t *testing.T) {
 	})
 
 	beforeHID := importedNodeSnapshot("/dev/hidraw*")
-	ensureNoNewImportedNode(t, "/dev/hidraw*", beforeHID, 3*time.Second)
+	// The official server speaks only the base USB/IP protocol. Hotplug follow-up
+	// is a sing-box control-extension feature, so a device exported after the
+	// initial DEVLIST snapshot must stay undiscovered even after the old poll
+	// interval would have elapsed.
+	ensureNoNewImportedNode(t, "/dev/hidraw*", beforeHID, clientReconnectDelay+2*time.Second)
 
 	require.NoError(t, client.Close())
 	waitForAllVHCIPortsIdle(t)

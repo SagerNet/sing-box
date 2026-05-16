@@ -24,7 +24,6 @@ const (
 	controlSessionIdleHint       = "control session lost"
 	controlHandshakeBackoffStart = time.Second
 	controlHandshakeBackoffMax   = 30 * time.Second
-	controlHandshakeMaxTransient = 3
 )
 
 var (
@@ -90,10 +89,13 @@ func (c *ClientService) run() {
 		}
 
 		if errors.Is(err, errControlUnsupported) {
-			c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip mode")
-			c.runStandardPollLoop()
+			c.logger.Info("control channel unsupported by ", c.serverAddr, "; using standard usbip static discovery")
+			err = c.runStandardStaticMode()
 			if c.ctx.Err() != nil {
 				return
+			}
+			if err != nil {
+				c.logger.Error("control ", c.serverAddr, ": ", err)
 			}
 			transientStreak = 0
 			backoff = controlHandshakeBackoffStart
@@ -103,15 +105,6 @@ func (c *ClientService) run() {
 		if errors.Is(err, errControlTransient) {
 			transientStreak++
 			c.logger.Warn("control handshake ", c.serverAddr, ": ", err)
-			if transientStreak >= controlHandshakeMaxTransient {
-				c.logger.Info("control handshake failed ", transientStreak, " times against ", c.serverAddr, "; using standard usbip mode")
-				c.runStandardPollLoop()
-				if c.ctx.Err() != nil {
-					return
-				}
-				transientStreak = 0
-				backoff = controlHandshakeBackoffStart
-			}
 			continue
 		}
 
@@ -124,17 +117,17 @@ func (c *ClientService) run() {
 	}
 }
 
-func (c *ClientService) runStandardPollLoop() {
-	for {
-		err := c.syncRemoteStateContext(c.ctx)
-		if err != nil {
-			c.logger.Error("control ", c.serverAddr, ": ", E.Cause(err, "devlist sync"))
-			return
-		}
-		if !sleepCtx(c.ctx, clientReconnectDelay) {
-			return
-		}
+// Dynamic export discovery and hotplug updates are provided by the sing-box
+// USB/IP control extensions. Standard USB/IP implementations expose only a
+// static DEVLIST snapshot, so we seed assignments once and do not keep polling
+// for newly exported devices.
+func (c *ClientService) runStandardStaticMode() error {
+	err := c.syncRemoteStateContext(c.ctx)
+	if err != nil {
+		return E.Cause(err, "initial static devlist sync")
 	}
+	<-c.ctx.Done()
+	return nil
 }
 
 func (c *ClientService) runControlSession() error {
@@ -164,9 +157,10 @@ func (c *ClientService) runControlSession() error {
 	ackMessage, err := cr.read(conn)
 	if err != nil {
 		// A plain usbipd reads our preface as an op-header, finds a bogus
-		// version, and closes cleanly: the client sees io.EOF. Other I/O
-		// errors (timeout, RST, partial read) point at a transient
-		// network problem, not "server lacks CONTROL".
+		// version, and closes cleanly: the client sees io.EOF. That means the
+		// peer lacks the sing-box USB/IP control extensions, including dynamic
+		// export discovery and hotplug updates. Other I/O errors (timeout, RST,
+		// partial read) point at a transient network problem instead.
 		if errors.Is(err, io.EOF) {
 			return E.Cause(errControlUnsupported, "read control ack: ", err)
 		}
