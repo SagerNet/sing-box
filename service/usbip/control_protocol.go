@@ -6,7 +6,6 @@ import (
 	"io"
 	"slices"
 	"strings"
-	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -47,8 +46,6 @@ const (
 	leaseErrorBadRequest  = "bad_request"
 	leaseErrorUnavailable = "unavailable"
 	leaseErrorBusy        = "busy"
-
-	importLeaseTTL = 10 * time.Second
 )
 
 var controlPreface = [controlPrefaceSize]byte{'S', 'B', 'U', 'S', 'B', 'I', 'P', '1'}
@@ -119,16 +116,6 @@ type controlLeaseResponse struct {
 	TTLMillis    int64  `json:"ttl_millis,omitempty"`
 	ErrorCode    string `json:"error_code,omitempty"`
 	ErrorMessage string `json:"error_message,omitempty"`
-}
-
-type serverImportLease struct {
-	ID           uint64
-	SubscriberID uint64
-	BusID        string
-	ClientNonce  uint64
-	Generation   uint64
-	Identity     ExportLeaseIdentity
-	Expires      time.Time
 }
 
 // controlReader reuses its payload scratch across successive reads on a

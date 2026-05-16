@@ -45,7 +45,20 @@ type exportSubscriber struct {
 	send         chan controlMessage
 }
 
-const controlSubscriberSendBuffer = 16
+type serverImportLease struct {
+	ID           uint64
+	SubscriberID uint64
+	BusID        string
+	ClientNonce  uint64
+	Generation   uint64
+	Identity     ExportLeaseIdentity
+	Expires      time.Time
+}
+
+const (
+	controlSubscriberSendBuffer = 16
+	importLeaseTTL              = 10 * time.Second
+)
 
 func newExportLedger(logger log.ContextLogger, ttl time.Duration, now func() time.Time) *exportLedger {
 	if now == nil {
