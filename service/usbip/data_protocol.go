@@ -22,10 +22,11 @@ const (
 	unlinkBodySize               = 28
 	isoPacketDescriptorWireSize  = 16
 	maxUSBIPTransferBufferLength = 16 << 20
-	maxUSBIPIsoPackets           = 4096
-	nonIsoPacketCount            = -1
-	usbipTransferFlagIsoASAP     = 0x0002
-	usbipStatusECONNRESET        = -104
+	// matches Linux drivers/usb/usbip/usbip_common.h USBIP_MAX_ISO_PACKETS
+	maxUSBIPIsoPackets       = 1024
+	nonIsoPacketCount        = -1
+	usbipTransferFlagIsoASAP = 0x0002
+	usbipStatusECONNRESET    = -104
 )
 
 type DataHeader struct {
