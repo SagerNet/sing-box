@@ -534,7 +534,7 @@ func (s *darwinServerDataSession) serve() error {
 				return err
 			}
 		default:
-			return E.New(fmt.Sprintf("unexpected USB/IP command 0x%08x", header.Command))
+			return E.New("unexpected USB/IP command ", fmt.Sprintf("0x%08x", header.Command))
 		}
 	}
 }

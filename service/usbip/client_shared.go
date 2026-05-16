@@ -502,10 +502,10 @@ func (c *ClientService) fetchDevList(ctx context.Context) ([]DeviceEntry, error)
 		return nil, E.Cause(err, "read OP_REP_DEVLIST header")
 	}
 	if header.Version != ProtocolVersion {
-		return nil, E.New(fmt.Sprintf("unexpected reply version 0x%04x", header.Version))
+		return nil, E.New("unexpected reply version ", fmt.Sprintf("0x%04x", header.Version))
 	}
 	if header.Code != OpRepDevList || header.Status != OpStatusOK {
-		return nil, E.New(fmt.Sprintf("OP_REP_DEVLIST status=%d code=0x%04x", header.Status, header.Code))
+		return nil, E.New("OP_REP_DEVLIST status=", header.Status, " code=", fmt.Sprintf("0x%04x", header.Code))
 	}
 	return ReadOpRepDevListBody(conn)
 }

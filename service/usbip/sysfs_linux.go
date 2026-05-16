@@ -107,11 +107,13 @@ func readSysfsDevice(busid, path string) (sysfsDevice, error) {
 	d.VendorID = vendor
 	d.ProductID, _ = readHexU16(path, "idProduct")
 	d.BCDDevice, _ = readHexU16(path, "bcdDevice")
-	if v, err := readDecU32(path, "busnum"); err == nil {
-		d.BusNum = v
+	busNum, err := readDecU32(path, "busnum")
+	if err == nil {
+		d.BusNum = busNum
 	}
-	if v, err := readDecU32(path, "devnum"); err == nil {
-		d.DevNum = v
+	devNum, err := readDecU32(path, "devnum")
+	if err == nil {
+		d.DevNum = devNum
 	}
 	d.Speed = speedCodeFromString(readString(path, "speed"))
 	d.DeviceClass, _ = readHexU8(path, "bDeviceClass")
@@ -334,13 +336,14 @@ func ensureKernelPath(path string, module string, description string) error {
 }
 
 func findModprobePath() (string, error) {
-	if path, err := exec.LookPath("modprobe"); err == nil {
-		return path, nil
+	modprobePath, err := exec.LookPath("modprobe")
+	if err == nil {
+		return modprobePath, nil
 	}
-	for _, path := range []string{"/usr/sbin/modprobe", "/sbin/modprobe", "/usr/bin/modprobe", "/bin/modprobe"} {
-		info, err := os.Stat(path)
-		if err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
-			return path, nil
+	for _, candidate := range []string{"/usr/sbin/modprobe", "/sbin/modprobe", "/usr/bin/modprobe", "/bin/modprobe"} {
+		info, statErr := os.Stat(candidate)
+		if statErr == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
+			return candidate, nil
 		}
 	}
 	return "", E.New("modprobe executable not found")

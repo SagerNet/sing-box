@@ -270,7 +270,7 @@ func (p *UsbIpPeer) readLoop() {
 			}
 			transaction.finalize(SubmitResponse{}, ErrCanceled)
 		default:
-			p.setReadError(E.New(fmt.Sprintf("unexpected USB/IP response 0x%08x", header.Command)))
+			p.setReadError(E.New("unexpected USB/IP response ", fmt.Sprintf("0x%08x", header.Command)))
 			return
 		}
 	}

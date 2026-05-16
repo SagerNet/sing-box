@@ -196,10 +196,10 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (Attach
 		return nil, E.Cause(err, "read OP_REP_IMPORT header")
 	}
 	if header.Version != ProtocolVersion {
-		return nil, E.New(fmt.Sprintf("unexpected reply version 0x%04x", header.Version))
+		return nil, E.New("unexpected reply version ", fmt.Sprintf("0x%04x", header.Version))
 	}
 	if header.Code != expectedReply {
-		return nil, E.New(fmt.Sprintf("unexpected reply code 0x%04x", header.Code))
+		return nil, E.New("unexpected reply code ", fmt.Sprintf("0x%04x", header.Code))
 	}
 	if header.Status != OpStatusOK {
 		return nil, E.New("remote rejected import (status=", header.Status, ")")
