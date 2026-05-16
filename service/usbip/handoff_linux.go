@@ -108,17 +108,21 @@ func (h *kernelHandoffSession) Err() error {
 func (h *kernelHandoffSession) Close() error {
 	h.stateAccess.Lock()
 	h.closed = true
+	conn := h.conn
+	monitorFile := h.monitorFile
+	relayConn := h.relayConn
+	h.conn = nil
+	h.monitorFile = nil
+	h.relayConn = nil
 	h.stateAccess.Unlock()
+
 	h.closeOnce.Do(func() {
 		h.closeErr = E.Errors(
 			h.closeKernelFD(),
-			common.Close(h.monitorFile),
-			common.Close(h.relayConn),
-			common.Close(h.conn),
+			common.Close(monitorFile),
+			common.Close(relayConn),
+			common.Close(conn),
 		)
-		h.monitorFile = nil
-		h.relayConn = nil
-		h.conn = nil
 	})
 	h.markDone(nil)
 	return h.closeErr

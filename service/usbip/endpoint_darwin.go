@@ -207,33 +207,52 @@ func (e *darwinEndpoint) finalizePending(pending *pendingTransfer) {
 	}
 }
 
-// accept validates a RET_SUBMIT against the original request and, for IN
-// transfers, scatters the payload into the Apple-owned buffer. The returned
-// length is guaranteed to be in [0, p.requestLen] regardless of direction.
-// A non-nil err signals a protocol violation; the caller is expected to
-// cancel the endpoint so no further wire-corrupt completions are delivered
-// to IOUSBHost.
-func (p *pendingTransfer) accept(response SubmitResponse) (int32, int, error) {
+// validateResponse reconciles a RET_SUBMIT against the original request shape.
+// Every wire-shape rule lives here so accept can assume well-formed input and
+// future defects land in one place. Returns the wire-level errno status and a
+// non-nil err on protocol violation.
+func (p *pendingTransfer) validateResponse(response SubmitResponse) (int32, error) {
 	if response.ActualLength < 0 {
-		return -int32(unix.EPROTO), 0, errResponseNegativeActualLength
+		return -int32(unix.EPROTO), errResponseNegativeActualLength
+	}
+	if int(response.ActualLength) > p.requestLen {
+		return -int32(unix.EOVERFLOW), errResponseOverflow
+	}
+	if p.direction != USBIPDirIn {
+		return 0, nil
+	}
+	if len(response.Buffer) > p.requestLen {
+		return -int32(unix.EOVERFLOW), errResponseOverflow
+	}
+	if len(response.IsoPackets) > 0 {
+		err := ValidateIsoResponse(p.requestLen, int(response.ActualLength), response.IsoPackets, len(response.Buffer))
+		if err != nil {
+			return -int32(unix.EPROTO), err
+		}
+	}
+	return 0, nil
+}
+
+// accept validates a RET_SUBMIT against the original request and, for IN
+// transfers, scatters the payload into the Apple-owned buffer. A non-nil err
+// signals a protocol violation; the caller is expected to cancel the endpoint
+// so no further wire-corrupt completions are delivered to IOUSBHost.
+func (p *pendingTransfer) accept(response SubmitResponse) (int32, int, error) {
+	errStatus, err := p.validateResponse(response)
+	if err != nil {
+		return errStatus, 0, err
 	}
 	actualLength := int(response.ActualLength)
-	if actualLength > p.requestLen {
-		return -int32(unix.EOVERFLOW), 0, errResponseOverflow
-	}
 	if p.direction != USBIPDirIn {
 		return response.Status, actualLength, nil
 	}
-	if len(response.Buffer) > p.requestLen {
-		return -int32(unix.EOVERFLOW), 0, errResponseOverflow
-	}
 	copyLength := min(actualLength, len(response.Buffer))
 	if copyLength > 0 && p.bufferPtr != nil {
+		dst := unsafe.Slice((*byte)(p.bufferPtr), p.requestLen)
 		if len(response.IsoPackets) > 0 {
-			dst := unsafe.Slice((*byte)(p.bufferPtr), p.requestLen)
 			ScatterIsoResponse(dst, response.Buffer[:copyLength], response.IsoPackets)
 		} else {
-			copy(unsafe.Slice((*byte)(p.bufferPtr), copyLength), response.Buffer[:copyLength])
+			copy(dst[:copyLength], response.Buffer[:copyLength])
 		}
 	}
 	return response.Status, actualLength, nil
