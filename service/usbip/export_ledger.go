@@ -192,13 +192,27 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 }
 
 func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeExport bool) {
+	l.mutateAndBroadcast(ctx, func() bool {
+		delete(l.busy, busid)
+		if removeExport {
+			delete(l.exports, busid)
+		}
+		return true
+	})
+}
+
+// mutateAndBroadcast holds slow for the body, then broadcasts iff body
+// reported a change. This centralizes the "any reservedLocked-affecting
+// mutation must broadcast" invariant so future mutation sites cannot
+// silently skip it. body must NOT acquire fast (lock-ordering rule at
+// the top of this file).
+func (l *exportLedger) mutateAndBroadcast(ctx context.Context, body func() bool) {
 	l.slow.Lock()
-	delete(l.busy, busid)
-	if removeExport {
-		delete(l.exports, busid)
-	}
+	changed := body()
 	l.slow.Unlock()
-	l.BroadcastIfChanged(ctx)
+	if changed {
+		l.BroadcastIfChanged(ctx)
+	}
 }
 
 // IssueLease captures the current broadcast sequence as opaque metadata
@@ -301,96 +315,127 @@ func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request Impor
 	var (
 		export   Export
 		identity ExportLeaseIdentity
+		phase1OK bool
+		reason   string
 	)
-	l.slow.Lock()
-	now := l.now()
-	l.cleanupExpiredLocked(now)
+	l.mutateAndBroadcast(ctx, func() bool {
+		now := l.now()
+		changed := l.cleanupExpiredLocked(now)
 
-	lease, found := l.leases[request.BusID]
-	if !found {
-		l.slow.Unlock()
-		return nil, false, "lease not found"
+		lease, found := l.leases[request.BusID]
+		if !found {
+			reason = "lease not found"
+			return changed
+		}
+		if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
+			reason = "lease mismatch"
+			return changed
+		}
+		if !now.Before(lease.Expires) {
+			delete(l.leases, request.BusID)
+			reason = "lease expired"
+			return true
+		}
+		current, stillExported := l.exports[request.BusID]
+		if !stillExported {
+			delete(l.leases, request.BusID)
+			reason = "unknown busid"
+			return true
+		}
+		identity = current.LeaseIdentity()
+		if identity != lease.Identity {
+			delete(l.leases, request.BusID)
+			reason = "lease stale"
+			return true
+		}
+		if l.busy[request.BusID] {
+			delete(l.leases, request.BusID)
+			reason = deviceStateBusy
+			return true
+		}
+		export = current
+		phase1OK = true
+		return changed
+	})
+	if !phase1OK {
+		return nil, false, reason
 	}
-	if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
-		l.slow.Unlock()
-		return nil, false, "lease mismatch"
-	}
-	if !now.Before(lease.Expires) {
-		delete(l.leases, request.BusID)
-		l.slow.Unlock()
-		return nil, false, "lease expired"
-	}
-	export, stillExported := l.exports[request.BusID]
-	if !stillExported {
-		delete(l.leases, request.BusID)
-		l.slow.Unlock()
-		return nil, false, "unknown busid"
-	}
-	identity = export.LeaseIdentity()
-	if identity != lease.Identity {
-		delete(l.leases, request.BusID)
-		l.slow.Unlock()
-		return nil, false, "lease stale"
-	}
-	if l.busy[request.BusID] {
-		delete(l.leases, request.BusID)
-		l.slow.Unlock()
-		return nil, false, deviceStateBusy
-	}
-	l.slow.Unlock()
 
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
 	if !leaseOK {
-		l.slow.Lock()
-		currentLease, exists := l.leases[request.BusID]
-		if exists && currentLease.ID == request.LeaseID && currentLease.ClientNonce == request.ClientNonce {
+		l.mutateAndBroadcast(ctx, func() bool {
+			currentLease, exists := l.leases[request.BusID]
+			if !exists {
+				return false
+			}
+			if currentLease.ID != request.LeaseID || currentLease.ClientNonce != request.ClientNonce {
+				return false
+			}
 			delete(l.leases, request.BusID)
-		}
-		l.slow.Unlock()
+			return true
+		})
 		return nil, false, leaseReason
 	}
 
-	l.slow.Lock()
-	defer l.slow.Unlock()
+	var (
+		finalExport Export
+		finalOK     bool
+	)
+	l.mutateAndBroadcast(ctx, func() bool {
+		now := l.now()
+		changed := l.cleanupExpiredLocked(now)
 
-	now = l.now()
-	l.cleanupExpiredLocked(now)
-
-	lease, found = l.leases[request.BusID]
-	if !found {
-		return nil, false, "lease not found"
-	}
-	if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
-		return nil, false, "lease mismatch"
-	}
-	if !now.Before(lease.Expires) {
+		lease, found := l.leases[request.BusID]
+		if !found {
+			reason = "lease not found"
+			return changed
+		}
+		if lease.ID != request.LeaseID || lease.ClientNonce != request.ClientNonce {
+			reason = "lease mismatch"
+			return changed
+		}
+		if !now.Before(lease.Expires) {
+			delete(l.leases, request.BusID)
+			reason = "lease expired"
+			return true
+		}
+		current, stillExported := l.exports[request.BusID]
+		if !stillExported {
+			delete(l.leases, request.BusID)
+			reason = "unknown busid"
+			return true
+		}
+		if lease.Identity != identity || current.LeaseIdentity() != identity {
+			delete(l.leases, request.BusID)
+			reason = "lease stale"
+			return true
+		}
+		if l.busy[request.BusID] {
+			delete(l.leases, request.BusID)
+			reason = deviceStateBusy
+			return true
+		}
 		delete(l.leases, request.BusID)
-		return nil, false, "lease expired"
+		l.busy[request.BusID] = true
+		finalExport = current
+		finalOK = true
+		return true
+	})
+	if !finalOK {
+		return nil, false, reason
 	}
-	current, stillExported := l.exports[request.BusID]
-	if !stillExported {
-		delete(l.leases, request.BusID)
-		return nil, false, "unknown busid"
-	}
-	if lease.Identity != identity || current.LeaseIdentity() != identity {
-		delete(l.leases, request.BusID)
-		return nil, false, "lease stale"
-	}
-	if l.busy[request.BusID] {
-		delete(l.leases, request.BusID)
-		return nil, false, deviceStateBusy
-	}
-	delete(l.leases, request.BusID)
-	l.busy[request.BusID] = true
-	return current, true, ""
+	return finalExport, true, ""
 }
 
-func (l *exportLedger) cleanupExpiredLocked(now time.Time) {
+func (l *exportLedger) cleanupExpiredLocked(now time.Time) bool {
+	changed := false
 	for busid, lease := range l.leases {
 		if !now.Before(lease.Expires) {
 			delete(l.leases, busid)
+			changed = true
 		}
 	}
+	return changed
 }
 
 // Subscribe enqueues a freshly computed snapshot to extension-capable
@@ -445,18 +490,24 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 }
 
 // Unsubscribe leaves the subscriber's send channel for the GC to
-// reclaim; the transport read loop has already exited.
-func (l *exportLedger) Unsubscribe(sub *exportSubscriber) {
+// reclaim; the transport read loop has already exited. Any leases the
+// subscriber held are released and the resulting state change is
+// broadcast so remaining subscribers see the busid become available
+// again.
+func (l *exportLedger) Unsubscribe(ctx context.Context, sub *exportSubscriber) {
 	l.fast.Lock()
 	delete(l.subs, sub.id)
 	l.fast.Unlock()
-	l.slow.Lock()
-	for busid, lease := range l.leases {
-		if lease.SubscriberID == sub.id {
-			delete(l.leases, busid)
+	l.mutateAndBroadcast(ctx, func() bool {
+		released := false
+		for busid, lease := range l.leases {
+			if lease.SubscriberID == sub.id {
+				delete(l.leases, busid)
+				released = true
+			}
 		}
-	}
-	l.slow.Unlock()
+		return released
+	})
 }
 
 // CloseAllSubscribers returns the underlying connections so the caller

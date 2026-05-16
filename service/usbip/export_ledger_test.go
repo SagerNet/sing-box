@@ -121,6 +121,61 @@ func TestConsumeLeaseAndReserveRejectsUnavailableExport(t *testing.T) {
 	}
 }
 
+func TestUnsubscribeBroadcastsLeaseRelease(t *testing.T) {
+	ctx := context.Background()
+	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
+	exp := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001}
+
+	ledger.ApplyHostSnapshot(map[string]Export{exp.busid: exp}, nil)
+	ledger.SeedBroadcastState(ctx)
+
+	holder, _ := ledger.Subscribe(ctx, nil, controlCapabilities)
+	drainSubscriber(holder)
+
+	response := ledger.IssueLease(ctx, holder.id, controlLeaseRequest{BusID: exp.busid, ClientNonce: 7})
+	if response.ErrorCode != "" {
+		t.Fatalf("IssueLease failed: %s", response.ErrorMessage)
+	}
+	// Pretend a topology event flushed the busy state into the broadcast
+	// baseline, matching the real-world scenario where hotplug churn keeps
+	// l.state roughly in sync with reality. Without this the diff machinery
+	// in BroadcastIfChanged has no busy→available transition to emit.
+	ledger.BroadcastIfChanged(ctx)
+	drainSubscriber(holder)
+
+	observer, _ := ledger.Subscribe(ctx, nil, controlCapabilities)
+	drainSubscriber(observer)
+
+	ledger.Unsubscribe(ctx, holder)
+
+	select {
+	case msg := <-observer.send:
+		if msg.Frame.Type != controlFrameDeviceDelta {
+			t.Fatalf("expected device delta after lease release, got frame type %d", msg.Frame.Type)
+		}
+		var delta controlDeviceDelta
+		err := unmarshalControlPayload(msg.Payload, &delta)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(delta.Updated) != 1 || delta.Updated[0].State != deviceStateAvailable {
+			t.Fatalf("expected one Updated entry flipped to available, got %#v", delta)
+		}
+	default:
+		t.Fatal("expected observer to receive a delta after holder's lease was released")
+	}
+}
+
+func drainSubscriber(sub *exportSubscriber) {
+	for {
+		select {
+		case <-sub.send:
+		default:
+			return
+		}
+	}
+}
+
 func TestConsumeLeaseAndReserveMarksBusyOnSuccess(t *testing.T) {
 	ctx := context.Background()
 	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
@@ -172,11 +227,15 @@ func (e *testExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 	if onSnapshot != nil {
 		onSnapshot()
 	}
+	state := deviceStateAvailable
+	if busy {
+		state = deviceStateBusy
+	}
 	return ExportSnapshot{
 		Entry: DeviceEntry{
 			Info: e.deviceInfo(),
 		},
-		State: deviceStateAvailable,
+		State: state,
 	}
 }
 

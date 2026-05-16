@@ -66,5 +66,7 @@ type USBIPServerServiceOptions struct {
 type USBIPClientServiceOptions struct {
 	ServerOptions
 	DialerOptions
+	// Devices selects which exported devices to import. Omit or leave
+	// empty to import every device the server exports.
 	Devices []USBIPDeviceMatch `json:"devices,omitempty"`
 }

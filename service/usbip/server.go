@@ -81,6 +81,11 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 	if err != nil {
 		return err
 	}
+	events, err := s.host.Events(s.ctx)
+	if err != nil {
+		_ = s.host.Close()
+		return E.Cause(err, "subscribe topology events")
+	}
 	err = s.reconcileAndBroadcast(false)
 	if err != nil {
 		_ = s.host.Close()
@@ -92,7 +97,7 @@ func (s *ServerService) Start(stage adapter.StartStage) error {
 		return err
 	}
 	go s.acceptLoop(tcpListener)
-	go s.eventLoop()
+	go s.eventLoop(events)
 	return nil
 }
 
@@ -126,15 +131,7 @@ func (s *ServerService) Close() error {
 	return err
 }
 
-func (s *ServerService) eventLoop() {
-	events, err := s.host.Events(s.ctx)
-	if err != nil {
-		s.logger.Warn("subscribe topology events: ", err)
-		return
-	}
-	if events == nil {
-		return
-	}
+func (s *ServerService) eventLoop(events <-chan struct{}) {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -144,7 +141,7 @@ func (s *ServerService) eventLoop() {
 				return
 			}
 		}
-		err = s.reconcileAndBroadcast(true)
+		err := s.reconcileAndBroadcast(true)
 		if err != nil {
 			s.logger.Warn("reconcile exports: ", err)
 		}
@@ -231,7 +228,7 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 	}
 	capabilities := hello.Capabilities & controlCapabilities
 	sub, seq := s.ledger.Subscribe(s.ctx, conn, capabilities)
-	defer s.ledger.Unsubscribe(sub)
+	defer s.ledger.Unsubscribe(s.ctx, sub)
 	err = writeControlMessage(conn, controlFrame{
 		Type:         controlFrameAck,
 		Version:      controlProtocolVersion,
