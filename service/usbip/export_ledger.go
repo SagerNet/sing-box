@@ -19,7 +19,12 @@ import (
 // syscalls), then acquire the other.
 //
 //	fast: broadcast bookkeeping. seq, nextSubID, subs, state.
-//	slow: inventory and leases. exports, busy, leases, nextLeaseID.
+//	inventory: exports, busy, leases, nextLeaseID. Direct access is
+//	          forbidden; route every read/write through one of
+//	          withInventoryRead / withInventoryWrite / withInventoryWriteQuiet
+//	          so the broadcast-on-mutation invariant cannot be skipped by
+//	          a future caller. The field is unexported within the package
+//	          to make any l.inventory.Lock() bypass obvious in review.
 type exportLedger struct {
 	logger log.ContextLogger
 	now    func() time.Time
@@ -31,7 +36,7 @@ type exportLedger struct {
 	subs      map[uint64]*exportSubscriber
 	state     map[string]DeviceInfoV2
 
-	slow        sync.Mutex
+	inventory   sync.Mutex
 	exports     map[string]Export
 	busy        map[string]bool
 	leases      map[string]serverImportLease
@@ -76,15 +81,57 @@ func newExportLedger(logger log.ContextLogger, ttl time.Duration, now func() tim
 	}
 }
 
+// withInventoryWrite holds the inventory lock for body, then broadcasts
+// iff body reports a change. This is the only path that may both mutate
+// reserved state AND fire the resulting broadcast; routing every
+// mutation through here makes the "any reservedLocked-affecting change
+// must broadcast" invariant structural rather than a discipline rule.
+// body must NOT acquire fast (lock-ordering rule documented on
+// exportLedger).
+func (l *exportLedger) withInventoryWrite(ctx context.Context, body func() bool) {
+	l.inventory.Lock()
+	changed := body()
+	l.inventory.Unlock()
+	if changed {
+		l.BroadcastIfChanged(ctx)
+	}
+}
+
+// withInventoryRead holds the inventory lock for body without
+// broadcasting. Use for read-only sections that observe reserved state.
+func (l *exportLedger) withInventoryRead(body func()) {
+	l.inventory.Lock()
+	defer l.inventory.Unlock()
+	body()
+}
+
+// withInventoryWriteQuiet holds the inventory lock for body without
+// broadcasting. Use ONLY when the caller is contractually responsible
+// for the broadcast at a different point in its flow:
+//
+//   - ApplyHostSnapshot: paired with reconcileAndBroadcast in server.go.
+//   - TryReserveForImport stage 2: the server's import setup broadcasts
+//     after the full session is wired up.
+//   - ResetForClose: shutdown path; subscribers are about to be closed.
+//
+// Every other write site MUST use withInventoryWrite.
+func (l *exportLedger) withInventoryWriteQuiet(body func()) {
+	l.inventory.Lock()
+	defer l.inventory.Unlock()
+	body()
+}
+
 func (l *exportLedger) IsReserved(busid string) bool {
-	l.slow.Lock()
-	defer l.slow.Unlock()
-	return l.reservedLocked(busid)
+	var reserved bool
+	l.withInventoryRead(func() {
+		reserved = l.reservedLocked(busid)
+	})
+	return reserved
 }
 
 // reservedLocked reports whether busid is unavailable for new admission:
 // either marked busy by an active session or covered by an unexpired
-// import lease. Caller must hold l.slow.
+// import lease. Caller must hold l.inventory.
 func (l *exportLedger) reservedLocked(busid string) bool {
 	if l.busy[busid] {
 		return true
@@ -97,15 +144,16 @@ func (l *exportLedger) reservedLocked(busid string) bool {
 }
 
 func (l *exportLedger) AvailableExports() []Export {
-	l.slow.Lock()
-	out := make([]Export, 0, len(l.exports))
-	for busid, export := range l.exports {
-		if l.reservedLocked(busid) {
-			continue
+	var out []Export
+	l.withInventoryRead(func() {
+		out = make([]Export, 0, len(l.exports))
+		for busid, export := range l.exports {
+			if l.reservedLocked(busid) {
+				continue
+			}
+			out = append(out, export)
 		}
-		out = append(out, export)
-	}
-	l.slow.Unlock()
+	})
 	slices.SortFunc(out, func(a, b Export) int {
 		return strings.Compare(a.BusID(), b.BusID())
 	})
@@ -115,12 +163,12 @@ func (l *exportLedger) AvailableExports() []Export {
 // ApplyHostSnapshot does not broadcast; callers pair it with
 // SeedBroadcastState (quiet) or BroadcastIfChanged.
 func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []string) {
-	l.slow.Lock()
-	l.exports = snapshot
-	for _, busid := range released {
-		delete(l.busy, busid)
-	}
-	l.slow.Unlock()
+	l.withInventoryWriteQuiet(func() {
+		l.exports = snapshot
+		for _, busid := range released {
+			delete(l.busy, busid)
+		}
+	})
 }
 
 func (l *exportLedger) SeedBroadcastState(ctx context.Context) {
@@ -169,17 +217,23 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 	return true
 }
 
-// TryReserveForImport runs Export.LeaseCheck outside the slow lock; the
-// busy mark is inserted only after a second availability re-check
+// TryReserveForImport runs Export.LeaseCheck outside the inventory lock;
+// the busy mark is inserted only after a second availability re-check
 // confirms no goroutine raced in. An outstanding lease counts as busy so
 // legacy OP_REQ_IMPORT cannot steal a slot a control client has already
 // reserved via IssueLease. The caller must pair every success with a
-// later ReleaseImport.
+// later ReleaseImport, and is responsible for broadcasting the busy
+// transition once the session is fully wired up.
 func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
-	l.slow.Lock()
-	export, found := l.exports[busid]
-	reserved := found && l.reservedLocked(busid)
-	l.slow.Unlock()
+	var (
+		export   Export
+		found    bool
+		reserved bool
+	)
+	l.withInventoryRead(func() {
+		export, found = l.exports[busid]
+		reserved = found && l.reservedLocked(busid)
+	})
 	if !found {
 		return nil, false, "unknown busid"
 	}
@@ -191,21 +245,31 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	if !leaseOK {
 		return nil, false, leaseReason
 	}
-	l.slow.Lock()
-	defer l.slow.Unlock()
-	current, stillExported := l.exports[busid]
-	if !stillExported || current.LeaseIdentity() != identity {
-		return nil, false, "unknown busid"
+	var (
+		reserveOK bool
+		failure   string
+	)
+	l.withInventoryWriteQuiet(func() {
+		current, stillExported := l.exports[busid]
+		if !stillExported || current.LeaseIdentity() != identity {
+			failure = "unknown busid"
+			return
+		}
+		if l.reservedLocked(busid) {
+			failure = deviceStateBusy
+			return
+		}
+		l.busy[busid] = true
+		reserveOK = true
+	})
+	if !reserveOK {
+		return nil, false, failure
 	}
-	if l.reservedLocked(busid) {
-		return nil, false, deviceStateBusy
-	}
-	l.busy[busid] = true
 	return export, true, ""
 }
 
 func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeExport bool) {
-	l.mutateAndBroadcast(ctx, func() bool {
+	l.withInventoryWrite(ctx, func() bool {
 		delete(l.busy, busid)
 		if removeExport {
 			delete(l.exports, busid)
@@ -214,23 +278,13 @@ func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeEx
 	})
 }
 
-// mutateAndBroadcast holds slow for the body, then broadcasts iff body
-// reported a change. This centralizes the "any reservedLocked-affecting
-// mutation must broadcast" invariant so future mutation sites cannot
-// silently skip it. body must NOT acquire fast (lock-ordering rule at
-// the top of this file).
-func (l *exportLedger) mutateAndBroadcast(ctx context.Context, body func() bool) {
-	l.slow.Lock()
-	changed := body()
-	l.slow.Unlock()
-	if changed {
-		l.BroadcastIfChanged(ctx)
-	}
-}
-
 // IssueLease captures the current broadcast sequence as opaque metadata
 // for control clients. Lease correctness itself is pinned to the
-// export's internal identity, not to that sequence number.
+// export's internal identity, not to that sequence number. Both
+// inventory stages run through withInventoryWrite so any lease insert,
+// re-validation, or TTL sweep broadcasts the resulting reserved-state
+// change to subscribers — without this, an unexpired lease would block
+// new imports while extended clients still saw the device as available.
 func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request controlLeaseRequest) controlLeaseResponse {
 	response := controlLeaseResponse{
 		BusID:       request.BusID,
@@ -246,31 +300,39 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 	generation := l.seq
 	l.fast.Unlock()
 
-	l.slow.Lock()
-	now := l.now()
-	l.cleanupExpiredLocked(now)
-	export, found := l.exports[request.BusID]
-	if !found {
-		l.slow.Unlock()
-		response.ErrorCode = leaseErrorUnavailable
-		response.ErrorMessage = "unknown busid"
+	var (
+		export     Export
+		identity   ExportLeaseIdentity
+		preCheckOK bool
+	)
+	l.withInventoryWrite(ctx, func() bool {
+		now := l.now()
+		changed := l.cleanupExpiredLocked(now)
+		currentExport, found := l.exports[request.BusID]
+		if !found {
+			response.ErrorCode = leaseErrorUnavailable
+			response.ErrorMessage = "unknown busid"
+			return changed
+		}
+		if l.busy[request.BusID] {
+			response.ErrorCode = leaseErrorUnavailable
+			response.ErrorMessage = deviceStateBusy
+			return changed
+		}
+		if _, exists := l.leases[request.BusID]; exists {
+			response.ErrorCode = leaseErrorBusy
+			response.ErrorMessage = "lease already active"
+			return changed
+		}
+		export = currentExport
+		identity = currentExport.LeaseIdentity()
+		preCheckOK = true
+		return changed
+	})
+	if !preCheckOK {
 		return response
 	}
-	if l.busy[request.BusID] {
-		l.slow.Unlock()
-		response.ErrorCode = leaseErrorUnavailable
-		response.ErrorMessage = deviceStateBusy
-		return response
-	}
-	if _, exists := l.leases[request.BusID]; exists {
-		l.slow.Unlock()
-		response.ErrorCode = leaseErrorBusy
-		response.ErrorMessage = "lease already active"
-		return response
-	}
-	l.slow.Unlock()
 
-	identity := export.LeaseIdentity()
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
 	if !leaseOK {
 		response.ErrorCode = leaseErrorUnavailable
@@ -278,47 +340,49 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 		return response
 	}
 
-	l.slow.Lock()
-	defer l.slow.Unlock()
-	now = l.now()
-	l.cleanupExpiredLocked(now)
-	current, stillExported := l.exports[request.BusID]
-	if !stillExported || current.LeaseIdentity() != identity {
-		response.ErrorCode = leaseErrorUnavailable
-		response.ErrorMessage = "unknown busid"
-		return response
-	}
-	if l.busy[request.BusID] {
-		response.ErrorCode = leaseErrorUnavailable
-		response.ErrorMessage = deviceStateBusy
-		return response
-	}
-	if _, exists := l.leases[request.BusID]; exists {
-		response.ErrorCode = leaseErrorBusy
-		response.ErrorMessage = "lease already active"
-		return response
-	}
-	l.nextLeaseID++
-	lease := serverImportLease{
-		ID:           l.nextLeaseID,
-		SubscriberID: subID,
-		BusID:        request.BusID,
-		ClientNonce:  request.ClientNonce,
-		Generation:   generation,
-		Identity:     current.LeaseIdentity(),
-		Expires:      now.Add(l.ttl),
-	}
-	l.leases[request.BusID] = lease
-	response.LeaseID = lease.ID
-	response.Generation = lease.Generation
-	response.TTLMillis = int64(l.ttl / time.Millisecond)
+	l.withInventoryWrite(ctx, func() bool {
+		now := l.now()
+		changed := l.cleanupExpiredLocked(now)
+		current, stillExported := l.exports[request.BusID]
+		if !stillExported || current.LeaseIdentity() != identity {
+			response.ErrorCode = leaseErrorUnavailable
+			response.ErrorMessage = "unknown busid"
+			return changed
+		}
+		if l.busy[request.BusID] {
+			response.ErrorCode = leaseErrorUnavailable
+			response.ErrorMessage = deviceStateBusy
+			return changed
+		}
+		if _, exists := l.leases[request.BusID]; exists {
+			response.ErrorCode = leaseErrorBusy
+			response.ErrorMessage = "lease already active"
+			return changed
+		}
+		l.nextLeaseID++
+		lease := serverImportLease{
+			ID:           l.nextLeaseID,
+			SubscriberID: subID,
+			BusID:        request.BusID,
+			ClientNonce:  request.ClientNonce,
+			Generation:   generation,
+			Identity:     current.LeaseIdentity(),
+			Expires:      now.Add(l.ttl),
+		}
+		l.leases[request.BusID] = lease
+		response.LeaseID = lease.ID
+		response.Generation = lease.Generation
+		response.TTLMillis = int64(l.ttl / time.Millisecond)
+		return true
+	})
 	return response
 }
 
 // ConsumeLeaseAndReserve validates the requested lease against the
-// current export identity, reruns LeaseCheck outside the slow lock, then
-// atomically consumes the lease and marks the busid busy. Correctness is
-// tied to the export identity rather than to the control sequence.
+// current export identity, reruns LeaseCheck outside the inventory lock,
+// then atomically consumes the lease and marks the busid busy.
+// Correctness is tied to the export identity rather than to the control
+// sequence.
 //
 // Consume-on-read semantics from the old ConsumeLease are preserved:
 // the lease entry is removed on every outcome except a nonce/ID
@@ -331,7 +395,7 @@ func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request Impor
 		phase1OK bool
 		reason   string
 	)
-	l.mutateAndBroadcast(ctx, func() bool {
+	l.withInventoryWrite(ctx, func() bool {
 		now := l.now()
 		changed := l.cleanupExpiredLocked(now)
 
@@ -376,7 +440,7 @@ func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request Impor
 
 	leaseOK, leaseReason := export.LeaseCheck(ctx)
 	if !leaseOK {
-		l.mutateAndBroadcast(ctx, func() bool {
+		l.withInventoryWrite(ctx, func() bool {
 			currentLease, exists := l.leases[request.BusID]
 			if !exists {
 				return false
@@ -394,7 +458,7 @@ func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request Impor
 		finalExport Export
 		finalOK     bool
 	)
-	l.mutateAndBroadcast(ctx, func() bool {
+	l.withInventoryWrite(ctx, func() bool {
 		now := l.now()
 		changed := l.cleanupExpiredLocked(now)
 
@@ -511,7 +575,7 @@ func (l *exportLedger) Unsubscribe(ctx context.Context, sub *exportSubscriber) {
 	l.fast.Lock()
 	delete(l.subs, sub.id)
 	l.fast.Unlock()
-	l.mutateAndBroadcast(ctx, func() bool {
+	l.withInventoryWrite(ctx, func() bool {
 		released := false
 		for busid, lease := range l.leases {
 			if lease.SubscriberID == sub.id {
@@ -537,11 +601,11 @@ func (l *exportLedger) CloseAllSubscribers() []net.Conn {
 }
 
 func (l *exportLedger) ResetForClose() {
-	l.slow.Lock()
-	l.exports = make(map[string]Export)
-	l.busy = make(map[string]bool)
-	l.leases = make(map[string]serverImportLease)
-	l.slow.Unlock()
+	l.withInventoryWriteQuiet(func() {
+		l.exports = make(map[string]Export)
+		l.busy = make(map[string]bool)
+		l.leases = make(map[string]serverImportLease)
+	})
 }
 
 func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *exportSubscriber, payload []byte) {
@@ -575,12 +639,13 @@ func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 		export Export
 		busy   bool
 	}
-	l.slow.Lock()
-	entries := make([]entry, 0, len(l.exports))
-	for busid, export := range l.exports {
-		entries = append(entries, entry{export: export, busy: l.reservedLocked(busid)})
-	}
-	l.slow.Unlock()
+	var entries []entry
+	l.withInventoryRead(func() {
+		entries = make([]entry, 0, len(l.exports))
+		for busid, export := range l.exports {
+			entries = append(entries, entry{export: export, busy: l.reservedLocked(busid)})
+		}
+	})
 	if len(entries) == 0 {
 		return nil
 	}

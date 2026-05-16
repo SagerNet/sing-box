@@ -241,7 +241,8 @@ func (s *darwinFakeUSBIPServer) handleConn(conn net.Conn) {
 	defer s.untrackConn(conn)
 
 	var prefix [controlPrefaceSize]byte
-	if _, err := io.ReadFull(conn, prefix[:]); err != nil {
+	_, err := io.ReadFull(conn, prefix[:])
+	if err != nil {
 		return
 	}
 	if bytes.Equal(prefix[:], controlPreface[:]) {
@@ -368,14 +369,16 @@ func (s *darwinFakeUSBIPServer) handleDataSession(conn net.Conn) {
 			case s.submitSeen <- command:
 			default:
 			}
-			if err := WriteSubmitResponse(conn, s.submitResponse(command)); err != nil {
+			err = WriteSubmitResponse(conn, s.submitResponse(command))
+			if err != nil {
 				return
 			}
 		case CmdUnlink:
-			if _, err := ReadUnlinkCommandBody(conn, header); err != nil {
+			_, err = ReadUnlinkCommandBody(conn, header)
+			if err != nil {
 				return
 			}
-			if err := WriteUnlinkResponse(conn, UnlinkResponse{
+			err = WriteUnlinkResponse(conn, UnlinkResponse{
 				Header: DataHeader{
 					Command:   RetUnlink,
 					SeqNum:    header.SeqNum,
@@ -384,7 +387,8 @@ func (s *darwinFakeUSBIPServer) handleDataSession(conn net.Conn) {
 					Endpoint:  header.Endpoint,
 				},
 				Status: 0,
-			}); err != nil {
+			})
+			if err != nil {
 				return
 			}
 		default:
@@ -527,7 +531,8 @@ func TestDarwinUSBIPServerSmoke(t *testing.T) {
 	require.NoError(t, err)
 	server := serviceInstance.(*ServerService)
 	defer server.Close()
-	if err := server.Start(adapter.StartStateStart); err != nil {
+	err = server.Start(adapter.StartStateStart)
+	if err != nil {
 		t.Skipf("IOUSBHostDevice enumeration unavailable: %v", err)
 	}
 	if len(server.ledger.AvailableExports()) == 0 {

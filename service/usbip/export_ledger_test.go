@@ -39,7 +39,8 @@ func TestSubscribeRetriesSnapshotWhenSequenceAdvances(t *testing.T) {
 			t.Fatalf("expected frame sequence %d, got %d", sequence, message.Frame.Sequence)
 		}
 		var snapshot controlDeviceSnapshot
-		if err := unmarshalControlPayload(message.Payload, &snapshot); err != nil {
+		err := unmarshalControlPayload(message.Payload, &snapshot)
+		if err != nil {
 			t.Fatal(err)
 		}
 		if snapshot.Sequence != sequence {

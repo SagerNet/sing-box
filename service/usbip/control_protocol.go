@@ -1,3 +1,5 @@
+//go:build linux || (darwin && cgo)
+
 package usbip
 
 import (
@@ -126,7 +128,8 @@ type controlReader struct {
 
 func (cr *controlReader) read(r io.Reader) (controlMessage, error) {
 	var raw [controlFrameSize]byte
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	_, err := io.ReadFull(r, raw[:])
+	if err != nil {
 		return controlMessage{}, err
 	}
 	frame := controlFrame{
@@ -142,7 +145,8 @@ func (cr *controlReader) read(r io.Reader) (controlMessage, error) {
 			cr.scratch = make([]byte, frame.PayloadLength)
 		}
 		payload = cr.scratch[:frame.PayloadLength]
-		if _, err := io.ReadFull(r, payload); err != nil {
+		_, err = io.ReadFull(r, payload)
+		if err != nil {
 			return controlMessage{}, err
 		}
 	}
@@ -164,7 +168,8 @@ func writeControlMessage(w io.Writer, frame controlFrame, payload any) error {
 	binary.BigEndian.PutUint16(raw[2:4], frame.PayloadLength)
 	binary.BigEndian.PutUint32(raw[4:8], frame.Capabilities)
 	binary.BigEndian.PutUint64(raw[8:16], frame.Sequence)
-	if _, err := w.Write(raw[:]); err != nil {
+	_, err = w.Write(raw[:])
+	if err != nil {
 		return err
 	}
 	if len(rawPayload) == 0 {

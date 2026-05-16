@@ -40,7 +40,8 @@ func (s *ServerService) acceptLoop(ln net.Listener) {
 
 func (s *ServerService) dispatchConn(conn net.Conn) {
 	var prefix [controlPrefaceSize]byte
-	if _, err := io.ReadFull(conn, prefix[:]); err != nil {
+	_, err := io.ReadFull(conn, prefix[:])
+	if err != nil {
 		s.logger.Debug("read connection preface: ", err)
 		_ = conn.Close()
 		return

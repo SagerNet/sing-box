@@ -126,7 +126,8 @@ func requireRoot(t *testing.T) {
 
 func requireKernelModule(t *testing.T, module string) {
 	t.Helper()
-	if _, err := os.Stat(filepath.Join("/sys/module", module)); err == nil {
+	_, statErr := os.Stat(filepath.Join("/sys/module", module))
+	if statErr == nil {
 		return
 	}
 

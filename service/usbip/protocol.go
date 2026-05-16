@@ -1,3 +1,5 @@
+//go:build linux || (darwin && cgo)
+
 package usbip
 
 import (
@@ -140,7 +142,8 @@ func WriteOpReqImportExt(w io.Writer, request ImportExtRequest) error {
 
 func ReadOpReqImportBody(r io.Reader) (string, error) {
 	var field [32]byte
-	if _, err := io.ReadFull(r, field[:]); err != nil {
+	_, err := io.ReadFull(r, field[:])
+	if err != nil {
 		return "", err
 	}
 	return cstring(field[:]), nil
@@ -148,7 +151,8 @@ func ReadOpReqImportBody(r io.Reader) (string, error) {
 
 func ReadOpReqImportExtBody(r io.Reader) (ImportExtRequest, error) {
 	var raw [importExtBodyWireSize]byte
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	_, err := io.ReadFull(r, raw[:])
+	if err != nil {
 		return ImportExtRequest{}, err
 	}
 	return ImportExtRequest{

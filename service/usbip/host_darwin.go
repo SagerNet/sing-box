@@ -168,24 +168,34 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isReserved func(busid 
 		released = append(released, busid)
 	}
 
-	h.access.Lock()
+	// Build the committed map off-lock so we can clone any stale entry
+	// before mutating it. The ledger reads Snapshot/LeaseCheck on the
+	// previously published pointers without locks; mutating them in
+	// place is a data race. See docs/adr/0001-export-pointer-immutability.md.
+	committed := make(map[string]*darwinExport, len(current)+len(toAdd))
+	maps.Copy(committed, current)
+	staleBusIDs := make([]string, 0, len(toStale))
+	pendingByBusID := make(map[string]uint64, len(toStale))
 	for _, mark := range toStale {
-		exp, ok := h.exports[mark.busid]
-		if !ok {
-			continue
-		}
-		exp.stale = true
-		if mark.pendingRegistryID != 0 {
-			exp.pendingRegistryID = mark.pendingRegistryID
-		}
+		staleBusIDs = append(staleBusIDs, mark.busid)
+		pendingByBusID[mark.busid] = mark.pendingRegistryID
 	}
+	applyStaleClones(committed, staleBusIDs, cloneDarwinExport, func(exp *darwinExport) {
+		exp.stale = true
+		pending := pendingByBusID[exp.busid]
+		if pending != 0 {
+			exp.pendingRegistryID = pending
+		}
+	})
 	for _, exp := range toRemove {
-		delete(h.exports, exp.busid)
+		delete(committed, exp.busid)
 	}
 	for _, exp := range toAdd {
-		h.exports[exp.busid] = exp
+		committed[exp.busid] = exp
 	}
-	out := snapshotDarwinExports(h.exports)
+
+	h.access.Lock()
+	h.exports = committed
 	h.access.Unlock()
 
 	for _, exp := range toRemove {
@@ -193,7 +203,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isReserved func(busid 
 			exp.device.Close()
 		}
 	}
-	return out, released, nil
+	return snapshotDarwinExports(committed), released, nil
 }
 
 func (h *darwinExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
@@ -259,6 +269,20 @@ func snapshotDarwinExports(exports map[string]*darwinExport) map[string]Export {
 		out[busid] = exp
 	}
 	return out
+}
+
+// cloneDarwinExport returns a fresh *darwinExport with the slice fields
+// inside entry duplicated so callers can mutate the clone without
+// affecting the previously published pointer. The device handle and
+// logger are shared because they are externally synchronised. See
+// docs/adr/0001-export-pointer-immutability.md.
+func cloneDarwinExport(exp *darwinExport) *darwinExport {
+	if exp == nil {
+		return nil
+	}
+	clone := *exp
+	clone.entry.Interfaces = slices.Clone(exp.entry.Interfaces)
+	return &clone
 }
 
 type darwinExport struct {

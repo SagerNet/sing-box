@@ -34,6 +34,20 @@ type ImportHost interface {
 
 type ExportLeaseIdentity string
 
+// Export is the host-owned handle to a single USB device that the ledger
+// publishes to control subscribers and hands to import sessions.
+//
+// Pointers returned from ExportHost.Reconcile MUST be treated as
+// immutable from the ledger's perspective: every field read by
+// BusID, Snapshot, LeaseIdentity, LeaseCheck, or DeviceInfo must not
+// change after the Export is published into the snapshot map. The
+// ledger calls these methods outside any lock — concurrent mutation is
+// a data race. Hosts that need to change such state (mark stale, swap
+// underlying device handle, …) MUST publish a fresh Export pointer by
+// cloning, mutating the clone, then swapping it into the host's
+// committed map under the host's own lock. See cloneLinuxExport and
+// docs/adr/0001-export-pointer-immutability.md for the canonical
+// pattern; applyStaleClones enforces the rule for stale transitions.
 type Export interface {
 	BusID() string
 	Snapshot(ctx context.Context, busy bool) ExportSnapshot
@@ -41,6 +55,24 @@ type Export interface {
 	LeaseCheck(ctx context.Context) (ok bool, reason string)
 	DeviceInfo(ctx context.Context) (DeviceInfoTruncated, error)
 	NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error)
+}
+
+// applyStaleClones honours the Export immutability contract for
+// stale-mark transitions: for every busid in toStale that exists in
+// committed, it allocates a clone, runs mark on the clone, and writes
+// the clone back. The previously published pointer is never mutated.
+// Callers that consumed the original pointer continue to observe its
+// pre-stale snapshot until they next refresh from committed.
+func applyStaleClones[T any](committed map[string]*T, toStale []string, clone func(*T) *T, mark func(*T)) {
+	for _, busid := range toStale {
+		exp, found := committed[busid]
+		if !found {
+			continue
+		}
+		cloned := clone(exp)
+		mark(cloned)
+		committed[busid] = cloned
+	}
 }
 
 // ExportSnapshot Backend and StableID fields are populated

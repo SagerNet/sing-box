@@ -291,7 +291,8 @@ func waitForSysfsPathGone(path string) bool {
 func waitForGadgetNodesGone(nodes map[string]string) bool {
 	return waitForUSBIPTeardown(func() bool {
 		for _, path := range nodes {
-			if _, err := os.Stat(path); err == nil {
+			_, err := os.Stat(path)
+			if err == nil {
 				return false
 			}
 		}
@@ -572,7 +573,8 @@ func waitForImportedNodePresent(t *testing.T, pattern string, path string) strin
 	t.Helper()
 
 	if path != "" {
-		if _, err := os.Stat(path); err == nil && isVHCINode(path) {
+		_, err := os.Stat(path)
+		if err == nil && isVHCINode(path) {
 			return path
 		}
 	}
@@ -859,13 +861,16 @@ func newTestHIDGadget(t *testing.T) *testHIDGadget {
 		name:        "hid.usb0",
 		nodePattern: "/dev/hidg*",
 		configure: func(functionPath string) error {
-			if err := writeSysfs(functionPath+"/protocol", "0"); err != nil {
+			err := writeSysfs(functionPath+"/protocol", "0")
+			if err != nil {
 				return err
 			}
-			if err := writeSysfs(functionPath+"/subclass", "0"); err != nil {
+			err = writeSysfs(functionPath+"/subclass", "0")
+			if err != nil {
 				return err
 			}
-			if err := writeSysfs(functionPath+"/report_length", "8"); err != nil {
+			err = writeSysfs(functionPath+"/report_length", "8")
+			if err != nil {
 				return err
 			}
 			return os.WriteFile(functionPath+"/report_desc", testHIDReportDescriptor, 0o644)

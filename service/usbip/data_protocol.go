@@ -1,3 +1,5 @@
+//go:build linux || (darwin && cgo)
+
 package usbip
 
 import (
@@ -77,7 +79,8 @@ type IsoPacketDescriptor struct {
 
 func ReadDataHeader(r io.Reader) (DataHeader, error) {
 	var raw [20]byte
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	_, err := io.ReadFull(r, raw[:])
+	if err != nil {
 		return DataHeader{}, err
 	}
 	return DataHeader{
@@ -91,7 +94,8 @@ func ReadDataHeader(r io.Reader) (DataHeader, error) {
 
 func ReadSubmitCommandBody(r io.Reader, header DataHeader) (SubmitCommand, error) {
 	var raw [28]byte
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	_, err := io.ReadFull(r, raw[:])
+	if err != nil {
 		return SubmitCommand{}, err
 	}
 	command := SubmitCommand{
@@ -117,7 +121,8 @@ func ReadSubmitCommandBody(r io.Reader, header DataHeader) (SubmitCommand, error
 // direction on the wire.
 func ReadSubmitResponseBody(r io.Reader, header DataHeader, requestDirection uint32) (SubmitResponse, error) {
 	var raw [28]byte
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	_, err := io.ReadFull(r, raw[:])
+	if err != nil {
 		return SubmitResponse{}, err
 	}
 	response := SubmitResponse{
@@ -141,7 +146,8 @@ func ReadSubmitResponseBody(r io.Reader, header DataHeader, requestDirection uin
 
 func ReadUnlinkCommandBody(r io.Reader, header DataHeader) (UnlinkCommand, error) {
 	var raw [unlinkBodySize]byte
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	_, err := io.ReadFull(r, raw[:])
+	if err != nil {
 		return UnlinkCommand{}, err
 	}
 	return UnlinkCommand{
@@ -152,7 +158,8 @@ func ReadUnlinkCommandBody(r io.Reader, header DataHeader) (UnlinkCommand, error
 
 func ReadUnlinkResponseBody(r io.Reader, header DataHeader) (UnlinkResponse, error) {
 	var raw [unlinkBodySize]byte
-	if _, err := io.ReadFull(r, raw[:]); err != nil {
+	_, err := io.ReadFull(r, raw[:])
+	if err != nil {
 		return UnlinkResponse{}, err
 	}
 	return UnlinkResponse{
@@ -276,7 +283,8 @@ func readUSBIPPayload(r io.Reader, direction uint32, bufferLength int32, packetC
 	var buffer []byte
 	if shouldCarryUSBIPBuffer(direction, command) && bufferSize > 0 {
 		buffer = make([]byte, bufferSize)
-		if _, err := io.ReadFull(r, buffer); err != nil {
+		_, err := io.ReadFull(r, buffer)
+		if err != nil {
 			return nil, nil, err
 		}
 	}
@@ -289,7 +297,8 @@ func readUSBIPPayload(r io.Reader, direction uint32, bufferLength int32, packetC
 
 func writeUSBIPPayload(w io.Writer, direction uint32, buffer []byte, isoPackets []IsoPacketDescriptor, command bool) error {
 	if shouldCarryUSBIPBuffer(direction, command) && len(buffer) > 0 {
-		if _, err := w.Write(buffer); err != nil {
+		_, err := w.Write(buffer)
+		if err != nil {
 			return err
 		}
 	}
@@ -327,7 +336,8 @@ func readUSBIPIsoPackets(r io.Reader, count int32) ([]IsoPacketDescriptor, error
 	packets := make([]IsoPacketDescriptor, int(count))
 	var raw [isoPacketDescriptorWireSize]byte
 	for i := range packets {
-		if _, err := io.ReadFull(r, raw[:]); err != nil {
+		_, err := io.ReadFull(r, raw[:])
+		if err != nil {
 			return nil, err
 		}
 		packets[i] = IsoPacketDescriptor{
@@ -347,7 +357,8 @@ func writeUSBIPIsoPackets(w io.Writer, packets []IsoPacketDescriptor) error {
 		binary.BigEndian.PutUint32(raw[4:8], uint32(packets[i].Length))
 		binary.BigEndian.PutUint32(raw[8:12], uint32(packets[i].ActualLength))
 		binary.BigEndian.PutUint32(raw[12:16], uint32(packets[i].Status))
-		if _, err := w.Write(raw[:]); err != nil {
+		_, err := w.Write(raw[:])
+		if err != nil {
 			return err
 		}
 	}

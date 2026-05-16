@@ -1,3 +1,5 @@
+//go:build linux || (darwin && cgo)
+
 package usbip
 
 // EncodeIsoSubmit fills the isochronous SUBMIT fields on base. When asap is
