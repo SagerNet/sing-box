@@ -23,8 +23,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func newPlatformExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch) (ExportHost, error) {
-	return newLinuxExportHost(logger, matches), nil
+func newPlatformExportHost(ctx context.Context, logger log.ContextLogger, matches []option.USBIPDeviceMatch) (ExportHost, error) {
+	return newLinuxExportHost(ctx, logger, matches), nil
 }
 
 func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
@@ -153,27 +153,23 @@ type linuxReconcilePlan struct {
 	released  []string
 }
 
-func newLinuxExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch) *linuxExportHost {
+func newLinuxExportHost(ctx context.Context, logger log.ContextLogger, matches []option.USBIPDeviceMatch) *linuxExportHost {
+	runCtx, runCancel := context.WithCancel(ctx)
 	return &linuxExportHost{
-		logger:  logger,
-		matches: matches,
-		exports: make(map[string]*linuxExport),
+		runCtx:    runCtx,
+		runCancel: runCancel,
+		logger:    logger,
+		matches:   matches,
+		exports:   make(map[string]*linuxExport),
 	}
 }
 
-func (h *linuxExportHost) Start(ctx context.Context) error {
-	err := ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
-	if err != nil {
-		return err
-	}
-	h.runCtx, h.runCancel = context.WithCancel(ctx)
-	return nil
+func (h *linuxExportHost) Start() error {
+	return ensureKernelPath(sysUsbipHostDriver, "usbip-host", "usbip-host driver")
 }
 
 func (h *linuxExportHost) Close() error {
-	if h.runCancel != nil {
-		h.runCancel()
-	}
+	h.runCancel()
 	h.access.Lock()
 	exports := h.exports
 	h.exports = make(map[string]*linuxExport)
@@ -188,9 +184,6 @@ func (h *linuxExportHost) Close() error {
 }
 
 func (h *linuxExportHost) Events() (<-chan struct{}, error) {
-	if h.runCtx == nil {
-		return nil, E.New("usbip host: Events called before Start")
-	}
 	ch := make(chan struct{}, 1)
 	go h.ueventLoop(h.runCtx, ch)
 	return ch, nil
@@ -295,7 +288,7 @@ func classifyLinuxReconcile(current map[string]*linuxExport, desired map[string]
 	return plan
 }
 
-func (h *linuxExportHost) Reconcile(ctx context.Context, isReserved func(busid string) bool) (map[string]Export, []string, error) {
+func (h *linuxExportHost) Reconcile(isReserved func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := listUSBDevices()
 	if err != nil {
 		return h.snapshotSelf(), nil, E.Cause(err, "enumerate usb devices")
@@ -412,12 +405,12 @@ func (h *linuxExportHost) Reconcile(ctx context.Context, isReserved func(busid s
 	return snapshotLinuxExports(committed), released, E.Errors(reconcileErrors...)
 }
 
-func (h *linuxExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
+func (h *linuxExportHost) FinishImport(busid string) (bool, error) {
 	err := writeSysfs(filepath.Join(sysBusUSBDevices, busid, "usbip_sockfd"), "-1")
 	if err != nil && !os.IsNotExist(err) && !isMissingUSBDeviceError(err) {
 		h.logger.Debug("release ", busid, " from usbip-host: ", err)
 	}
-	waitForUsbipStatusCleared(ctx, busid)
+	waitForUsbipStatusCleared(h.runCtx, busid)
 	h.access.Lock()
 	exp, ok := h.exports[busid]
 	h.access.Unlock()
@@ -669,7 +662,7 @@ func (e *linuxExport) LeaseIdentity() ExportLeaseIdentity {
 	return e.identity.LeaseIdentity()
 }
 
-func (e *linuxExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
+func (e *linuxExport) Snapshot(busy bool) ExportSnapshot {
 	stableID := "linux-busid:" + e.descriptor.BusID
 	if e.descriptor.Serial != "" {
 		stableID = fmt.Sprintf("usb:%04x:%04x:%s", e.descriptor.VendorID, e.descriptor.ProductID, e.descriptor.Serial)
@@ -721,7 +714,7 @@ func (e *linuxExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 	}
 }
 
-func (e *linuxExport) LeaseCheck(ctx context.Context) (bool, string) {
+func (e *linuxExport) LeaseCheck() (bool, string) {
 	if e.stale {
 		return false, "device replaced"
 	}
@@ -735,7 +728,7 @@ func (e *linuxExport) LeaseCheck(ctx context.Context) (bool, string) {
 	return true, ""
 }
 
-func (e *linuxExport) DeviceInfo(ctx context.Context) (DeviceInfoTruncated, error) {
+func (e *linuxExport) DeviceInfo() (DeviceInfoTruncated, error) {
 	return e.descriptor.toProtocol(), nil
 }
 
@@ -771,7 +764,7 @@ type linuxImportHost struct {
 	ports       map[int]struct{}
 }
 
-func (h *linuxImportHost) Start(ctx context.Context) error {
+func (h *linuxImportHost) Start() error {
 	return ensureKernelPath(sysVHCIControllerV0, "vhci-hcd", "vhci_hcd.0")
 }
 

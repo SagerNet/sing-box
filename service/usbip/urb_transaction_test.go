@@ -3,39 +3,12 @@
 package usbip
 
 import (
-	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
-
-func TestUrbTransactionWaitContextCancel(t *testing.T) {
-	peer, server, _ := newPeerPair(t)
-
-	go func() {
-		_ = server.readSubmit(t)
-		// Never reply.
-	}()
-
-	transaction, err := peer.Submit(SubmitCommand{
-		Header: DataHeader{
-			Command:   CmdSubmit,
-			DevID:     1,
-			Direction: USBIPDirIn,
-			Endpoint:  1,
-		},
-		TransferBufferLength: 8,
-	})
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
-	defer cancel()
-	_, err = transaction.Wait(ctx)
-	require.ErrorIs(t, err, context.DeadlineExceeded)
-}
 
 // TestUrbTransactionCancelIdempotent exercises the canonical Linux
 // cancel wire: after CMD_UNLINK the server replies only with
@@ -76,13 +49,13 @@ func TestUrbTransactionCancelIdempotent(t *testing.T) {
 	for range callers {
 		go func() {
 			defer wg.Done()
-			err := transaction.Cancel(context.Background())
+			err := transaction.Cancel()
 			require.NoError(t, err)
 		}()
 	}
 	wg.Wait()
 
-	_, err = transaction.Wait(context.Background())
+	_, err = transaction.Wait()
 	require.ErrorIs(t, err, ErrCanceled)
 
 	serverDone.Wait()
@@ -123,9 +96,9 @@ func TestUrbTransactionCancelAfterUrbCompleted(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, transaction.Cancel(context.Background()))
+	require.NoError(t, transaction.Cancel())
 
-	_, err = transaction.Wait(context.Background())
+	_, err = transaction.Wait()
 	require.ErrorIs(t, err, ErrCanceled)
 
 	serverDone.Wait()
@@ -166,9 +139,9 @@ func TestUrbTransactionCancelWireCarriesDevID(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, transaction.Cancel(context.Background()))
+	require.NoError(t, transaction.Cancel())
 
-	_, err = transaction.Wait(context.Background())
+	_, err = transaction.Wait()
 	require.ErrorIs(t, err, ErrCanceled)
 
 	serverDone.Wait()
@@ -200,10 +173,10 @@ func TestUrbTransactionCancelAfterTerminalNoWire(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = transaction.Wait(context.Background())
+	_, err = transaction.Wait()
 	require.NoError(t, err)
 
-	require.NoError(t, transaction.Cancel(context.Background()))
+	require.NoError(t, transaction.Cancel())
 
 	require.NoError(t, peer.Close())
 	serverDone.Wait()

@@ -79,7 +79,7 @@ func (c *ClientService) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	err := c.host.Start(c.ctx)
+	err := c.host.Start()
 	if err != nil {
 		return err
 	}

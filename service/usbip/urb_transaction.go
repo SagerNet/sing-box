@@ -3,7 +3,6 @@
 package usbip
 
 import (
-	"context"
 	"sync"
 )
 
@@ -32,18 +31,12 @@ func (t *UrbTransaction) Done() <-chan struct{} {
 	return t.done
 }
 
-func (t *UrbTransaction) Wait(ctx context.Context) (SubmitResponse, error) {
-	select {
-	case <-t.done:
-	case <-ctx.Done():
-		return SubmitResponse{}, ctx.Err()
-	}
-	t.access.Lock()
-	defer t.access.Unlock()
+func (t *UrbTransaction) Wait() (SubmitResponse, error) {
+	<-t.done
 	return t.response, t.err
 }
 
-func (t *UrbTransaction) Cancel(ctx context.Context) error {
+func (t *UrbTransaction) Cancel() error {
 	t.access.Lock()
 	if t.terminal || t.canceling {
 		t.access.Unlock()
@@ -51,22 +44,11 @@ func (t *UrbTransaction) Cancel(ctx context.Context) error {
 	}
 	t.canceling = true
 	t.access.Unlock()
-
-	type writeResult struct{ err error }
-	resultCh := make(chan writeResult, 1)
-	go func() {
-		resultCh <- writeResult{err: t.peer.cancel(t.seqnum)}
-	}()
-
-	select {
-	case result := <-resultCh:
-		if result.err != nil {
-			t.finalize(SubmitResponse{}, ErrCanceled)
-		}
-		return result.err
-	case <-ctx.Done():
-		return ctx.Err()
+	err := t.peer.cancel(t.seqnum)
+	if err != nil {
+		t.finalize(SubmitResponse{}, ErrCanceled)
 	}
+	return err
 }
 
 func (t *UrbTransaction) finalize(response SubmitResponse, err error) {

@@ -70,7 +70,7 @@ func (s *ServerService) readControlConn(sub *exportSubscriber, done chan<- struc
 			})
 		case controlFrameLeaseRequest:
 			if supportsControlExtensions(sub.capabilities) {
-				s.ledger.HandleControlLeaseRequest(s.ctx, sub, message.Payload)
+				s.ledger.HandleControlLeaseRequest(sub, message.Payload)
 				continue
 			}
 			return

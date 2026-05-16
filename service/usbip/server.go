@@ -50,11 +50,12 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 	if options.ListenPort == 0 {
 		options.ListenPort = DefaultPort
 	}
-	host, err := newPlatformExportHost(logger, options.Devices)
+	ctx, cancel := context.WithCancel(ctx)
+	host, err := newPlatformExportHost(ctx, logger, options.Devices)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
-	ctx, cancel := context.WithCancel(ctx)
 	return &ServerService{
 		Adapter:  boxService.NewAdapter(C.TypeUSBIPServer, tag),
 		ctx:      ctx,
@@ -83,7 +84,7 @@ func (s *ServerService) Start(stage adapter.StartStage) (err error) {
 			_ = s.host.Close()
 		}
 	}()
-	err = s.host.Start(s.ctx)
+	err = s.host.Start()
 	if err != nil {
 		return err
 	}
@@ -154,8 +155,8 @@ func (s *ServerService) eventLoop(events <-chan struct{}) {
 func (s *ServerService) tearDownPreparedSession(busid string, session DataSession) {
 	_ = session.Close()
 	<-session.Done()
-	released, _ := s.host.FinishImport(s.ctx, busid)
-	s.ledger.ReleaseImport(s.ctx, busid, released)
+	released, _ := s.host.FinishImport(busid)
+	s.ledger.ReleaseImport(busid, released)
 	if released {
 		err := s.reconcileAndBroadcast(true)
 		if err != nil {
@@ -167,15 +168,15 @@ func (s *ServerService) tearDownPreparedSession(busid string, session DataSessio
 func (s *ServerService) reconcileAndBroadcast(notify bool) error {
 	s.reconcileAccess.Lock()
 	defer s.reconcileAccess.Unlock()
-	if s.ctx != nil && s.ctx.Err() != nil {
+	if s.ctx.Err() != nil {
 		return nil
 	}
-	snapshot, released, err := s.host.Reconcile(s.ctx, s.ledger.IsReserved)
+	snapshot, released, err := s.host.Reconcile(s.ledger.IsReserved)
 	s.ledger.ApplyHostSnapshot(snapshot, released)
 	if notify {
-		s.ledger.BroadcastIfChanged(s.ctx)
+		s.ledger.BroadcastIfChanged()
 	} else {
-		s.ledger.SeedBroadcastState(s.ctx)
+		s.ledger.SeedBroadcastState()
 	}
 	return err
 }
@@ -230,8 +231,8 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		return
 	}
 	capabilities := hello.Capabilities & controlCapabilities
-	sub, seq := s.ledger.Subscribe(s.ctx, conn, capabilities)
-	defer s.ledger.Unsubscribe(s.ctx, sub)
+	sub, seq := s.ledger.Subscribe(conn, capabilities)
+	defer s.ledger.Unsubscribe(sub)
 	err = writeControlMessage(conn, controlFrame{
 		Type:         controlFrameAck,
 		Version:      controlProtocolVersion,
@@ -267,7 +268,7 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 	}
 	entries := make([]DeviceEntry, 0, len(exports))
 	for _, export := range exports {
-		snapshot := export.Snapshot(s.ctx, false)
+		snapshot := export.Snapshot(false)
 		if snapshot.State != deviceStateAvailable {
 			continue
 		}
@@ -282,7 +283,7 @@ func (s *ServerService) handleImportExt(conn net.Conn) bool {
 		s.logger.Debug("read import-ext body: ", err)
 		return false
 	}
-	export, ok, reason := s.ledger.ConsumeLeaseAndReserve(s.ctx, request)
+	export, ok, reason := s.ledger.ConsumeLeaseAndReserve(request)
 	if !ok {
 		s.logger.Info("import-ext rejected (", request.BusID, ": ", reason, ")")
 		_ = WriteOpRepImport(conn, OpRepImportExt, OpStatusError, nil)
@@ -292,7 +293,7 @@ func (s *ServerService) handleImportExt(conn net.Conn) bool {
 }
 
 func (s *ServerService) handleImportBusID(conn net.Conn, busid string) bool {
-	export, ok, reason := s.ledger.TryReserveForImport(s.ctx, busid)
+	export, ok, reason := s.ledger.TryReserveForImport(busid)
 	if !ok {
 		s.logger.Info("import rejected (", busid, ": ", reason, ")")
 		_ = WriteOpRepImport(conn, OpRepImport, OpStatusError, nil)
@@ -306,21 +307,21 @@ func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export
 	if extended {
 		opCode = OpRepImportExt
 	}
-	info, err := export.DeviceInfo(s.ctx)
+	info, err := export.DeviceInfo()
 	if err != nil {
-		s.ledger.ReleaseImport(s.ctx, busid, false)
+		s.ledger.ReleaseImport(busid, false)
 		s.logger.Warn("refresh ", busid, ": ", err)
 		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
 		return false
 	}
 	session, err := export.NewServerDataSession(s.ctx, conn)
 	if err != nil {
-		s.ledger.ReleaseImport(s.ctx, busid, false)
+		s.ledger.ReleaseImport(busid, false)
 		s.logger.Warn("open data session ", busid, ": ", err)
 		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
 		return false
 	}
-	s.ledger.BroadcastIfChanged(s.ctx)
+	s.ledger.BroadcastIfChanged()
 	err = WriteOpRepImport(conn, opCode, OpStatusOK, &info)
 	if err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
@@ -357,11 +358,11 @@ func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export
 		s.sessionsAccess.Lock()
 		delete(s.sessions, session)
 		s.sessionsAccess.Unlock()
-		released, err := s.host.FinishImport(s.ctx, busid)
+		released, err := s.host.FinishImport(busid)
 		if err != nil {
 			s.logger.Debug("finish import ", busid, ": ", err)
 		}
-		s.ledger.ReleaseImport(s.ctx, busid, released)
+		s.ledger.ReleaseImport(busid, released)
 		if released {
 			err = s.reconcileAndBroadcast(true)
 			if err != nil {

@@ -109,7 +109,7 @@ func TestUsbIpPeerSubmitRoundTrip(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	response, err := transaction.Wait(context.Background())
+	response, err := transaction.Wait()
 	require.NoError(t, err)
 	require.Equal(t, int32(0), response.Status)
 	require.Equal(t, int32(len(payload)), response.ActualLength)
@@ -142,7 +142,7 @@ func TestUsbIpPeerSessionCloseFailsPending(t *testing.T) {
 		_ = peer.Close()
 	}()
 
-	_, err = transaction.Wait(context.Background())
+	_, err = transaction.Wait()
 	require.ErrorIs(t, err, ErrPeerClosed)
 }
 
@@ -179,49 +179,12 @@ func TestUsbIpPeerCancelMidFlight(t *testing.T) {
 
 	go func() {
 		time.Sleep(20 * time.Millisecond)
-		require.NoError(t, transaction.Cancel(context.Background()))
+		require.NoError(t, transaction.Cancel())
 	}()
 
-	_, err = transaction.Wait(context.Background())
+	_, err = transaction.Wait()
 	require.ErrorIs(t, err, ErrCanceled)
 	serverDone.Wait()
-}
-
-func TestUsbIpPeerCancelAfterCompletion(t *testing.T) {
-	peer, server, _ := newPeerPair(t)
-
-	var serverDone sync.WaitGroup
-	serverDone.Add(1)
-	go func() {
-		defer serverDone.Done()
-		submit := server.readSubmit(t)
-		server.writeSubmitResponse(t, USBIPDirOut, submit.Header.SeqNum, 0, nil, nil)
-	}()
-
-	transaction, err := peer.Submit(SubmitCommand{
-		Header: DataHeader{
-			Command:   CmdSubmit,
-			DevID:     1,
-			Direction: USBIPDirOut,
-			Endpoint:  1,
-		},
-		TransferBufferLength: 4,
-		Buffer:               []byte{9, 9, 9, 9},
-	})
-	require.NoError(t, err)
-
-	_, err = transaction.Wait(context.Background())
-	require.NoError(t, err)
-	serverDone.Wait()
-
-	// Cancel after completion must be a no-op; if it tried to write CMD_UNLINK
-	// the test server would have already exited and the wire would either block
-	// (net.Pipe drops writes when there's no reader) or fail. The call must not
-	// hang.
-	cancelCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	err = transaction.Cancel(cancelCtx)
-	require.NoError(t, err)
 }
 
 func TestUsbIpPeerUnknownSeqnumClosesPeer(t *testing.T) {
@@ -308,7 +271,7 @@ func TestUsbIpPeerConcurrentSubmits(t *testing.T) {
 				TransferBufferLength: 8,
 			})
 			require.NoError(t, err)
-			response, err := transaction.Wait(context.Background())
+			response, err := transaction.Wait()
 			require.NoError(t, err)
 			require.Equal(t, int32(8), response.ActualLength)
 			require.Equal(t, byte(transaction.SeqNum()), response.Buffer[0])

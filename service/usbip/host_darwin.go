@@ -20,8 +20,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func newPlatformExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch) (ExportHost, error) {
-	return newDarwinExportHost(logger, matches), nil
+func newPlatformExportHost(ctx context.Context, logger log.ContextLogger, matches []option.USBIPDeviceMatch) (ExportHost, error) {
+	return newDarwinExportHost(ctx, logger, matches), nil
 }
 
 func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
@@ -42,23 +42,21 @@ type darwinExportHost struct {
 	watcher *darwinUSBHostDeviceWatcher
 }
 
-func newDarwinExportHost(logger log.ContextLogger, matches []option.USBIPDeviceMatch) *darwinExportHost {
+func newDarwinExportHost(ctx context.Context, logger log.ContextLogger, matches []option.USBIPDeviceMatch) *darwinExportHost {
+	runCtx, runCancel := context.WithCancel(ctx)
 	return &darwinExportHost{
-		logger:  logger,
-		matches: matches,
-		exports: make(map[string]*darwinExport),
+		runCtx:    runCtx,
+		runCancel: runCancel,
+		logger:    logger,
+		matches:   matches,
+		exports:   make(map[string]*darwinExport),
 	}
 }
 
-func (h *darwinExportHost) Start(ctx context.Context) error {
-	h.runCtx, h.runCancel = context.WithCancel(ctx)
-	return nil
-}
+func (h *darwinExportHost) Start() error { return nil }
 
 func (h *darwinExportHost) Close() error {
-	if h.runCancel != nil {
-		h.runCancel()
-	}
+	h.runCancel()
 	h.access.Lock()
 	watcher := h.watcher
 	h.watcher = nil
@@ -77,9 +75,6 @@ func (h *darwinExportHost) Close() error {
 }
 
 func (h *darwinExportHost) Events() (<-chan struct{}, error) {
-	if h.runCtx == nil {
-		return nil, E.New("usbip host: Events called before Start")
-	}
 	ch := make(chan struct{}, 1)
 	signal := func() {
 		select {
@@ -109,7 +104,7 @@ func (h *darwinExportHost) Events() (<-chan struct{}, error) {
 	return ch, nil
 }
 
-func (h *darwinExportHost) Reconcile(ctx context.Context, isReserved func(busid string) bool) (map[string]Export, []string, error) {
+func (h *darwinExportHost) Reconcile(isReserved func(busid string) bool) (map[string]Export, []string, error) {
 	devices, err := darwinCopyUSBHostDevices()
 	if err != nil {
 		return h.snapshotSelf(), nil, E.Cause(err, "enumerate IOUSBHost devices")
@@ -211,7 +206,7 @@ func (h *darwinExportHost) Reconcile(ctx context.Context, isReserved func(busid 
 	return snapshotDarwinExports(committed), released, nil
 }
 
-func (h *darwinExportHost) FinishImport(ctx context.Context, busid string) (bool, error) {
+func (h *darwinExportHost) FinishImport(busid string) (bool, error) {
 	h.access.Lock()
 	exp, ok := h.exports[busid]
 	if !ok || !exp.stale {
@@ -315,7 +310,7 @@ func (e *darwinExport) staleReason() string {
 	return "capture released"
 }
 
-func (e *darwinExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
+func (e *darwinExport) Snapshot(busy bool) ExportSnapshot {
 	stableID := fmt.Sprintf("darwin-registry:%016x", e.registryID)
 	if e.stale {
 		return ExportSnapshot{
@@ -338,14 +333,14 @@ func (e *darwinExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 	}
 }
 
-func (e *darwinExport) LeaseCheck(ctx context.Context) (bool, string) {
+func (e *darwinExport) LeaseCheck() (bool, string) {
 	if e.stale {
 		return false, e.staleReason()
 	}
 	return true, ""
 }
 
-func (e *darwinExport) DeviceInfo(ctx context.Context) (DeviceInfoTruncated, error) {
+func (e *darwinExport) DeviceInfo() (DeviceInfoTruncated, error) {
 	return e.entry.Info, nil
 }
 
@@ -360,7 +355,7 @@ type darwinImportHost struct {
 	logger log.ContextLogger
 }
 
-func (h *darwinImportHost) Start(ctx context.Context) error {
+func (h *darwinImportHost) Start() error {
 	return nil
 }
 

@@ -10,17 +10,17 @@ import (
 // ExportHost lifecycle: Start → Reconcile* → Close. Callers must apply
 // the Reconcile snapshot and released list even when err != nil.
 type ExportHost interface {
-	Start(ctx context.Context) error
+	Start() error
 	Close() error
-	Reconcile(ctx context.Context, isReserved func(busid string) bool) (snapshot map[string]Export, released []string, err error)
-	FinishImport(ctx context.Context, busid string) (released bool, err error)
+	Reconcile(isReserved func(busid string) bool) (snapshot map[string]Export, released []string, err error)
+	FinishImport(busid string) (released bool, err error)
 	// Events MUST be called after Start succeeds. The channel closes when
 	// Close() runs.
 	Events() (<-chan struct{}, error)
 }
 
 type ImportHost interface {
-	Start(ctx context.Context) error
+	Start() error
 	Close() error
 	// Attach takes ownership of conn for the lifetime of the import.
 	Attach(ctx context.Context, info DeviceInfoTruncated, conn net.Conn) (AttachedSession, error)
@@ -34,10 +34,10 @@ type ExportLeaseIdentity string
 // swap it into their committed map under the host's own lock.
 type Export interface {
 	BusID() string
-	Snapshot(ctx context.Context, busy bool) ExportSnapshot
+	Snapshot(busy bool) ExportSnapshot
 	LeaseIdentity() ExportLeaseIdentity
-	LeaseCheck(ctx context.Context) (ok bool, reason string)
-	DeviceInfo(ctx context.Context) (DeviceInfoTruncated, error)
+	LeaseCheck() (ok bool, reason string)
+	DeviceInfo() (DeviceInfoTruncated, error)
 	NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error)
 }
 

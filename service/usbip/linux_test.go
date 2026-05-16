@@ -378,7 +378,7 @@ func TestUSBIPLinuxSmoke(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, gadget.busid, device.BusID)
 
-	host := newLinuxExportHost(newTestLogger(t), nil)
+	host := newLinuxExportHost(context.Background(), newTestLogger(t), nil)
 	exp, err := host.bindOne(&device)
 	require.NoError(t, err)
 	setLinuxExport(host, exp)
@@ -413,10 +413,10 @@ func TestUSBIPLinuxReconcileReleaseRestoresOriginalDriver(t *testing.T) {
 	requireVHCI(t)
 
 	gadget := newTestUSBGadget(t)
-	host := newLinuxExportHost(newTestLogger(t), []option.USBIPDeviceMatch{{BusID: gadget.busid}})
-	require.NoError(t, host.Start(context.Background()))
+	host := newLinuxExportHost(context.Background(), newTestLogger(t), []option.USBIPDeviceMatch{{BusID: gadget.busid}})
+	require.NoError(t, host.Start())
 
-	snapshot, released, err := host.Reconcile(context.Background(), func(string) bool { return false })
+	snapshot, released, err := host.Reconcile(func(string) bool { return false })
 	require.NoError(t, err)
 	require.Empty(t, released)
 	_, exported := snapshot[gadget.busid]
@@ -427,7 +427,7 @@ func TestUSBIPLinuxReconcileReleaseRestoresOriginalDriver(t *testing.T) {
 	require.Equal(t, "usbip-host", driver)
 
 	host.matches = nil
-	snapshot, released, err = host.Reconcile(context.Background(), func(string) bool { return false })
+	snapshot, released, err = host.Reconcile(func(string) bool { return false })
 	require.NoError(t, err)
 	require.Equal(t, []string{gadget.busid}, released)
 	require.Empty(t, snapshot)

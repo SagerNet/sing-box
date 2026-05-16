@@ -3,7 +3,6 @@
 package usbip
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 func TestDarwinStaleExportBroadcastsUnavailableUpdate(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
 	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
 	entry := darwinFakeDeviceEntry()
 	export := &darwinExport{
@@ -23,9 +21,9 @@ func TestDarwinStaleExportBroadcastsUnavailableUpdate(t *testing.T) {
 	}
 
 	ledger.ApplyHostSnapshot(map[string]Export{export.busid: export}, nil)
-	ledger.SeedBroadcastState(ctx)
+	ledger.SeedBroadcastState()
 
-	sub, _ := ledger.Subscribe(ctx, nil, controlCapabilities)
+	sub, _ := ledger.Subscribe(nil, controlCapabilities)
 	select {
 	case <-sub.send:
 	case <-time.After(time.Second):
@@ -35,7 +33,7 @@ func TestDarwinStaleExportBroadcastsUnavailableUpdate(t *testing.T) {
 	export.stale = true
 	export.pendingRegistryID = 0x5678
 
-	if !ledger.BroadcastIfChanged(ctx) {
+	if !ledger.BroadcastIfChanged() {
 		t.Fatal("expected stale darwin export to broadcast an update")
 	}
 

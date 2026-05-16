@@ -3,7 +3,6 @@
 package usbip
 
 import (
-	"context"
 	"net"
 	"slices"
 	"strings"
@@ -74,12 +73,12 @@ func newExportLedger(logger log.ContextLogger, ttl time.Duration, now func() tim
 
 // withInventoryWrite broadcasts iff body returns true. body must not
 // acquire the broadcast lock.
-func (l *exportLedger) withInventoryWrite(ctx context.Context, body func() bool) {
+func (l *exportLedger) withInventoryWrite(body func() bool) {
 	l.inventoryAccess.Lock()
 	changed := body()
 	l.inventoryAccess.Unlock()
 	if changed {
-		l.BroadcastIfChanged(ctx)
+		l.BroadcastIfChanged()
 	}
 }
 
@@ -145,15 +144,15 @@ func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []
 	})
 }
 
-func (l *exportLedger) SeedBroadcastState(ctx context.Context) {
-	nextState := deviceInfoV2Map(l.snapshotDeviceState(ctx))
+func (l *exportLedger) SeedBroadcastState() {
+	nextState := deviceInfoV2Map(l.snapshotDeviceState())
 	l.broadcastAccess.Lock()
 	l.state = nextState
 	l.broadcastAccess.Unlock()
 }
 
-func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
-	nextState := deviceInfoV2Map(l.snapshotDeviceState(ctx))
+func (l *exportLedger) BroadcastIfChanged() bool {
+	nextState := deviceInfoV2Map(l.snapshotDeviceState())
 
 	l.broadcastAccess.Lock()
 	nextSequence := l.seq + 1
@@ -194,7 +193,7 @@ func (l *exportLedger) BroadcastIfChanged(ctx context.Context) bool {
 // TryReserveForImport runs LeaseCheck outside the lock and re-checks
 // availability before marking busy. Caller must pair success with
 // ReleaseImport and broadcast once the session is wired up.
-func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (Export, bool, string) {
+func (l *exportLedger) TryReserveForImport(busid string) (Export, bool, string) {
 	var (
 		export   Export
 		found    bool
@@ -211,7 +210,7 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	if reserved {
 		return nil, false, deviceStateBusy
 	}
-	leaseOK, leaseReason := export.LeaseCheck(ctx)
+	leaseOK, leaseReason := export.LeaseCheck()
 	if !leaseOK {
 		return nil, false, leaseReason
 	}
@@ -238,8 +237,8 @@ func (l *exportLedger) TryReserveForImport(ctx context.Context, busid string) (E
 	return export, true, ""
 }
 
-func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeExport bool) {
-	l.withInventoryWrite(ctx, func() bool {
+func (l *exportLedger) ReleaseImport(busid string, removeExport bool) {
+	l.withInventoryWrite(func() bool {
 		delete(l.busy, busid)
 		if removeExport {
 			delete(l.exports, busid)
@@ -250,7 +249,7 @@ func (l *exportLedger) ReleaseImport(ctx context.Context, busid string, removeEx
 
 // IssueLease pins lease correctness to the export identity; the
 // broadcast sequence on the response is opaque metadata for clients.
-func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request controlLeaseRequest) controlLeaseResponse {
+func (l *exportLedger) IssueLease(subID uint64, request controlLeaseRequest) controlLeaseResponse {
 	response := controlLeaseResponse{
 		BusID:       request.BusID,
 		ClientNonce: request.ClientNonce,
@@ -270,7 +269,7 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 		identity   ExportLeaseIdentity
 		preCheckOK bool
 	)
-	l.withInventoryWrite(ctx, func() bool {
+	l.withInventoryWrite(func() bool {
 		now := l.now()
 		changed := l.cleanupExpiredLocked(now)
 		currentExport, found := l.exports[request.BusID]
@@ -298,14 +297,14 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 		return response
 	}
 
-	leaseOK, leaseReason := export.LeaseCheck(ctx)
+	leaseOK, leaseReason := export.LeaseCheck()
 	if !leaseOK {
 		response.ErrorCode = leaseErrorUnavailable
 		response.ErrorMessage = leaseReason
 		return response
 	}
 
-	l.withInventoryWrite(ctx, func() bool {
+	l.withInventoryWrite(func() bool {
 		now := l.now()
 		changed := l.cleanupExpiredLocked(now)
 		current, stillExported := l.exports[request.BusID]
@@ -346,14 +345,14 @@ func (l *exportLedger) IssueLease(ctx context.Context, subID uint64, request con
 // ConsumeLeaseAndReserve consumes the lease on every outcome except an
 // ID/nonce mismatch (the latter preserves the lease for the legitimate
 // holder). Caller must pair success with ReleaseImport.
-func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request ImportExtRequest) (Export, bool, string) {
+func (l *exportLedger) ConsumeLeaseAndReserve(request ImportExtRequest) (Export, bool, string) {
 	var (
 		export   Export
 		identity ExportLeaseIdentity
 		phase1OK bool
 		reason   string
 	)
-	l.withInventoryWrite(ctx, func() bool {
+	l.withInventoryWrite(func() bool {
 		now := l.now()
 		changed := l.cleanupExpiredLocked(now)
 
@@ -396,9 +395,9 @@ func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request Impor
 		return nil, false, reason
 	}
 
-	leaseOK, leaseReason := export.LeaseCheck(ctx)
+	leaseOK, leaseReason := export.LeaseCheck()
 	if !leaseOK {
-		l.withInventoryWrite(ctx, func() bool {
+		l.withInventoryWrite(func() bool {
 			currentLease, exists := l.leases[request.BusID]
 			if !exists {
 				return false
@@ -416,7 +415,7 @@ func (l *exportLedger) ConsumeLeaseAndReserve(ctx context.Context, request Impor
 		finalExport Export
 		finalOK     bool
 	)
-	l.withInventoryWrite(ctx, func() bool {
+	l.withInventoryWrite(func() bool {
 		now := l.now()
 		changed := l.cleanupExpiredLocked(now)
 
@@ -478,7 +477,7 @@ func (l *exportLedger) cleanupExpiredLocked(now time.Time) bool {
 // broadcast fired. Does NOT mutate l.state: other subscribers must
 // still receive the next BroadcastIfChanged delta against the previous
 // baseline.
-func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilities uint32) (*exportSubscriber, uint64) {
+func (l *exportLedger) Subscribe(conn net.Conn, capabilities uint32) (*exportSubscriber, uint64) {
 	extended := supportsControlExtensions(capabilities)
 	var snapshot []DeviceInfoV2
 	var sequence uint64
@@ -489,7 +488,7 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 			sequence = l.seq
 			l.broadcastAccess.Unlock()
 
-			snapshot = l.snapshotDeviceState(ctx)
+			snapshot = l.snapshotDeviceState()
 
 			l.broadcastAccess.Lock()
 			if sequence == l.seq {
@@ -529,11 +528,11 @@ func (l *exportLedger) Subscribe(ctx context.Context, conn net.Conn, capabilitie
 // subscriber held are released and the resulting state change is
 // broadcast so remaining subscribers see the busid become available
 // again.
-func (l *exportLedger) Unsubscribe(ctx context.Context, sub *exportSubscriber) {
+func (l *exportLedger) Unsubscribe(sub *exportSubscriber) {
 	l.broadcastAccess.Lock()
 	delete(l.subs, sub.id)
 	l.broadcastAccess.Unlock()
-	l.withInventoryWrite(ctx, func() bool {
+	l.withInventoryWrite(func() bool {
 		released := false
 		for busid, lease := range l.leases {
 			if lease.SubscriberID == sub.id {
@@ -566,7 +565,7 @@ func (l *exportLedger) ResetForClose() {
 	})
 }
 
-func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *exportSubscriber, payload []byte) {
+func (l *exportLedger) HandleControlLeaseRequest(sub *exportSubscriber, payload []byte) {
 	var request controlLeaseRequest
 	err := unmarshalControlPayload(payload, &request)
 	if err != nil {
@@ -582,7 +581,7 @@ func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *expor
 		}, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: sequence})
 		return
 	}
-	response := l.IssueLease(ctx, sub.id, request)
+	response := l.IssueLease(sub.id, request)
 	l.broadcastAccess.Lock()
 	sequence := l.seq
 	l.broadcastAccess.Unlock()
@@ -592,7 +591,7 @@ func (l *exportLedger) HandleControlLeaseRequest(ctx context.Context, sub *expor
 	}, response, controlFrame{Type: controlFrameChanged, Version: controlProtocolVersion, Sequence: sequence})
 }
 
-func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
+func (l *exportLedger) snapshotDeviceState() []DeviceInfoV2 {
 	type entry struct {
 		export Export
 		busy   bool
@@ -612,7 +611,7 @@ func (l *exportLedger) snapshotDeviceState(ctx context.Context) []DeviceInfoV2 {
 	})
 	out := make([]DeviceInfoV2, 0, len(entries))
 	for _, e := range entries {
-		snapshot := e.export.Snapshot(ctx, e.busy)
+		snapshot := e.export.Snapshot(e.busy)
 		if snapshot.State == deviceStateUnavailable && snapshot.Entry.Info.BusIDString() == "" {
 			continue
 		}

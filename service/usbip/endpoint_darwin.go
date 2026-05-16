@@ -162,7 +162,7 @@ func (e *darwinEndpoint) handleCommand(message darwinCIMessage) bool {
 }
 
 func (e *darwinEndpoint) abortPending(pending *pendingTransfer) {
-	_ = pending.transaction.Cancel(context.Background())
+	_ = pending.transaction.Cancel()
 	select {
 	case <-pending.transaction.Done():
 	case <-e.peer.Done():
@@ -171,7 +171,7 @@ func (e *darwinEndpoint) abortPending(pending *pendingTransfer) {
 }
 
 func (e *darwinEndpoint) finalizePending(pending *pendingTransfer) {
-	response, err := pending.transaction.Wait(context.Background())
+	response, err := pending.transaction.Wait()
 	var status int32
 	var length int
 	switch {

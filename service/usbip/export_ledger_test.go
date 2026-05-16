@@ -10,22 +10,21 @@ import (
 )
 
 func TestSubscribeRetriesSnapshotWhenSequenceAdvances(t *testing.T) {
-	ctx := context.Background()
 	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
 	oldExport := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001}
 	newExport := &testExport{busid: "2-1", vendorID: 0x2222, productID: 0x0002}
 
 	ledger.ApplyHostSnapshot(map[string]Export{oldExport.busid: oldExport}, nil)
-	ledger.SeedBroadcastState(ctx)
+	ledger.SeedBroadcastState()
 
 	oldExport.onSnapshot = func() {
 		ledger.ApplyHostSnapshot(map[string]Export{newExport.busid: newExport}, nil)
-		if !ledger.BroadcastIfChanged(ctx) {
+		if !ledger.BroadcastIfChanged() {
 			t.Fatal("expected broadcast after replacing export")
 		}
 	}
 
-	sub, sequence := ledger.Subscribe(ctx, nil, controlCapabilities)
+	sub, sequence := ledger.Subscribe(nil, controlCapabilities)
 	if sequence != 1 {
 		t.Fatalf("expected subscription sequence 1, got %d", sequence)
 	}
@@ -55,16 +54,15 @@ func TestSubscribeRetriesSnapshotWhenSequenceAdvances(t *testing.T) {
 }
 
 func TestConsumeLeaseAndReserveRejectsIdentityReplacement(t *testing.T) {
-	ctx := context.Background()
 	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
 	original := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001, identity: "linux:original"}
 	replacement := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001, identity: "linux:replacement"}
 
 	ledger.ApplyHostSnapshot(map[string]Export{original.busid: original}, nil)
-	lease := ledger.IssueLease(ctx, 1, controlLeaseRequest{BusID: original.busid, ClientNonce: 7})
+	lease := ledger.IssueLease(1, controlLeaseRequest{BusID: original.busid, ClientNonce: 7})
 	ledger.ApplyHostSnapshot(map[string]Export{replacement.busid: replacement}, nil)
 
-	_, ok, reason := ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+	_, ok, reason := ledger.ConsumeLeaseAndReserve(ImportExtRequest{
 		BusID:       original.busid,
 		LeaseID:     lease.LeaseID,
 		ClientNonce: lease.ClientNonce,
@@ -78,14 +76,13 @@ func TestConsumeLeaseAndReserveRejectsIdentityReplacement(t *testing.T) {
 }
 
 func TestConsumeLeaseAndReserveRejectsUnavailableExport(t *testing.T) {
-	ctx := context.Background()
 	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
 	available := true
 	exp := &testExport{
 		busid:     "1-1",
 		vendorID:  0x1111,
 		productID: 0x0001,
-		leaseCheck: func(context.Context) (bool, string) {
+		leaseCheck: func() (bool, string) {
 			if available {
 				return true, ""
 			}
@@ -94,10 +91,10 @@ func TestConsumeLeaseAndReserveRejectsUnavailableExport(t *testing.T) {
 	}
 
 	ledger.ApplyHostSnapshot(map[string]Export{exp.busid: exp}, nil)
-	lease := ledger.IssueLease(ctx, 1, controlLeaseRequest{BusID: exp.busid, ClientNonce: 9})
+	lease := ledger.IssueLease(1, controlLeaseRequest{BusID: exp.busid, ClientNonce: 9})
 	available = false
 
-	_, ok, reason := ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+	_, ok, reason := ledger.ConsumeLeaseAndReserve(ImportExtRequest{
 		BusID:       exp.busid,
 		LeaseID:     lease.LeaseID,
 		ClientNonce: lease.ClientNonce,
@@ -109,7 +106,7 @@ func TestConsumeLeaseAndReserveRejectsUnavailableExport(t *testing.T) {
 		t.Fatalf("expected capture released, got %q", reason)
 	}
 
-	_, ok, reason = ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+	_, ok, reason = ledger.ConsumeLeaseAndReserve(ImportExtRequest{
 		BusID:       exp.busid,
 		LeaseID:     lease.LeaseID,
 		ClientNonce: lease.ClientNonce,
@@ -123,17 +120,16 @@ func TestConsumeLeaseAndReserveRejectsUnavailableExport(t *testing.T) {
 }
 
 func TestUnsubscribeBroadcastsLeaseRelease(t *testing.T) {
-	ctx := context.Background()
 	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
 	exp := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001}
 
 	ledger.ApplyHostSnapshot(map[string]Export{exp.busid: exp}, nil)
-	ledger.SeedBroadcastState(ctx)
+	ledger.SeedBroadcastState()
 
-	holder, _ := ledger.Subscribe(ctx, nil, controlCapabilities)
+	holder, _ := ledger.Subscribe(nil, controlCapabilities)
 	drainSubscriber(holder)
 
-	response := ledger.IssueLease(ctx, holder.id, controlLeaseRequest{BusID: exp.busid, ClientNonce: 7})
+	response := ledger.IssueLease(holder.id, controlLeaseRequest{BusID: exp.busid, ClientNonce: 7})
 	if response.ErrorCode != "" {
 		t.Fatalf("IssueLease failed: %s", response.ErrorMessage)
 	}
@@ -141,13 +137,13 @@ func TestUnsubscribeBroadcastsLeaseRelease(t *testing.T) {
 	// baseline, matching the real-world scenario where hotplug churn keeps
 	// l.state roughly in sync with reality. Without this the diff machinery
 	// in BroadcastIfChanged has no busy→available transition to emit.
-	ledger.BroadcastIfChanged(ctx)
+	ledger.BroadcastIfChanged()
 	drainSubscriber(holder)
 
-	observer, _ := ledger.Subscribe(ctx, nil, controlCapabilities)
+	observer, _ := ledger.Subscribe(nil, controlCapabilities)
 	drainSubscriber(observer)
 
-	ledger.Unsubscribe(ctx, holder)
+	ledger.Unsubscribe(holder)
 
 	select {
 	case msg := <-observer.send:
@@ -178,14 +174,13 @@ func drainSubscriber(sub *exportSubscriber) {
 }
 
 func TestConsumeLeaseAndReserveMarksBusyOnSuccess(t *testing.T) {
-	ctx := context.Background()
 	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
 	exp := &testExport{busid: "1-1", vendorID: 0x1111, productID: 0x0001}
 
 	ledger.ApplyHostSnapshot(map[string]Export{exp.busid: exp}, nil)
-	lease := ledger.IssueLease(ctx, 1, controlLeaseRequest{BusID: exp.busid, ClientNonce: 11})
+	lease := ledger.IssueLease(1, controlLeaseRequest{BusID: exp.busid, ClientNonce: 11})
 
-	reserved, ok, reason := ledger.ConsumeLeaseAndReserve(ctx, ImportExtRequest{
+	reserved, ok, reason := ledger.ConsumeLeaseAndReserve(ImportExtRequest{
 		BusID:       exp.busid,
 		LeaseID:     lease.LeaseID,
 		ClientNonce: lease.ClientNonce,
@@ -207,7 +202,7 @@ type testExport struct {
 	productID uint16
 
 	identity   ExportLeaseIdentity
-	leaseCheck func(context.Context) (bool, string)
+	leaseCheck func() (bool, string)
 	onSnapshot func()
 }
 
@@ -222,7 +217,7 @@ func (e *testExport) LeaseIdentity() ExportLeaseIdentity {
 	return ExportLeaseIdentity(e.busid)
 }
 
-func (e *testExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
+func (e *testExport) Snapshot(busy bool) ExportSnapshot {
 	onSnapshot := e.onSnapshot
 	e.onSnapshot = nil
 	if onSnapshot != nil {
@@ -240,14 +235,14 @@ func (e *testExport) Snapshot(ctx context.Context, busy bool) ExportSnapshot {
 	}
 }
 
-func (e *testExport) LeaseCheck(ctx context.Context) (bool, string) {
+func (e *testExport) LeaseCheck() (bool, string) {
 	if e.leaseCheck != nil {
-		return e.leaseCheck(ctx)
+		return e.leaseCheck()
 	}
 	return true, ""
 }
 
-func (e *testExport) DeviceInfo(ctx context.Context) (DeviceInfoTruncated, error) {
+func (e *testExport) DeviceInfo() (DeviceInfoTruncated, error) {
 	return e.deviceInfo(), nil
 }
 
