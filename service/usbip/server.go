@@ -36,6 +36,8 @@ type ServerService struct {
 	sessions       map[DataSession]struct{}
 	sessionsClosed bool
 	sessionsWG     sync.WaitGroup
+
+	pendingConnsWG sync.WaitGroup
 }
 
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
@@ -126,6 +128,7 @@ func (s *ServerService) Close() error {
 	for _, session := range sessions {
 		_ = session.Close()
 	}
+	s.pendingConnsWG.Wait()
 	s.sessionsWG.Wait()
 
 	s.reconcileAccess.Lock()
