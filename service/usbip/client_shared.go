@@ -17,7 +17,6 @@ import (
 
 const (
 	clientReconnectDelay         = 5 * time.Second
-	clientShutdownTimeout        = 15 * time.Second
 	controlPingInterval          = 10 * time.Second
 	controlReadTimeout           = 30 * time.Second
 	controlWriteTimeout          = 5 * time.Second
@@ -54,13 +53,11 @@ func (c *ClientService) initializeWorkers() {
 	c.workerAccess.Unlock()
 
 	for _, worker := range workers {
-		c.wg.Add(1)
 		go c.runAssignedWorker(worker)
 	}
 }
 
 func (c *ClientService) run() {
-	defer c.wg.Done()
 	defer c.stopAllWorkers()
 
 	var transientStreak int
@@ -383,8 +380,6 @@ func (c *ClientService) applyMatchedExportsWithRetained(entries []DeviceEntry, k
 }
 
 func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
-	defer c.wg.Done()
-
 	var current string
 	var runnerCancel context.CancelFunc
 	var runnerDone chan struct{}
@@ -402,7 +397,6 @@ func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
 	for {
 		select {
 		case <-c.ctx.Done():
-			stopRunner()
 			return
 		case desired := <-worker.updates:
 			if desired == current {
@@ -423,9 +417,7 @@ func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
 			if worker.target.fixedBusID != "" {
 				match = option.USBIPDeviceMatch{BusID: worker.target.fixedBusID}
 			}
-			c.wg.Add(1)
 			go func(busid, description string) {
-				defer c.wg.Done()
 				defer close(done)
 				c.runBusIDLoop(runCtx, busid, description)
 			}(desired, describeMatch(match))
@@ -453,9 +445,7 @@ func (c *ClientService) startRemoteBusIDWorker(busid, description string) {
 	c.allWorkers[busid] = cancel
 	c.workerAccess.Unlock()
 
-	c.wg.Add(1)
 	go func() {
-		defer c.wg.Done()
 		c.runBusIDLoop(runCtx, busid, description)
 	}()
 }

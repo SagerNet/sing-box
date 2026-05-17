@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	boxService "github.com/sagernet/sing-box/adapter/service"
@@ -32,7 +31,6 @@ type ClientService struct {
 	workerAccess    sync.Mutex
 	assignedWorkers []*clientAssignedWorker
 	allWorkers      map[string]context.CancelFunc
-	wg              sync.WaitGroup
 
 	controlAccess  sync.Mutex
 	controlSession *clientControlSession
@@ -84,7 +82,6 @@ func (c *ClientService) Start(stage adapter.StartStage) error {
 		return err
 	}
 	c.initializeWorkers()
-	c.wg.Add(1)
 	go c.run()
 	return nil
 }
@@ -92,18 +89,6 @@ func (c *ClientService) Start(stage adapter.StartStage) error {
 func (c *ClientService) Close() error {
 	if c.cancel != nil {
 		c.cancel()
-	}
-	done := make(chan struct{})
-	go func() {
-		c.wg.Wait()
-		close(done)
-	}()
-	timer := time.NewTimer(clientShutdownTimeout)
-	defer timer.Stop()
-	select {
-	case <-done:
-	case <-timer.C:
-		c.logger.Warn("shutdown timeout; some imports may remain attached")
 	}
 	_ = c.host.Close()
 	return nil

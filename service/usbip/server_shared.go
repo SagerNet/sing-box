@@ -34,13 +34,11 @@ func (s *ServerService) acceptLoop(ln net.Listener) {
 			s.logger.Error("accept: ", err)
 			return
 		}
-		s.pendingConnsWG.Add(1)
 		go s.dispatchConn(conn)
 	}
 }
 
 func (s *ServerService) dispatchConn(conn net.Conn) {
-	defer s.pendingConnsWG.Done()
 	cancelClose := closeConnOnContextDone(s.ctx, conn)
 	defer cancelClose()
 	var prefix [controlPrefaceSize]byte

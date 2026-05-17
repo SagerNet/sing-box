@@ -35,9 +35,6 @@ type ServerService struct {
 	sessionsAccess sync.Mutex
 	sessions       map[DataSession]struct{}
 	sessionsClosed bool
-	sessionsWG     sync.WaitGroup
-
-	pendingConnsWG sync.WaitGroup
 }
 
 func NewServerService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPServerServiceOptions) (adapter.Service, error) {
@@ -128,8 +125,6 @@ func (s *ServerService) Close() error {
 	for _, session := range sessions {
 		_ = session.Close()
 	}
-	s.pendingConnsWG.Wait()
-	s.sessionsWG.Wait()
 
 	s.reconcileAccess.Lock()
 	defer s.reconcileAccess.Unlock()
@@ -341,7 +336,6 @@ func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export
 	// Close may observe a prepared session before Start runs, so
 	// DataSession implementations must treat Close-before-Start as valid.
 	s.sessions[session] = struct{}{}
-	s.sessionsWG.Add(1)
 	s.sessionsAccess.Unlock()
 
 	err = session.Start()
@@ -349,14 +343,12 @@ func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export
 		s.sessionsAccess.Lock()
 		delete(s.sessions, session)
 		s.sessionsAccess.Unlock()
-		s.sessionsWG.Done()
 		s.logger.Warn("start data session ", busid, ": ", err)
 		s.tearDownPreparedSession(busid, session)
 		return false
 	}
 	s.logger.Info("attached ", busid, " to remote ", conn.RemoteAddr())
 	go func() {
-		defer s.sessionsWG.Done()
 		<-session.Done()
 		s.sessionsAccess.Lock()
 		delete(s.sessions, session)
