@@ -111,6 +111,7 @@ func (t *Transport) Close() error {
 func (t *Transport) Reset() {
 	t.transportLock.Lock()
 	t.updatedAt = time.Time{}
+	t.lastError = nil
 	t.servers = nil
 	t.transportLock.Unlock()
 }
