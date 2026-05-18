@@ -19,9 +19,9 @@ import (
 // concurrent use on the same Device — the session layer serializes
 // per-endpoint via per-endpoint goroutines.
 type Device struct {
-	handle  windows.Handle
-	event   windows.Handle
-	closing sync.Once
+	handle   windows.Handle
+	event    windows.Handle
+	closing  sync.Once
 	closeErr error
 }
 

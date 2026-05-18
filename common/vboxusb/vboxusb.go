@@ -93,13 +93,13 @@ type GUID struct {
 // Method = METHOD_BUFFERED (0).
 const (
 	// Per-device VBoxUSB.sys (\\?\<setupapi-resolved path>).
-	IOCTLSendURB           uint32 = 0x0022_181C // function 0x607
+	IOCTLSendURB            uint32 = 0x0022_181C // function 0x607
 	IOCTLUSBSelectInterface uint32 = 0x0022_1824 // function 0x609
-	IOCTLUSBSetConfig      uint32 = 0x0022_1828 // function 0x60a
-	IOCTLUSBClaimDevice    uint32 = 0x0022_182C // function 0x60b
-	IOCTLUSBClearEndpoint  uint32 = 0x0022_1838 // function 0x60e
-	IOCTLGetVersion        uint32 = 0x0022_183C // function 0x60f
-	IOCTLUSBAbortEndpoint  uint32 = 0x0022_1840 // function 0x610
+	IOCTLUSBSetConfig       uint32 = 0x0022_1828 // function 0x60a
+	IOCTLUSBClaimDevice     uint32 = 0x0022_182C // function 0x60b
+	IOCTLUSBClearEndpoint   uint32 = 0x0022_1838 // function 0x60e
+	IOCTLGetVersion         uint32 = 0x0022_183C // function 0x60f
+	IOCTLUSBAbortEndpoint   uint32 = 0x0022_1840 // function 0x610
 
 	// VBoxUSBMon (\\.\VBoxUSBMon). Note GET_VERSION shares the numeric
 	// code with VBoxUSB's USB_ABORT_ENDPOINT — different handles.
