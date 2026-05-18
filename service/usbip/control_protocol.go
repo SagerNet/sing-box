@@ -1,4 +1,4 @@
-//go:build linux || (darwin && cgo)
+//go:build linux || (darwin && cgo) || windows
 
 package usbip
 
@@ -42,8 +42,9 @@ const (
 	deviceStateBusy        = "busy"
 	deviceStateUnavailable = "unavailable"
 
-	backendIDLinuxSysfs  = "linux-sysfs"
-	backendIDDarwinIOKit = "darwin-iokit"
+	backendIDLinuxSysfs     = "linux-sysfs"
+	backendIDDarwinIOKit    = "darwin-iokit"
+	backendIDWindowsVBoxUSB = "windows-vboxusb"
 
 	leaseErrorBadRequest  = "bad_request"
 	leaseErrorUnavailable = "unavailable"
