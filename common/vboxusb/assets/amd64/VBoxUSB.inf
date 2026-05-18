@@ -1,0 +1,103 @@
+; $Id: VBoxUSB.inf 170711 2025-09-29 16:57:21Z klaus $
+;; @file
+; VBox host drivers - USB drivers - Win32 USB device
+;
+
+;
+; Copyright (C) 2011-2025 Oracle and/or its affiliates.
+;
+; This file is part of VirtualBox base platform packages, as
+; available from https://www.virtualbox.org.
+;
+; This program is free software; you can redistribute it and/or
+; modify it under the terms of the GNU General Public License
+; as published by the Free Software Foundation, in version 3 of the
+; License.
+;
+; This program is distributed in the hope that it will be useful, but
+; WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+; General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, see <https://www.gnu.org/licenses>.
+;
+; The contents of this file may alternatively be used under the terms
+; of the Common Development and Distribution License Version 1.0
+; (CDDL), a copy of it is provided in the "COPYING.CDDL" file included
+; in the VirtualBox distribution, in which case the provisions of the
+; CDDL are applicable instead of those of the GPL.
+;
+; You may elect to license modified versions of this file under the
+; terms and conditions of either the GPL or the CDDL or both.
+;
+; SPDX-License-Identifier: GPL-3.0-only OR CDDL-1.0
+;
+
+[Version]
+Signature="$Windows NT$"
+Class=USB
+ClassGUID={36FC9E60-C465-11CF-8056-444553540000}
+provider=%ORACLE%
+DriverVer = 04/18/2026,7.2.8.23730 ; r173730
+CatalogFile=VBoxUSB.cat
+PnpLockdown=1
+
+[SourceDisksNames]
+1=%VBoxUSB_DiskDesc%,,,
+
+[SourceDisksFiles]
+VBoxUSB.sys = 1
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[Manufacturer]
+%ORACLE%=VBoxUSB,NTAMD64
+
+[VBoxUSB.NTAMD64]
+%VBoxUSB_DrvDesc%=VBoxUSB_Drv,USB\VID_80EE&PID_CAFE
+
+[VBoxUSB_Drv.NTAMD64]
+CopyFiles=VBoxUSB_CopyFiles
+
+[VBoxUSB_Drv.NTAMD64.Services]
+AddService=VBoxUSB,0x00000002,VBoxUSB_Service,VBoxUSB_AddReg
+
+[DefaultUninstall.NTAMD64.Services]
+DelService = VBoxUSB,0x00000200
+DelReg     = VBoxUSB_Registry
+LegacyUninstall=1
+
+[VBoxUSB_Service]
+DisplayName    = %VBoxUSB_SvcDesc%
+ServiceType    = %SERVICE_TYPE_KERNEL_DRIVER%
+StartType      = %SERVICE_STARTTYPE_DEMAND%
+ErrorControl   = %SERVICE_ERRORCTL_NORMAL%
+ServiceBinary  = %12%\VBoxUSB.sys
+LoadOrderGroup = Base
+
+[VBoxUSB_AddReg]
+AddReg         = VBoxUSB_Registry
+
+[VBoxUSB_Registry]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,VBoxUSB.sys
+
+[VBoxUSB_CopyFiles]
+VBoxUSB.sys
+
+[Strings]
+ORACLE="Oracle Corporation"
+VBoxUSB_SvcDesc="VirtualBox USB Service"
+VBoxUSB_DrvDesc="VirtualBox USB Driver"
+VBoxUSB_DiskDesc="VBoxUSB Installation Disk"
+
+; Useful constants
+SERVICE_TYPE_KERNEL_DRIVER = 1
+SERVICE_STARTTYPE_BOOT = 0
+SERVICE_STARTTYPE_AUTO = 1
+SERVICE_STARTTYPE_DEMAND = 3
+SERVICE_ERRORCTL_IGNORE = 0
+SERVICE_ERRORCTL_NORMAL = 1
+

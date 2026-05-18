@@ -26,6 +26,7 @@ const (
 	maxUSBIPIsoPackets       = 1024
 	nonIsoPacketCount        = -1
 	usbipTransferFlagIsoASAP = 0x0002
+	usbipStatusEIO           = -5
 	usbipStatusECONNRESET    = -104
 )
 
