@@ -62,7 +62,7 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 		logger:   logger,
 		matches:  options.Devices,
 		host:     host,
-		ledger:   newExportLedger(logger, importLeaseTTL, time.Now),
+		ledger:   newExportLedger(logger, time.Now),
 		sessions: make(map[DataSession]struct{}),
 		listener: listener.New(listener.Options{
 			Context: ctx,
@@ -200,8 +200,6 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 			break
 		}
 		closeConn = !s.handleImportBusID(conn, busid)
-	case OpReqImportExt:
-		closeConn = !s.handleImportExt(conn)
 	default:
 		s.logger.Debug(fmt.Sprintf("unknown opcode 0x%04x", header.Code))
 	}
@@ -275,21 +273,6 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 	return entries
 }
 
-func (s *ServerService) handleImportExt(conn net.Conn) bool {
-	request, err := ReadOpReqImportExtBody(conn)
-	if err != nil {
-		s.logger.Debug("read import-ext body: ", err)
-		return false
-	}
-	export, ok, reason := s.ledger.ConsumeLeaseAndReserve(request)
-	if !ok {
-		s.logger.Info("import-ext rejected (", request.BusID, ": ", reason, ")")
-		_ = WriteOpRepImport(conn, OpRepImportExt, OpStatusError, nil)
-		return false
-	}
-	return s.handleImportReserved(conn, request.BusID, export, true)
-}
-
 func (s *ServerService) handleImportBusID(conn net.Conn, busid string) bool {
 	export, ok, reason := s.ledger.TryReserveForImport(busid)
 	if !ok {
@@ -297,30 +280,26 @@ func (s *ServerService) handleImportBusID(conn net.Conn, busid string) bool {
 		_ = WriteOpRepImport(conn, OpRepImport, OpStatusError, nil)
 		return false
 	}
-	return s.handleImportReserved(conn, busid, export, false)
+	return s.handleImportReserved(conn, busid, export)
 }
 
-func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export Export, extended bool) bool {
-	opCode := uint16(OpRepImport)
-	if extended {
-		opCode = OpRepImportExt
-	}
+func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export Export) bool {
 	info, err := export.DeviceInfo()
 	if err != nil {
 		s.ledger.ReleaseImport(busid, false)
 		s.logger.Warn("refresh ", busid, ": ", err)
-		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
+		_ = WriteOpRepImport(conn, OpRepImport, OpStatusError, nil)
 		return false
 	}
 	session, err := export.NewServerDataSession(s.ctx, conn)
 	if err != nil {
 		s.ledger.ReleaseImport(busid, false)
 		s.logger.Warn("open data session ", busid, ": ", err)
-		_ = WriteOpRepImport(conn, opCode, OpStatusError, nil)
+		_ = WriteOpRepImport(conn, OpRepImport, OpStatusError, nil)
 		return false
 	}
 	s.ledger.BroadcastIfChanged()
-	err = WriteOpRepImport(conn, opCode, OpStatusOK, &info)
+	err = WriteOpRepImport(conn, OpRepImport, OpStatusOK, &info)
 	if err != nil {
 		s.logger.Warn("reply import ", busid, ": ", err)
 		s.tearDownPreparedSession(busid, session)

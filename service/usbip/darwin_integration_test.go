@@ -255,8 +255,6 @@ func (s *darwinFakeUSBIPServer) handleConn(conn net.Conn) {
 		_ = WriteOpRepDevList(conn, []DeviceEntry{s.entry})
 	case OpReqImport:
 		s.handleImport(conn)
-	case OpReqImportExt:
-		s.handleImportExt(conn)
 	}
 }
 
@@ -292,24 +290,7 @@ func (s *darwinFakeUSBIPServer) handleControlConn(conn net.Conn) {
 		if err != nil {
 			return
 		}
-		frame := message.Frame
-		if frame.Type != controlFramePing {
-			if frame.Type == controlFrameLeaseRequest && supportsControlExtensions(capabilities) {
-				var request controlLeaseRequest
-				if unmarshalControlPayload(message.Payload, &request) != nil {
-					return
-				}
-				_ = writeControlMessage(conn, controlFrame{
-					Type:    controlFrameLeaseResponse,
-					Version: controlProtocolVersion,
-				}, controlLeaseResponse{
-					BusID:       request.BusID,
-					LeaseID:     1,
-					ClientNonce: request.ClientNonce,
-					TTLMillis:   int64(importLeaseTTL / time.Millisecond),
-				})
-				continue
-			}
+		if message.Frame.Type != controlFramePing {
 			return
 		}
 		err = writeControlMessage(conn, controlFrame{Type: controlFramePong, Version: controlProtocolVersion}, nil)
@@ -330,23 +311,6 @@ func (s *darwinFakeUSBIPServer) handleImport(conn net.Conn) {
 	}
 	info := s.entry.Info
 	err = WriteOpRepImport(conn, OpRepImport, OpStatusOK, &info)
-	if err != nil {
-		return
-	}
-	s.handleDataSession(conn)
-}
-
-func (s *darwinFakeUSBIPServer) handleImportExt(conn net.Conn) {
-	request, err := ReadOpReqImportExtBody(conn)
-	if err != nil {
-		return
-	}
-	if request.BusID != s.entry.Info.BusIDString() || request.LeaseID == 0 {
-		_ = WriteOpRepImport(conn, OpRepImportExt, OpStatusError, nil)
-		return
-	}
-	info := s.entry.Info
-	err = WriteOpRepImport(conn, OpRepImportExt, OpStatusOK, &info)
 	if err != nil {
 		return
 	}

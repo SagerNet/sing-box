@@ -26,8 +26,6 @@ type ImportHost interface {
 	Attach(ctx context.Context, info DeviceInfoTruncated, conn net.Conn) (AttachedSession, error)
 }
 
-type ExportLeaseIdentity string
-
 // Export pointers handed back from Reconcile are immutable from the
 // ledger's perspective: the ledger calls the methods below outside any
 // lock. Hosts that need to mutate must clone, mutate the clone, then
@@ -35,8 +33,6 @@ type ExportLeaseIdentity string
 type Export interface {
 	BusID() string
 	Snapshot(busy bool) ExportSnapshot
-	LeaseIdentity() ExportLeaseIdentity
-	LeaseCheck() (ok bool, reason string)
 	DeviceInfo() (DeviceInfoTruncated, error)
 	NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error)
 }

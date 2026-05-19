@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"slices"
 	"time"
 
@@ -179,21 +180,8 @@ func (c *ClientService) runControlSession() error {
 	_ = conn.SetWriteDeadline(time.Time{})
 	_ = conn.SetReadDeadline(time.Time{})
 
-	session := newClientControlSession(conn, ack.Capabilities)
 	extended := supportsControlExtensions(ack.Capabilities)
-	if extended {
-		c.controlAccess.Lock()
-		c.controlSession = session
-		c.controlAccess.Unlock()
-		defer func() {
-			c.controlAccess.Lock()
-			if c.controlSession == session {
-				c.controlSession = nil
-			}
-			c.controlAccess.Unlock()
-			session.closeWithError(errClientControlSessionClosed)
-		}()
-	} else {
+	if !extended {
 		err = c.syncRemoteStateContext(c.ctx)
 		if err != nil {
 			return E.Cause(err, "initial devlist sync")
@@ -201,7 +189,7 @@ func (c *ClientService) runControlSession() error {
 	}
 
 	pingDone := make(chan struct{})
-	go c.controlPingLoop(session, pingDone)
+	go c.controlPingLoop(conn, pingDone)
 	defer close(pingDone)
 
 	lastSeq := ack.Sequence
@@ -266,16 +254,6 @@ func (c *ClientService) runControlSession() error {
 			}
 			lastSeq = frame.Sequence
 			c.applyControlDelta(delta)
-		case controlFrameLeaseResponse:
-			if !extended {
-				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
-			}
-			var response controlLeaseResponse
-			err = unmarshalControlPayload(message.Payload, &response)
-			if err != nil {
-				return E.Cause(errImmediateReconnect, "read lease response: ", err)
-			}
-			session.deliverLeaseResponse(response)
 		case controlFramePong:
 		default:
 			return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
@@ -283,7 +261,7 @@ func (c *ClientService) runControlSession() error {
 	}
 }
 
-func (c *ClientService) controlPingLoop(session *clientControlSession, done <-chan struct{}) {
+func (c *ClientService) controlPingLoop(conn net.Conn, done <-chan struct{}) {
 	ticker := time.NewTicker(controlPingInterval)
 	defer ticker.Stop()
 	for {
@@ -293,12 +271,14 @@ func (c *ClientService) controlPingLoop(session *clientControlSession, done <-ch
 		case <-done:
 			return
 		case <-ticker.C:
-			err := session.writeControl(controlFrame{
+			_ = conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
+			err := writeControlMessage(conn, controlFrame{
 				Type:    controlFramePing,
 				Version: controlProtocolVersion,
 			}, nil)
+			_ = conn.SetWriteDeadline(time.Time{})
 			if err != nil {
-				_ = session.conn.Close()
+				_ = conn.Close()
 				return
 			}
 		}

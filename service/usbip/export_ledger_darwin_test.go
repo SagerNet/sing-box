@@ -12,7 +12,7 @@ import (
 func TestDarwinStaleExportBroadcastsUnavailableUpdate(t *testing.T) {
 	t.Parallel()
 
-	ledger := newExportLedger(nil, time.Second, func() time.Time { return time.Unix(0, 0) })
+	ledger := newExportLedger(nil, func() time.Time { return time.Unix(0, 0) })
 	entry := darwinFakeDeviceEntry()
 	export := &darwinExport{
 		busid:      entry.Info.BusIDString(),

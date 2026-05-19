@@ -296,14 +296,6 @@ func (e *windowsExport) BusID() string {
 	return e.info.BusID
 }
 
-func (e *windowsExport) LeaseIdentity() ExportLeaseIdentity {
-	return ExportLeaseIdentity("windows:" + e.info.InstanceID)
-}
-
-func (e *windowsExport) LeaseCheck() (bool, string) {
-	return true, ""
-}
-
 func (e *windowsExport) Snapshot(busy bool) ExportSnapshot {
 	state := deviceStateAvailable
 	if busy {

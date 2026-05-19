@@ -22,16 +22,13 @@ const (
 	controlFramePong           uint8 = 5
 	controlFrameDeviceSnapshot uint8 = 6
 	controlFrameDeviceDelta    uint8 = 7
-	controlFrameLeaseRequest   uint8 = 8
-	controlFrameLeaseResponse  uint8 = 9
 
 	controlCapabilityChanged       uint32 = 1 << 0
 	controlCapabilityPingPong      uint32 = 1 << 1
 	controlCapabilityPayloadFrames uint32 = 1 << 2
 	controlCapabilityDeviceStateV2 uint32 = 1 << 3
-	controlCapabilityImportLease   uint32 = 1 << 4
 	controlRequiredCapabilities           = controlCapabilityChanged | controlCapabilityPingPong
-	controlExtensionCapabilities          = controlCapabilityPayloadFrames | controlCapabilityDeviceStateV2 | controlCapabilityImportLease
+	controlExtensionCapabilities          = controlCapabilityPayloadFrames | controlCapabilityDeviceStateV2
 	controlCapabilities                   = controlRequiredCapabilities | controlExtensionCapabilities
 
 	controlPrefaceSize      = 8
@@ -45,10 +42,6 @@ const (
 	backendIDLinuxSysfs     = "linux-sysfs"
 	backendIDDarwinIOKit    = "darwin-iokit"
 	backendIDWindowsVBoxUSB = "windows-vboxusb"
-
-	leaseErrorBadRequest  = "bad_request"
-	leaseErrorUnavailable = "unavailable"
-	leaseErrorBusy        = "busy"
 )
 
 var controlPreface = [controlPrefaceSize]byte{'S', 'B', 'U', 'S', 'B', 'I', 'P', '1'}
@@ -104,21 +97,6 @@ type controlDeviceDelta struct {
 	Added    []DeviceInfoV2 `json:"added,omitempty"`
 	Updated  []DeviceInfoV2 `json:"updated,omitempty"`
 	Removed  []string       `json:"removed,omitempty"`
-}
-
-type controlLeaseRequest struct {
-	BusID       string `json:"busid"`
-	ClientNonce uint64 `json:"client_nonce"`
-}
-
-type controlLeaseResponse struct {
-	BusID        string `json:"busid"`
-	LeaseID      uint64 `json:"lease_id,omitempty"`
-	ClientNonce  uint64 `json:"client_nonce"`
-	Generation   uint64 `json:"generation,omitempty"`
-	TTLMillis    int64  `json:"ttl_millis,omitempty"`
-	ErrorCode    string `json:"error_code,omitempty"`
-	ErrorMessage string `json:"error_message,omitempty"`
 }
 
 // controlReader reuses its payload scratch across successive reads on a

@@ -32,9 +32,6 @@ type ClientService struct {
 	assignedWorkers []*clientAssignedWorker
 	allWorkers      map[string]context.CancelFunc
 
-	controlAccess  sync.Mutex
-	controlSession *clientControlSession
-
 	remoteAccess    sync.Mutex
 	remoteDevicesV2 map[string]DeviceInfoV2
 }
@@ -155,26 +152,9 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (Attach
 	stopCloseOnCancel := closeConnOnContextDone(ctx, conn)
 	defer stopCloseOnCancel()
 
-	lease, err := c.requestImportLease(ctx, busid)
+	err = WriteOpReqImport(conn, busid)
 	if err != nil {
-		return nil, err
-	}
-	expectedReply := OpRepImport
-	if lease.Valid {
-		expectedReply = OpRepImportExt
-		err = WriteOpReqImportExt(conn, ImportExtRequest{
-			BusID:       busid,
-			LeaseID:     lease.ID,
-			ClientNonce: lease.ClientNonce,
-		})
-		if err != nil {
-			return nil, E.Cause(err, "write OP_REQ_IMPORT_EXT")
-		}
-	} else {
-		err = WriteOpReqImport(conn, busid)
-		if err != nil {
-			return nil, E.Cause(err, "write OP_REQ_IMPORT")
-		}
+		return nil, E.Cause(err, "write OP_REQ_IMPORT")
 	}
 	header, err := ReadOpHeader(conn)
 	if err != nil {
@@ -183,7 +163,7 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (Attach
 	if header.Version != ProtocolVersion {
 		return nil, E.New("unexpected reply version ", fmt.Sprintf("0x%04x", header.Version))
 	}
-	if header.Code != expectedReply {
+	if header.Code != OpRepImport {
 		return nil, E.New("unexpected reply code ", fmt.Sprintf("0x%04x", header.Code))
 	}
 	if header.Status != OpStatusOK {

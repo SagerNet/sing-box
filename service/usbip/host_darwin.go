@@ -294,10 +294,6 @@ func (e *darwinExport) BusID() string {
 	return e.busid
 }
 
-func (e *darwinExport) LeaseIdentity() ExportLeaseIdentity {
-	return ExportLeaseIdentity(fmt.Sprintf("darwin:%016x", e.registryID))
-}
-
 func (e *darwinExport) staleReason() string {
 	if e.pendingRegistryID != 0 {
 		return "device replaced"
@@ -326,13 +322,6 @@ func (e *darwinExport) Snapshot(busy bool) ExportSnapshot {
 		StableID: stableID,
 		State:    state,
 	}
-}
-
-func (e *darwinExport) LeaseCheck() (bool, string) {
-	if e.stale {
-		return false, e.staleReason()
-	}
-	return true, ""
 }
 
 func (e *darwinExport) DeviceInfo() (DeviceInfoTruncated, error) {

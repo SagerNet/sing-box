@@ -112,29 +112,6 @@ func (i linuxExportIdentity) Equal(other linuxExportIdentity) bool {
 	return true
 }
 
-func (i linuxExportIdentity) LeaseIdentity() ExportLeaseIdentity {
-	var builder strings.Builder
-	fmt.Fprintf(&builder, "linux:%d:%d:%d:%04x:%04x:%04x:%02x:%02x:%02x:%02x:%02x:%02x:%s",
-		i.BusNum,
-		i.DevNum,
-		i.Speed,
-		i.VendorID,
-		i.ProductID,
-		i.BCDDevice,
-		i.DeviceClass,
-		i.DeviceSubClass,
-		i.DeviceProtocol,
-		i.ConfigValue,
-		i.NumConfigs,
-		i.NumInterfaces,
-		i.Serial,
-	)
-	for _, iface := range i.Interfaces {
-		fmt.Fprintf(&builder, "|%02x.%02x.%02x", iface.BInterfaceClass, iface.BInterfaceSubClass, iface.BInterfaceProtocol)
-	}
-	return ExportLeaseIdentity(builder.String())
-}
-
 type linuxExportHost struct {
 	logger  log.ContextLogger
 	matches []option.USBIPDeviceMatch
@@ -658,10 +635,6 @@ func (e *linuxExport) BusID() string {
 	return e.busid
 }
 
-func (e *linuxExport) LeaseIdentity() ExportLeaseIdentity {
-	return e.identity.LeaseIdentity()
-}
-
 func (e *linuxExport) Snapshot(busy bool) ExportSnapshot {
 	stableID := "linux-busid:" + e.descriptor.BusID
 	if e.descriptor.Serial != "" {
@@ -712,20 +685,6 @@ func (e *linuxExport) Snapshot(busy bool) ExportSnapshot {
 		StatusReason: reason,
 		RawStatus:    status,
 	}
-}
-
-func (e *linuxExport) LeaseCheck() (bool, string) {
-	if e.stale {
-		return false, "device replaced"
-	}
-	status, err := readUsbipStatus(e.busid)
-	if err != nil {
-		return false, err.Error()
-	}
-	if status != usbipStatusAvailable {
-		return false, linuxUSBIPStatusReason(status)
-	}
-	return true, ""
 }
 
 func (e *linuxExport) DeviceInfo() (DeviceInfoTruncated, error) {

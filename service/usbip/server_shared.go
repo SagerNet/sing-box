@@ -70,12 +70,6 @@ func (s *ServerService) readControlConn(sub *exportSubscriber, done chan<- struc
 				Type:    controlFramePong,
 				Version: controlProtocolVersion,
 			})
-		case controlFrameLeaseRequest:
-			if supportsControlExtensions(sub.capabilities) {
-				s.ledger.HandleControlLeaseRequest(sub, message.Payload)
-				continue
-			}
-			return
 		default:
 			return
 		}
