@@ -119,7 +119,7 @@ func (s *Service) writeOOMDraft(memoryUsage uint64) {
 		return
 	}
 	if err != nil {
-		s.logger.Warn("failed to write OOM draft: ", err)
+		s.logger.Error("failed to write OOM draft: ", err)
 	} else {
 		s.logger.Warn("OOM draft saved")
 	}
@@ -133,8 +133,6 @@ func (s *Service) discardOOMDraft() {
 	}
 	err := reporter.DiscardDraft()
 	if err != nil {
-		s.logger.Warn("failed to discard OOM draft: ", err)
-	} else {
-		s.logger.Info("OOM draft discarded")
+		s.logger.Error("failed to discard OOM draft: ", err)
 	}
 }
