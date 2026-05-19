@@ -17,22 +17,13 @@ const (
 
 	controlFrameHello          uint8 = 1
 	controlFrameAck            uint8 = 2
-	controlFrameChanged        uint8 = 3
 	controlFramePing           uint8 = 4
 	controlFramePong           uint8 = 5
 	controlFrameDeviceSnapshot uint8 = 6
 	controlFrameDeviceDelta    uint8 = 7
 
-	controlCapabilityChanged       uint32 = 1 << 0
-	controlCapabilityPingPong      uint32 = 1 << 1
-	controlCapabilityPayloadFrames uint32 = 1 << 2
-	controlCapabilityDeviceStateV2 uint32 = 1 << 3
-	controlRequiredCapabilities           = controlCapabilityChanged | controlCapabilityPingPong
-	controlExtensionCapabilities          = controlCapabilityPayloadFrames | controlCapabilityDeviceStateV2
-	controlCapabilities                   = controlRequiredCapabilities | controlExtensionCapabilities
-
 	controlPrefaceSize      = 8
-	controlFrameSize        = 16
+	controlFrameSize        = 12
 	maxControlPayloadLength = 64<<10 - 1
 
 	deviceStateAvailable   = "available"
@@ -50,7 +41,6 @@ type controlFrame struct {
 	Type          uint8
 	Version       uint8
 	PayloadLength uint16
-	Capabilities  uint32
 	Sequence      uint64
 }
 
@@ -115,8 +105,7 @@ func (cr *controlReader) read(r io.Reader) (controlMessage, error) {
 		Type:          raw[0],
 		Version:       raw[1],
 		PayloadLength: binary.BigEndian.Uint16(raw[2:4]),
-		Capabilities:  binary.BigEndian.Uint32(raw[4:8]),
-		Sequence:      binary.BigEndian.Uint64(raw[8:16]),
+		Sequence:      binary.BigEndian.Uint64(raw[4:12]),
 	}
 	var payload []byte
 	if frame.PayloadLength > 0 {
@@ -145,8 +134,7 @@ func writeControlMessage(w io.Writer, frame controlFrame, payload any) error {
 	raw[0] = frame.Type
 	raw[1] = frame.Version
 	binary.BigEndian.PutUint16(raw[2:4], frame.PayloadLength)
-	binary.BigEndian.PutUint32(raw[4:8], frame.Capabilities)
-	binary.BigEndian.PutUint64(raw[8:16], frame.Sequence)
+	binary.BigEndian.PutUint64(raw[4:12], frame.Sequence)
 	_, err = w.Write(raw[:])
 	if err != nil {
 		return err
@@ -174,10 +162,6 @@ func unmarshalControlPayload(payload []byte, value any) error {
 		return E.New("missing control payload")
 	}
 	return json.Unmarshal(payload, value)
-}
-
-func supportsControlExtensions(capabilities uint32) bool {
-	return capabilities&controlExtensionCapabilities == controlExtensionCapabilities
 }
 
 func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, state string, statusCode int, statusReason string) DeviceInfoV2 {

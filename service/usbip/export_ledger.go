@@ -31,10 +31,9 @@ type exportLedger struct {
 }
 
 type exportSubscriber struct {
-	id           uint64
-	capabilities uint32
-	conn         net.Conn
-	send         chan controlMessage
+	id   uint64
+	conn net.Conn
+	send chan controlMessage
 }
 
 const controlSubscriberSendBuffer = 16
@@ -141,21 +140,12 @@ func (l *exportLedger) BroadcastIfChanged() bool {
 	}
 	l.broadcastAccess.Unlock()
 
-	frame := controlFrame{
-		Type:     controlFrameChanged,
-		Version:  controlProtocolVersion,
-		Sequence: sequence,
-	}
 	for _, sub := range targets {
-		if supportsControlExtensions(sub.capabilities) {
-			l.enqueuePayload(sub, controlFrame{
-				Type:     controlFrameDeviceDelta,
-				Version:  controlProtocolVersion,
-				Sequence: sequence,
-			}, delta, frame)
-			continue
-		}
-		l.enqueueFrame(sub, frame)
+		l.enqueuePayload(sub, controlFrame{
+			Type:     controlFrameDeviceDelta,
+			Version:  controlProtocolVersion,
+			Sequence: sequence,
+		}, delta)
 	}
 	return true
 }
@@ -200,53 +190,39 @@ func (l *exportLedger) ReleaseImport(busid string, removeExport bool) {
 	})
 }
 
-// Subscribe enqueues a freshly computed snapshot to extension-capable
-// subscribers so they see current state regardless of when the last
-// broadcast fired. Does NOT mutate l.state: other subscribers must
-// still receive the next BroadcastIfChanged delta against the previous
-// baseline.
-func (l *exportLedger) Subscribe(conn net.Conn, capabilities uint32) (*exportSubscriber, uint64) {
-	extended := supportsControlExtensions(capabilities)
+// Subscribe enqueues a freshly computed snapshot so the new subscriber
+// sees current state regardless of when the last broadcast fired. Does
+// NOT mutate l.state: other subscribers must still receive the next
+// BroadcastIfChanged delta against the previous baseline.
+func (l *exportLedger) Subscribe(conn net.Conn) (*exportSubscriber, uint64) {
 	var snapshot []DeviceInfoV2
 	var sequence uint64
-	if extended {
-		// Keep the snapshot and sequence from the same stable generation.
-		for {
-			l.broadcastAccess.Lock()
-			sequence = l.seq
-			l.broadcastAccess.Unlock()
-
-			snapshot = l.snapshotDeviceState()
-
-			l.broadcastAccess.Lock()
-			if sequence == l.seq {
-				break
-			}
-			l.broadcastAccess.Unlock()
-		}
-	} else {
+	// Keep the snapshot and sequence from the same stable generation.
+	for {
 		l.broadcastAccess.Lock()
 		sequence = l.seq
+		l.broadcastAccess.Unlock()
+
+		snapshot = l.snapshotDeviceState()
+
+		l.broadcastAccess.Lock()
+		if sequence == l.seq {
+			break
+		}
+		l.broadcastAccess.Unlock()
 	}
 	defer l.broadcastAccess.Unlock()
 	l.nextSubID++
 	sub := &exportSubscriber{
-		id:           l.nextSubID,
-		capabilities: capabilities,
-		conn:         conn,
-		send:         make(chan controlMessage, controlSubscriberSendBuffer),
+		id:   l.nextSubID,
+		conn: conn,
+		send: make(chan controlMessage, controlSubscriberSendBuffer),
 	}
-	if extended {
-		l.enqueuePayload(sub, controlFrame{
-			Type:     controlFrameDeviceSnapshot,
-			Version:  controlProtocolVersion,
-			Sequence: sequence,
-		}, controlDeviceSnapshot{Sequence: sequence, Devices: snapshot}, controlFrame{
-			Type:     controlFrameChanged,
-			Version:  controlProtocolVersion,
-			Sequence: sequence,
-		})
-	}
+	l.enqueuePayload(sub, controlFrame{
+		Type:     controlFrameDeviceSnapshot,
+		Version:  controlProtocolVersion,
+		Sequence: sequence,
+	}, controlDeviceSnapshot{Sequence: sequence, Devices: snapshot})
 	l.subs[sub.id] = sub
 	return sub, sequence
 }
@@ -317,10 +293,11 @@ func (l *exportLedger) enqueueFrame(sub *exportSubscriber, frame controlFrame) {
 	}
 }
 
-func (l *exportLedger) enqueuePayload(sub *exportSubscriber, frame controlFrame, payload any, fallback controlFrame) {
+func (l *exportLedger) enqueuePayload(sub *exportSubscriber, frame controlFrame, payload any) {
 	rawPayload, err := marshalControlPayload(payload)
 	if err != nil || len(rawPayload) > maxControlPayloadLength {
-		l.enqueueFrame(sub, fallback)
+		l.logger.Debug("control subscriber ", sub.id, " payload encode failed; closing")
+		_ = sub.conn.Close()
 		return
 	}
 	select {

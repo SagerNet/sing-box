@@ -144,9 +144,8 @@ func (c *ClientService) runControlSession() error {
 		return E.Cause(errControlTransient, "write control preface: ", err)
 	}
 	err = writeControlMessage(conn, controlFrame{
-		Type:         controlFrameHello,
-		Version:      controlProtocolVersion,
-		Capabilities: controlCapabilities,
+		Type:    controlFrameHello,
+		Version: controlProtocolVersion,
 	}, nil)
 	if err != nil {
 		return E.Cause(errControlTransient, "write control hello: ", err)
@@ -174,19 +173,8 @@ func (c *ClientService) runControlSession() error {
 	if ack.Version != controlProtocolVersion {
 		return E.Cause(errControlUnsupported, "unsupported control version ", ack.Version)
 	}
-	if ack.Capabilities&controlRequiredCapabilities != controlRequiredCapabilities {
-		return E.Cause(errControlUnsupported, "missing control capabilities 0x", ack.Capabilities)
-	}
 	_ = conn.SetWriteDeadline(time.Time{})
 	_ = conn.SetReadDeadline(time.Time{})
-
-	extended := supportsControlExtensions(ack.Capabilities)
-	if !extended {
-		err = c.syncRemoteStateContext(c.ctx)
-		if err != nil {
-			return E.Cause(err, "initial devlist sync")
-		}
-	}
 
 	pingDone := make(chan struct{})
 	go c.controlPingLoop(conn, pingDone)
@@ -206,23 +194,7 @@ func (c *ClientService) runControlSession() error {
 		}
 		frame := message.Frame
 		switch frame.Type {
-		case controlFrameChanged:
-			if frame.Sequence != lastSeq && frame.Sequence != lastSeq+1 {
-				return E.Cause(errImmediateReconnect, "control sequence jumped from ", lastSeq, " to ", frame.Sequence)
-			}
-			lastSeq = frame.Sequence
-			if extended {
-				err = c.syncRemoteStateAndResetControlState(c.ctx)
-			} else {
-				err = c.syncRemoteStateContext(c.ctx)
-			}
-			if err != nil {
-				return E.Cause(errImmediateReconnect, "devlist sync after change ", frame.Sequence, ": ", err)
-			}
 		case controlFrameDeviceSnapshot:
-			if !extended {
-				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
-			}
 			var snapshot controlDeviceSnapshot
 			err = unmarshalControlPayload(message.Payload, &snapshot)
 			if err != nil {
@@ -236,16 +208,11 @@ func (c *ClientService) runControlSession() error {
 			c.remoteAccess.Unlock()
 			c.applyRemoteDeviceState(values)
 		case controlFrameDeviceDelta:
-			if !extended {
-				return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
-			}
 			if frame.Sequence != lastSeq+1 {
-				err = c.syncRemoteStateAndResetControlState(c.ctx)
-				if err != nil {
-					return E.Cause(errImmediateReconnect, "devlist sync after sequence jump ", frame.Sequence, ": ", err)
-				}
-				lastSeq = frame.Sequence
-				continue
+				c.remoteAccess.Lock()
+				c.remoteDevicesV2 = nil
+				c.remoteAccess.Unlock()
+				return E.Cause(errImmediateReconnect, "control sequence jumped from ", lastSeq, " to ", frame.Sequence)
 			}
 			var delta controlDeviceDelta
 			err = unmarshalControlPayload(message.Payload, &delta)

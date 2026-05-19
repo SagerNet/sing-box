@@ -268,23 +268,19 @@ func (s *darwinFakeUSBIPServer) handleControlConn(conn net.Conn) {
 	if hello.Type != controlFrameHello || hello.Version != controlProtocolVersion {
 		return
 	}
-	capabilities := hello.Capabilities & controlCapabilities
 	err = writeControlMessage(conn, controlFrame{
-		Type:         controlFrameAck,
-		Version:      controlProtocolVersion,
-		Capabilities: capabilities,
+		Type:    controlFrameAck,
+		Version: controlProtocolVersion,
 	}, nil)
 	if err != nil {
 		return
 	}
-	if supportsControlExtensions(capabilities) {
-		_ = writeControlMessage(conn, controlFrame{
-			Type:    controlFrameDeviceSnapshot,
-			Version: controlProtocolVersion,
-		}, controlDeviceSnapshot{
-			Devices: []DeviceInfoV2{deviceInfoV2FromEntry(s.entry, "darwin-fake", "darwin-fake:"+s.entry.Info.BusIDString(), deviceStateAvailable, 0, "available")},
-		})
-	}
+	_ = writeControlMessage(conn, controlFrame{
+		Type:    controlFrameDeviceSnapshot,
+		Version: controlProtocolVersion,
+	}, controlDeviceSnapshot{
+		Devices: []DeviceInfoV2{deviceInfoV2FromEntry(s.entry, "darwin-fake", "darwin-fake:"+s.entry.Info.BusIDString(), deviceStateAvailable, 0, "available")},
+	})
 	for {
 		message, err := cr.read(conn)
 		if err != nil {

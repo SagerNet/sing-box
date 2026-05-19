@@ -24,7 +24,7 @@ func TestSubscribeRetriesSnapshotWhenSequenceAdvances(t *testing.T) {
 		}
 	}
 
-	sub, sequence := ledger.Subscribe(nil, controlCapabilities)
+	sub, sequence := ledger.Subscribe(nil)
 	if sequence != 1 {
 		t.Fatalf("expected subscription sequence 1, got %d", sequence)
 	}
