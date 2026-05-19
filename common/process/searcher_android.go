@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 var _ Searcher = (*androidSearcher)(nil)
@@ -16,6 +17,9 @@ type androidSearcher struct {
 }
 
 func NewSearcher(config Config) (Searcher, error) {
+	if config.PackageManager == nil {
+		return nil, E.New("missing package manager")
+	}
 	return &androidSearcher{config.PackageManager}, nil
 }
 
