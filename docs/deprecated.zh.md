@@ -20,13 +20,6 @@ icon: material/delete-alert
 
 旧行为将在 sing-box 1.16.0 中被移除。
 
-#### Tailscale 端点中的旧版拨号选项
-
-Tailscale 端点中的旧版拨号选项已废弃，
-请使用 `control_http_client` 代替。
-
-旧字段将在 sing-box 1.16.0 中被移除。
-
 #### TLS 中的内联 ACME 选项
 
 TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
