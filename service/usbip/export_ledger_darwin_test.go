@@ -23,7 +23,7 @@ func TestDarwinStaleExportBroadcastsUnavailableUpdate(t *testing.T) {
 	ledger.ApplyHostSnapshot(map[string]Export{export.busid: export}, nil)
 	ledger.SeedBroadcastState()
 
-	sub, _ := ledger.Subscribe(nil)
+	sub := ledger.Subscribe(nil)
 	select {
 	case <-sub.send:
 	case <-time.After(time.Second):
@@ -39,15 +39,14 @@ func TestDarwinStaleExportBroadcastsUnavailableUpdate(t *testing.T) {
 
 	select {
 	case message := <-sub.send:
-		require.Equal(t, controlFrameDeviceDelta, message.Frame.Type)
+		require.Equal(t, controlFrameDeviceSnapshot, message.Frame.Type)
 
-		var delta controlDeviceDelta
-		require.NoError(t, unmarshalControlPayload(message.Payload, &delta))
-		require.Empty(t, delta.Removed)
-		require.Len(t, delta.Updated, 1)
-		require.Equal(t, export.busid, delta.Updated[0].BusID)
-		require.Equal(t, deviceStateUnavailable, delta.Updated[0].State)
-		require.Equal(t, "device replaced", delta.Updated[0].StatusReason)
+		var snapshot controlDeviceSnapshot
+		require.NoError(t, unmarshalControlPayload(message.Payload, &snapshot))
+		require.Len(t, snapshot.Devices, 1)
+		require.Equal(t, export.busid, snapshot.Devices[0].BusID)
+		require.Equal(t, deviceStateUnavailable, snapshot.Devices[0].State)
+		require.Equal(t, "device replaced", snapshot.Devices[0].StatusReason)
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for unavailable update")
 	}

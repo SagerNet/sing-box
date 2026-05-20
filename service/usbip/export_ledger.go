@@ -3,6 +3,7 @@
 package usbip
 
 import (
+	"maps"
 	"net"
 	"slices"
 	"strings"
@@ -12,15 +13,15 @@ import (
 	"github.com/sagernet/sing-box/log"
 )
 
-// exportLedger holds two mutexes that are never acquired together. The
-// inventory lock must be released before BroadcastIfChanged re-takes it
-// through snapshotDeviceState.
+// exportLedger holds two mutexes that are never acquired together.
+// BroadcastIfChanged computes the next state under inventoryAccess via
+// snapshotDeviceState, then takes broadcastAccess to compare against
+// l.state, swap it in, and snapshot the subscriber list.
 type exportLedger struct {
 	logger log.ContextLogger
 	now    func() time.Time
 
 	broadcastAccess sync.Mutex
-	seq             uint64
 	nextSubID       uint64
 	subs            map[uint64]*exportSubscriber
 	state           map[string]DeviceInfoV2
@@ -124,28 +125,22 @@ func (l *exportLedger) BroadcastIfChanged() bool {
 	nextState := deviceInfoV2Map(l.snapshotDeviceState())
 
 	l.broadcastAccess.Lock()
-	nextSequence := l.seq + 1
-	delta := buildControlDeviceDelta(nextSequence, l.state, nextState)
-	if len(delta.Added) == 0 && len(delta.Updated) == 0 && len(delta.Removed) == 0 {
-		l.state = nextState
+	if maps.EqualFunc(l.state, nextState, deviceInfoV2Equal) {
 		l.broadcastAccess.Unlock()
 		return false
 	}
-	l.seq = nextSequence
-	sequence := l.seq
 	l.state = nextState
+	devices := sortedDeviceInfoV2Values(nextState)
 	targets := make([]*exportSubscriber, 0, len(l.subs))
 	for _, sub := range l.subs {
 		targets = append(targets, sub)
 	}
 	l.broadcastAccess.Unlock()
 
+	frame := controlFrame{Type: controlFrameDeviceSnapshot, Version: controlProtocolVersion}
+	payload := controlDeviceSnapshot{Devices: devices}
 	for _, sub := range targets {
-		l.enqueuePayload(sub, controlFrame{
-			Type:     controlFrameDeviceDelta,
-			Version:  controlProtocolVersion,
-			Sequence: sequence,
-		}, delta)
+		l.enqueuePayload(sub, frame, payload)
 	}
 	return true
 }
@@ -190,27 +185,12 @@ func (l *exportLedger) ReleaseImport(busid string, removeExport bool) {
 	})
 }
 
-// Subscribe enqueues a freshly computed snapshot so the new subscriber
-// sees current state regardless of when the last broadcast fired. Does
-// NOT mutate l.state: other subscribers must still receive the next
-// BroadcastIfChanged delta against the previous baseline.
-func (l *exportLedger) Subscribe(conn net.Conn) (*exportSubscriber, uint64) {
-	var snapshot []DeviceInfoV2
-	var sequence uint64
-	// Keep the snapshot and sequence from the same stable generation.
-	for {
-		l.broadcastAccess.Lock()
-		sequence = l.seq
-		l.broadcastAccess.Unlock()
-
-		snapshot = l.snapshotDeviceState()
-
-		l.broadcastAccess.Lock()
-		if sequence == l.seq {
-			break
-		}
-		l.broadcastAccess.Unlock()
-	}
+// Subscribe enqueues the current broadcast state so the new subscriber
+// sees the same device list every existing subscriber has received.
+// l.state is maintained by SeedBroadcastState and BroadcastIfChanged
+// under broadcastAccess, so reading it here is race-free.
+func (l *exportLedger) Subscribe(conn net.Conn) *exportSubscriber {
+	l.broadcastAccess.Lock()
 	defer l.broadcastAccess.Unlock()
 	l.nextSubID++
 	sub := &exportSubscriber{
@@ -219,12 +199,11 @@ func (l *exportLedger) Subscribe(conn net.Conn) (*exportSubscriber, uint64) {
 		send: make(chan controlMessage, controlSubscriberSendBuffer),
 	}
 	l.enqueuePayload(sub, controlFrame{
-		Type:     controlFrameDeviceSnapshot,
-		Version:  controlProtocolVersion,
-		Sequence: sequence,
-	}, controlDeviceSnapshot{Sequence: sequence, Devices: snapshot})
+		Type:    controlFrameDeviceSnapshot,
+		Version: controlProtocolVersion,
+	}, controlDeviceSnapshot{Devices: sortedDeviceInfoV2Values(l.state)})
 	l.subs[sub.id] = sub
-	return sub, sequence
+	return sub
 }
 
 // Unsubscribe leaves the subscriber's send channel for the GC to

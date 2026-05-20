@@ -222,12 +222,11 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		s.logger.Debug("unsupported control version ", hello.Version)
 		return
 	}
-	sub, seq := s.ledger.Subscribe(conn)
+	sub := s.ledger.Subscribe(conn)
 	defer s.ledger.Unsubscribe(sub)
 	err = writeControlMessage(conn, controlFrame{
-		Type:     controlFrameAck,
-		Version:  controlProtocolVersion,
-		Sequence: seq,
+		Type:    controlFrameAck,
+		Version: controlProtocolVersion,
 	}, nil)
 	if err != nil {
 		s.logger.Debug("write control ack: ", err)

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"io"
 	"slices"
-	"strings"
 
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -20,10 +19,9 @@ const (
 	controlFramePing           uint8 = 4
 	controlFramePong           uint8 = 5
 	controlFrameDeviceSnapshot uint8 = 6
-	controlFrameDeviceDelta    uint8 = 7
 
 	controlPrefaceSize      = 8
-	controlFrameSize        = 12
+	controlFrameSize        = 4
 	maxControlPayloadLength = 64<<10 - 1
 
 	deviceStateAvailable   = "available"
@@ -41,7 +39,6 @@ type controlFrame struct {
 	Type          uint8
 	Version       uint8
 	PayloadLength uint16
-	Sequence      uint64
 }
 
 type controlMessage struct {
@@ -78,15 +75,7 @@ type DeviceInfoV2 struct {
 }
 
 type controlDeviceSnapshot struct {
-	Sequence uint64         `json:"sequence"`
-	Devices  []DeviceInfoV2 `json:"devices"`
-}
-
-type controlDeviceDelta struct {
-	Sequence uint64         `json:"sequence"`
-	Added    []DeviceInfoV2 `json:"added,omitempty"`
-	Updated  []DeviceInfoV2 `json:"updated,omitempty"`
-	Removed  []string       `json:"removed,omitempty"`
+	Devices []DeviceInfoV2 `json:"devices"`
 }
 
 // controlReader reuses its payload scratch across successive reads on a
@@ -105,7 +94,6 @@ func (cr *controlReader) read(r io.Reader) (controlMessage, error) {
 		Type:          raw[0],
 		Version:       raw[1],
 		PayloadLength: binary.BigEndian.Uint16(raw[2:4]),
-		Sequence:      binary.BigEndian.Uint64(raw[4:12]),
 	}
 	var payload []byte
 	if frame.PayloadLength > 0 {
@@ -134,7 +122,6 @@ func writeControlMessage(w io.Writer, frame controlFrame, payload any) error {
 	raw[0] = frame.Type
 	raw[1] = frame.Version
 	binary.BigEndian.PutUint16(raw[2:4], frame.PayloadLength)
-	binary.BigEndian.PutUint64(raw[4:12], frame.Sequence)
 	_, err = w.Write(raw[:])
 	if err != nil {
 		return err
@@ -257,30 +244,6 @@ func deviceInfoV2ToEntries(devices []DeviceInfoV2, availableOnly bool) []DeviceE
 		entries = append(entries, DeviceEntry{Info: info, Interfaces: interfaces, Serial: device.Serial})
 	}
 	return entries
-}
-
-func buildControlDeviceDelta(sequence uint64, previous map[string]DeviceInfoV2, current map[string]DeviceInfoV2) controlDeviceDelta {
-	delta := controlDeviceDelta{Sequence: sequence}
-	for busid, device := range current {
-		prev, ok := previous[busid]
-		if !ok {
-			delta.Added = append(delta.Added, device)
-			continue
-		}
-		if !deviceInfoV2Equal(prev, device) {
-			delta.Updated = append(delta.Updated, device)
-		}
-	}
-	for busid := range previous {
-		_, ok := current[busid]
-		if !ok {
-			delta.Removed = append(delta.Removed, busid)
-		}
-	}
-	slices.SortFunc(delta.Added, func(a, b DeviceInfoV2) int { return strings.Compare(a.BusID, b.BusID) })
-	slices.SortFunc(delta.Updated, func(a, b DeviceInfoV2) int { return strings.Compare(a.BusID, b.BusID) })
-	slices.Sort(delta.Removed)
-	return delta
 }
 
 func deviceInfoV2Equal(a, b DeviceInfoV2) bool {

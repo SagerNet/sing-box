@@ -180,7 +180,6 @@ func (c *ClientService) runControlSession() error {
 	go c.controlPingLoop(conn, pingDone)
 	defer close(pingDone)
 
-	lastSeq := ack.Sequence
 	var reader controlReader
 	for {
 		err = conn.SetReadDeadline(time.Now().Add(controlReadTimeout))
@@ -200,27 +199,12 @@ func (c *ClientService) runControlSession() error {
 			if err != nil {
 				return E.Cause(errImmediateReconnect, "read device snapshot: ", err)
 			}
-			lastSeq = frame.Sequence
 			devices := deviceInfoV2Map(snapshot.Devices)
 			values := sortedDeviceInfoV2Values(devices)
 			c.remoteAccess.Lock()
 			c.remoteDevicesV2 = devices
 			c.remoteAccess.Unlock()
 			c.applyRemoteDeviceState(values)
-		case controlFrameDeviceDelta:
-			if frame.Sequence != lastSeq+1 {
-				c.remoteAccess.Lock()
-				c.remoteDevicesV2 = nil
-				c.remoteAccess.Unlock()
-				return E.Cause(errImmediateReconnect, "control sequence jumped from ", lastSeq, " to ", frame.Sequence)
-			}
-			var delta controlDeviceDelta
-			err = unmarshalControlPayload(message.Payload, &delta)
-			if err != nil {
-				return E.Cause(errImmediateReconnect, "read device delta: ", err)
-			}
-			lastSeq = frame.Sequence
-			c.applyControlDelta(delta)
 		case controlFramePong:
 		default:
 			return E.Cause(errImmediateReconnect, "unexpected control frame ", frame.Type)
