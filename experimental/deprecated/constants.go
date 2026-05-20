@@ -101,14 +101,6 @@ var OptionLegacyRuleSetDownloadDetour = Note{
 	EnvName:           "LEGACY_RULE_SET_DOWNLOAD_DETOUR",
 }
 
-var OptionLegacyTailscaleEndpointDialer = Note{
-	Name:              "legacy-tailscale-endpoint-dialer",
-	Description:       "legacy dialer options in Tailscale endpoint",
-	DeprecatedVersion: "1.14.0",
-	ScheduledVersion:  "1.16.0",
-	EnvName:           "LEGACY_TAILSCALE_ENDPOINT_DIALER",
-}
-
 var OptionRuleSetIPCIDRAcceptEmpty = Note{
 	Name:              "dns-rule-rule-set-ip-cidr-accept-empty",
 	Description:       "Legacy `rule_set_ip_cidr_accept_empty` DNS rule item",
@@ -168,7 +160,6 @@ var Options = []Note{
 	OptionLegacyDomainStrategyOptions,
 	OptionInlineACME,
 	OptionLegacyRuleSetDownloadDetour,
-	OptionLegacyTailscaleEndpointDialer,
 	OptionRuleSetIPCIDRAcceptEmpty,
 	OptionLegacyDNSAddressFilter,
 	OptionLegacyDNSRuleStrategy,
