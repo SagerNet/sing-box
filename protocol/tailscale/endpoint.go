@@ -165,46 +165,45 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	dialerQueryOptions := outboundDialer.(dialer.ResolveDialer).QueryOptions()
 	dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
-	server := &tsnet.Server{
-		Dir:      stateDirectory,
-		Hostname: hostname,
-		Logf: func(format string, args ...any) {
-			logger.Trace(fmt.Sprintf(format, args...))
-		},
-		UserLogf: func(format string, args ...any) {
-			logger.Debug(fmt.Sprintf(format, args...))
-		},
-		Ephemeral:     options.Ephemeral,
-		AuthKey:       options.AuthKey,
-		ControlURL:    options.ControlURL,
-		AdvertiseTags: options.AdvertiseTags,
-		Dialer:        &endpointDialer{Dialer: outboundDialer, logger: logger},
-		LookupHook: func(ctx context.Context, host string) ([]netip.Addr, error) {
-			return dnsRouter.Lookup(ctx, host, dialerQueryOptions)
-		},
-		DNS: &dnsConfigurtor{},
-		HTTPClient: &http.Client{
-			Transport: &http.Transport{
-				ForceAttemptHTTP2: true,
-				DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
-					return outboundDialer.DialContext(ctx, network, M.ParseSocksaddr(address))
-				},
-				TLSClientConfig: &tls.Config{
-					RootCAs: adapter.RootPoolFromContext(ctx),
-					Time:    ntp.TimeFuncFromContext(ctx),
+	return &Endpoint{
+		Adapter:           endpoint.NewAdapter(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
+		ctx:               ctx,
+		router:            router,
+		logger:            logger,
+		dnsRouter:         dnsRouter,
+		network:           service.FromContext[adapter.NetworkManager](ctx),
+		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
+		server: &tsnet.Server{
+			Dir:      stateDirectory,
+			Hostname: hostname,
+			Logf: func(format string, args ...any) {
+				logger.Trace(fmt.Sprintf(format, args...))
+			},
+			UserLogf: func(format string, args ...any) {
+				logger.Debug(fmt.Sprintf(format, args...))
+			},
+			Ephemeral:     options.Ephemeral,
+			AuthKey:       options.AuthKey,
+			ControlURL:    options.ControlURL,
+			AdvertiseTags: options.AdvertiseTags,
+			Dialer:        &endpointDialer{Dialer: outboundDialer, logger: logger},
+			LookupHook: func(ctx context.Context, host string) ([]netip.Addr, error) {
+				return dnsRouter.Lookup(ctx, host, dialerQueryOptions)
+			},
+			DNS: &dnsConfigurtor{},
+			HTTPClient: &http.Client{
+				Transport: &http.Transport{
+					ForceAttemptHTTP2: true,
+					DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+						return outboundDialer.DialContext(ctx, network, M.ParseSocksaddr(address))
+					},
+					TLSClientConfig: &tls.Config{
+						RootCAs: adapter.RootPoolFromContext(ctx),
+						Time:    ntp.TimeFuncFromContext(ctx),
+					},
 				},
 			},
 		},
-	}
-	return &Endpoint{
-		Adapter:                    endpoint.NewAdapter(C.TypeTailscale, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
-		ctx:                        ctx,
-		router:                     router,
-		logger:                     logger,
-		dnsRouter:                  dnsRouter,
-		network:                    service.FromContext[adapter.NetworkManager](ctx),
-		platformInterface:          service.FromContext[adapter.PlatformInterface](ctx),
-		server:                     server,
 		acceptRoutes:               options.AcceptRoutes,
 		exitNode:                   options.ExitNode,
 		exitNodeAllowLANAccess:     options.ExitNodeAllowLANAccess,
