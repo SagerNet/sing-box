@@ -20,13 +20,6 @@ Configure `http_clients` and `route.default_http_client` explicitly.
 
 Old behavior will be removed in sing-box 1.16.0.
 
-#### Legacy dialer options in Tailscale endpoint
-
-Legacy dialer options in Tailscale endpoints are deprecated,
-use `control_http_client` instead.
-
-Old fields will be removed in sing-box 1.16.0.
-
 #### Inline ACME options in TLS
 
 Inline ACME options (`tls.acme`) are deprecated
