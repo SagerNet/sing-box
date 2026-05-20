@@ -2,11 +2,6 @@
 icon: material/new-box
 ---
 
-!!! quote "sing-box 1.14.0 中的更改"
-
-    :material-plus: [control_http_client](#control_http_client)  
-    :material-delete-clock: [拨号字段](#拨号字段)
-
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [relay_server_port](#relay_server_port)  
@@ -27,7 +22,6 @@ icon: material/new-box
   "state_directory": "",
   "auth_key": "",
   "control_url": "",
-  "control_http_client": {}, // 或 ""
   "ephemeral": false,
   "hostname": "",
   "accept_routes": false,
@@ -153,18 +147,10 @@ UDP NAT 过期时间。
 
 默认使用 `5m`。
 
-#### control_http_client
-
-!!! question "自 sing-box 1.14.0 起"
-
-用于连接 Tailscale 控制平面的 HTTP 客户端。
-
-参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/) 了解详情。
-
 ### 拨号字段
 
-!!! failure "已在 sing-box 1.14.0 废弃"
+!!! note
 
-    Tailscale 端点中的拨号字段已在 sing-box 1.14.0 废弃且将在 sing-box 1.16.0 中被移除，请使用 `control_http_client` 代替。
+    Tailscale 端点中的拨号字段仅控制它如何连接到控制平面，与实际连接无关。
 
 参阅 [拨号字段](/zh/configuration/shared/dial/) 了解详情。
