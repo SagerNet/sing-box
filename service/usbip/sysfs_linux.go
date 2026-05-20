@@ -68,13 +68,11 @@ func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 
 // vhciStatusRecord is one row of /sys/devices/platform/vhci_hcd.0/status
 // or status.N. The kernel emits globally unique port numbers across every
-// status* file; secondary identifies which file the row came from
-// (0 for status, N for status.N) and exists only for diagnostic logging.
+// status* file.
 type vhciStatusRecord struct {
-	secondary int
-	hub       string
-	port      int
-	state     int
+	hub   string
+	port  int
+	state int
 }
 
 func listUSBDevices() ([]sysfsDevice, error) {
@@ -213,8 +211,8 @@ func waitForUsbipStatusCleared(ctx context.Context, busid string) {
 
 // readPrimaryVHCIStatus reads every status* file under
 // /sys/devices/platform/vhci_hcd.0 and concatenates the rows in lexical
-// order. status reports controller 0; status.N reports controller N.
-// Port numbers are already globally unique — no remapping is needed.
+// order. Port numbers are already globally unique across controllers — no
+// remapping is needed.
 func readPrimaryVHCIStatus() ([]vhciStatusRecord, error) {
 	matches, err := filepath.Glob(filepath.Join(sysVHCIControllerV0, "status*"))
 	if err != nil {
@@ -223,15 +221,15 @@ func readPrimaryVHCIStatus() ([]vhciStatusRecord, error) {
 	sort.Strings(matches)
 	records := make([]vhciStatusRecord, 0)
 	for _, path := range matches {
-		secondary, parseErr := vhciSecondaryFromStatusFile(filepath.Base(path))
-		if parseErr != nil {
+		base := filepath.Base(path)
+		if base != "status" && !strings.HasPrefix(base, "status.") {
 			continue
 		}
 		raw, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return nil, readErr
 		}
-		records = append(records, parseVHCIStatus(secondary, string(raw))...)
+		records = append(records, parseVHCIStatus(string(raw))...)
 	}
 	return records, nil
 }
@@ -267,18 +265,7 @@ func vhciPickFreePort(speed uint32, skip map[int]struct{}) (int, error) {
 	return -1, E.New("no free ", targetHub, " vhci port")
 }
 
-func vhciSecondaryFromStatusFile(name string) (int, error) {
-	if name == "status" {
-		return 0, nil
-	}
-	suffix := strings.TrimPrefix(name, "status.")
-	if suffix == name {
-		return 0, E.New("not a status file: ", name)
-	}
-	return strconv.Atoi(suffix)
-}
-
-func parseVHCIStatus(secondary int, raw string) []vhciStatusRecord {
+func parseVHCIStatus(raw string) []vhciStatusRecord {
 	scanner := bufio.NewScanner(strings.NewReader(raw))
 	records := make([]vhciStatusRecord, 0)
 	first := true
@@ -304,10 +291,9 @@ func parseVHCIStatus(secondary int, raw string) []vhciStatusRecord {
 			continue
 		}
 		records = append(records, vhciStatusRecord{
-			secondary: secondary,
-			hub:       fields[0],
-			port:      port,
-			state:     state,
+			hub:   fields[0],
+			port:  port,
+			state: state,
 		})
 	}
 	return records

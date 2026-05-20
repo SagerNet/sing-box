@@ -741,26 +741,25 @@ func (h *linuxImportHost) Attach(ctx context.Context, info DeviceInfoTruncated, 
 		mode = "relay"
 	}
 	h.logger.Debug("usbip client handoff ", info.BusIDString(), ": ", mode)
-	port, secondary, attachErr := h.attachOnce(ctx, info, handoff)
+	port, attachErr := h.attachOnce(ctx, info, handoff)
 	if attachErr != nil {
 		_ = handoff.Close()
 		return nil, attachErr
 	}
 	_ = handoff.Start()
 	return &linuxClientSession{
-		handoff:   handoff,
-		host:      h,
-		port:      port,
-		secondary: secondary,
+		handoff: handoff,
+		host:    h,
+		port:    port,
 	}, nil
 }
 
-func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncated, handoff *kernelHandoffSession) (int, int, error) {
+func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncated, handoff *kernelHandoffSession) (int, error) {
 	triedPorts := make(map[int]struct{})
 	for {
 		port, err := vhciPickFreePort(info.Speed, triedPorts)
 		if err != nil {
-			return -1, 0, err
+			return -1, err
 		}
 		if !h.reservePort(port) {
 			triedPorts[port] = struct{}{}
@@ -774,27 +773,14 @@ func (h *linuxImportHost) attachOnce(ctx context.Context, info DeviceInfoTruncat
 				triedPorts[port] = struct{}{}
 				continue
 			}
-			return -1, 0, E.Cause(err, "vhci attach")
+			return -1, E.Cause(err, "vhci attach")
 		}
 		err = handoff.closeKernelFD()
 		if err != nil {
 			h.logger.Debug("close kernel fd ", info.BusIDString(), ": ", err)
 		}
-		return port, lookupSecondaryForPort(port), nil
+		return port, nil
 	}
-}
-
-func lookupSecondaryForPort(port int) int {
-	records, err := readPrimaryVHCIStatus()
-	if err != nil {
-		return 0
-	}
-	for _, record := range records {
-		if record.port == port {
-			return record.secondary
-		}
-	}
-	return 0
 }
 
 func (h *linuxImportHost) reservePort(port int) bool {
@@ -818,10 +804,9 @@ func (h *linuxImportHost) releasePort(port int) {
 }
 
 type linuxClientSession struct {
-	handoff   *kernelHandoffSession
-	host      *linuxImportHost
-	port      int
-	secondary int
+	handoff *kernelHandoffSession
+	host    *linuxImportHost
+	port    int
 
 	closeOnce sync.Once
 	closeErr  error
@@ -850,8 +835,5 @@ func (s *linuxClientSession) Close() error {
 }
 
 func (s *linuxClientSession) Description() string {
-	if s.secondary == 0 {
-		return fmt.Sprintf("vhci_hcd.0 port %d", s.port)
-	}
-	return fmt.Sprintf("vhci_hcd.0 (controller %d) port %d", s.secondary, s.port)
+	return fmt.Sprintf("vhci_hcd.0 port %d", s.port)
 }
