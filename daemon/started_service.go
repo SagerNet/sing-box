@@ -1384,11 +1384,15 @@ func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStat
 	if s.Self != nil {
 		result.Self = tailscalePeerToProto(s.Self)
 	}
+	if s.ExitNode != nil {
+		result.ExitNode = tailscalePeerToProto(s.ExitNode)
+	}
 	return result
 }
 
 func tailscalePeerToProto(peer *adapter.TailscalePeer) *TailscalePeer {
 	return &TailscalePeer{
+		StableID:       peer.StableID,
 		HostName:       peer.HostName,
 		DnsName:        peer.DNSName,
 		Os:             peer.OS,
@@ -1460,6 +1464,40 @@ func (s *StartedService) StartTailscalePing(
 			Error:          result.Error,
 		})
 	})
+}
+
+func (s *StartedService) SetTailscaleExitNode(ctx context.Context, request *SetTailscaleExitNodeRequest) (*emptypb.Empty, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
+	if endpointManager == nil {
+		return nil, status.Error(codes.FailedPrecondition, "endpoint manager not available")
+	}
+	if request.EndpointTag == "" {
+		return nil, status.Error(codes.InvalidArgument, "endpoint tag is required")
+	}
+	endpoint, loaded := endpointManager.Get(request.EndpointTag)
+	if !loaded {
+		return nil, status.Error(codes.NotFound, "endpoint not found: "+request.EndpointTag)
+	}
+	if endpoint.Type() != C.TypeTailscale {
+		return nil, status.Error(codes.InvalidArgument, "endpoint is not Tailscale: "+request.EndpointTag)
+	}
+	tsEndpoint, loaded := endpoint.(adapter.TailscaleEndpoint)
+	if !loaded {
+		return nil, status.Error(codes.FailedPrecondition, "endpoint does not support tailscale")
+	}
+	err = tsEndpoint.SetTailscaleExitNode(ctx, request.StableID)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
 }
 
 func (s *StartedService) mustEmbedUnimplementedStartedServiceServer() {
