@@ -40,6 +40,7 @@ service StartedService {
   rpc StartSTUNTest(STUNTestRequest) returns (stream STUNTestProgress) {}
   rpc SubscribeTailscaleStatus(google.protobuf.Empty) returns (stream TailscaleStatusUpdate) {}
   rpc StartTailscalePing(TailscalePingRequest) returns (stream TailscalePingResponse) {}
+  rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
 }
 
 message ServiceStatus {
@@ -292,6 +293,7 @@ message TailscaleEndpointStatus {
   string magicDNSSuffix = 5;
   TailscalePeer self = 6;
   repeated TailscaleUserGroup userGroups = 7;
+  TailscalePeer exitNode = 8;
 }
 
 message TailscaleUserGroup {
@@ -314,6 +316,7 @@ message TailscalePeer {
   int64 rxBytes = 9;
   int64 txBytes = 10;
   int64 keyExpiry = 11;
+  string stableID = 12;
 }
 
 message TailscalePingRequest {
@@ -328,4 +331,9 @@ message TailscalePingResponse {
   int32 derpRegionID = 4;
   string derpRegionCode = 5;
   string error = 6;
+}
+
+message SetTailscaleExitNodeRequest {
+  string endpointTag = 1;
+  string stableID = 2;
 }

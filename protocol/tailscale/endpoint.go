@@ -53,6 +53,7 @@ import (
 	"github.com/sagernet/tailscale/net/netns"
 	"github.com/sagernet/tailscale/net/tsaddr"
 	tsTUN "github.com/sagernet/tailscale/net/tstun"
+	"github.com/sagernet/tailscale/tailcfg"
 	"github.com/sagernet/tailscale/tsnet"
 	"github.com/sagernet/tailscale/types/ipproto"
 	"github.com/sagernet/tailscale/types/nettype"
@@ -485,6 +486,49 @@ func (t *Endpoint) watchState() {
 			return false
 		})
 	}
+}
+
+func (t *Endpoint) SetTailscaleExitNode(ctx context.Context, stableID string) error {
+	if !t.started.Load() {
+		return E.New("Tailscale is not ready yet")
+	}
+	if t.advertiseExitNode && stableID != "" {
+		return E.New("cannot advertise an exit node and use an exit node at the same time")
+	}
+	perfs := &ipn.MaskedPrefs{
+		Prefs: ipn.Prefs{
+			ExitNodeID:             tailcfg.StableNodeID(stableID),
+			ExitNodeAllowLANAccess: t.exitNodeAllowLANAccess,
+		},
+		ExitNodeIDSet:             true,
+		ExitNodeIPSet:             true,
+		ExitNodeAllowLANAccessSet: true,
+	}
+	if stableID != "" {
+		status, err := common.Must1(t.server.LocalClient()).Status(ctx)
+		if err != nil {
+			return E.Cause(err, "get tailscale status")
+		}
+		found := false
+		for _, peer := range status.Peer {
+			if peer.ID != tailcfg.StableNodeID(stableID) {
+				continue
+			}
+			if !peer.ExitNodeOption {
+				return E.New("peer does not offer exit node: ", stableID)
+			}
+			found = true
+			break
+		}
+		if !found {
+			return E.New("peer not found: ", stableID)
+		}
+	}
+	_, err := t.server.ExportLocalBackend().EditPrefs(perfs)
+	if err != nil {
+		return E.Cause(err, "update prefs")
+	}
+	return nil
 }
 
 func (t *Endpoint) Close() error {
