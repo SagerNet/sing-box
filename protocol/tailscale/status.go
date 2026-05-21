@@ -26,7 +26,7 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 			return false
 		default:
 		}
-		if roNotify.State != nil || roNotify.NetMap != nil || roNotify.BrowseToURL != nil {
+		if roNotify.State != nil || roNotify.NetMap != nil || roNotify.BrowseToURL != nil || roNotify.Prefs != nil {
 			sendStatus()
 		}
 		return true
@@ -76,6 +76,27 @@ func convertTailscaleStatus(status *ipnstate.Status) *adapter.TailscaleEndpointS
 			return 0
 		})
 	}
+	if status.ExitNodeStatus != nil {
+		for _, peerKey := range status.Peers() {
+			peer := status.Peer[peerKey]
+			if peer.ID == status.ExitNodeStatus.ID {
+				result.ExitNode = convertTailscalePeer(peer)
+				break
+			}
+		}
+		if result.ExitNode == nil {
+			ips := make([]string, 0, len(status.ExitNodeStatus.TailscaleIPs))
+			for _, prefix := range status.ExitNodeStatus.TailscaleIPs {
+				ips = append(ips, prefix.Addr().String())
+			}
+			result.ExitNode = &adapter.TailscalePeer{
+				StableID:     string(status.ExitNodeStatus.ID),
+				TailscaleIPs: ips,
+				Online:       status.ExitNodeStatus.Online,
+				ExitNode:     true,
+			}
+		}
+	}
 	return result
 }
 
@@ -89,6 +110,7 @@ func convertTailscalePeer(peer *ipnstate.PeerStatus) *adapter.TailscalePeer {
 		keyExpiry = peer.KeyExpiry.Unix()
 	}
 	return &adapter.TailscalePeer{
+		StableID:       string(peer.ID),
 		HostName:       peer.HostName,
 		DNSName:        peer.DNSName,
 		OS:             peer.OS,
