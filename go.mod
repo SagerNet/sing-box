@@ -47,7 +47,7 @@ require (
 	github.com/sagernet/sing-tun v0.8.12-0.20260727151149-e5c21070ae46
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
-	github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.7.0.20260520100745-866f10007557
+	github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.7.0.20260521041027-e9a3134eb397
 	github.com/sagernet/wireguard-go v0.0.3
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.10.2
