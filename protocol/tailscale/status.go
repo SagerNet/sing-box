@@ -109,19 +109,27 @@ func convertTailscalePeer(peer *ipnstate.PeerStatus) *adapter.TailscalePeer {
 	if peer.KeyExpiry != nil {
 		keyExpiry = peer.KeyExpiry.Unix()
 	}
+	var lastSeen int64
+	if !peer.LastSeen.IsZero() {
+		lastSeen = peer.LastSeen.Unix()
+	}
 	return &adapter.TailscalePeer{
 		StableID:       string(peer.ID),
 		HostName:       peer.HostName,
 		DNSName:        peer.DNSName,
 		OS:             peer.OS,
 		TailscaleIPs:   ips,
+		SSHHostKeys:    peer.SSH_HostKeys,
 		Online:         peer.Online,
 		ExitNode:       peer.ExitNode,
 		ExitNodeOption: peer.ExitNodeOption,
+		ShareeNode:     peer.ShareeNode,
+		Expired:        peer.Expired,
 		Active:         peer.Active,
 		RxBytes:        peer.RxBytes,
 		TxBytes:        peer.TxBytes,
 		UserID:         int64(peer.UserID),
 		KeyExpiry:      keyExpiry,
+		LastSeen:       lastSeen,
 	}
 }
