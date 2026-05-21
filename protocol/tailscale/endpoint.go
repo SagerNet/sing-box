@@ -83,6 +83,7 @@ type Endpoint struct {
 	ctx               context.Context
 	router            adapter.Router
 	logger            logger.ContextLogger
+	queryOptions      adapter.DNSQueryOptions
 	dnsRouter         adapter.DNSRouter
 	network           adapter.NetworkManager
 	platformInterface adapter.PlatformInterface
@@ -246,6 +247,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		ctx:                        ctx,
 		router:                     router,
 		logger:                     logger,
+		queryOptions:               outboundDialer.(dialer.ResolveDialer).QueryOptions(),
 		dnsRouter:                  dnsRouter,
 		network:                    service.FromContext[adapter.NetworkManager](ctx),
 		platformInterface:          service.FromContext[adapter.PlatformInterface](ctx),

@@ -161,8 +161,9 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 
 func (t *DNSTransport) createResolver(directDialer func() N.Dialer, resolver *dnstype.Resolver) (adapter.DNSTransport, error) {
 	serverURL, parseURLErr := url.Parse(resolver.Addr)
+	isHTTPScheme := parseURLErr == nil && (serverURL.Scheme == "http" || serverURL.Scheme == "https")
 	var myDialer N.Dialer
-	if parseURLErr == nil && serverURL.Scheme == "http" {
+	if isHTTPScheme && serverURL.Scheme == "http" {
 		myDialer = t.endpoint
 	} else {
 		myDialer = directDialer()
@@ -170,36 +171,39 @@ func (t *DNSTransport) createResolver(directDialer func() N.Dialer, resolver *dn
 	if len(resolver.BootstrapResolution) > 0 {
 		bootstrapTransport := transport.NewUDPRaw(t.logger, t.TransportAdapter, myDialer, M.SocksaddrFrom(resolver.BootstrapResolution[0], 53))
 		myDialer = dialer.NewResolveDialer(t.ctx, myDialer, false, "", adapter.DNSQueryOptions{Transport: bootstrapTransport}, 0)
-	}
-	if serverAddr := M.ParseSocksaddr(resolver.Addr); serverAddr.IsValid() {
-		if serverAddr.Port == 0 {
-			serverAddr.Port = 53
-		}
-		return transport.NewUDPRaw(t.logger, t.TransportAdapter, myDialer, serverAddr), nil
-	} else if parseURLErr != nil {
-		return nil, E.Cause(parseURLErr, "parse resolver address")
 	} else {
+		myDialer = dialer.NewResolveDialer(t.ctx, myDialer, false, "", t.endpoint.queryOptions, 0)
+	}
+	if isHTTPScheme {
+		serverAddr := M.ParseSocksaddrHostPortStr(serverURL.Hostname(), serverURL.Port())
 		switch serverURL.Scheme {
 		case "https":
-			serverAddr = M.ParseSocksaddrHostPortStr(serverURL.Hostname(), serverURL.Port())
 			if serverAddr.Port == 0 {
 				serverAddr.Port = 443
 			}
 			tlsConfig := common.Must1(tls.NewClient(t.ctx, t.logger, serverAddr.AddrString(), option.OutboundTLSOptions{
-				ALPN: []string{http2.NextProtoTLS, "http/1.1"},
+				Enabled: true,
+				ALPN:    []string{http2.NextProtoTLS, "http/1.1"},
 			}))
 			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, tlsConfig), nil
 		case "http":
-			serverAddr = M.ParseSocksaddrHostPortStr(serverURL.Hostname(), serverURL.Port())
 			if serverAddr.Port == 0 {
 				serverAddr.Port = 80
 			}
 			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, nil), nil
-		// case "tls":
-		default:
-			return nil, E.New("unknown resolver scheme: ", serverURL.Scheme)
 		}
 	}
+	serverAddr := M.ParseSocksaddr(resolver.Addr)
+	if !serverAddr.IsValid() {
+		if parseURLErr != nil {
+			return nil, E.Cause(parseURLErr, "parse resolver address")
+		}
+		return nil, E.New("invalid resolver address: ", resolver.Addr)
+	}
+	if serverAddr.Port == 0 {
+		serverAddr.Port = 53
+	}
+	return transport.NewUDPRaw(t.logger, t.TransportAdapter, myDialer, serverAddr), nil
 }
 
 func buildRoutePrefixes(routeConfig *router.Config) []netip.Prefix {

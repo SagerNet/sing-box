@@ -120,13 +120,16 @@ func NewHTTPSRaw(
 	serverAddr M.Socksaddr,
 	tlsConfig tls.Config,
 ) *HTTPSTransport {
+	if tlsConfig != nil {
+		dialer = tls.NewDialer(dialer, tlsConfig)
+	}
 	return &HTTPSTransport{
 		TransportAdapter: adapter,
 		logger:           logger,
 		dialer:           dialer,
 		destination:      destination,
 		headers:          headers,
-		transport:        NewHTTPSTransportWrapper(tls.NewDialer(dialer, tlsConfig), serverAddr),
+		transport:        NewHTTPSTransportWrapper(dialer, serverAddr, destination),
 	}
 }
 
