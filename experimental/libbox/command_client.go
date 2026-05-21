@@ -780,6 +780,19 @@ func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler)
 	}
 }
 
+func (c *CommandClient) SetTailscaleExitNode(endpointTag string, stableID string) error {
+	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetTailscaleExitNode(context.Background(), &daemon.SetTailscaleExitNodeRequest{
+			EndpointTag: endpointTag,
+			StableID:    stableID,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "set tailscale exit node")
+	}
+	return nil
+}
+
 func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, handler TailscalePingHandler) error {
 	client, err := c.getClientForCall()
 	if err != nil {

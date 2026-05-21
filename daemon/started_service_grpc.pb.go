@@ -43,6 +43,7 @@ const (
 	StartedService_StartSTUNTest_FullMethodName            = "/daemon.StartedService/StartSTUNTest"
 	StartedService_SubscribeTailscaleStatus_FullMethodName = "/daemon.StartedService/SubscribeTailscaleStatus"
 	StartedService_StartTailscalePing_FullMethodName       = "/daemon.StartedService/StartTailscalePing"
+	StartedService_SetTailscaleExitNode_FullMethodName     = "/daemon.StartedService/SetTailscaleExitNode"
 )
 
 // StartedServiceClient is the client API for StartedService service.
@@ -77,6 +78,7 @@ type StartedServiceClient interface {
 	StartSTUNTest(ctx context.Context, in *STUNTestRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[STUNTestProgress], error)
 	SubscribeTailscaleStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscaleStatusUpdate], error)
 	StartTailscalePing(ctx context.Context, in *TailscalePingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscalePingResponse], error)
+	SetTailscaleExitNode(ctx context.Context, in *SetTailscaleExitNodeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type startedServiceClient struct {
@@ -466,6 +468,16 @@ func (c *startedServiceClient) StartTailscalePing(ctx context.Context, in *Tails
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_StartTailscalePingClient = grpc.ServerStreamingClient[TailscalePingResponse]
 
+func (c *startedServiceClient) SetTailscaleExitNode(ctx context.Context, in *SetTailscaleExitNodeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, StartedService_SetTailscaleExitNode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StartedServiceServer is the server API for StartedService service.
 // All implementations must embed UnimplementedStartedServiceServer
 // for forward compatibility.
@@ -498,6 +510,7 @@ type StartedServiceServer interface {
 	StartSTUNTest(*STUNTestRequest, grpc.ServerStreamingServer[STUNTestProgress]) error
 	SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error
 	StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error
+	SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedStartedServiceServer()
 }
 
@@ -618,6 +631,10 @@ func (UnimplementedStartedServiceServer) SubscribeTailscaleStatus(*emptypb.Empty
 
 func (UnimplementedStartedServiceServer) StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error {
 	return status.Error(codes.Unimplemented, "method StartTailscalePing not implemented")
+}
+
+func (UnimplementedStartedServiceServer) SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetTailscaleExitNode not implemented")
 }
 func (UnimplementedStartedServiceServer) mustEmbedUnimplementedStartedServiceServer() {}
 func (UnimplementedStartedServiceServer) testEmbeddedByValue()                        {}
@@ -1067,6 +1084,24 @@ func _StartedService_StartTailscalePing_Handler(srv interface{}, stream grpc.Ser
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_StartTailscalePingServer = grpc.ServerStreamingServer[TailscalePingResponse]
 
+func _StartedService_SetTailscaleExitNode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetTailscaleExitNodeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StartedServiceServer).SetTailscaleExitNode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StartedService_SetTailscaleExitNode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StartedServiceServer).SetTailscaleExitNode(ctx, req.(*SetTailscaleExitNodeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StartedService_ServiceDesc is the grpc.ServiceDesc for StartedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1141,6 +1176,10 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStartedAt",
 			Handler:    _StartedService_GetStartedAt_Handler,
+		},
+		{
+			MethodName: "SetTailscaleExitNode",
+			Handler:    _StartedService_SetTailscaleExitNode_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
