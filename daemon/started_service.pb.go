@@ -2482,6 +2482,10 @@ type TailscalePeer struct {
 	TxBytes        int64                  `protobuf:"varint,10,opt,name=txBytes,proto3" json:"txBytes,omitempty"`
 	KeyExpiry      int64                  `protobuf:"varint,11,opt,name=keyExpiry,proto3" json:"keyExpiry,omitempty"`
 	StableID       string                 `protobuf:"bytes,12,opt,name=stableID,proto3" json:"stableID,omitempty"`
+	Expired        bool                   `protobuf:"varint,13,opt,name=expired,proto3" json:"expired,omitempty"`
+	SshHostKeys    []string               `protobuf:"bytes,14,rep,name=sshHostKeys,proto3" json:"sshHostKeys,omitempty"`
+	ShareeNode     bool                   `protobuf:"varint,15,opt,name=shareeNode,proto3" json:"shareeNode,omitempty"`
+	LastSeen       int64                  `protobuf:"varint,16,opt,name=lastSeen,proto3" json:"lastSeen,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -2598,6 +2602,34 @@ func (x *TailscalePeer) GetStableID() string {
 		return x.StableID
 	}
 	return ""
+}
+
+func (x *TailscalePeer) GetExpired() bool {
+	if x != nil {
+		return x.Expired
+	}
+	return false
+}
+
+func (x *TailscalePeer) GetSshHostKeys() []string {
+	if x != nil {
+		return x.SshHostKeys
+	}
+	return nil
+}
+
+func (x *TailscalePeer) GetShareeNode() bool {
+	if x != nil {
+		return x.ShareeNode
+	}
+	return false
+}
+
+func (x *TailscalePeer) GetLastSeen() int64 {
+	if x != nil {
+		return x.LastSeen
+	}
+	return 0
 }
 
 type TailscalePingRequest struct {
@@ -3031,7 +3063,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\tloginName\x18\x02 \x01(\tR\tloginName\x12 \n" +
 	"\vdisplayName\x18\x03 \x01(\tR\vdisplayName\x12$\n" +
 	"\rprofilePicURL\x18\x04 \x01(\tR\rprofilePicURL\x12+\n" +
-	"\x05peers\x18\x05 \x03(\v2\x15.daemon.TailscalePeerR\x05peers\"\xdb\x02\n" +
+	"\x05peers\x18\x05 \x03(\v2\x15.daemon.TailscalePeerR\x05peers\"\xd3\x03\n" +
 	"\rTailscalePeer\x12\x1a\n" +
 	"\bhostName\x18\x01 \x01(\tR\bhostName\x12\x18\n" +
 	"\adnsName\x18\x02 \x01(\tR\adnsName\x12\x0e\n" +
@@ -3045,7 +3077,13 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\atxBytes\x18\n" +
 	" \x01(\x03R\atxBytes\x12\x1c\n" +
 	"\tkeyExpiry\x18\v \x01(\x03R\tkeyExpiry\x12\x1a\n" +
-	"\bstableID\x18\f \x01(\tR\bstableID\"P\n" +
+	"\bstableID\x18\f \x01(\tR\bstableID\x12\x18\n" +
+	"\aexpired\x18\r \x01(\bR\aexpired\x12 \n" +
+	"\vsshHostKeys\x18\x0e \x03(\tR\vsshHostKeys\x12\x1e\n" +
+	"\n" +
+	"shareeNode\x18\x0f \x01(\bR\n" +
+	"shareeNode\x12\x1a\n" +
+	"\blastSeen\x18\x10 \x01(\x03R\blastSeen\"P\n" +
 	"\x14TailscalePingRequest\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x16\n" +
 	"\x06peerIP\x18\x02 \x01(\tR\x06peerIP\"\xcf\x01\n" +
