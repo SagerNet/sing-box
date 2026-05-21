@@ -1397,13 +1397,17 @@ func tailscalePeerToProto(peer *adapter.TailscalePeer) *TailscalePeer {
 		DnsName:        peer.DNSName,
 		Os:             peer.OS,
 		TailscaleIPs:   peer.TailscaleIPs,
+		SshHostKeys:    peer.SSHHostKeys,
 		Online:         peer.Online,
 		ExitNode:       peer.ExitNode,
 		ExitNodeOption: peer.ExitNodeOption,
+		ShareeNode:     peer.ShareeNode,
+		Expired:        peer.Expired,
 		Active:         peer.Active,
 		RxBytes:        peer.RxBytes,
 		TxBytes:        peer.TxBytes,
 		KeyExpiry:      peer.KeyExpiry,
+		LastSeen:       peer.LastSeen,
 	}
 }
 
