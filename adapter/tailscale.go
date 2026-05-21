@@ -41,12 +41,16 @@ type TailscalePeer struct {
 	DNSName        string
 	OS             string
 	TailscaleIPs   []string
+	SSHHostKeys    []string
 	Online         bool
 	ExitNode       bool
 	ExitNodeOption bool
+	ShareeNode     bool
+	Expired        bool
 	Active         bool
 	RxBytes        int64
 	TxBytes        int64
 	UserID         int64
 	KeyExpiry      int64
+	LastSeen       int64
 }
