@@ -317,6 +317,10 @@ message TailscalePeer {
   int64 txBytes = 10;
   int64 keyExpiry = 11;
   string stableID = 12;
+  bool expired = 13;
+  repeated string sshHostKeys = 14;
+  bool shareeNode = 15;
+  int64 lastSeen = 16;
 }
 
 message TailscalePingRequest {
