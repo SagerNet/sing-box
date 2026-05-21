@@ -58,17 +58,25 @@ type TailscalePeer struct {
 	DNSName        string
 	OS             string
 	tailscaleIPs   []string
+	sshHostKeys    []string
 	Online         bool
 	ExitNode       bool
 	ExitNodeOption bool
+	ShareeNode     bool
+	Expired        bool
 	Active         bool
 	RxBytes        int64
 	TxBytes        int64
 	KeyExpiry      int64
+	LastSeen       int64
 }
 
 func (p *TailscalePeer) TailscaleIPs() StringIterator {
 	return newIterator(p.tailscaleIPs)
+}
+
+func (p *TailscalePeer) SSHHostKeys() StringIterator {
+	return newIterator(p.sshHostKeys)
 }
 
 type TailscaleStatusHandler interface {
@@ -127,12 +135,16 @@ func tailscalePeerFromGRPC(peer *daemon.TailscalePeer) *TailscalePeer {
 		DNSName:        peer.DnsName,
 		OS:             peer.Os,
 		tailscaleIPs:   peer.TailscaleIPs,
+		sshHostKeys:    peer.SshHostKeys,
 		Online:         peer.Online,
 		ExitNode:       peer.ExitNode,
 		ExitNodeOption: peer.ExitNodeOption,
+		ShareeNode:     peer.ShareeNode,
+		Expired:        peer.Expired,
 		Active:         peer.Active,
 		RxBytes:        peer.RxBytes,
 		TxBytes:        peer.TxBytes,
 		KeyExpiry:      peer.KeyExpiry,
+		LastSeen:       peer.LastSeen,
 	}
 }
