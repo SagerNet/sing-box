@@ -56,8 +56,8 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			return nil, err
 		}
 				return &RuleActionRoute{
-			Tag:                    action.Tag,
-			Outbound:               action.RouteOptions.Outbound,
+					tag:                    action.Tag,
+					Outbound:               action.RouteOptions.Outbound,
 			RuleActionRouteOptions: routeOptions,
 		}, nil
 	case C.RuleActionTypeRouteOptions:
@@ -65,7 +65,7 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 		if err != nil {
 			return nil, err
 		}
-		routeOptions.Tag = action.Tag
+				routeOptions.tag = action.Tag
 		return &routeOptions, nil
 	case C.RuleActionTypeBypass:
 		routeOptions, err := newRuleActionRouteOptions(action.BypassOptions.RawRouteOptionsActionOptions)
@@ -73,8 +73,8 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			return nil, err
 		}
 				return &RuleActionBypass{
-			Tag:                    action.Tag,
-			Outbound:               action.BypassOptions.Outbound,
+					tag:                    action.Tag,
+					Outbound:               action.BypassOptions.Outbound,
 			RuleActionRouteOptions: routeOptions,
 		}, nil
 	case C.RuleActionTypeDirect:
@@ -94,30 +94,30 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			description = F.ToString("(", descriptions[0], ",", descriptions[1], ",...)")
 		}
 				return &RuleActionDirect{
-			Tag:         action.Tag,
-			Dialer:      directDialer,
+					tag:         action.Tag,
+					Dialer:      directDialer,
 			description: description,
 		}, nil
 	case C.RuleActionTypeReject:
-				return &RuleActionReject{
-			Tag:    action.Tag,
-			Method: action.RejectOptions.Method,
-			NoDrop: action.RejectOptions.NoDrop,
-			logger: logger,
-		}, nil
+			return &RuleActionReject{
+				tag:    action.Tag,
+				Method: action.RejectOptions.Method,
+				NoDrop: action.RejectOptions.NoDrop,
+				logger: logger,
+			}, nil
 	case C.RuleActionTypeHijackDNS:
-		return &RuleActionHijackDNS{Tag: action.Tag}, nil
+		return &RuleActionHijackDNS{tag: action.Tag}, nil
 	case C.RuleActionTypeSniff:
 				sniffAction := &RuleActionSniff{
-			Tag:          action.Tag,
-			SnifferNames: action.SniffOptions.Sniffer,
+					tag:          action.Tag,
+					SnifferNames: action.SniffOptions.Sniffer,
 			Timeout:      time.Duration(action.SniffOptions.Timeout),
 		}
 		return sniffAction, sniffAction.build()
 	case C.RuleActionTypeResolve:
 				return &RuleActionResolve{
-			Tag:                    action.Tag,
-			Server:                 action.ResolveOptions.Server,
+					tag:                    action.Tag,
+					Server:                 action.ResolveOptions.Server,
 			Timeout:                time.Duration(action.ResolveOptions.Timeout),
 			Strategy:               C.DomainStrategy(action.ResolveOptions.Strategy),
 			DisableCache:           action.ResolveOptions.DisableCache,
@@ -135,8 +135,8 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 	case "":
 		return nil
 	case C.RuleActionTypeRoute:
-		return &RuleActionDNSRoute{
-			Tag:    action.Tag,
+				return &RuleActionDNSRoute{
+			tag:    action.Tag,
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
@@ -148,8 +148,8 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			},
 		}
 	case C.RuleActionTypeEvaluate:
-		return &RuleActionEvaluate{
-			Tag:    action.Tag,
+				return &RuleActionEvaluate{
+			tag:    action.Tag,
 			Server: action.RouteOptions.Server,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
@@ -161,10 +161,10 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			},
 		}
 	case C.RuleActionTypeRespond:
-		return &RuleActionRespond{Tag: action.Tag}
+		return &RuleActionRespond{tag: action.Tag}
 	case C.RuleActionTypeRouteOptions:
-		return &RuleActionDNSRouteOptions{
-			Tag:                    action.Tag,
+				return &RuleActionDNSRouteOptions{
+			tag:                    action.Tag,
 			Strategy:               C.DomainStrategy(action.RouteOptionsOptions.Strategy),
 			Timeout:                time.Duration(action.RouteOptionsOptions.Timeout),
 			DisableCache:           action.RouteOptionsOptions.DisableCache,
@@ -173,15 +173,15 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
 		}
 	case C.RuleActionTypeReject:
-				return &RuleActionReject{
-			Tag:    action.Tag,
-			Method: action.RejectOptions.Method,
-			NoDrop: action.RejectOptions.NoDrop,
-			logger: logger,
-		}
+			return &RuleActionReject{
+				tag:    action.Tag,
+				Method: action.RejectOptions.Method,
+				NoDrop: action.RejectOptions.NoDrop,
+				logger: logger,
+			}
 	case C.RuleActionTypePredefined:
-		return &RuleActionPredefined{
-			Tag:    action.Tag,
+				return &RuleActionPredefined{
+			tag:    action.Tag,
 			Rcode:  action.PredefinedOptions.Rcode.Build(),
 			Answer: common.Map(action.PredefinedOptions.Answer, option.DNSRecordOptions.Build),
 			Ns:     common.Map(action.PredefinedOptions.Ns, option.DNSRecordOptions.Build),
@@ -193,7 +193,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 }
 
 type RuleActionRoute struct {
-	Tag      string
+	tag      string
 	Outbound string
 	RuleActionRouteOptions
 }
@@ -203,7 +203,7 @@ func (r *RuleActionRoute) Type() string {
 }
 
 func (r *RuleActionRoute) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionRoute) String() string {
@@ -214,7 +214,7 @@ func (r *RuleActionRoute) String() string {
 }
 
 type RuleActionBypass struct {
-	Tag      string
+	tag      string
 	Outbound string
 	RuleActionRouteOptions
 }
@@ -224,7 +224,7 @@ func (r *RuleActionBypass) Type() string {
 }
 
 func (r *RuleActionBypass) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionBypass) String() string {
@@ -238,7 +238,7 @@ func (r *RuleActionBypass) String() string {
 }
 
 type RuleActionRouteOptions struct {
-	Tag                       string
+	tag                       string
 	OverrideAddress           M.Socksaddr
 	OverridePort              uint16
 	NetworkStrategy           *C.NetworkStrategy
@@ -260,7 +260,7 @@ func (r *RuleActionRouteOptions) Type() string {
 }
 
 func (r *RuleActionRouteOptions) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionRouteOptions) String() string {
@@ -313,7 +313,7 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 }
 
 type RuleActionDNSRoute struct {
-	Tag    string
+	tag    string
 	Server string
 	RuleActionDNSRouteOptions
 }
@@ -323,7 +323,7 @@ func (r *RuleActionDNSRoute) Type() string {
 }
 
 func (r *RuleActionDNSRoute) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionDNSRoute) String() string {
@@ -331,7 +331,7 @@ func (r *RuleActionDNSRoute) String() string {
 }
 
 type RuleActionEvaluate struct {
-	Tag    string
+	tag    string
 	Server string
 	RuleActionDNSRouteOptions
 }
@@ -341,7 +341,7 @@ func (r *RuleActionEvaluate) Type() string {
 }
 
 func (r *RuleActionEvaluate) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionEvaluate) String() string {
@@ -349,7 +349,7 @@ func (r *RuleActionEvaluate) String() string {
 }
 
 type RuleActionRespond struct{
-	Tag string
+	tag string
 }
 
 func (r *RuleActionRespond) Type() string {
@@ -357,7 +357,7 @@ func (r *RuleActionRespond) Type() string {
 }
 
 func (r *RuleActionRespond) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionRespond) String() string {
@@ -386,7 +386,7 @@ func formatDNSRouteAction(action string, server string, options RuleActionDNSRou
 }
 
 type RuleActionDNSRouteOptions struct {
-	Tag                    string
+	tag                    string
 	Strategy               C.DomainStrategy
 	Timeout                time.Duration
 	DisableCache           bool
@@ -400,7 +400,7 @@ func (r *RuleActionDNSRouteOptions) Type() string {
 }
 
 func (r *RuleActionDNSRouteOptions) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionDNSRouteOptions) String() string {
@@ -424,7 +424,7 @@ func (r *RuleActionDNSRouteOptions) String() string {
 }
 
 type RuleActionDirect struct {
-	Tag         string
+	tag         string
 	Dialer      N.Dialer
 	description string
 }
@@ -434,7 +434,7 @@ func (r *RuleActionDirect) Type() string {
 }
 
 func (r *RuleActionDirect) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionDirect) String() string {
@@ -476,7 +476,7 @@ func IsBypassed(err error) bool {
 }
 
 type RuleActionReject struct {
-	Tag         string
+	tag         string
 	Method      string
 	NoDrop      bool
 	logger      logger.ContextLogger
@@ -489,7 +489,7 @@ func (r *RuleActionReject) Type() string {
 }
 
 func (r *RuleActionReject) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionReject) String() string {
@@ -531,7 +531,7 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 }
 
 type RuleActionHijackDNS struct{
-	Tag string
+	tag string
 }
 
 func (r *RuleActionHijackDNS) Type() string {
@@ -539,7 +539,7 @@ func (r *RuleActionHijackDNS) Type() string {
 }
 
 func (r *RuleActionHijackDNS) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionHijackDNS) String() string {
@@ -547,7 +547,7 @@ func (r *RuleActionHijackDNS) String() string {
 }
 
 type RuleActionSniff struct {
-	Tag            string
+	tag            string
 	SnifferNames   []string
 	StreamSniffers []sniff.StreamSniffer
 	PacketSniffers []sniff.PacketSniffer
@@ -561,7 +561,7 @@ func (r *RuleActionSniff) Type() string {
 }
 
 func (r *RuleActionSniff) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionSniff) build() error {
@@ -610,7 +610,7 @@ func (r *RuleActionSniff) String() string {
 }
 
 type RuleActionResolve struct {
-	Tag                    string
+	tag                    string
 	Server                 string
 	Timeout                time.Duration
 	Strategy               C.DomainStrategy
@@ -625,7 +625,7 @@ func (r *RuleActionResolve) Type() string {
 }
 
 func (r *RuleActionResolve) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionResolve) String() string {
@@ -659,7 +659,7 @@ func (r *RuleActionResolve) String() string {
 }
 
 type RuleActionPredefined struct {
-	Tag    string
+	tag    string
 	Rcode  int
 	Answer []dns.RR
 	Ns     []dns.RR
@@ -671,7 +671,7 @@ func (r *RuleActionPredefined) Type() string {
 }
 
 func (r *RuleActionPredefined) Tag() string {
-	return r.Tag
+	return r.tag
 }
 
 func (r *RuleActionPredefined) String() string {
