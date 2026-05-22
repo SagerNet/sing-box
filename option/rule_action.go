@@ -15,6 +15,7 @@ import (
 
 type _RuleAction struct {
 	Action              string                    `json:"action,omitempty"`
+	Tag                 string                    `json:"tag,omitempty"`
 	RouteOptions        RouteActionOptions        `json:"-"`
 	RouteOptionsOptions RouteOptionsActionOptions `json:"-"`
 	DirectOptions       DirectActionOptions       `json:"-"`
@@ -98,6 +99,7 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 
 type _DNSRuleAction struct {
 	Action              string                       `json:"action,omitempty"`
+	Tag                 string                       `json:"tag,omitempty"`
 	RouteOptions        DNSRouteActionOptions        `json:"-"`
 	RouteOptionsOptions DNSRouteOptionsActionOptions `json:"-"`
 	RejectOptions       RejectActionOptions          `json:"-"`
