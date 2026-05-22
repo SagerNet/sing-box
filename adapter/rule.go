@@ -27,6 +27,7 @@ type DNSRule interface {
 
 type RuleAction interface {
 	Type() string
+	Tag() string
 	String() string
 }
 
