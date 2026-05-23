@@ -138,7 +138,9 @@ func (t *DBusResolvedResolver) Exchange(ctx context.Context, message *mDNS.Msg) 
 	serverSet := t.savedServerSet.Load()
 	if serverSet == nil {
 		var err error
-		serverSet, err = t.checkResolved(context.Background())
+		checkCtx, checkCancel := context.WithTimeout(context.Background(), C.DNSTimeout)
+		defer checkCancel()
+		serverSet, err = t.checkResolved(checkCtx)
 		if err != nil {
 			return nil, err
 		}
@@ -183,7 +185,9 @@ func (t *DBusResolvedResolver) loopUpdateStatus() {
 }
 
 func (t *DBusResolvedResolver) updateStatus() {
-	serverSet, err := t.checkResolved(context.Background())
+	checkCtx, checkCancel := context.WithTimeout(context.Background(), C.DNSTimeout)
+	defer checkCancel()
+	serverSet, err := t.checkResolved(checkCtx)
 	oldServerSet := t.savedServerSet.Swap(serverSet)
 	if oldServerSet != nil {
 		_ = oldServerSet.Close()
