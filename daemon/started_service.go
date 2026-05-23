@@ -1185,7 +1185,7 @@ func (s *StartedService) StartNetworkQualityTest(
 		MaxRuntime:           time.Duration(request.MaxRuntimeSeconds) * time.Second,
 		Context:              server.Context(),
 		OnProgress: func(p networkquality.Progress) {
-			_ = server.Send(&NetworkQualityTestProgress{
+			if pErr := server.Send(&NetworkQualityTestProgress{
 				Phase:                    int32(p.Phase),
 				DownloadCapacity:         p.DownloadCapacity,
 				UploadCapacity:           p.UploadCapacity,
@@ -1197,7 +1197,9 @@ func (s *StartedService) StartNetworkQualityTest(
 				UploadCapacityAccuracy:   int32(p.UploadCapacityAccuracy),
 				DownloadRPMAccuracy:      int32(p.DownloadRPMAccuracy),
 				UploadRPMAccuracy:        int32(p.UploadRPMAccuracy),
-			})
+			}); pErr != nil {
+				s.WriteMessage(log.LevelError, "send network quality progress: "+pErr.Error())
+			}
 		},
 	})
 	if nqErr != nil {
@@ -1245,13 +1247,15 @@ func (s *StartedService) StartSTUNTest(
 		Dialer:  resolvedDialer,
 		Context: server.Context(),
 		OnProgress: func(p stun.Progress) {
-			_ = server.Send(&STUNTestProgress{
+			if pErr := server.Send(&STUNTestProgress{
 				Phase:        int32(p.Phase),
 				ExternalAddr: p.ExternalAddr,
 				LatencyMs:    p.LatencyMs,
 				NatMapping:   int32(p.NATMapping),
 				NatFiltering: int32(p.NATFiltering),
-			})
+			}); pErr != nil {
+				s.WriteMessage(log.LevelError, "send STUN progress: "+pErr.Error())
+			}
 		},
 	})
 	if stunErr != nil {
@@ -1323,12 +1327,15 @@ func (s *StartedService) SubscribeTailscaleStatus(
 		waitGroup.Add(1)
 		go func(tag string, provider adapter.TailscaleEndpoint) {
 			defer waitGroup.Done()
-			_ = provider.SubscribeTailscaleStatus(ctx, func(endpointStatus *adapter.TailscaleEndpointStatus) {
+			subErr := provider.SubscribeTailscaleStatus(ctx, func(endpointStatus *adapter.TailscaleEndpointStatus) {
 				select {
 				case updates <- taggedStatus{tag: tag, status: endpointStatus}:
 				case <-ctx.Done():
 				}
 			})
+			if subErr != nil {
+				s.WriteMessage(log.LevelError, "subscribe Tailscale status: "+subErr.Error())
+			}
 		}(endpoint.tag, endpoint.provider)
 	}
 
@@ -1459,14 +1466,16 @@ func (s *StartedService) StartTailscalePing(
 	}
 
 	return provider.StartTailscalePing(server.Context(), request.PeerIP, func(result *adapter.TailscalePingResult) {
-		_ = server.Send(&TailscalePingResponse{
+		if pErr := server.Send(&TailscalePingResponse{
 			LatencyMs:      result.LatencyMs,
 			IsDirect:       result.IsDirect,
 			Endpoint:       result.Endpoint,
 			DerpRegionID:   result.DERPRegionID,
 			DerpRegionCode: result.DERPRegionCode,
 			Error:          result.Error,
-		})
+		}); pErr != nil {
+			s.WriteMessage(log.LevelError, "send Tailscale ping response: "+pErr.Error())
+		}
 	})
 }
 
