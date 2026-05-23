@@ -380,7 +380,11 @@ func (s *server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			if !open {
 				return
 			}
-			data, _ := json.Marshal(ev.data)
+			data, err := json.Marshal(ev.data)
+			if err != nil {
+				s.logger.Error("marshal event: ", err)
+				continue
+			}
 			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.kind, data)
 			flusher.Flush()
 		}
