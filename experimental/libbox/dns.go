@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -121,8 +122,11 @@ type ExchangeContext struct {
 
 func (c *ExchangeContext) OnCancel(callback Func) {
 	go func() {
-		<-c.context.Done()
-		callback.Invoke()
+		select {
+		case <-c.context.Done():
+			callback.Invoke()
+		case <-time.After(C.DNSTimeout):
+		}
 	}()
 }
 
