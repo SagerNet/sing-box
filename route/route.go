@@ -726,6 +726,7 @@ func (r *Router) actionSniff(
 			case <-done:
 			case <-ctx.Done():
 				inputPacketConn.Close()
+				<-done
 				fatalErr = ctx.Err()
 				return
 			}
