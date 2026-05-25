@@ -59,6 +59,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	var salamanderPassword string
+	var geckoPassword string
+	var geckoMinPacketSize, geckoMaxPacketSize int
 	if options.Obfs != nil {
 		if options.Obfs.Password == "" {
 			return nil, E.New("missing obfs password")
@@ -66,6 +68,10 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		switch options.Obfs.Type {
 		case hysteria2.ObfsTypeSalamander:
 			salamanderPassword = options.Obfs.Password
+		case hysteria2.ObfsTypeGecko:
+			geckoPassword = options.Obfs.Password
+			geckoMinPacketSize = options.Obfs.GeckoOptions.MinPacketSize
+			geckoMaxPacketSize = options.Obfs.GeckoOptions.MaxPacketSize
 		default:
 			return nil, E.New("unknown obfs type: ", options.Obfs.Type)
 		}
@@ -121,6 +127,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		SendBPS:            uint64(options.UpMbps * hysteria.MbpsToBps),
 		ReceiveBPS:         uint64(options.DownMbps * hysteria.MbpsToBps),
 		SalamanderPassword: salamanderPassword,
+		GeckoPassword:      geckoPassword,
+		GeckoMinPacketSize: geckoMinPacketSize,
+		GeckoMaxPacketSize: geckoMaxPacketSize,
 		Password:           options.Password,
 		TLSConfig:          tlsConfig,
 		QUICOptions: qtls.QUICOptions{
