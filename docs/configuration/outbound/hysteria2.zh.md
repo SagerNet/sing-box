@@ -2,7 +2,8 @@
 
     :material-plus: [hop_interval_max](#hop_interval_max)  
     :material-plus: [bbr_profile](#bbr_profile)  
-    :material-plus: [realm](#realm)
+    :material-plus: [realm](#realm)  
+    :material-alert: [obfs](#obfstype)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -111,13 +112,29 @@
 
 #### obfs.type
 
-QUIC 流量混淆器类型，仅可设为 `salamander`。
+QUIC 流量混淆器类型，可选 `salamander` `gecko`。
 
 如果为空则禁用。
 
 #### obfs.password
 
-QUIC 流量混淆器密码.
+QUIC 流量混淆器密码。
+
+#### obfs.min_packet_size
+
+!!! question "自 sing-box 1.14.0 起"
+
+最小线上数据包大小（字节）。仅限 Gecko。
+
+默认使用 `512`。
+
+#### obfs.max_packet_size
+
+!!! question "自 sing-box 1.14.0 起"
+
+最大线上数据包大小（字节）。仅限 Gecko。
+
+默认使用 `1200`。
 
 #### password
 
