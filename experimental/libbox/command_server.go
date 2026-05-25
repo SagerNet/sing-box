@@ -41,6 +41,7 @@ type CommandServerHandler interface {
 	SetSystemProxyEnabled(enabled bool) error
 	TriggerNativeCrash() error
 	WriteDebugMessage(message string)
+	ConnectSSHAgent() (int32, error)
 }
 
 func NewCommandServer(handler CommandServerHandler, platformInterface PlatformInterface) (*CommandServer, error) {
@@ -285,4 +286,8 @@ func (h *platformHandler) TriggerNativeCrash() error {
 
 func (h *platformHandler) WriteDebugMessage(message string) {
 	(*CommandServer)(h).handler.WriteDebugMessage(message)
+}
+
+func (h *platformHandler) ConnectSSHAgent() (int32, error) {
+	return (*CommandServer)(h).handler.ConnectSSHAgent()
 }
