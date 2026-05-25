@@ -2,6 +2,22 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.26
+
+* Add gecko obfs for Hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+Adds `gecko` as a new QUIC traffic obfuscation type for
+[Hysteria2 inbound](/configuration/inbound/hysteria2/#obfstype) and
+[outbound](/configuration/outbound/hysteria2/#obfstype), alongside the
+existing `salamander`. Gecko supports configurable
+[`min_packet_size`](/configuration/inbound/hysteria2/#obfsmin_packet_size)
+(default 512) and
+[`max_packet_size`](/configuration/inbound/hysteria2/#obfsmax_packet_size)
+(default 1200) fields.
+
 #### 1.14.0-alpha.25
 
 * Revert Tailscale endpoint dial fields deprecation and remove `control_http_client` **1**
