@@ -165,10 +165,6 @@ func (h *kernelHandoffSession) Start() error {
 }
 
 func (h *kernelHandoffSession) runDirect(ctx context.Context, logger log.ContextLogger, side string, busid string, file *os.File) {
-	if file == nil {
-		h.markDone(nil)
-		return
-	}
 	closeFile := sync.OnceFunc(func() {
 		_ = file.Close()
 	})

@@ -32,8 +32,8 @@ type ClientService struct {
 	assignedWorkers []*clientAssignedWorker
 	allWorkers      map[string]context.CancelFunc
 
-	remoteAccess    sync.Mutex
-	remoteDevicesV2 map[string]DeviceInfoV2
+	remoteAccess  sync.Mutex
+	remoteDevices map[string]ControlDeviceInfo
 }
 
 func NewClientService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPClientServiceOptions) (adapter.Service, error) {

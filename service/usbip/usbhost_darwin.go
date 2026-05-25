@@ -21,15 +21,7 @@ import (
 )
 
 const (
-	ciStatusSuccess         = 1
-	ciStatusOffline         = 2
-	ciStatusNotPermitted    = 3
-	ciStatusBadArgument     = 4
-	ciStatusTimeout         = 5
-	ciStatusNoResources     = 6
-	ciStatusEndpointStopped = 7
-	ciStatusStallError      = 11
-	ciStatusError           = 13
+	ciStatusSuccess = 1
 
 	ciMsgControllerPowerOn     = 0x10
 	ciMsgControllerPowerOff    = 0x11
@@ -89,7 +81,6 @@ func (c cgoCallbackHandle) token() C.uintptr_t {
 	return C.uintptr_t(c.handle)
 }
 
-// deleteRaw rolls back a failed C-side create without a drain.
 func (c cgoCallbackHandle) deleteRaw() {
 	c.handle.Delete()
 }
@@ -171,7 +162,7 @@ func darwinWatchUSBHostDevices(callback func()) (*darwinUSBHostDeviceWatcher, er
 }
 
 func (w *darwinUSBHostDeviceWatcher) Close() {
-	if w == nil || w.handle == nil {
+	if w.handle == nil {
 		return
 	}
 	w.callback.closeAfter(func() {
@@ -192,7 +183,7 @@ func darwinCreateUSBHostController(controller *darwinVirtualController, portCoun
 }
 
 func (c *darwinUSBHostController) Close() {
-	if c == nil || c.handle == nil {
+	if c.handle == nil {
 		return
 	}
 	c.callback.closeAfter(func() {
@@ -239,7 +230,7 @@ func (c *darwinUSBHostController) createDeviceSM(message darwinCIMessage) (*darw
 }
 
 func (s *darwinUSBHostDeviceSM) Close() {
-	if s == nil || s.handle == nil {
+	if s.handle == nil {
 		return
 	}
 	C.box_usbhost_device_sm_destroy(s.handle)
@@ -275,7 +266,7 @@ func (c *darwinUSBHostController) createEndpointSM(message darwinCIMessage) (*da
 }
 
 func (s *darwinUSBHostEndpointSM) Close() {
-	if s == nil || s.handle == nil {
+	if s.handle == nil {
 		return
 	}
 	C.box_usbhost_endpoint_sm_destroy(s.handle)
@@ -403,7 +394,7 @@ func box_usbip_darwin_usb_event(ref C.uintptr_t) {
 }
 
 func (d *darwinUSBHostDevice) Close() {
-	if d == nil || d.handle == nil {
+	if d.handle == nil {
 		return
 	}
 	C.box_usbhost_device_close(d.handle)
@@ -411,9 +402,6 @@ func (d *darwinUSBHostDevice) Close() {
 }
 
 func (d *darwinUSBHostDevice) control(setup [8]byte, buffer []byte) (int32, int32, []byte, error) {
-	if d == nil || d.handle == nil {
-		return -int32(unix.ENODEV), 0, nil, E.New("IOUSBHostDevice control: closed")
-	}
 	var actual C.size_t
 	var status C.int32_t
 	var errorPtr *C.char
@@ -429,9 +417,6 @@ func (d *darwinUSBHostDevice) control(setup [8]byte, buffer []byte) (int32, int3
 }
 
 func (d *darwinUSBHostDevice) io(endpoint uint8, buffer []byte) (int32, int32, []byte, error) {
-	if d == nil || d.handle == nil {
-		return -int32(unix.ENODEV), 0, nil, E.New("IOUSBHostPipe IO: closed")
-	}
 	var actual C.size_t
 	var status C.int32_t
 	var errorPtr *C.char
@@ -446,9 +431,6 @@ func (d *darwinUSBHostDevice) io(endpoint uint8, buffer []byte) (int32, int32, [
 }
 
 func (d *darwinUSBHostDevice) iso(endpoint uint8, buffer []byte, startFrame int32, asap bool, packets []IsoPacketDescriptor) (int32, int32, []byte, []IsoPacketDescriptor, error) {
-	if d == nil || d.handle == nil {
-		return -int32(unix.ENODEV), 0, nil, nil, E.New("IOUSBHostPipe isochronous IO: closed")
-	}
 	var actual C.size_t
 	var status C.int32_t
 	var errorPtr *C.char
@@ -478,9 +460,6 @@ func (d *darwinUSBHostDevice) iso(endpoint uint8, buffer []byte, startFrame int3
 }
 
 func (d *darwinUSBHostDevice) abortEndpoint(endpoint uint8) error {
-	if d == nil || d.handle == nil {
-		return nil
-	}
 	var errorPtr *C.char
 	if !bool(C.box_usbhost_device_abort_endpoint(d.handle, C.uint8_t(endpoint), &errorPtr)) {
 		return darwinCError(errorPtr)
@@ -574,9 +553,7 @@ func darwinIOReturnToUSBIPStatus(status int32) int32 {
 	}
 }
 
-// darwinUSBIPStatusToCIStatus maps USB/IP transfer completion status to the
-// corresponding IOUSBHostCI completion status. This is only used for real
-// transfer completion, not for EndpointPause-driven state machine events.
+// Only for real transfer completion, not for EndpointPause-driven state machine events.
 func darwinUSBIPStatusToCIStatus(status int32) int {
 	if status == 0 {
 		return int(C.IOUSBHostCIMessageStatusSuccess)

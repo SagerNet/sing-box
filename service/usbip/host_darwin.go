@@ -254,10 +254,6 @@ func (h *darwinExportHost) snapshotSelf() map[string]Export {
 	return snapshotDarwinExports(h.exports)
 }
 
-// snapshotDarwinExports returns every tracked export, including stale
-// ones, matching the ExportSnapshot contract: stale exports surface
-// to the ledger so they broadcast as State: unavailable updates
-// instead of disappearing.
 func snapshotDarwinExports(exports map[string]*darwinExport) map[string]Export {
 	out := make(map[string]Export, len(exports))
 	for busid, exp := range exports {
@@ -329,9 +325,6 @@ func (e *darwinExport) DeviceInfo() (DeviceInfoTruncated, error) {
 }
 
 func (e *darwinExport) NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error) {
-	if e.device == nil {
-		return nil, E.New("darwin export ", e.busid, " has no device handle")
-	}
 	return newUserspaceURBSession(ctx, e.logger, conn, newDarwinIOUSBHostEngine(e.device)), nil
 }
 

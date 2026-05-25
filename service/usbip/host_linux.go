@@ -100,16 +100,10 @@ func (i linuxExportIdentity) Equal(other linuxExportIdentity) bool {
 		i.ConfigValue != other.ConfigValue ||
 		i.NumConfigs != other.NumConfigs ||
 		i.NumInterfaces != other.NumInterfaces ||
-		i.Serial != other.Serial ||
-		len(i.Interfaces) != len(other.Interfaces) {
+		i.Serial != other.Serial {
 		return false
 	}
-	for index := range i.Interfaces {
-		if i.Interfaces[index] != other.Interfaces[index] {
-			return false
-		}
-	}
-	return true
+	return slices.Equal(i.Interfaces, other.Interfaces)
 }
 
 type linuxExportHost struct {
@@ -311,11 +305,7 @@ func (h *linuxExportHost) Reconcile(isReserved func(busid string) bool) (map[str
 	var reconcileErrors []error
 
 	for _, busid := range plan.toStale {
-		exp, found := committed[busid]
-		if !found {
-			continue
-		}
-		cloned := cloneLinuxExport(exp)
+		cloned := cloneLinuxExport(committed[busid])
 		cloned.stale = true
 		committed[busid] = cloned
 	}
@@ -413,11 +403,6 @@ func (h *linuxExportHost) snapshotSelf() map[string]Export {
 	return snapshotLinuxExports(h.exports)
 }
 
-// snapshotLinuxExports returns every tracked export, including stale
-// ones. The ledger treats stale entries as broadcastable State:
-// unavailable updates via Export.Snapshot, which is what the
-// ExportSnapshot contract requires; filtering here would surface a
-// removed device instead of an updated one.
 func snapshotLinuxExports(exports map[string]*linuxExport) map[string]Export {
 	out := make(map[string]Export, len(exports))
 	for busid, exp := range exports {
@@ -427,9 +412,6 @@ func snapshotLinuxExports(exports map[string]*linuxExport) map[string]Export {
 }
 
 func cloneLinuxExport(exp *linuxExport) *linuxExport {
-	if exp == nil {
-		return nil
-	}
 	clone := *exp
 	clone.descriptor.Interfaces = slices.Clone(exp.descriptor.Interfaces)
 	clone.identity.Interfaces = slices.Clone(exp.identity.Interfaces)

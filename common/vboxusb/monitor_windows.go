@@ -126,31 +126,7 @@ func (m *Monitor) RemoveFilter(id uint64) error {
 }
 
 func (m *Monitor) ioctl(code uint32, in []byte, out []byte) (uint32, error) {
-	var overlapped windows.Overlapped
-	overlapped.HEvent = m.event
-	_ = windows.ResetEvent(m.event)
-	var inPtr *byte
-	var inLen uint32
-	if len(in) > 0 {
-		inPtr = &in[0]
-		inLen = uint32(len(in))
-	}
-	var outPtr *byte
-	var outLen uint32
-	if len(out) > 0 {
-		outPtr = &out[0]
-		outLen = uint32(len(out))
-	}
-	var returned uint32
-	err := windows.DeviceIoControl(m.handle, code, inPtr, inLen, outPtr, outLen, &returned, &overlapped)
-	if err != nil && !errors.Is(err, windows.ERROR_IO_PENDING) {
-		return 0, err
-	}
-	err = windows.GetOverlappedResult(m.handle, &overlapped, &returned, true)
-	if err != nil {
-		return 0, err
-	}
-	return returned, nil
+	return overlappedIoctl(m.handle, code, in, out, m.event)
 }
 
 // encodeFilter builds a 312-byte USBFILTER packed struct matching the

@@ -2,10 +2,7 @@
 
 package usbip
 
-// darwinIOUSBHostEngine drives one captured IOUSBHost device for the
-// duration of one USBIP attachment. The device handle itself is owned
-// by darwinExportHost (kept across attachments for re-capture), so
-// Close here is intentionally a no-op.
+// Close is a no-op: darwinExportHost owns the device handle across attachments.
 type darwinIOUSBHostEngine struct {
 	device *darwinUSBHostDevice
 }

@@ -43,46 +43,6 @@ const (
 	MonitorDevicePath  = `\\.\VBoxUSBMon`
 )
 
-// MonitorAccessGUID is GUID_CLASS_VBOXUSB from VirtualBox usblib-win.h.
-// Used with SetupDiEnumDeviceInterfaces to find the per-device file
-// path after VBoxUSB binds.
-var MonitorAccessGUID = GUID{
-	Data1: 0x00873fdf,
-	Data2: 0xCAFE,
-	Data3: 0x80EE,
-	Data4: [8]byte{0xaa, 0x5e, 0x00, 0xc0, 0x4f, 0xb1, 0x72, 0x0b},
-}
-
-// USBDeviceInterfaceGUID is GUID_DEVINTERFACE_USB_DEVICE
-// ({a5dcbf10-6530-11d2-901f-00c04fb951ed}). Used to enumerate plugged
-// USB devices regardless of which function driver currently owns them.
-var USBDeviceInterfaceGUID = GUID{
-	Data1: 0xa5dcbf10,
-	Data2: 0x6530,
-	Data3: 0x11d2,
-	Data4: [8]byte{0x90, 0x1f, 0x00, 0xc0, 0x4f, 0xb9, 0x51, 0xed},
-}
-
-// USBHubInterfaceGUID is GUID_DEVINTERFACE_USB_HUB
-// ({f18a0e88-c30c-11d0-8815-00a0c906bed8}). The parent hub of a target
-// device is opened with this GUID to issue IOCTL_USB_HUB_CYCLE_PORT.
-var USBHubInterfaceGUID = GUID{
-	Data1: 0xf18a0e88,
-	Data2: 0xc30c,
-	Data3: 0x11d0,
-	Data4: [8]byte{0x88, 0x15, 0x00, 0xa0, 0xc9, 0x06, 0xbe, 0xd8},
-}
-
-// GUID matches the Windows GUID layout exactly. We carry our own copy
-// so the (cross-platform) package-level vars above can be declared
-// without depending on golang.org/x/sys/windows.
-type GUID struct {
-	Data1 uint32
-	Data2 uint16
-	Data3 uint16
-	Data4 [8]byte
-}
-
 // IOCTL codes from VirtualBox usblib-win.h, identical to those used by
 // usbipd-win (Usbipd/Interop/VBoxUsb.cs:26-39 and VBoxUsbMon.cs:122-129).
 // Encoding is the standard CTL_CODE shape:
@@ -107,11 +67,6 @@ const (
 	IOCTLMonitorAddFilter    uint32 = 0x0022_1844
 	IOCTLMonitorRemoveFilter uint32 = 0x0022_1848
 )
-
-// IOCTLHubCyclePort = IOCTL_USB_HUB_CYCLE_PORT from usbioctl.h
-// (FILE_DEVICE_USB=0x22, FILE_ANY_ACCESS=0, function=0x111,
-// METHOD_BUFFERED=0).
-const IOCTLHubCyclePort uint32 = 0x0022_0444
 
 // USB/IP-style transfer type enum, matching VirtualBox USBSUP_TRANSFER_TYPE.
 type TransferType uint32

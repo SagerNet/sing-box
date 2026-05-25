@@ -16,9 +16,9 @@ const (
 
 	controlFrameHello          uint8 = 1
 	controlFrameAck            uint8 = 2
-	controlFramePing           uint8 = 4
-	controlFramePong           uint8 = 5
-	controlFrameDeviceSnapshot uint8 = 6
+	controlFramePing           uint8 = 3
+	controlFramePong           uint8 = 4
+	controlFrameDeviceSnapshot uint8 = 5
 
 	controlPrefaceSize      = 8
 	controlFrameSize        = 4
@@ -46,40 +46,39 @@ type controlMessage struct {
 	Payload []byte
 }
 
-type DeviceInterfaceV2 struct {
+type ControlDeviceInterface struct {
 	Class    uint8 `json:"class"`
 	SubClass uint8 `json:"subclass"`
 	Protocol uint8 `json:"protocol"`
 }
 
-type DeviceInfoV2 struct {
-	BusID              string              `json:"busid"`
-	StableID           string              `json:"stable_id,omitempty"`
-	Backend            string              `json:"backend,omitempty"`
-	Path               string              `json:"path,omitempty"`
-	Serial             string              `json:"serial,omitempty"`
-	VendorID           uint16              `json:"vendor_id"`
-	ProductID          uint16              `json:"product_id"`
-	BCDDevice          uint16              `json:"bcd_device,omitempty"`
-	Speed              uint32              `json:"speed"`
-	DeviceClass        uint8               `json:"device_class"`
-	DeviceSubClass     uint8               `json:"device_subclass"`
-	DeviceProtocol     uint8               `json:"device_protocol"`
-	ConfigurationValue uint8               `json:"configuration_value"`
-	NumConfigurations  uint8               `json:"num_configurations"`
-	NumInterfaces      uint8               `json:"num_interfaces"`
-	Interfaces         []DeviceInterfaceV2 `json:"interfaces,omitempty"`
-	State              string              `json:"state"`
-	StatusCode         int                 `json:"status_code,omitempty"`
-	StatusReason       string              `json:"status_reason,omitempty"`
+type ControlDeviceInfo struct {
+	BusID              string                   `json:"busid"`
+	StableID           string                   `json:"stable_id,omitempty"`
+	Backend            string                   `json:"backend,omitempty"`
+	Path               string                   `json:"path,omitempty"`
+	Serial             string                   `json:"serial,omitempty"`
+	VendorID           uint16                   `json:"vendor_id"`
+	ProductID          uint16                   `json:"product_id"`
+	BCDDevice          uint16                   `json:"bcd_device,omitempty"`
+	Speed              uint32                   `json:"speed"`
+	DeviceClass        uint8                    `json:"device_class"`
+	DeviceSubClass     uint8                    `json:"device_subclass"`
+	DeviceProtocol     uint8                    `json:"device_protocol"`
+	ConfigurationValue uint8                    `json:"configuration_value"`
+	NumConfigurations  uint8                    `json:"num_configurations"`
+	NumInterfaces      uint8                    `json:"num_interfaces"`
+	Interfaces         []ControlDeviceInterface `json:"interfaces,omitempty"`
+	State              string                   `json:"state"`
+	StatusCode         int                      `json:"status_code,omitempty"`
+	StatusReason       string                   `json:"status_reason,omitempty"`
 }
 
 type controlDeviceSnapshot struct {
-	Devices []DeviceInfoV2 `json:"devices"`
+	Devices []ControlDeviceInfo `json:"devices"`
 }
 
-// controlReader reuses its payload scratch across successive reads on a
-// single connection. The returned payload is only valid until the next call.
+// The returned payload is only valid until the next call.
 type controlReader struct {
 	scratch []byte
 }
@@ -151,10 +150,10 @@ func unmarshalControlPayload(payload []byte, value any) error {
 	return json.Unmarshal(payload, value)
 }
 
-func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, state string, statusCode int, statusReason string) DeviceInfoV2 {
-	interfaces := make([]DeviceInterfaceV2, len(entry.Interfaces))
+func controlDeviceInfoFromEntry(entry DeviceEntry, backend string, stableID string, state string, statusCode int, statusReason string) ControlDeviceInfo {
+	interfaces := make([]ControlDeviceInterface, len(entry.Interfaces))
 	for i := range entry.Interfaces {
-		interfaces[i] = DeviceInterfaceV2{
+		interfaces[i] = ControlDeviceInterface{
 			Class:    entry.Interfaces[i].BInterfaceClass,
 			SubClass: entry.Interfaces[i].BInterfaceSubClass,
 			Protocol: entry.Interfaces[i].BInterfaceProtocol,
@@ -167,7 +166,7 @@ func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, s
 	if serial == "" {
 		serial = entry.Info.SerialString()
 	}
-	return DeviceInfoV2{
+	return ControlDeviceInfo{
 		BusID:              entry.Info.BusIDString(),
 		StableID:           stableID,
 		Backend:            backend,
@@ -190,8 +189,8 @@ func deviceInfoV2FromEntry(entry DeviceEntry, backend string, stableID string, s
 	}
 }
 
-func deviceInfoV2Map(devices []DeviceInfoV2) map[string]DeviceInfoV2 {
-	out := make(map[string]DeviceInfoV2, len(devices))
+func controlDeviceInfoMap(devices []ControlDeviceInfo) map[string]ControlDeviceInfo {
+	out := make(map[string]ControlDeviceInfo, len(devices))
 	for _, device := range devices {
 		if device.BusID == "" {
 			continue
@@ -201,20 +200,20 @@ func deviceInfoV2Map(devices []DeviceInfoV2) map[string]DeviceInfoV2 {
 	return out
 }
 
-func sortedDeviceInfoV2Values(devices map[string]DeviceInfoV2) []DeviceInfoV2 {
+func sortedControlDeviceInfoValues(devices map[string]ControlDeviceInfo) []ControlDeviceInfo {
 	busids := make([]string, 0, len(devices))
 	for busid := range devices {
 		busids = append(busids, busid)
 	}
 	slices.Sort(busids)
-	out := make([]DeviceInfoV2, 0, len(busids))
+	out := make([]ControlDeviceInfo, 0, len(busids))
 	for _, busid := range busids {
 		out = append(out, devices[busid])
 	}
 	return out
 }
 
-func deviceInfoV2ToEntries(devices []DeviceInfoV2, availableOnly bool) []DeviceEntry {
+func controlDeviceInfoToEntries(devices []ControlDeviceInfo, availableOnly bool) []DeviceEntry {
 	entries := make([]DeviceEntry, 0, len(devices))
 	for _, device := range devices {
 		if availableOnly && device.State != "" && device.State != deviceStateAvailable {
@@ -246,7 +245,7 @@ func deviceInfoV2ToEntries(devices []DeviceInfoV2, availableOnly bool) []DeviceE
 	return entries
 }
 
-func deviceInfoV2Equal(a, b DeviceInfoV2) bool {
+func controlDeviceInfoEqual(a, b ControlDeviceInfo) bool {
 	if a.BusID != b.BusID ||
 		a.StableID != b.StableID ||
 		a.Backend != b.Backend ||
@@ -267,13 +266,5 @@ func deviceInfoV2Equal(a, b DeviceInfoV2) bool {
 		a.StatusReason != b.StatusReason {
 		return false
 	}
-	if len(a.Interfaces) != len(b.Interfaces) {
-		return false
-	}
-	for i := range a.Interfaces {
-		if a.Interfaces[i] != b.Interfaces[i] {
-			return false
-		}
-	}
-	return true
+	return slices.Equal(a.Interfaces, b.Interfaces)
 }

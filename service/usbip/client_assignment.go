@@ -9,9 +9,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 )
 
-// clientAssignment runs in two modes that share active-busid tracking:
-// matched (len(targets) > 0) binds each target to at most one busid;
-// import-all (len(targets) == 0) marks every advertised busid as desired.
 type clientAssignment struct {
 	access sync.Mutex
 
@@ -82,9 +79,6 @@ func (a *clientAssignment) ApplyMatched(entries []DeviceEntry, knownKeys map[str
 	return nextAssigned, prev
 }
 
-// ApplyAll keeps no-longer-desired-but-active busids registered so the
-// runBusIDLoop exits naturally after the active session ends, via
-// IsRetryDesired returning false.
 func (a *clientAssignment) ApplyAll(entries []DeviceEntry) (start []string, stop []string) {
 	desired := make(map[string]struct{}, len(entries))
 	for i := range entries {

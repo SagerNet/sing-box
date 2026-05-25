@@ -177,13 +177,6 @@ type IsoPacket struct {
 	Status URBError
 }
 
-// URBResult mirrors the fields VBoxUSB writes back into the URB struct.
-type URBResult struct {
-	Error      URBError
-	Length     uint64
-	IsoPackets []IsoPacket
-}
-
 // urbStructSize is the on-the-wire size of USBSUP_URB with Pack=4 on
 // 64-bit systems (both amd64 and arm64; nint is 8 bytes either way).
 // Layout (offsets in bytes):
@@ -206,9 +199,6 @@ const urbStructSize = 104
 // Caller must keep urb.Buffer alive across the call (SendURB does so
 // internally for the duration of the syscall).
 func (d *Device) SendURB(urb *URB) error {
-	if len(urb.IsoPackets) > MaxIsoPacketsPerURB {
-		return E.New("vboxusb: too many iso packets: ", len(urb.IsoPackets), " > ", MaxIsoPacketsPerURB)
-	}
 	var raw [urbStructSize]byte
 	binary.LittleEndian.PutUint32(raw[0:4], uint32(urb.Type))
 	binary.LittleEndian.PutUint32(raw[4:8], urb.Endpoint)
@@ -277,14 +267,14 @@ func (e *URBStatusError) Error() string {
 	}
 }
 
-// ioctl is the single synchronous overlapped DeviceIoControl primitive.
-// Ported from common/windivert/handle_windows.go:263-290. The event is
-// the per-Device event (reused across calls) so we avoid CreateEvent on
-// every URB.
 func (d *Device) ioctl(code uint32, in []byte, out []byte) (uint32, error) {
+	return overlappedIoctl(d.handle, code, in, out, d.event)
+}
+
+func overlappedIoctl(handle windows.Handle, code uint32, in []byte, out []byte, event windows.Handle) (uint32, error) {
 	var overlapped windows.Overlapped
-	overlapped.HEvent = d.event
-	_ = windows.ResetEvent(d.event)
+	overlapped.HEvent = event
+	_ = windows.ResetEvent(event)
 	var inPtr *byte
 	var inLen uint32
 	if len(in) > 0 {
@@ -298,11 +288,11 @@ func (d *Device) ioctl(code uint32, in []byte, out []byte) (uint32, error) {
 		outLen = uint32(len(out))
 	}
 	var returned uint32
-	err := windows.DeviceIoControl(d.handle, code, inPtr, inLen, outPtr, outLen, &returned, &overlapped)
+	err := windows.DeviceIoControl(handle, code, inPtr, inLen, outPtr, outLen, &returned, &overlapped)
 	if err != nil && !errors.Is(err, windows.ERROR_IO_PENDING) {
 		return 0, err
 	}
-	err = windows.GetOverlappedResult(d.handle, &overlapped, &returned, true)
+	err = windows.GetOverlappedResult(handle, &overlapped, &returned, true)
 	if err != nil {
 		return 0, err
 	}

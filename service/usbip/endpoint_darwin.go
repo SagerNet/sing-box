@@ -202,8 +202,6 @@ func (e *darwinEndpoint) finalizePending(pending *pendingTransfer) {
 	}
 }
 
-// validateResponse reconciles a RET_SUBMIT against the original request shape.
-// All wire-shape rules live here so accept can assume well-formed input.
 func (p *pendingTransfer) validateResponse(response SubmitResponse) (int32, error) {
 	if response.ActualLength < 0 {
 		return -int32(unix.EPROTO), E.New("RET_SUBMIT actual_length is negative: ", response.ActualLength)
@@ -226,10 +224,7 @@ func (p *pendingTransfer) validateResponse(response SubmitResponse) (int32, erro
 	return 0, nil
 }
 
-// accept validates a RET_SUBMIT against the original request and, for IN
-// transfers, scatters the payload into the Apple-owned buffer. A non-nil err
-// signals a protocol violation; the caller is expected to cancel the endpoint
-// so no further wire-corrupt completions are delivered to IOUSBHost.
+// A non-nil err signals a protocol violation; the caller must cancel the endpoint.
 func (p *pendingTransfer) accept(response SubmitResponse) (int32, int, error) {
 	errStatus, err := p.validateResponse(response)
 	if err != nil {

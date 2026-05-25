@@ -42,10 +42,6 @@ var (
 )
 
 func installDrivers() error {
-	if runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64" {
-		return E.New("vboxusb: unsupported GOARCH ", runtime.GOARCH)
-	}
-
 	dir, err := ensureExtracted()
 	if err != nil {
 		return err

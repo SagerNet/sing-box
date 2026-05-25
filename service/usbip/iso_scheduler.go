@@ -6,11 +6,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-// EncodeIsoSubmit fills the isochronous SUBMIT fields on base. When asap is
-// true, the wire-level ASAP flag is set and StartFrame is zeroed. Otherwise
-// RebaseFrame recovers the absolute frame number from the controller's
-// monotonic counter and ciFrame's 8 bits, then StartFrame carries the low 32
-// bits across the wire.
 func EncodeIsoSubmit(currentFrame uint64, base SubmitCommand, ciFrame uint8, asap bool) SubmitCommand {
 	if asap {
 		base.TransferFlags |= usbipTransferFlagIsoASAP

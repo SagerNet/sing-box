@@ -66,9 +66,6 @@ func (d *sysfsDevice) toProtocol() DeviceInfoTruncated {
 	return info
 }
 
-// vhciStatusRecord is one row of /sys/devices/platform/vhci_hcd.0/status
-// or status.N. The kernel emits globally unique port numbers across every
-// status* file.
 type vhciStatusRecord struct {
 	hub   string
 	port  int
@@ -180,10 +177,7 @@ func readUsbipStatus(busid string) (int, error) {
 	return v, nil
 }
 
-// finishImportStatusTimeout is the upper bound for waitForUsbipStatusCleared.
-// It is a var (not const) so interop tests can shrink it without changing the
-// polling cadence.
-var finishImportStatusTimeout = 2 * time.Second
+const finishImportStatusTimeout = 2 * time.Second
 
 const finishImportStatusPollInterval = 25 * time.Millisecond
 
@@ -209,10 +203,6 @@ func waitForUsbipStatusCleared(ctx context.Context, busid string) {
 	}
 }
 
-// readPrimaryVHCIStatus reads every status* file under
-// /sys/devices/platform/vhci_hcd.0 and concatenates the rows in lexical
-// order. Port numbers are already globally unique across controllers — no
-// remapping is needed.
 func readPrimaryVHCIStatus() ([]vhciStatusRecord, error) {
 	matches, err := filepath.Glob(filepath.Join(sysVHCIControllerV0, "status*"))
 	if err != nil {

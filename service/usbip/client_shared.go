@@ -115,10 +115,6 @@ func (c *ClientService) run() {
 	}
 }
 
-// Dynamic export discovery and hotplug updates are provided by the sing-box
-// USB/IP control extensions. Standard USB/IP implementations expose only a
-// static DEVLIST snapshot, so we seed assignments once and do not keep polling
-// for newly exported devices.
 func (c *ClientService) runStandardStaticMode() error {
 	err := c.syncRemoteStateContext(c.ctx)
 	if err != nil {
@@ -199,10 +195,10 @@ func (c *ClientService) runControlSession() error {
 			if err != nil {
 				return E.Cause(errImmediateReconnect, "read device snapshot: ", err)
 			}
-			devices := deviceInfoV2Map(snapshot.Devices)
-			values := sortedDeviceInfoV2Values(devices)
+			devices := controlDeviceInfoMap(snapshot.Devices)
+			values := sortedControlDeviceInfoValues(devices)
 			c.remoteAccess.Lock()
-			c.remoteDevicesV2 = devices
+			c.remoteDevices = devices
 			c.remoteAccess.Unlock()
 			c.applyRemoteDeviceState(values)
 		case controlFramePong:
@@ -249,8 +245,8 @@ func (c *ClientService) syncRemoteStateContext(ctx context.Context) error {
 	return nil
 }
 
-func (c *ClientService) applyRemoteDeviceState(devices []DeviceInfoV2) {
-	availableEntries := deviceInfoV2ToEntries(devices, true)
+func (c *ClientService) applyRemoteDeviceState(devices []ControlDeviceInfo) {
+	availableEntries := controlDeviceInfoToEntries(devices, true)
 	if !c.assignment.Matched() {
 		c.applyRemoteExports(availableEntries)
 		return

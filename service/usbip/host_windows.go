@@ -19,18 +19,10 @@ func newPlatformExportHost(ctx context.Context, logger log.ContextLogger, matche
 	return newWindowsExportHost(ctx, logger, matches), nil
 }
 
-// newPlatformImportHost: usbip-client is not yet implemented on
-// Windows. A virtual host controller driver is required to drive
-// imported devices into the local USB stack — that is a separate
-// effort tracked outside this PR.
 func newPlatformImportHost(_ log.ContextLogger) (ImportHost, error) {
 	return nil, E.New("usbip-client service is not yet implemented on Windows")
 }
 
-// windowsExportHost manages one VBoxUSBMon handle and one filter id
-// per actively-matched device. Reconcile is called by ServerService
-// on a timer (Events delivers ticks because CM_Register_Notification
-// is not yet wired up — see vboxusb/pnp_windows.go).
 type windowsExportHost struct {
 	logger  log.ContextLogger
 	matches []option.USBIPDeviceMatch
@@ -79,9 +71,7 @@ func (h *windowsExportHost) Start() error {
 		return E.New("windows usbip: VBoxUSBMon major version ", major, " (need ", vboxusb.DriverMajorVersion, ")")
 	}
 	h.logger.Info("VBoxUSBMon ", major, ".", minor, " ready")
-	h.access.Lock()
 	h.monitor = monitor
-	h.access.Unlock()
 	return nil
 }
 
@@ -112,10 +102,6 @@ func (h *windowsExportHost) Close() error {
 	return nil
 }
 
-// Events returns a channel that the server polls for topology changes.
-// On Windows, CM_Register_Notification wiring is a Phase B follow-up;
-// for now we tick on a fixed interval so Reconcile runs periodically.
-// Once the notification hook lands, this becomes edge-triggered.
 func (h *windowsExportHost) Events() (<-chan struct{}, error) {
 	ch := make(chan struct{}, 1)
 	go func() {
@@ -209,10 +195,6 @@ func (h *windowsExportHost) FinishImport(busid string) (bool, error) {
 		_ = exp.device.Close()
 		exp.device = nil
 	}
-	// TODO(phase B follow-up): once vboxusb.RestartDevice is implemented,
-	// call it here (or CycleHubPort) so Windows re-binds the device's
-	// natural function driver. Until then, the device stays in VBoxUSB's
-	// captured state until physical unplug.
 	return false, nil
 }
 
@@ -226,10 +208,6 @@ func (h *windowsExportHost) snapshotSelf() map[string]Export {
 	return out
 }
 
-// installFilterLocked is called from Reconcile under the assumption
-// the caller already holds (or does not need) the lock for this
-// h.filters mutation — but we re-lock briefly to keep the mutation
-// safe.
 func (h *windowsExportHost) installFilterLocked(monitor *vboxusb.Monitor, busid string, info vboxusb.USBDeviceInfo) {
 	if monitor == nil {
 		return
@@ -266,8 +244,6 @@ func (h *windowsExportHost) removeFilterLocked(monitor *vboxusb.Monitor, busid s
 	}
 }
 
-// windowsExport carries the per-device state needed to satisfy the
-// Export interface and to drive the claim sequence in NewServerDataSession.
 type windowsExport struct {
 	info   vboxusb.USBDeviceInfo
 	entry  DeviceEntry
@@ -313,16 +289,6 @@ func (e *windowsExport) DeviceInfo() (DeviceInfoTruncated, error) {
 	return e.entry.Info, nil
 }
 
-// NewServerDataSession executes the VBoxUSB claim sequence:
-//
-//  1. Wait for the VBoxUSB-bound device interface to appear under
-//     GUID_CLASS_VBOXUSB. This only resolves if VBoxUSBMon's filter has
-//     already triggered (next PnP arrival after AddFilter); for devices
-//     already plugged in when sing-box started, the user must physically
-//     unplug/replug, or RestartDevice must complete (Phase B follow-up).
-//  2. Open the device handle and verify driver version.
-//  3. USB_CLAIM_DEVICE to take exclusive ownership.
-//  4. Wrap as vboxusbEngine and hand to userspaceURBSession.
 func (e *windowsExport) NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error) {
 	path, err := vboxusb.WaitForVBoxUSBInterface(e.info.InstanceID, 10*time.Second)
 	if err != nil {

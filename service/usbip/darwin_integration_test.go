@@ -279,7 +279,7 @@ func (s *darwinFakeUSBIPServer) handleControlConn(conn net.Conn) {
 		Type:    controlFrameDeviceSnapshot,
 		Version: controlProtocolVersion,
 	}, controlDeviceSnapshot{
-		Devices: []DeviceInfoV2{deviceInfoV2FromEntry(s.entry, "darwin-fake", "darwin-fake:"+s.entry.Info.BusIDString(), deviceStateAvailable, 0, "available")},
+		Devices: []ControlDeviceInfo{controlDeviceInfoFromEntry(s.entry, "darwin-fake", "darwin-fake:"+s.entry.Info.BusIDString(), deviceStateAvailable, 0, "available")},
 	})
 	for {
 		message, err := cr.read(conn)

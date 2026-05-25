@@ -42,7 +42,6 @@ type darwinVirtualController struct {
 	runErr       error
 	eventStarted atomic.Bool
 
-	stateAccess sync.Mutex
 	powered     bool
 	connected   bool
 	nextAddress uint8
@@ -136,7 +135,6 @@ func (c *darwinVirtualController) enqueueEvent(event darwinControllerEvent) {
 }
 
 func (c *darwinVirtualController) eventLoop() {
-	c.eventStarted.Store(true)
 	defer close(c.eventDone)
 	defer c.teardownIOUSBHostState()
 	for {
@@ -200,27 +198,21 @@ func (c *darwinVirtualController) handleDeviceCreate(message darwinCIMessage) er
 	if err != nil {
 		return err
 	}
-	c.stateAccess.Lock()
 	address := c.nextAddress
 	c.nextAddress++
 	c.devices[address] = device
-	c.stateAccess.Unlock()
 	return device.respondCreate(message, ciStatusSuccess, address)
 }
 
 func (c *darwinVirtualController) handleDeviceCommand(message darwinCIMessage) error {
 	address := message.deviceAddress()
-	c.stateAccess.Lock()
 	device := c.devices[address]
-	c.stateAccess.Unlock()
 	if device == nil {
 		return nil
 	}
 	err := device.respond(message, ciStatusSuccess)
 	if message.messageType() == ciMsgDeviceDestroy {
-		c.stateAccess.Lock()
 		delete(c.devices, address)
-		c.stateAccess.Unlock()
 		device.Close()
 	}
 	return err
@@ -233,21 +225,17 @@ func (c *darwinVirtualController) handleEndpointCreate(message darwinCIMessage) 
 	}
 	key := darwinEndpointKey{device: message.deviceAddress(), endpoint: message.endpointAddress()}
 	endpoint := newDarwinEndpoint(c.ctx, c.logger, sm, c.peer, c.CurrentFrame, c.info.DevID(), key)
-	c.stateAccess.Lock()
 	c.endpoints[key] = endpoint
-	c.stateAccess.Unlock()
 	return sm.respond(message, ciStatusSuccess)
 }
 
 func (c *darwinVirtualController) handleEndpointCommand(message darwinCIMessage) error {
 	key := darwinEndpointKey{device: message.deviceAddress(), endpoint: message.endpointAddress()}
 	destroy := message.messageType() == ciMsgEndpointDestroy
-	c.stateAccess.Lock()
 	endpoint := c.endpoints[key]
 	if destroy {
 		delete(c.endpoints, key)
 	}
-	c.stateAccess.Unlock()
 	if endpoint == nil {
 		return nil
 	}
@@ -263,9 +251,7 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 		device:   uint8(doorbell & 0xff),
 		endpoint: uint8((doorbell >> 8) & 0xff),
 	}
-	c.stateAccess.Lock()
 	endpoint := c.endpoints[key]
-	c.stateAccess.Unlock()
 	if endpoint == nil {
 		return
 	}
@@ -273,7 +259,6 @@ func (c *darwinVirtualController) handleDoorbell(doorbell uint32) {
 }
 
 func (c *darwinVirtualController) teardownIOUSBHostState() {
-	c.stateAccess.Lock()
 	endpoints := make([]*darwinEndpoint, 0, len(c.endpoints))
 	for _, endpoint := range c.endpoints {
 		endpoints = append(endpoints, endpoint)
@@ -286,7 +271,6 @@ func (c *darwinVirtualController) teardownIOUSBHostState() {
 	c.devices = make(map[uint8]*darwinUSBHostDeviceSM)
 	controller := c.controller
 	c.controller = nil
-	c.stateAccess.Unlock()
 
 	for _, endpoint := range endpoints {
 		endpoint.Close()
@@ -294,7 +278,5 @@ func (c *darwinVirtualController) teardownIOUSBHostState() {
 	for _, device := range devices {
 		device.Close()
 	}
-	if controller != nil {
-		controller.Close()
-	}
+	controller.Close()
 }

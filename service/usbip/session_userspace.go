@@ -18,11 +18,6 @@ import (
 
 var _ DataSession = (*userspaceURBSession)(nil)
 
-// userspaceURBSession drives one USBIP attachment when the per-URB I/O
-// happens in user space (Darwin IOUSBHost, Windows VBoxUSB). It reads
-// CMD_SUBMIT/CMD_UNLINK from conn, serializes per endpoint, dispatches
-// to a URBEngine, frames RET_SUBMIT/RET_UNLINK back over conn. Linux
-// kernel-handoff sessions use kernelHandoffSession instead.
 type userspaceURBSession struct {
 	ctx    context.Context
 	logger log.ContextLogger

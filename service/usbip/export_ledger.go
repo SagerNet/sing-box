@@ -24,7 +24,7 @@ type exportLedger struct {
 	broadcastAccess sync.Mutex
 	nextSubID       uint64
 	subs            map[uint64]*exportSubscriber
-	state           map[string]DeviceInfoV2
+	state           map[string]ControlDeviceInfo
 
 	inventoryAccess sync.Mutex
 	exports         map[string]Export
@@ -47,7 +47,7 @@ func newExportLedger(logger log.ContextLogger, now func() time.Time) *exportLedg
 		logger:  logger,
 		now:     now,
 		subs:    make(map[uint64]*exportSubscriber),
-		state:   make(map[string]DeviceInfoV2),
+		state:   make(map[string]ControlDeviceInfo),
 		exports: make(map[string]Export),
 		busy:    make(map[string]bool),
 	}
@@ -70,8 +70,6 @@ func (l *exportLedger) withInventoryRead(body func()) {
 	body()
 }
 
-// withInventoryWriteQuiet is for mutations whose broadcast is the
-// caller's responsibility (paired with BroadcastIfChanged or shutdown).
 func (l *exportLedger) withInventoryWriteQuiet(body func()) {
 	l.inventoryAccess.Lock()
 	defer l.inventoryAccess.Unlock()
@@ -115,22 +113,22 @@ func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []
 }
 
 func (l *exportLedger) SeedBroadcastState() {
-	nextState := deviceInfoV2Map(l.snapshotDeviceState())
+	nextState := controlDeviceInfoMap(l.snapshotDeviceState())
 	l.broadcastAccess.Lock()
 	l.state = nextState
 	l.broadcastAccess.Unlock()
 }
 
 func (l *exportLedger) BroadcastIfChanged() bool {
-	nextState := deviceInfoV2Map(l.snapshotDeviceState())
+	nextState := controlDeviceInfoMap(l.snapshotDeviceState())
 
 	l.broadcastAccess.Lock()
-	if maps.EqualFunc(l.state, nextState, deviceInfoV2Equal) {
+	if maps.EqualFunc(l.state, nextState, controlDeviceInfoEqual) {
 		l.broadcastAccess.Unlock()
 		return false
 	}
 	l.state = nextState
-	devices := sortedDeviceInfoV2Values(nextState)
+	devices := sortedControlDeviceInfoValues(nextState)
 	targets := make([]*exportSubscriber, 0, len(l.subs))
 	for _, sub := range l.subs {
 		targets = append(targets, sub)
@@ -145,8 +143,7 @@ func (l *exportLedger) BroadcastIfChanged() bool {
 	return true
 }
 
-// TryReserveForImport atomically reserves an exported busid. The single
-// critical section under inventoryAccess closes the TOCTOU window between
+// The single critical section closes the TOCTOU window between
 // availability check and busy mark. Caller must pair success with
 // ReleaseImport and broadcast once the session is wired up.
 func (l *exportLedger) TryReserveForImport(busid string) (Export, bool, string) {
@@ -201,21 +198,18 @@ func (l *exportLedger) Subscribe(conn net.Conn) *exportSubscriber {
 	l.enqueuePayload(sub, controlFrame{
 		Type:    controlFrameDeviceSnapshot,
 		Version: controlProtocolVersion,
-	}, controlDeviceSnapshot{Devices: sortedDeviceInfoV2Values(l.state)})
+	}, controlDeviceSnapshot{Devices: sortedControlDeviceInfoValues(l.state)})
 	l.subs[sub.id] = sub
 	return sub
 }
 
-// Unsubscribe leaves the subscriber's send channel for the GC to
-// reclaim; the transport read loop has already exited.
 func (l *exportLedger) Unsubscribe(sub *exportSubscriber) {
 	l.broadcastAccess.Lock()
 	delete(l.subs, sub.id)
 	l.broadcastAccess.Unlock()
 }
 
-// CloseAllSubscribers returns the underlying connections so the caller
-// can close them outside any lock.
+// Returns connections to close outside the lock.
 func (l *exportLedger) CloseAllSubscribers() []net.Conn {
 	l.broadcastAccess.Lock()
 	conns := make([]net.Conn, 0, len(l.subs))
@@ -234,7 +228,7 @@ func (l *exportLedger) ResetForClose() {
 	})
 }
 
-func (l *exportLedger) snapshotDeviceState() []DeviceInfoV2 {
+func (l *exportLedger) snapshotDeviceState() []ControlDeviceInfo {
 	type entry struct {
 		export Export
 		busy   bool
@@ -252,13 +246,13 @@ func (l *exportLedger) snapshotDeviceState() []DeviceInfoV2 {
 	slices.SortFunc(entries, func(a, b entry) int {
 		return strings.Compare(a.export.BusID(), b.export.BusID())
 	})
-	out := make([]DeviceInfoV2, 0, len(entries))
+	out := make([]ControlDeviceInfo, 0, len(entries))
 	for _, e := range entries {
 		snapshot := e.export.Snapshot(e.busy)
 		if snapshot.State == deviceStateUnavailable && snapshot.Entry.Info.BusIDString() == "" {
 			continue
 		}
-		out = append(out, deviceInfoV2FromEntry(snapshot.Entry, snapshot.Backend, snapshot.StableID, snapshot.State, snapshot.RawStatus, snapshot.StatusReason))
+		out = append(out, controlDeviceInfoFromEntry(snapshot.Entry, snapshot.Backend, snapshot.StableID, snapshot.State, snapshot.RawStatus, snapshot.StatusReason))
 	}
 	return out
 }

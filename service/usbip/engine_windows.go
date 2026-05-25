@@ -3,15 +3,10 @@
 package usbip
 
 import (
-	"errors"
-
 	"github.com/sagernet/sing-box/common/vboxusb"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-// vboxusbEngine adapts a vboxusb.Device into the URBEngine interface.
-// It owns the device handle for the lifetime of one userspaceURBSession
-// (closed via Close).
 type vboxusbEngine struct {
 	device *vboxusb.Device
 }
@@ -52,9 +47,6 @@ func (e *vboxusbEngine) Close() error {
 	return e.device.Close()
 }
 
-// trapStandardControl returns (response, true) when the EP0 transfer
-// is one VBoxUSB requires us to translate. (zero, false) means the
-// caller should proceed with a normal control SEND_URB.
 func (e *vboxusbEngine) trapStandardControl(command SubmitCommand) (URBResponse, bool) {
 	bmRequestType := command.Setup[0]
 	bRequest := command.Setup[1]
@@ -147,10 +139,6 @@ func (e *vboxusbEngine) bulkSubmit(req URBRequest, transferType vboxusb.Transfer
 	return resp
 }
 
-// isoSubmit currently rejects iso transfers exceeding VBoxUSB's 8-
-// packet-per-URB limit. usbipd-win splits these into multiple
-// parallel SEND_URB calls sharing one pinned buffer; that splitter is
-// a Phase C follow-up. Single-shot iso under 8 packets does work.
 func (e *vboxusbEngine) isoSubmit(req URBRequest) URBResponse {
 	command := req.Command
 	if len(command.IsoPackets) > vboxusb.MaxIsoPacketsPerURB {
@@ -215,22 +203,16 @@ func flagsFromCommand(transferFlags int32, usbipDir uint32) vboxusb.TransferFlag
 	return vboxusb.TransferFlagShortOK
 }
 
-// classifyURBError returns (status, ok). ok=true means the URB completed
-// (with possibly a non-zero device-level status); ok=false means a
-// transport failure that the caller surfaces as URBResponse.Error.
 func classifyURBError(err error) (int32, bool) {
 	if err == nil {
 		return 0, true
 	}
-	var statusErr *vboxusb.URBStatusError
-	if errors.As(err, &statusErr) {
+	if statusErr, isStatus := E.Cast[*vboxusb.URBStatusError](err); isStatus {
 		return vboxusbStatusToUSBIP(statusErr.Code), true
 	}
 	return 0, false
 }
 
-// vboxusbStatusToUSBIP maps USBSUP_ERROR onto the USBIP (Linux errno)
-// wire status convention.
 func vboxusbStatusToUSBIP(code vboxusb.URBError) int32 {
 	switch code {
 	case vboxusb.URBOK:
