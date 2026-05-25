@@ -2,6 +2,7 @@ package libbox
 
 import (
 	"context"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -817,4 +818,125 @@ func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, ha
 		}
 		handler.OnPingResult(tailscalePingResultFromGRPC(event))
 	}
+}
+
+func (c *CommandClient) StartTailscaleSSHSession(opts *TailscaleSSHOptions, handler TailscaleSSHHandler) (*TailscaleSSHSession, error) {
+	client, err := c.getClientForCall()
+	if err != nil {
+		return nil, E.Cause(err, "start tailscale ssh session")
+	}
+
+	streamCtx, cancel := context.WithCancel(context.Background())
+	failStart := func(cause error, message string) (*TailscaleSSHSession, error) {
+		cancel()
+		if c.standalone {
+			c.closeConnection()
+		}
+		return nil, E.Cause(cause, message)
+	}
+
+	stream, err := client.StartTailscaleSSHSession(streamCtx)
+	if err != nil {
+		return failStart(err, "start tailscale ssh session")
+	}
+
+	sendErr := stream.Send(&daemon.TailscaleSSHClientMessage{
+		Message: &daemon.TailscaleSSHClientMessage_Start{Start: &daemon.TailscaleSSHStart{
+			EndpointTag:  opts.EndpointTag,
+			PeerAddress:  opts.PeerAddress,
+			Username:     opts.Username,
+			TerminalType: opts.TerminalType,
+			Columns:      opts.Columns,
+			Rows:         opts.Rows,
+			WidthPixels:  opts.WidthPixels,
+			HeightPixels: opts.HeightPixels,
+			HostKeys:     iteratorToArray[string](opts.HostKeys),
+		}},
+	})
+	if sendErr != nil {
+		return failStart(sendErr, "send tailscale ssh start")
+	}
+
+	session := &TailscaleSSHSession{
+		stream:    stream,
+		inputCh:   make(chan []byte, 8),
+		resizeCh:  make(chan tailscaleSSHResize, 1),
+		ctx:       streamCtx,
+		cancel:    cancel,
+		closeDone: make(chan struct{}),
+	}
+
+	session.wg.Add(1)
+	go func() {
+		defer session.wg.Done()
+		for {
+			select {
+			case <-streamCtx.Done():
+				return
+			case data := <-session.inputCh:
+				sendErr := stream.Send(&daemon.TailscaleSSHClientMessage{
+					Message: &daemon.TailscaleSSHClientMessage_Input{Input: &daemon.TailscaleSSHInput{Data: data}},
+				})
+				if sendErr != nil {
+					cancel()
+					return
+				}
+			case resize := <-session.resizeCh:
+				sendErr := stream.Send(&daemon.TailscaleSSHClientMessage{
+					Message: &daemon.TailscaleSSHClientMessage_Resize{Resize: &daemon.TailscaleSSHResize{
+						Columns:      resize.columns,
+						Rows:         resize.rows,
+						WidthPixels:  resize.widthPixels,
+						HeightPixels: resize.heightPixels,
+					}},
+				})
+				if sendErr != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+
+	session.wg.Add(1)
+	go func() {
+		defer session.wg.Done()
+		for {
+			msg, recvErr := stream.Recv()
+			if recvErr == io.EOF {
+				cancel()
+				return
+			}
+			if recvErr != nil {
+				handler.OnError(E.Cause(recvErr, "tailscale ssh recv").Error())
+				cancel()
+				return
+			}
+			switch payload := msg.GetMessage().(type) {
+			case *daemon.TailscaleSSHServerMessage_AuthBanner:
+				handler.OnAuthBanner(payload.AuthBanner.Message)
+			case *daemon.TailscaleSSHServerMessage_Ready:
+				handler.OnReady()
+			case *daemon.TailscaleSSHServerMessage_Output:
+				handler.OnOutput(payload.Output.Data)
+			case *daemon.TailscaleSSHServerMessage_Exit:
+				handler.OnExit(payload.Exit.ExitCode, payload.Exit.Signal, payload.Exit.ErrorMessage)
+				cancel()
+				return
+			case *daemon.TailscaleSSHServerMessage_Error:
+				handler.OnError(payload.Error.Message)
+			}
+		}
+	}()
+
+	standalone := c.standalone
+	go func() {
+		session.wg.Wait()
+		close(session.closeDone)
+		if standalone {
+			c.closeConnection()
+		}
+	}()
+
+	return session, nil
 }

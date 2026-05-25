@@ -41,6 +41,7 @@ service StartedService {
   rpc SubscribeTailscaleStatus(google.protobuf.Empty) returns (stream TailscaleStatusUpdate) {}
   rpc StartTailscalePing(TailscalePingRequest) returns (stream TailscalePingResponse) {}
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
+  rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
 }
 
 message ServiceStatus {
@@ -340,4 +341,66 @@ message TailscalePingResponse {
 message SetTailscaleExitNodeRequest {
   string endpointTag = 1;
   string stableID = 2;
+}
+
+message TailscaleSSHClientMessage {
+  oneof message {
+    TailscaleSSHStart start = 1;
+    TailscaleSSHInput input = 2;
+    TailscaleSSHResize resize = 3;
+  }
+}
+
+message TailscaleSSHStart {
+  string endpointTag = 1;
+  string peerAddress = 2;
+  string username = 3;
+  string terminalType = 4;
+  int32 columns = 5;
+  int32 rows = 6;
+  int32 widthPixels = 7;
+  int32 heightPixels = 8;
+  repeated string hostKeys = 9;
+}
+
+message TailscaleSSHInput {
+  bytes data = 1;
+}
+
+message TailscaleSSHResize {
+  int32 columns = 1;
+  int32 rows = 2;
+  int32 widthPixels = 3;
+  int32 heightPixels = 4;
+}
+
+message TailscaleSSHServerMessage {
+  oneof message {
+    TailscaleSSHAuthBanner authBanner = 1;
+    TailscaleSSHReady ready = 2;
+    TailscaleSSHOutput output = 3;
+    TailscaleSSHExit exit = 4;
+    TailscaleSSHError error = 5;
+  }
+}
+
+message TailscaleSSHAuthBanner {
+  string message = 1;
+}
+
+message TailscaleSSHReady {
+}
+
+message TailscaleSSHOutput {
+  bytes data = 1;
+}
+
+message TailscaleSSHExit {
+  int32 exitCode = 1;
+  string signal = 2;
+  string errorMessage = 3;
+}
+
+message TailscaleSSHError {
+  string message = 1;
 }

@@ -2820,6 +2820,682 @@ func (x *SetTailscaleExitNodeRequest) GetStableID() string {
 	return ""
 }
 
+type TailscaleSSHClientMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Message:
+	//
+	//	*TailscaleSSHClientMessage_Start
+	//	*TailscaleSSHClientMessage_Input
+	//	*TailscaleSSHClientMessage_Resize
+	Message       isTailscaleSSHClientMessage_Message `protobuf_oneof:"message"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHClientMessage) Reset() {
+	*x = TailscaleSSHClientMessage{}
+	mi := &file_daemon_started_service_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHClientMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHClientMessage) ProtoMessage() {}
+
+func (x *TailscaleSSHClientMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHClientMessage.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHClientMessage) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *TailscaleSSHClientMessage) GetMessage() isTailscaleSSHClientMessage_Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *TailscaleSSHClientMessage) GetStart() *TailscaleSSHStart {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHClientMessage_Start); ok {
+			return x.Start
+		}
+	}
+	return nil
+}
+
+func (x *TailscaleSSHClientMessage) GetInput() *TailscaleSSHInput {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHClientMessage_Input); ok {
+			return x.Input
+		}
+	}
+	return nil
+}
+
+func (x *TailscaleSSHClientMessage) GetResize() *TailscaleSSHResize {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHClientMessage_Resize); ok {
+			return x.Resize
+		}
+	}
+	return nil
+}
+
+type isTailscaleSSHClientMessage_Message interface {
+	isTailscaleSSHClientMessage_Message()
+}
+
+type TailscaleSSHClientMessage_Start struct {
+	Start *TailscaleSSHStart `protobuf:"bytes,1,opt,name=start,proto3,oneof"`
+}
+
+type TailscaleSSHClientMessage_Input struct {
+	Input *TailscaleSSHInput `protobuf:"bytes,2,opt,name=input,proto3,oneof"`
+}
+
+type TailscaleSSHClientMessage_Resize struct {
+	Resize *TailscaleSSHResize `protobuf:"bytes,3,opt,name=resize,proto3,oneof"`
+}
+
+func (*TailscaleSSHClientMessage_Start) isTailscaleSSHClientMessage_Message() {}
+
+func (*TailscaleSSHClientMessage_Input) isTailscaleSSHClientMessage_Message() {}
+
+func (*TailscaleSSHClientMessage_Resize) isTailscaleSSHClientMessage_Message() {}
+
+type TailscaleSSHStart struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EndpointTag   string                 `protobuf:"bytes,1,opt,name=endpointTag,proto3" json:"endpointTag,omitempty"`
+	PeerAddress   string                 `protobuf:"bytes,2,opt,name=peerAddress,proto3" json:"peerAddress,omitempty"`
+	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
+	TerminalType  string                 `protobuf:"bytes,4,opt,name=terminalType,proto3" json:"terminalType,omitempty"`
+	Columns       int32                  `protobuf:"varint,5,opt,name=columns,proto3" json:"columns,omitempty"`
+	Rows          int32                  `protobuf:"varint,6,opt,name=rows,proto3" json:"rows,omitempty"`
+	WidthPixels   int32                  `protobuf:"varint,7,opt,name=widthPixels,proto3" json:"widthPixels,omitempty"`
+	HeightPixels  int32                  `protobuf:"varint,8,opt,name=heightPixels,proto3" json:"heightPixels,omitempty"`
+	HostKeys      []string               `protobuf:"bytes,9,rep,name=hostKeys,proto3" json:"hostKeys,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHStart) Reset() {
+	*x = TailscaleSSHStart{}
+	mi := &file_daemon_started_service_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHStart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHStart) ProtoMessage() {}
+
+func (x *TailscaleSSHStart) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHStart.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHStart) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *TailscaleSSHStart) GetEndpointTag() string {
+	if x != nil {
+		return x.EndpointTag
+	}
+	return ""
+}
+
+func (x *TailscaleSSHStart) GetPeerAddress() string {
+	if x != nil {
+		return x.PeerAddress
+	}
+	return ""
+}
+
+func (x *TailscaleSSHStart) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *TailscaleSSHStart) GetTerminalType() string {
+	if x != nil {
+		return x.TerminalType
+	}
+	return ""
+}
+
+func (x *TailscaleSSHStart) GetColumns() int32 {
+	if x != nil {
+		return x.Columns
+	}
+	return 0
+}
+
+func (x *TailscaleSSHStart) GetRows() int32 {
+	if x != nil {
+		return x.Rows
+	}
+	return 0
+}
+
+func (x *TailscaleSSHStart) GetWidthPixels() int32 {
+	if x != nil {
+		return x.WidthPixels
+	}
+	return 0
+}
+
+func (x *TailscaleSSHStart) GetHeightPixels() int32 {
+	if x != nil {
+		return x.HeightPixels
+	}
+	return 0
+}
+
+func (x *TailscaleSSHStart) GetHostKeys() []string {
+	if x != nil {
+		return x.HostKeys
+	}
+	return nil
+}
+
+type TailscaleSSHInput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHInput) Reset() {
+	*x = TailscaleSSHInput{}
+	mi := &file_daemon_started_service_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHInput) ProtoMessage() {}
+
+func (x *TailscaleSSHInput) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHInput.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHInput) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *TailscaleSSHInput) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type TailscaleSSHResize struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Columns       int32                  `protobuf:"varint,1,opt,name=columns,proto3" json:"columns,omitempty"`
+	Rows          int32                  `protobuf:"varint,2,opt,name=rows,proto3" json:"rows,omitempty"`
+	WidthPixels   int32                  `protobuf:"varint,3,opt,name=widthPixels,proto3" json:"widthPixels,omitempty"`
+	HeightPixels  int32                  `protobuf:"varint,4,opt,name=heightPixels,proto3" json:"heightPixels,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHResize) Reset() {
+	*x = TailscaleSSHResize{}
+	mi := &file_daemon_started_service_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHResize) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHResize) ProtoMessage() {}
+
+func (x *TailscaleSSHResize) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHResize.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHResize) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *TailscaleSSHResize) GetColumns() int32 {
+	if x != nil {
+		return x.Columns
+	}
+	return 0
+}
+
+func (x *TailscaleSSHResize) GetRows() int32 {
+	if x != nil {
+		return x.Rows
+	}
+	return 0
+}
+
+func (x *TailscaleSSHResize) GetWidthPixels() int32 {
+	if x != nil {
+		return x.WidthPixels
+	}
+	return 0
+}
+
+func (x *TailscaleSSHResize) GetHeightPixels() int32 {
+	if x != nil {
+		return x.HeightPixels
+	}
+	return 0
+}
+
+type TailscaleSSHServerMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Message:
+	//
+	//	*TailscaleSSHServerMessage_AuthBanner
+	//	*TailscaleSSHServerMessage_Ready
+	//	*TailscaleSSHServerMessage_Output
+	//	*TailscaleSSHServerMessage_Exit
+	//	*TailscaleSSHServerMessage_Error
+	Message       isTailscaleSSHServerMessage_Message `protobuf_oneof:"message"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHServerMessage) Reset() {
+	*x = TailscaleSSHServerMessage{}
+	mi := &file_daemon_started_service_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHServerMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHServerMessage) ProtoMessage() {}
+
+func (x *TailscaleSSHServerMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHServerMessage.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHServerMessage) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *TailscaleSSHServerMessage) GetMessage() isTailscaleSSHServerMessage_Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *TailscaleSSHServerMessage) GetAuthBanner() *TailscaleSSHAuthBanner {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHServerMessage_AuthBanner); ok {
+			return x.AuthBanner
+		}
+	}
+	return nil
+}
+
+func (x *TailscaleSSHServerMessage) GetReady() *TailscaleSSHReady {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHServerMessage_Ready); ok {
+			return x.Ready
+		}
+	}
+	return nil
+}
+
+func (x *TailscaleSSHServerMessage) GetOutput() *TailscaleSSHOutput {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHServerMessage_Output); ok {
+			return x.Output
+		}
+	}
+	return nil
+}
+
+func (x *TailscaleSSHServerMessage) GetExit() *TailscaleSSHExit {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHServerMessage_Exit); ok {
+			return x.Exit
+		}
+	}
+	return nil
+}
+
+func (x *TailscaleSSHServerMessage) GetError() *TailscaleSSHError {
+	if x != nil {
+		if x, ok := x.Message.(*TailscaleSSHServerMessage_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isTailscaleSSHServerMessage_Message interface {
+	isTailscaleSSHServerMessage_Message()
+}
+
+type TailscaleSSHServerMessage_AuthBanner struct {
+	AuthBanner *TailscaleSSHAuthBanner `protobuf:"bytes,1,opt,name=authBanner,proto3,oneof"`
+}
+
+type TailscaleSSHServerMessage_Ready struct {
+	Ready *TailscaleSSHReady `protobuf:"bytes,2,opt,name=ready,proto3,oneof"`
+}
+
+type TailscaleSSHServerMessage_Output struct {
+	Output *TailscaleSSHOutput `protobuf:"bytes,3,opt,name=output,proto3,oneof"`
+}
+
+type TailscaleSSHServerMessage_Exit struct {
+	Exit *TailscaleSSHExit `protobuf:"bytes,4,opt,name=exit,proto3,oneof"`
+}
+
+type TailscaleSSHServerMessage_Error struct {
+	Error *TailscaleSSHError `protobuf:"bytes,5,opt,name=error,proto3,oneof"`
+}
+
+func (*TailscaleSSHServerMessage_AuthBanner) isTailscaleSSHServerMessage_Message() {}
+
+func (*TailscaleSSHServerMessage_Ready) isTailscaleSSHServerMessage_Message() {}
+
+func (*TailscaleSSHServerMessage_Output) isTailscaleSSHServerMessage_Message() {}
+
+func (*TailscaleSSHServerMessage_Exit) isTailscaleSSHServerMessage_Message() {}
+
+func (*TailscaleSSHServerMessage_Error) isTailscaleSSHServerMessage_Message() {}
+
+type TailscaleSSHAuthBanner struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHAuthBanner) Reset() {
+	*x = TailscaleSSHAuthBanner{}
+	mi := &file_daemon_started_service_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHAuthBanner) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHAuthBanner) ProtoMessage() {}
+
+func (x *TailscaleSSHAuthBanner) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHAuthBanner.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHAuthBanner) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *TailscaleSSHAuthBanner) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type TailscaleSSHReady struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHReady) Reset() {
+	*x = TailscaleSSHReady{}
+	mi := &file_daemon_started_service_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHReady) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHReady) ProtoMessage() {}
+
+func (x *TailscaleSSHReady) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHReady.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHReady) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{44}
+}
+
+type TailscaleSSHOutput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Data          []byte                 `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHOutput) Reset() {
+	*x = TailscaleSSHOutput{}
+	mi := &file_daemon_started_service_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHOutput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHOutput) ProtoMessage() {}
+
+func (x *TailscaleSSHOutput) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHOutput.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHOutput) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *TailscaleSSHOutput) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+type TailscaleSSHExit struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExitCode      int32                  `protobuf:"varint,1,opt,name=exitCode,proto3" json:"exitCode,omitempty"`
+	Signal        string                 `protobuf:"bytes,2,opt,name=signal,proto3" json:"signal,omitempty"`
+	ErrorMessage  string                 `protobuf:"bytes,3,opt,name=errorMessage,proto3" json:"errorMessage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHExit) Reset() {
+	*x = TailscaleSSHExit{}
+	mi := &file_daemon_started_service_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHExit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHExit) ProtoMessage() {}
+
+func (x *TailscaleSSHExit) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHExit.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHExit) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *TailscaleSSHExit) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *TailscaleSSHExit) GetSignal() string {
+	if x != nil {
+		return x.Signal
+	}
+	return ""
+}
+
+func (x *TailscaleSSHExit) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type TailscaleSSHError struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TailscaleSSHError) Reset() {
+	*x = TailscaleSSHError{}
+	mi := &file_daemon_started_service_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TailscaleSSHError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TailscaleSSHError) ProtoMessage() {}
+
+func (x *TailscaleSSHError) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TailscaleSSHError.ProtoReflect.Descriptor instead.
+func (*TailscaleSSHError) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *TailscaleSSHError) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type Log_Message struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Level         LogLevel               `protobuf:"varint,1,opt,name=level,proto3,enum=daemon.LogLevel" json:"level,omitempty"`
@@ -2830,7 +3506,7 @@ type Log_Message struct {
 
 func (x *Log_Message) Reset() {
 	*x = Log_Message{}
-	mi := &file_daemon_started_service_proto_msgTypes[38]
+	mi := &file_daemon_started_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2842,7 +3518,7 @@ func (x *Log_Message) String() string {
 func (*Log_Message) ProtoMessage() {}
 
 func (x *Log_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[38]
+	mi := &file_daemon_started_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3096,7 +3772,49 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x05error\x18\x06 \x01(\tR\x05error\"[\n" +
 	"\x1bSetTailscaleExitNodeRequest\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x1a\n" +
-	"\bstableID\x18\x02 \x01(\tR\bstableID*U\n" +
+	"\bstableID\x18\x02 \x01(\tR\bstableID\"\xc2\x01\n" +
+	"\x19TailscaleSSHClientMessage\x121\n" +
+	"\x05start\x18\x01 \x01(\v2\x19.daemon.TailscaleSSHStartH\x00R\x05start\x121\n" +
+	"\x05input\x18\x02 \x01(\v2\x19.daemon.TailscaleSSHInputH\x00R\x05input\x124\n" +
+	"\x06resize\x18\x03 \x01(\v2\x1a.daemon.TailscaleSSHResizeH\x00R\x06resizeB\t\n" +
+	"\amessage\"\xa7\x02\n" +
+	"\x11TailscaleSSHStart\x12 \n" +
+	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12 \n" +
+	"\vpeerAddress\x18\x02 \x01(\tR\vpeerAddress\x12\x1a\n" +
+	"\busername\x18\x03 \x01(\tR\busername\x12\"\n" +
+	"\fterminalType\x18\x04 \x01(\tR\fterminalType\x12\x18\n" +
+	"\acolumns\x18\x05 \x01(\x05R\acolumns\x12\x12\n" +
+	"\x04rows\x18\x06 \x01(\x05R\x04rows\x12 \n" +
+	"\vwidthPixels\x18\a \x01(\x05R\vwidthPixels\x12\"\n" +
+	"\fheightPixels\x18\b \x01(\x05R\fheightPixels\x12\x1a\n" +
+	"\bhostKeys\x18\t \x03(\tR\bhostKeys\"'\n" +
+	"\x11TailscaleSSHInput\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\"\x88\x01\n" +
+	"\x12TailscaleSSHResize\x12\x18\n" +
+	"\acolumns\x18\x01 \x01(\x05R\acolumns\x12\x12\n" +
+	"\x04rows\x18\x02 \x01(\x05R\x04rows\x12 \n" +
+	"\vwidthPixels\x18\x03 \x01(\x05R\vwidthPixels\x12\"\n" +
+	"\fheightPixels\x18\x04 \x01(\x05R\fheightPixels\"\xb4\x02\n" +
+	"\x19TailscaleSSHServerMessage\x12@\n" +
+	"\n" +
+	"authBanner\x18\x01 \x01(\v2\x1e.daemon.TailscaleSSHAuthBannerH\x00R\n" +
+	"authBanner\x121\n" +
+	"\x05ready\x18\x02 \x01(\v2\x19.daemon.TailscaleSSHReadyH\x00R\x05ready\x124\n" +
+	"\x06output\x18\x03 \x01(\v2\x1a.daemon.TailscaleSSHOutputH\x00R\x06output\x12.\n" +
+	"\x04exit\x18\x04 \x01(\v2\x18.daemon.TailscaleSSHExitH\x00R\x04exit\x121\n" +
+	"\x05error\x18\x05 \x01(\v2\x19.daemon.TailscaleSSHErrorH\x00R\x05errorB\t\n" +
+	"\amessage\"2\n" +
+	"\x16TailscaleSSHAuthBanner\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\x13\n" +
+	"\x11TailscaleSSHReady\"(\n" +
+	"\x12TailscaleSSHOutput\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\"j\n" +
+	"\x10TailscaleSSHExit\x12\x1a\n" +
+	"\bexitCode\x18\x01 \x01(\x05R\bexitCode\x12\x16\n" +
+	"\x06signal\x18\x02 \x01(\tR\x06signal\x12\"\n" +
+	"\ferrorMessage\x18\x03 \x01(\tR\ferrorMessage\"-\n" +
+	"\x11TailscaleSSHError\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage*U\n" +
 	"\bLogLevel\x12\t\n" +
 	"\x05PANIC\x10\x00\x12\t\n" +
 	"\x05FATAL\x10\x01\x12\t\n" +
@@ -3108,7 +3826,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x13ConnectionEventType\x12\x18\n" +
 	"\x14CONNECTION_EVENT_NEW\x10\x00\x12\x1b\n" +
 	"\x17CONNECTION_EVENT_UPDATE\x10\x01\x12\x1b\n" +
-	"\x17CONNECTION_EVENT_CLOSED\x10\x022\xf0\x10\n" +
+	"\x17CONNECTION_EVENT_CLOSED\x10\x022\xd8\x11\n" +
 	"\x0eStartedService\x12=\n" +
 	"\vStopService\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
 	"\rReloadService\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12K\n" +
@@ -3138,7 +3856,8 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\rStartSTUNTest\x12\x17.daemon.STUNTestRequest\x1a\x18.daemon.STUNTestProgress\"\x000\x01\x12U\n" +
 	"\x18SubscribeTailscaleStatus\x12\x16.google.protobuf.Empty\x1a\x1d.daemon.TailscaleStatusUpdate\"\x000\x01\x12U\n" +
 	"\x12StartTailscalePing\x12\x1c.daemon.TailscalePingRequest\x1a\x1d.daemon.TailscalePingResponse\"\x000\x01\x12U\n" +
-	"\x14SetTailscaleExitNode\x12#.daemon.SetTailscaleExitNodeRequest\x1a\x16.google.protobuf.Empty\"\x00B%Z#github.com/sagernet/sing-box/daemonb\x06proto3"
+	"\x14SetTailscaleExitNode\x12#.daemon.SetTailscaleExitNodeRequest\x1a\x16.google.protobuf.Empty\"\x00\x12f\n" +
+	"\x18StartTailscaleSSHSession\x12!.daemon.TailscaleSSHClientMessage\x1a!.daemon.TailscaleSSHServerMessage\"\x00(\x010\x01B%Z#github.com/sagernet/sing-box/daemonb\x06proto3"
 
 var (
 	file_daemon_started_service_proto_rawDescOnce sync.Once
@@ -3154,7 +3873,7 @@ func file_daemon_started_service_proto_rawDescGZIP() []byte {
 
 var (
 	file_daemon_started_service_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-	file_daemon_started_service_proto_msgTypes  = make([]protoimpl.MessageInfo, 39)
+	file_daemon_started_service_proto_msgTypes  = make([]protoimpl.MessageInfo, 49)
 	file_daemon_started_service_proto_goTypes   = []any{
 		(LogLevel)(0),                        // 0: daemon.LogLevel
 		(ConnectionEventType)(0),             // 1: daemon.ConnectionEventType
@@ -3198,14 +3917,24 @@ var (
 		(*TailscalePingRequest)(nil),         // 39: daemon.TailscalePingRequest
 		(*TailscalePingResponse)(nil),        // 40: daemon.TailscalePingResponse
 		(*SetTailscaleExitNodeRequest)(nil),  // 41: daemon.SetTailscaleExitNodeRequest
-		(*Log_Message)(nil),                  // 42: daemon.Log.Message
-		(*emptypb.Empty)(nil),                // 43: google.protobuf.Empty
+		(*TailscaleSSHClientMessage)(nil),    // 42: daemon.TailscaleSSHClientMessage
+		(*TailscaleSSHStart)(nil),            // 43: daemon.TailscaleSSHStart
+		(*TailscaleSSHInput)(nil),            // 44: daemon.TailscaleSSHInput
+		(*TailscaleSSHResize)(nil),           // 45: daemon.TailscaleSSHResize
+		(*TailscaleSSHServerMessage)(nil),    // 46: daemon.TailscaleSSHServerMessage
+		(*TailscaleSSHAuthBanner)(nil),       // 47: daemon.TailscaleSSHAuthBanner
+		(*TailscaleSSHReady)(nil),            // 48: daemon.TailscaleSSHReady
+		(*TailscaleSSHOutput)(nil),           // 49: daemon.TailscaleSSHOutput
+		(*TailscaleSSHExit)(nil),             // 50: daemon.TailscaleSSHExit
+		(*TailscaleSSHError)(nil),            // 51: daemon.TailscaleSSHError
+		(*Log_Message)(nil),                  // 52: daemon.Log.Message
+		(*emptypb.Empty)(nil),                // 53: google.protobuf.Empty
 	}
 )
 
 var file_daemon_started_service_proto_depIdxs = []int32{
 	2,  // 0: daemon.ServiceStatus.status:type_name -> daemon.ServiceStatus.Type
-	42, // 1: daemon.Log.messages:type_name -> daemon.Log.Message
+	52, // 1: daemon.Log.messages:type_name -> daemon.Log.Message
 	0,  // 2: daemon.DefaultLogLevel.level:type_name -> daemon.LogLevel
 	11, // 3: daemon.Groups.group:type_name -> daemon.Group
 	12, // 4: daemon.Group.items:type_name -> daemon.GroupItem
@@ -3221,70 +3950,80 @@ var file_daemon_started_service_proto_depIdxs = []int32{
 	37, // 14: daemon.TailscaleEndpointStatus.userGroups:type_name -> daemon.TailscaleUserGroup
 	38, // 15: daemon.TailscaleEndpointStatus.exitNode:type_name -> daemon.TailscalePeer
 	38, // 16: daemon.TailscaleUserGroup.peers:type_name -> daemon.TailscalePeer
-	0,  // 17: daemon.Log.Message.level:type_name -> daemon.LogLevel
-	43, // 18: daemon.StartedService.StopService:input_type -> google.protobuf.Empty
-	43, // 19: daemon.StartedService.ReloadService:input_type -> google.protobuf.Empty
-	43, // 20: daemon.StartedService.SubscribeServiceStatus:input_type -> google.protobuf.Empty
-	43, // 21: daemon.StartedService.SubscribeLog:input_type -> google.protobuf.Empty
-	43, // 22: daemon.StartedService.GetDefaultLogLevel:input_type -> google.protobuf.Empty
-	43, // 23: daemon.StartedService.ClearLogs:input_type -> google.protobuf.Empty
-	6,  // 24: daemon.StartedService.SubscribeStatus:input_type -> daemon.SubscribeStatusRequest
-	43, // 25: daemon.StartedService.SubscribeGroups:input_type -> google.protobuf.Empty
-	43, // 26: daemon.StartedService.GetClashModeStatus:input_type -> google.protobuf.Empty
-	43, // 27: daemon.StartedService.SubscribeClashMode:input_type -> google.protobuf.Empty
-	16, // 28: daemon.StartedService.SetClashMode:input_type -> daemon.ClashMode
-	13, // 29: daemon.StartedService.URLTest:input_type -> daemon.URLTestRequest
-	14, // 30: daemon.StartedService.SelectOutbound:input_type -> daemon.SelectOutboundRequest
-	15, // 31: daemon.StartedService.SetGroupExpand:input_type -> daemon.SetGroupExpandRequest
-	43, // 32: daemon.StartedService.GetSystemProxyStatus:input_type -> google.protobuf.Empty
-	19, // 33: daemon.StartedService.SetSystemProxyEnabled:input_type -> daemon.SetSystemProxyEnabledRequest
-	20, // 34: daemon.StartedService.TriggerDebugCrash:input_type -> daemon.DebugCrashRequest
-	43, // 35: daemon.StartedService.TriggerOOMReport:input_type -> google.protobuf.Empty
-	21, // 36: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
-	26, // 37: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
-	43, // 38: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
-	43, // 39: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
-	43, // 40: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
-	43, // 41: daemon.StartedService.SubscribeOutbounds:input_type -> google.protobuf.Empty
-	31, // 42: daemon.StartedService.StartNetworkQualityTest:input_type -> daemon.NetworkQualityTestRequest
-	33, // 43: daemon.StartedService.StartSTUNTest:input_type -> daemon.STUNTestRequest
-	43, // 44: daemon.StartedService.SubscribeTailscaleStatus:input_type -> google.protobuf.Empty
-	39, // 45: daemon.StartedService.StartTailscalePing:input_type -> daemon.TailscalePingRequest
-	41, // 46: daemon.StartedService.SetTailscaleExitNode:input_type -> daemon.SetTailscaleExitNodeRequest
-	43, // 47: daemon.StartedService.StopService:output_type -> google.protobuf.Empty
-	43, // 48: daemon.StartedService.ReloadService:output_type -> google.protobuf.Empty
-	4,  // 49: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
-	7,  // 50: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
-	8,  // 51: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
-	43, // 52: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
-	9,  // 53: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
-	10, // 54: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
-	17, // 55: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
-	16, // 56: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
-	43, // 57: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
-	43, // 58: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
-	43, // 59: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
-	43, // 60: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
-	18, // 61: daemon.StartedService.GetSystemProxyStatus:output_type -> daemon.SystemProxyStatus
-	43, // 62: daemon.StartedService.SetSystemProxyEnabled:output_type -> google.protobuf.Empty
-	43, // 63: daemon.StartedService.TriggerDebugCrash:output_type -> google.protobuf.Empty
-	43, // 64: daemon.StartedService.TriggerOOMReport:output_type -> google.protobuf.Empty
-	23, // 65: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
-	43, // 66: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
-	43, // 67: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
-	27, // 68: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
-	29, // 69: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
-	30, // 70: daemon.StartedService.SubscribeOutbounds:output_type -> daemon.OutboundList
-	32, // 71: daemon.StartedService.StartNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
-	34, // 72: daemon.StartedService.StartSTUNTest:output_type -> daemon.STUNTestProgress
-	35, // 73: daemon.StartedService.SubscribeTailscaleStatus:output_type -> daemon.TailscaleStatusUpdate
-	40, // 74: daemon.StartedService.StartTailscalePing:output_type -> daemon.TailscalePingResponse
-	43, // 75: daemon.StartedService.SetTailscaleExitNode:output_type -> google.protobuf.Empty
-	47, // [47:76] is the sub-list for method output_type
-	18, // [18:47] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	43, // 17: daemon.TailscaleSSHClientMessage.start:type_name -> daemon.TailscaleSSHStart
+	44, // 18: daemon.TailscaleSSHClientMessage.input:type_name -> daemon.TailscaleSSHInput
+	45, // 19: daemon.TailscaleSSHClientMessage.resize:type_name -> daemon.TailscaleSSHResize
+	47, // 20: daemon.TailscaleSSHServerMessage.authBanner:type_name -> daemon.TailscaleSSHAuthBanner
+	48, // 21: daemon.TailscaleSSHServerMessage.ready:type_name -> daemon.TailscaleSSHReady
+	49, // 22: daemon.TailscaleSSHServerMessage.output:type_name -> daemon.TailscaleSSHOutput
+	50, // 23: daemon.TailscaleSSHServerMessage.exit:type_name -> daemon.TailscaleSSHExit
+	51, // 24: daemon.TailscaleSSHServerMessage.error:type_name -> daemon.TailscaleSSHError
+	0,  // 25: daemon.Log.Message.level:type_name -> daemon.LogLevel
+	53, // 26: daemon.StartedService.StopService:input_type -> google.protobuf.Empty
+	53, // 27: daemon.StartedService.ReloadService:input_type -> google.protobuf.Empty
+	53, // 28: daemon.StartedService.SubscribeServiceStatus:input_type -> google.protobuf.Empty
+	53, // 29: daemon.StartedService.SubscribeLog:input_type -> google.protobuf.Empty
+	53, // 30: daemon.StartedService.GetDefaultLogLevel:input_type -> google.protobuf.Empty
+	53, // 31: daemon.StartedService.ClearLogs:input_type -> google.protobuf.Empty
+	6,  // 32: daemon.StartedService.SubscribeStatus:input_type -> daemon.SubscribeStatusRequest
+	53, // 33: daemon.StartedService.SubscribeGroups:input_type -> google.protobuf.Empty
+	53, // 34: daemon.StartedService.GetClashModeStatus:input_type -> google.protobuf.Empty
+	53, // 35: daemon.StartedService.SubscribeClashMode:input_type -> google.protobuf.Empty
+	16, // 36: daemon.StartedService.SetClashMode:input_type -> daemon.ClashMode
+	13, // 37: daemon.StartedService.URLTest:input_type -> daemon.URLTestRequest
+	14, // 38: daemon.StartedService.SelectOutbound:input_type -> daemon.SelectOutboundRequest
+	15, // 39: daemon.StartedService.SetGroupExpand:input_type -> daemon.SetGroupExpandRequest
+	53, // 40: daemon.StartedService.GetSystemProxyStatus:input_type -> google.protobuf.Empty
+	19, // 41: daemon.StartedService.SetSystemProxyEnabled:input_type -> daemon.SetSystemProxyEnabledRequest
+	20, // 42: daemon.StartedService.TriggerDebugCrash:input_type -> daemon.DebugCrashRequest
+	53, // 43: daemon.StartedService.TriggerOOMReport:input_type -> google.protobuf.Empty
+	21, // 44: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
+	26, // 45: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
+	53, // 46: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
+	53, // 47: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
+	53, // 48: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
+	53, // 49: daemon.StartedService.SubscribeOutbounds:input_type -> google.protobuf.Empty
+	31, // 50: daemon.StartedService.StartNetworkQualityTest:input_type -> daemon.NetworkQualityTestRequest
+	33, // 51: daemon.StartedService.StartSTUNTest:input_type -> daemon.STUNTestRequest
+	53, // 52: daemon.StartedService.SubscribeTailscaleStatus:input_type -> google.protobuf.Empty
+	39, // 53: daemon.StartedService.StartTailscalePing:input_type -> daemon.TailscalePingRequest
+	41, // 54: daemon.StartedService.SetTailscaleExitNode:input_type -> daemon.SetTailscaleExitNodeRequest
+	42, // 55: daemon.StartedService.StartTailscaleSSHSession:input_type -> daemon.TailscaleSSHClientMessage
+	53, // 56: daemon.StartedService.StopService:output_type -> google.protobuf.Empty
+	53, // 57: daemon.StartedService.ReloadService:output_type -> google.protobuf.Empty
+	4,  // 58: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
+	7,  // 59: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
+	8,  // 60: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
+	53, // 61: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
+	9,  // 62: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
+	10, // 63: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
+	17, // 64: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
+	16, // 65: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
+	53, // 66: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
+	53, // 67: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
+	53, // 68: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
+	53, // 69: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
+	18, // 70: daemon.StartedService.GetSystemProxyStatus:output_type -> daemon.SystemProxyStatus
+	53, // 71: daemon.StartedService.SetSystemProxyEnabled:output_type -> google.protobuf.Empty
+	53, // 72: daemon.StartedService.TriggerDebugCrash:output_type -> google.protobuf.Empty
+	53, // 73: daemon.StartedService.TriggerOOMReport:output_type -> google.protobuf.Empty
+	23, // 74: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
+	53, // 75: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
+	53, // 76: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
+	27, // 77: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
+	29, // 78: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
+	30, // 79: daemon.StartedService.SubscribeOutbounds:output_type -> daemon.OutboundList
+	32, // 80: daemon.StartedService.StartNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
+	34, // 81: daemon.StartedService.StartSTUNTest:output_type -> daemon.STUNTestProgress
+	35, // 82: daemon.StartedService.SubscribeTailscaleStatus:output_type -> daemon.TailscaleStatusUpdate
+	40, // 83: daemon.StartedService.StartTailscalePing:output_type -> daemon.TailscalePingResponse
+	53, // 84: daemon.StartedService.SetTailscaleExitNode:output_type -> google.protobuf.Empty
+	46, // 85: daemon.StartedService.StartTailscaleSSHSession:output_type -> daemon.TailscaleSSHServerMessage
+	56, // [56:86] is the sub-list for method output_type
+	26, // [26:56] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_daemon_started_service_proto_init() }
@@ -3292,13 +4031,25 @@ func file_daemon_started_service_proto_init() {
 	if File_daemon_started_service_proto != nil {
 		return
 	}
+	file_daemon_started_service_proto_msgTypes[38].OneofWrappers = []any{
+		(*TailscaleSSHClientMessage_Start)(nil),
+		(*TailscaleSSHClientMessage_Input)(nil),
+		(*TailscaleSSHClientMessage_Resize)(nil),
+	}
+	file_daemon_started_service_proto_msgTypes[42].OneofWrappers = []any{
+		(*TailscaleSSHServerMessage_AuthBanner)(nil),
+		(*TailscaleSSHServerMessage_Ready)(nil),
+		(*TailscaleSSHServerMessage_Output)(nil),
+		(*TailscaleSSHServerMessage_Exit)(nil),
+		(*TailscaleSSHServerMessage_Error)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_daemon_started_service_proto_rawDesc), len(file_daemon_started_service_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   39,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
