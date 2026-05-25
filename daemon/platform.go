@@ -7,4 +7,5 @@ type PlatformHandler interface {
 	SetSystemProxyEnabled(enabled bool) error
 	TriggerNativeCrash() error
 	WriteDebugMessage(message string)
+	ConnectSSHAgent() (int32, error)
 }
