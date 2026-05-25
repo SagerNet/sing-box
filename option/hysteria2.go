@@ -38,9 +38,51 @@ type Hysteria2InboundRealm struct {
 	STUNDomainResolver *DomainResolveOptions `json:"stun_domain_resolver,omitempty"`
 }
 
-type Hysteria2Obfs struct {
-	Type     string `json:"type,omitempty"`
-	Password string `json:"password,omitempty"`
+type Hysteria2ObfsGecko struct {
+	MinPacketSize int `json:"min_packet_size,omitempty"`
+	MaxPacketSize int `json:"max_packet_size,omitempty"`
+}
+
+type _Hysteria2Obfs struct {
+	Type         string             `json:"type,omitempty"`
+	Password     string             `json:"password,omitempty"`
+	GeckoOptions Hysteria2ObfsGecko `json:"-"`
+}
+
+type Hysteria2Obfs _Hysteria2Obfs
+
+func (o Hysteria2Obfs) MarshalJSON() ([]byte, error) {
+	var v any
+	switch o.Type {
+	case C.Hysteria2ObfsTypeSalamander:
+	case C.Hysteria2ObfsTypeGecko:
+		v = o.GeckoOptions
+	default:
+		return nil, E.New("unknown obfs type: ", o.Type)
+	}
+	if v == nil {
+		return json.Marshal((_Hysteria2Obfs)(o))
+	}
+	return badjson.MarshallObjects((_Hysteria2Obfs)(o), v)
+}
+
+func (o *Hysteria2Obfs) UnmarshalJSON(bytes []byte) error {
+	err := json.Unmarshal(bytes, (*_Hysteria2Obfs)(o))
+	if err != nil {
+		return err
+	}
+	var v any
+	switch o.Type {
+	case C.Hysteria2ObfsTypeSalamander:
+	case C.Hysteria2ObfsTypeGecko:
+		v = &o.GeckoOptions
+	default:
+		return E.New("unknown obfs type: ", o.Type)
+	}
+	if v == nil {
+		return nil
+	}
+	return badjson.UnmarshallExcluded(bytes, (*_Hysteria2Obfs)(o), v)
 }
 
 type Hysteria2User struct {

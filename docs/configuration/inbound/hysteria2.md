@@ -5,7 +5,8 @@ icon: material/alert-decagram
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [bbr_profile](#bbr_profile)  
-    :material-plus: [realm](#realm)
+    :material-plus: [realm](#realm)  
+    :material-alert: [obfs](#obfstype)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -75,13 +76,29 @@ Conflict with `ignore_client_bandwidth`.
 
 #### obfs.type
 
-QUIC traffic obfuscator type, only available with `salamander`.
+QUIC traffic obfuscator type, one of `salamander` `gecko`.
 
 Disabled if empty.
 
 #### obfs.password
 
 QUIC traffic obfuscator password.
+
+#### obfs.min_packet_size
+
+!!! question "Since sing-box 1.14.0"
+
+Minimum on-wire packet size in bytes. Gecko only.
+
+`512` is used by default.
+
+#### obfs.max_packet_size
+
+!!! question "Since sing-box 1.14.0"
+
+Maximum on-wire packet size in bytes. Gecko only.
+
+`1200` is used by default.
 
 #### users
 
