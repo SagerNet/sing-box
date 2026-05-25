@@ -44,6 +44,7 @@ const (
 	StartedService_SubscribeTailscaleStatus_FullMethodName = "/daemon.StartedService/SubscribeTailscaleStatus"
 	StartedService_StartTailscalePing_FullMethodName       = "/daemon.StartedService/StartTailscalePing"
 	StartedService_SetTailscaleExitNode_FullMethodName     = "/daemon.StartedService/SetTailscaleExitNode"
+	StartedService_StartTailscaleSSHSession_FullMethodName = "/daemon.StartedService/StartTailscaleSSHSession"
 )
 
 // StartedServiceClient is the client API for StartedService service.
@@ -79,6 +80,7 @@ type StartedServiceClient interface {
 	SubscribeTailscaleStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscaleStatusUpdate], error)
 	StartTailscalePing(ctx context.Context, in *TailscalePingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscalePingResponse], error)
 	SetTailscaleExitNode(ctx context.Context, in *SetTailscaleExitNodeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	StartTailscaleSSHSession(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TailscaleSSHClientMessage, TailscaleSSHServerMessage], error)
 }
 
 type startedServiceClient struct {
@@ -478,6 +480,19 @@ func (c *startedServiceClient) SetTailscaleExitNode(ctx context.Context, in *Set
 	return out, nil
 }
 
+func (c *startedServiceClient) StartTailscaleSSHSession(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TailscaleSSHClientMessage, TailscaleSSHServerMessage], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[11], StartedService_StartTailscaleSSHSession_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[TailscaleSSHClientMessage, TailscaleSSHServerMessage]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_StartTailscaleSSHSessionClient = grpc.BidiStreamingClient[TailscaleSSHClientMessage, TailscaleSSHServerMessage]
+
 // StartedServiceServer is the server API for StartedService service.
 // All implementations must embed UnimplementedStartedServiceServer
 // for forward compatibility.
@@ -511,6 +526,7 @@ type StartedServiceServer interface {
 	SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error
 	StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error
 	SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error)
+	StartTailscaleSSHSession(grpc.BidiStreamingServer[TailscaleSSHClientMessage, TailscaleSSHServerMessage]) error
 	mustEmbedUnimplementedStartedServiceServer()
 }
 
@@ -635,6 +651,10 @@ func (UnimplementedStartedServiceServer) StartTailscalePing(*TailscalePingReques
 
 func (UnimplementedStartedServiceServer) SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetTailscaleExitNode not implemented")
+}
+
+func (UnimplementedStartedServiceServer) StartTailscaleSSHSession(grpc.BidiStreamingServer[TailscaleSSHClientMessage, TailscaleSSHServerMessage]) error {
+	return status.Error(codes.Unimplemented, "method StartTailscaleSSHSession not implemented")
 }
 func (UnimplementedStartedServiceServer) mustEmbedUnimplementedStartedServiceServer() {}
 func (UnimplementedStartedServiceServer) testEmbeddedByValue()                        {}
@@ -1102,6 +1122,13 @@ func _StartedService_SetTailscaleExitNode_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StartedService_StartTailscaleSSHSession_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(StartedServiceServer).StartTailscaleSSHSession(&grpc.GenericServerStream[TailscaleSSHClientMessage, TailscaleSSHServerMessage]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type StartedService_StartTailscaleSSHSessionServer = grpc.BidiStreamingServer[TailscaleSSHClientMessage, TailscaleSSHServerMessage]
+
 // StartedService_ServiceDesc is the grpc.ServiceDesc for StartedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1237,6 +1264,12 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "StartTailscalePing",
 			Handler:       _StartedService_StartTailscalePing_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "StartTailscaleSSHSession",
+			Handler:       _StartedService_StartTailscaleSSHSession_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "daemon/started_service.proto",
