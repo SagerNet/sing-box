@@ -84,6 +84,10 @@ type TailscaleStatusHandler interface {
 	OnError(message string)
 }
 
+type TailscaleStatusSubscription struct {
+	streamSession
+}
+
 func tailscaleStatusUpdateFromGRPC(update *daemon.TailscaleStatusUpdate) *TailscaleStatusUpdate {
 	endpoints := make([]*TailscaleEndpointStatus, len(update.Endpoints))
 	for i, endpoint := range update.Endpoints {
