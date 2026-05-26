@@ -19,6 +19,7 @@ var commandTools = &cobra.Command{
 }
 
 func init() {
+	addConfigFlags(commandTools)
 	commandTools.PersistentFlags().StringVarP(&commandToolsFlagOutbound, "outbound", "o", "", "Use specified tag instead of default outbound")
 	mainCommand.AddCommand(commandTools)
 }

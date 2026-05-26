@@ -28,6 +28,7 @@ var commandFormat = &cobra.Command{
 }
 
 func init() {
+	addConfigFlags(commandFormat)
 	commandFormat.Flags().BoolVarP(&commandFormatFlagWrite, "write", "w", false, "write result to (source) file instead of stdout")
 	mainCommand.AddCommand(commandFormat)
 }

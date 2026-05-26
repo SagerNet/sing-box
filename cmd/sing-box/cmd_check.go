@@ -22,6 +22,7 @@ var commandCheck = &cobra.Command{
 }
 
 func init() {
+	addConfigFlags(commandCheck)
 	mainCommand.AddCommand(commandCheck)
 }
 

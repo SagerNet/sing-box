@@ -163,6 +163,7 @@ func readConfigAt(path string) (*OptionsEntry, error) {
 }
 
 func readConfig() ([]*OptionsEntry, error) {
+	ensureDefaultConfigPath()
 	var optionsList []*OptionsEntry
 	for _, path := range configPaths {
 		optionsEntry, err := readConfigAt(path)

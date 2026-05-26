@@ -30,10 +30,19 @@ var mainCommand = &cobra.Command{
 }
 
 func init() {
-	mainCommand.PersistentFlags().StringArrayVarP(&configPaths, "config", "c", nil, "set configuration file path")
-	mainCommand.PersistentFlags().StringArrayVarP(&configDirectories, "config-directory", "C", nil, "set configuration directory path")
 	mainCommand.PersistentFlags().StringVarP(&workingDir, "directory", "D", "", "set working directory")
 	mainCommand.PersistentFlags().BoolVarP(&disableColor, "disable-color", "", false, "disable color output")
+}
+
+func addConfigFlags(command *cobra.Command) {
+	command.Flags().StringArrayVarP(&configPaths, "config", "c", nil, "set configuration file path")
+	command.Flags().StringArrayVarP(&configDirectories, "config-directory", "C", nil, "set configuration directory path")
+}
+
+func ensureDefaultConfigPath() {
+	if len(configPaths) == 0 && len(configDirectories) == 0 {
+		configPaths = append(configPaths, "config.json")
+	}
 }
 
 func preRun(cmd *cobra.Command, args []string) {
@@ -63,9 +72,6 @@ func preRun(cmd *cobra.Command, args []string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
-	if len(configPaths) == 0 && len(configDirectories) == 0 {
-		configPaths = append(configPaths, "config.json")
 	}
 	globalCtx = include.Context(service.ContextWith(globalCtx, deprecated.NewStderrManager(log.StdLogger())))
 }

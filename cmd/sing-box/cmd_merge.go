@@ -30,6 +30,7 @@ var commandMerge = &cobra.Command{
 }
 
 func init() {
+	addConfigFlags(commandMerge)
 	mainCommand.AddCommand(commandMerge)
 }
 
