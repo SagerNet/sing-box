@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	stdjson "encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	runtimeDebug "runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -42,6 +47,95 @@ type OptionsEntry struct {
 	content []byte
 	path    string
 	options option.Options
+}
+
+const (
+	configAPIBaseURLEnv = "SINGBOX_CONFIG_API_BASE_URL"
+	configAPINodeIDEnv  = "SINGBOX_CONFIG_NODE_ID"
+	configAPIRetryCount = 5
+)
+
+type remoteConfigResponse struct {
+	Code    int                `json:"code"`
+	Message string             `json:"message"`
+	Data    stdjson.RawMessage `json:"data"`
+}
+
+func mustRemoteConfigRequest() (string, int) {
+	baseURL, exists := os.LookupEnv(configAPIBaseURLEnv)
+	if !exists || strings.TrimSpace(baseURL) == "" {
+		panic(fmt.Sprintf("missing environment variable %s", configAPIBaseURLEnv))
+	}
+	nodeIDText, exists := os.LookupEnv(configAPINodeIDEnv)
+	if !exists || strings.TrimSpace(nodeIDText) == "" {
+		panic(fmt.Sprintf("missing environment variable %s", configAPINodeIDEnv))
+	}
+	nodeID, err := strconv.Atoi(nodeIDText)
+	if err != nil {
+		panic(fmt.Sprintf("invalid environment variable %s: %v", configAPINodeIDEnv, err))
+	}
+	return strings.TrimRight(baseURL, "/"), nodeID
+}
+
+func fetchRemoteConfig() (option.Options, error) {
+	baseURL, nodeID := mustRemoteConfigRequest()
+	requestBody, err := stdjson.Marshal(map[string]int{
+		"id": nodeID,
+	})
+	if err != nil {
+		return option.Options{}, E.Cause(err, "marshal remote config request")
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	var lastErr error
+	for attempt := 1; attempt <= configAPIRetryCount; attempt++ {
+		options, fetchErr := fetchRemoteConfigOnce(client, baseURL, requestBody)
+		if fetchErr == nil {
+			return options, nil
+		}
+		lastErr = fetchErr
+		log.Error(E.Cause(fetchErr, "fetch remote config attempt ", attempt, "/", configAPIRetryCount))
+		if attempt < configAPIRetryCount {
+			time.Sleep(time.Second)
+		}
+	}
+	return option.Options{}, E.Cause(lastErr, "fetch remote config failed after ", configAPIRetryCount, " attempts")
+}
+
+func fetchRemoteConfigOnce(client *http.Client, baseURL string, requestBody []byte) (option.Options, error) {
+	request, err := http.NewRequestWithContext(globalCtx, http.MethodPost, baseURL+"/api/v1/nodes/config", bytes.NewReader(requestBody))
+	if err != nil {
+		return option.Options{}, E.Cause(err, "create remote config request")
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("from", "node")
+	response, err := client.Do(request)
+	if err != nil {
+		return option.Options{}, E.Cause(err, "request remote config")
+	}
+	defer response.Body.Close()
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return option.Options{}, E.Cause(err, "read remote config response")
+	}
+	if response.StatusCode != http.StatusOK {
+		return option.Options{}, E.New("remote config api status ", response.StatusCode, ": ", strings.TrimSpace(string(responseBody)))
+	}
+	var configResponse remoteConfigResponse
+	err = stdjson.Unmarshal(responseBody, &configResponse)
+	if err != nil {
+		return option.Options{}, E.Cause(err, "decode remote config response")
+	}
+	if configResponse.Code != 0 {
+		return option.Options{}, E.New("remote config api error: code=", configResponse.Code, ", message=", configResponse.Message)
+	}
+	if len(configResponse.Data) == 0 || string(configResponse.Data) == "null" {
+		return option.Options{}, E.New("remote config api returned empty data")
+	}
+	options, err := json.UnmarshalExtendedContext[option.Options](globalCtx, configResponse.Data)
+	if err != nil {
+		return option.Options{}, E.Cause(err, "decode remote config data")
+	}
+	return options, nil
 }
 
 func readConfigAt(path string) (*OptionsEntry, error) {
@@ -123,7 +217,7 @@ func readConfigAndMerge() (option.Options, error) {
 }
 
 func create() (*box.Box, context.CancelFunc, error) {
-	options, err := readConfigAndMerge()
+	options, err := fetchRemoteConfig()
 	if err != nil {
 		return nil, nil, err
 	}
