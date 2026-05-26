@@ -265,11 +265,11 @@ func (c *CommandClient) Disconnect() error {
 	return common.Close(common.PtrOrNil(c.grpcConn))
 }
 
-func (c *CommandClient) getClientForCall() (daemon.StartedServiceClient, error) {
+func (c *CommandClient) getClientForCall() (daemon.StartedServiceClient, context.Context, error) {
 	c.clientMutex.RLock()
 	if c.grpcClient != nil {
 		defer c.clientMutex.RUnlock()
-		return c.grpcClient, nil
+		return c.grpcClient, c.ctx, nil
 	}
 	c.clientMutex.RUnlock()
 
@@ -277,20 +277,20 @@ func (c *CommandClient) getClientForCall() (daemon.StartedServiceClient, error) 
 	defer c.clientMutex.Unlock()
 
 	if c.grpcClient != nil {
-		return c.grpcClient, nil
+		return c.grpcClient, c.ctx, nil
 	}
 
 	target, contextDialer := dialTarget()
 	connection, client, err := c.dialWithRetry(target, contextDialer, true)
 	if err != nil {
-		return nil, E.Cause(err, "get command client")
+		return nil, nil, E.Cause(err, "get command client")
 	}
 	c.grpcConn = connection
 	c.grpcClient = client
 	if c.ctx == nil {
 		c.ctx, c.cancel = context.WithCancel(context.Background())
 	}
-	return c.grpcClient, nil
+	return c.grpcClient, c.ctx, nil
 }
 
 func (c *CommandClient) closeConnection() {
@@ -303,8 +303,8 @@ func (c *CommandClient) closeConnection() {
 	}
 }
 
-func callWithResult[T any](c *CommandClient, call func(client daemon.StartedServiceClient) (T, error)) (T, error) {
-	client, err := c.getClientForCall()
+func callWithResult[T any](c *CommandClient, call func(ctx context.Context, client daemon.StartedServiceClient) (T, error)) (T, error) {
+	client, ctx, err := c.getClientForCall()
 	if err != nil {
 		var zero T
 		return zero, err
@@ -312,7 +312,7 @@ func callWithResult[T any](c *CommandClient, call func(client daemon.StartedServ
 	if c.standalone {
 		defer c.closeConnection()
 	}
-	return call(client)
+	return call(ctx, client)
 }
 
 func (c *CommandClient) getStreamContext() (daemon.StartedServiceClient, context.Context) {
@@ -482,8 +482,8 @@ func (c *CommandClient) handleOutboundsStream() {
 }
 
 func (c *CommandClient) SelectOutbound(groupTag string, outboundTag string) error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.SelectOutbound(context.Background(), &daemon.SelectOutboundRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SelectOutbound(ctx, &daemon.SelectOutboundRequest{
 			GroupTag:    groupTag,
 			OutboundTag: outboundTag,
 		})
@@ -495,8 +495,8 @@ func (c *CommandClient) SelectOutbound(groupTag string, outboundTag string) erro
 }
 
 func (c *CommandClient) URLTest(groupTag string) error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.URLTest(context.Background(), &daemon.URLTestRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.URLTest(ctx, &daemon.URLTestRequest{
 			OutboundTag: groupTag,
 		})
 	})
@@ -507,8 +507,8 @@ func (c *CommandClient) URLTest(groupTag string) error {
 }
 
 func (c *CommandClient) SetClashMode(newMode string) error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.SetClashMode(context.Background(), &daemon.ClashMode{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetClashMode(ctx, &daemon.ClashMode{
 			Mode: newMode,
 		})
 	})
@@ -519,8 +519,8 @@ func (c *CommandClient) SetClashMode(newMode string) error {
 }
 
 func (c *CommandClient) CloseConnection(connId string) error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.CloseConnection(context.Background(), &daemon.CloseConnectionRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.CloseConnection(ctx, &daemon.CloseConnectionRequest{
 			Id: connId,
 		})
 	})
@@ -531,8 +531,8 @@ func (c *CommandClient) CloseConnection(connId string) error {
 }
 
 func (c *CommandClient) CloseConnections() error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.CloseAllConnections(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.CloseAllConnections(ctx, &emptypb.Empty{})
 	})
 	if err != nil {
 		return E.Cause(err, "close all connections")
@@ -541,8 +541,8 @@ func (c *CommandClient) CloseConnections() error {
 }
 
 func (c *CommandClient) ServiceReload() error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.ReloadService(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.ReloadService(ctx, &emptypb.Empty{})
 	})
 	if err != nil {
 		return E.Cause(err, "reload service")
@@ -551,8 +551,8 @@ func (c *CommandClient) ServiceReload() error {
 }
 
 func (c *CommandClient) ServiceClose() error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.StopService(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.StopService(ctx, &emptypb.Empty{})
 	})
 	if err != nil {
 		return E.Cause(err, "stop service")
@@ -561,8 +561,8 @@ func (c *CommandClient) ServiceClose() error {
 }
 
 func (c *CommandClient) ClearLogs() error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.ClearLogs(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.ClearLogs(ctx, &emptypb.Empty{})
 	})
 	if err != nil {
 		return E.Cause(err, "clear logs")
@@ -571,8 +571,8 @@ func (c *CommandClient) ClearLogs() error {
 }
 
 func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
-	return callWithResult(c, func(client daemon.StartedServiceClient) (*SystemProxyStatus, error) {
-		status, err := client.GetSystemProxyStatus(context.Background(), &emptypb.Empty{})
+	return callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*SystemProxyStatus, error) {
+		status, err := client.GetSystemProxyStatus(ctx, &emptypb.Empty{})
 		if err != nil {
 			return nil, E.Cause(err, "get system proxy status")
 		}
@@ -581,8 +581,8 @@ func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
 }
 
 func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.SetSystemProxyEnabled(context.Background(), &daemon.SetSystemProxyEnabledRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetSystemProxyEnabled(ctx, &daemon.SetSystemProxyEnabledRequest{
 			Enabled: isEnabled,
 		})
 	})
@@ -593,8 +593,8 @@ func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
 }
 
 func (c *CommandClient) TriggerGoCrash() error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.TriggerDebugCrash(context.Background(), &daemon.DebugCrashRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.TriggerDebugCrash(ctx, &daemon.DebugCrashRequest{
 			Type: daemon.DebugCrashRequest_GO,
 		})
 	})
@@ -605,8 +605,8 @@ func (c *CommandClient) TriggerGoCrash() error {
 }
 
 func (c *CommandClient) TriggerNativeCrash() error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.TriggerDebugCrash(context.Background(), &daemon.DebugCrashRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.TriggerDebugCrash(ctx, &daemon.DebugCrashRequest{
 			Type: daemon.DebugCrashRequest_NATIVE,
 		})
 	})
@@ -617,8 +617,8 @@ func (c *CommandClient) TriggerNativeCrash() error {
 }
 
 func (c *CommandClient) TriggerOOMReport() error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.TriggerOOMReport(context.Background(), &emptypb.Empty{})
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.TriggerOOMReport(ctx, &emptypb.Empty{})
 	})
 	if err != nil {
 		return E.Cause(err, "trigger oom report")
@@ -627,8 +627,8 @@ func (c *CommandClient) TriggerOOMReport() error {
 }
 
 func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
-	return callWithResult(c, func(client daemon.StartedServiceClient) (DeprecatedNoteIterator, error) {
-		warnings, err := client.GetDeprecatedWarnings(context.Background(), &emptypb.Empty{})
+	return callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (DeprecatedNoteIterator, error) {
+		warnings, err := client.GetDeprecatedWarnings(ctx, &emptypb.Empty{})
 		if err != nil {
 			return nil, E.Cause(err, "get deprecated warnings")
 		}
@@ -646,8 +646,8 @@ func (c *CommandClient) GetDeprecatedNotes() (DeprecatedNoteIterator, error) {
 }
 
 func (c *CommandClient) GetStartedAt() (int64, error) {
-	return callWithResult(c, func(client daemon.StartedServiceClient) (int64, error) {
-		startedAt, err := client.GetStartedAt(context.Background(), &emptypb.Empty{})
+	return callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (int64, error) {
+		startedAt, err := client.GetStartedAt(ctx, &emptypb.Empty{})
 		if err != nil {
 			return 0, E.Cause(err, "get started at")
 		}
@@ -656,8 +656,8 @@ func (c *CommandClient) GetStartedAt() (int64, error) {
 }
 
 func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.SetGroupExpand(context.Background(), &daemon.SetGroupExpandRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetGroupExpand(ctx, &daemon.SetGroupExpandRequest{
 			GroupTag: groupTag,
 			IsExpand: isExpand,
 		})
@@ -668,15 +668,30 @@ func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
 	return nil
 }
 
-func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag string, serial bool, maxRuntimeSeconds int32, http3 bool, handler NetworkQualityTestHandler) error {
-	client, err := c.getClientForCall()
+func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag string, serial bool, maxRuntimeSeconds int32, http3 bool, handler NetworkQualityTestHandler) (*NetworkQualityTestSession, error) {
+	client, parentCtx, err := c.getClientForCall()
 	if err != nil {
-		return E.Cause(err, "start network quality test")
+		return nil, E.Cause(err, "start network quality test")
 	}
-	if c.standalone {
-		defer c.closeConnection()
+
+	streamCtx, cancel := context.WithCancel(parentCtx)
+	session := &NetworkQualityTestSession{
+		streamSession: streamSession{
+			ctx:       streamCtx,
+			cancel:    cancel,
+			closeDone: make(chan struct{}),
+		},
 	}
-	stream, err := client.StartNetworkQualityTest(context.Background(), &daemon.NetworkQualityTestRequest{
+
+	failStart := func(cause error, message string) (*NetworkQualityTestSession, error) {
+		cancel()
+		if c.standalone {
+			c.closeConnection()
+		}
+		return nil, E.Cause(cause, message)
+	}
+
+	stream, err := client.StartNetworkQualityTest(streamCtx, &daemon.NetworkQualityTestRequest{
 		ConfigURL:         configURL,
 		OutboundTag:       outboundTag,
 		Serial:            serial,
@@ -684,106 +699,178 @@ func (c *CommandClient) StartNetworkQualityTest(configURL string, outboundTag st
 		Http3:             http3,
 	})
 	if err != nil {
-		return E.Cause(err, "start network quality test")
+		return failStart(err, "start network quality test")
 	}
-	for {
-		event, recvErr := stream.Recv()
-		if recvErr != nil {
-			recvErr = E.Cause(recvErr, "network quality test recv")
-			handler.OnError(recvErr.Error())
-			return recvErr
-		}
-		if event.IsFinal {
-			if event.Error != "" {
-				handler.OnError(event.Error)
-			} else {
-				handler.OnResult(&NetworkQualityResult{
-					DownloadCapacity:         event.DownloadCapacity,
-					UploadCapacity:           event.UploadCapacity,
-					DownloadRPM:              event.DownloadRPM,
-					UploadRPM:                event.UploadRPM,
-					IdleLatencyMs:            event.IdleLatencyMs,
-					DownloadCapacityAccuracy: event.DownloadCapacityAccuracy,
-					UploadCapacityAccuracy:   event.UploadCapacityAccuracy,
-					DownloadRPMAccuracy:      event.DownloadRPMAccuracy,
-					UploadRPMAccuracy:        event.UploadRPMAccuracy,
-				})
+
+	standalone := c.standalone
+	go func() {
+		defer func() {
+			close(session.closeDone)
+			if standalone {
+				c.closeConnection()
 			}
-			return nil
+		}()
+		for {
+			event, recvErr := stream.Recv()
+			if recvErr != nil {
+				if session.ctx.Err() != nil {
+					return
+				}
+				handler.OnError(E.Cause(recvErr, "network quality test recv").Error())
+				return
+			}
+			if event.IsFinal {
+				if event.Error != "" {
+					handler.OnError(event.Error)
+				} else {
+					handler.OnResult(&NetworkQualityResult{
+						DownloadCapacity:         event.DownloadCapacity,
+						UploadCapacity:           event.UploadCapacity,
+						DownloadRPM:              event.DownloadRPM,
+						UploadRPM:                event.UploadRPM,
+						IdleLatencyMs:            event.IdleLatencyMs,
+						DownloadCapacityAccuracy: event.DownloadCapacityAccuracy,
+						UploadCapacityAccuracy:   event.UploadCapacityAccuracy,
+						DownloadRPMAccuracy:      event.DownloadRPMAccuracy,
+						UploadRPMAccuracy:        event.UploadRPMAccuracy,
+					})
+				}
+				return
+			}
+			handler.OnProgress(networkQualityProgressFromGRPC(event))
 		}
-		handler.OnProgress(networkQualityProgressFromGRPC(event))
-	}
+	}()
+
+	return session, nil
 }
 
-func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler STUNTestHandler) error {
-	client, err := c.getClientForCall()
+func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler STUNTestHandler) (*STUNTestSession, error) {
+	client, parentCtx, err := c.getClientForCall()
 	if err != nil {
-		return E.Cause(err, "start stun test")
+		return nil, E.Cause(err, "start stun test")
 	}
-	if c.standalone {
-		defer c.closeConnection()
+
+	streamCtx, cancel := context.WithCancel(parentCtx)
+	session := &STUNTestSession{
+		streamSession: streamSession{
+			ctx:       streamCtx,
+			cancel:    cancel,
+			closeDone: make(chan struct{}),
+		},
 	}
-	stream, err := client.StartSTUNTest(context.Background(), &daemon.STUNTestRequest{
+
+	failStart := func(cause error, message string) (*STUNTestSession, error) {
+		cancel()
+		if c.standalone {
+			c.closeConnection()
+		}
+		return nil, E.Cause(cause, message)
+	}
+
+	stream, err := client.StartSTUNTest(streamCtx, &daemon.STUNTestRequest{
 		Server:      server,
 		OutboundTag: outboundTag,
 	})
 	if err != nil {
-		return E.Cause(err, "start stun test")
+		return failStart(err, "start stun test")
 	}
-	for {
-		event, recvErr := stream.Recv()
-		if recvErr != nil {
-			recvErr = E.Cause(recvErr, "stun test recv")
-			handler.OnError(recvErr.Error())
-			return recvErr
-		}
-		if event.IsFinal {
-			if event.Error != "" {
-				handler.OnError(event.Error)
-			} else {
-				handler.OnResult(&STUNTestResult{
-					ExternalAddr:     event.ExternalAddr,
-					LatencyMs:        event.LatencyMs,
-					NATMapping:       event.NatMapping,
-					NATFiltering:     event.NatFiltering,
-					NATTypeSupported: event.NatTypeSupported,
-				})
+
+	standalone := c.standalone
+	go func() {
+		defer func() {
+			close(session.closeDone)
+			if standalone {
+				c.closeConnection()
 			}
-			return nil
+		}()
+		for {
+			event, recvErr := stream.Recv()
+			if recvErr != nil {
+				if session.ctx.Err() != nil {
+					return
+				}
+				handler.OnError(E.Cause(recvErr, "stun test recv").Error())
+				return
+			}
+			if event.IsFinal {
+				if event.Error != "" {
+					handler.OnError(event.Error)
+				} else {
+					handler.OnResult(&STUNTestResult{
+						ExternalAddr:     event.ExternalAddr,
+						LatencyMs:        event.LatencyMs,
+						NATMapping:       event.NatMapping,
+						NATFiltering:     event.NatFiltering,
+						NATTypeSupported: event.NatTypeSupported,
+					})
+				}
+				return
+			}
+			handler.OnProgress(stunTestProgressFromGRPC(event))
 		}
-		handler.OnProgress(stunTestProgressFromGRPC(event))
-	}
+	}()
+
+	return session, nil
 }
 
-func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler) error {
-	client, err := c.getClientForCall()
+func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler) (*TailscaleStatusSubscription, error) {
+	client, parentCtx, err := c.getClientForCall()
 	if err != nil {
-		return E.Cause(err, "subscribe tailscale status")
+		return nil, E.Cause(err, "subscribe tailscale status")
 	}
-	if c.standalone {
-		defer c.closeConnection()
+
+	streamCtx, cancel := context.WithCancel(parentCtx)
+	session := &TailscaleStatusSubscription{
+		streamSession: streamSession{
+			ctx:       streamCtx,
+			cancel:    cancel,
+			closeDone: make(chan struct{}),
+		},
 	}
-	stream, err := client.SubscribeTailscaleStatus(context.Background(), &emptypb.Empty{})
-	if err != nil {
-		return E.Cause(err, "subscribe tailscale status")
-	}
-	for {
-		event, recvErr := stream.Recv()
-		if recvErr != nil {
-			if status.Code(recvErr) == codes.NotFound || status.Code(recvErr) == codes.Unavailable {
-				return nil
-			}
-			recvErr = E.Cause(recvErr, "tailscale status recv")
-			handler.OnError(recvErr.Error())
-			return recvErr
+
+	failStart := func(cause error, message string) (*TailscaleStatusSubscription, error) {
+		cancel()
+		if c.standalone {
+			c.closeConnection()
 		}
-		handler.OnStatusUpdate(tailscaleStatusUpdateFromGRPC(event))
+		return nil, E.Cause(cause, message)
 	}
+
+	stream, err := client.SubscribeTailscaleStatus(streamCtx, &emptypb.Empty{})
+	if err != nil {
+		return failStart(err, "subscribe tailscale status")
+	}
+
+	standalone := c.standalone
+	go func() {
+		defer func() {
+			close(session.closeDone)
+			if standalone {
+				c.closeConnection()
+			}
+		}()
+		for {
+			event, recvErr := stream.Recv()
+			if recvErr != nil {
+				if session.ctx.Err() != nil {
+					return
+				}
+				if status.Code(recvErr) == codes.NotFound || status.Code(recvErr) == codes.Unavailable {
+					return
+				}
+				handler.OnError(E.Cause(recvErr, "tailscale status recv").Error())
+				return
+			}
+			handler.OnStatusUpdate(tailscaleStatusUpdateFromGRPC(event))
+		}
+	}()
+
+	return session, nil
 }
 
 func (c *CommandClient) SetTailscaleExitNode(endpointTag string, stableID string) error {
-	_, err := callWithResult(c, func(client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.SetTailscaleExitNode(context.Background(), &daemon.SetTailscaleExitNodeRequest{
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SetTailscaleExitNode(ctx, &daemon.SetTailscaleExitNodeRequest{
 			EndpointTag: endpointTag,
 			StableID:    stableID,
 		})
@@ -794,39 +881,68 @@ func (c *CommandClient) SetTailscaleExitNode(endpointTag string, stableID string
 	return nil
 }
 
-func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, handler TailscalePingHandler) error {
-	client, err := c.getClientForCall()
+func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, handler TailscalePingHandler) (*TailscalePingSession, error) {
+	client, parentCtx, err := c.getClientForCall()
 	if err != nil {
-		return E.Cause(err, "start tailscale ping")
+		return nil, E.Cause(err, "start tailscale ping")
 	}
-	if c.standalone {
-		defer c.closeConnection()
+
+	streamCtx, cancel := context.WithCancel(parentCtx)
+	session := &TailscalePingSession{
+		streamSession: streamSession{
+			ctx:       streamCtx,
+			cancel:    cancel,
+			closeDone: make(chan struct{}),
+		},
 	}
-	stream, err := client.StartTailscalePing(context.Background(), &daemon.TailscalePingRequest{
+
+	failStart := func(cause error, message string) (*TailscalePingSession, error) {
+		cancel()
+		if c.standalone {
+			c.closeConnection()
+		}
+		return nil, E.Cause(cause, message)
+	}
+
+	stream, err := client.StartTailscalePing(streamCtx, &daemon.TailscalePingRequest{
 		EndpointTag: endpointTag,
 		PeerIP:      peerIP,
 	})
 	if err != nil {
-		return E.Cause(err, "start tailscale ping")
+		return failStart(err, "start tailscale ping")
 	}
-	for {
-		event, recvErr := stream.Recv()
-		if recvErr != nil {
-			recvErr = E.Cause(recvErr, "tailscale ping recv")
-			handler.OnError(recvErr.Error())
-			return recvErr
+
+	standalone := c.standalone
+	go func() {
+		defer func() {
+			close(session.closeDone)
+			if standalone {
+				c.closeConnection()
+			}
+		}()
+		for {
+			event, recvErr := stream.Recv()
+			if recvErr != nil {
+				if session.ctx.Err() != nil {
+					return
+				}
+				handler.OnError(E.Cause(recvErr, "tailscale ping recv").Error())
+				return
+			}
+			handler.OnPingResult(tailscalePingResultFromGRPC(event))
 		}
-		handler.OnPingResult(tailscalePingResultFromGRPC(event))
-	}
+	}()
+
+	return session, nil
 }
 
 func (c *CommandClient) StartTailscaleSSHSession(opts *TailscaleSSHOptions, handler TailscaleSSHHandler) (*TailscaleSSHSession, error) {
-	client, err := c.getClientForCall()
+	client, parentCtx, err := c.getClientForCall()
 	if err != nil {
 		return nil, E.Cause(err, "start tailscale ssh session")
 	}
 
-	streamCtx, cancel := context.WithCancel(context.Background())
+	streamCtx, cancel := context.WithCancel(parentCtx)
 	failStart := func(cause error, message string) (*TailscaleSSHSession, error) {
 		cancel()
 		if c.standalone {
