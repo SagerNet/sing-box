@@ -34,6 +34,10 @@ type NetworkQualityTestHandler interface {
 	OnError(message string)
 }
 
+type NetworkQualityTestSession struct {
+	streamSession
+}
+
 func networkQualityProgressFromGRPC(event *daemon.NetworkQualityTestProgress) *NetworkQualityProgress {
 	return &NetworkQualityProgress{
 		Phase:                    event.Phase,
