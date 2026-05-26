@@ -24,6 +24,10 @@ type STUNTestHandler interface {
 	OnError(message string)
 }
 
+type STUNTestSession struct {
+	streamSession
+}
+
 func stunTestProgressFromGRPC(event *daemon.STUNTestProgress) *STUNTestProgress {
 	return &STUNTestProgress{
 		Phase:        event.Phase,
