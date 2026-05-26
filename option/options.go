@@ -53,11 +53,17 @@ func (o *Options) SetComments(comments *json.CommentSet) {
 }
 
 type LogOptions struct {
-	Disabled     bool   `json:"disabled,omitempty"`
-	Level        string `json:"level,omitempty"`
-	Output       string `json:"output,omitempty"`
-	Timestamp    bool   `json:"timestamp,omitempty"`
-	DisableColor bool   `json:"-"`
+	Disabled     bool              `json:"disabled,omitempty"`
+	Level        string            `json:"level,omitempty"`
+	Output       string            `json:"output,omitempty"`
+	Timestamp    bool              `json:"timestamp,omitempty"`
+	Access       *AccessLogOptions `json:"access,omitempty"`
+	DisableColor bool              `json:"-"`
+}
+
+type AccessLogOptions struct {
+	Enabled bool   `json:"enabled,omitempty"`
+	Path    string `json:"path,omitempty"`
 }
 
 type StubOptions struct{}
