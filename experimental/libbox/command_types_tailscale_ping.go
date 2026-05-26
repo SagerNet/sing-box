@@ -16,6 +16,10 @@ type TailscalePingHandler interface {
 	OnError(message string)
 }
 
+type TailscalePingSession struct {
+	streamSession
+}
+
 func tailscalePingResultFromGRPC(response *daemon.TailscalePingResponse) *TailscalePingResult {
 	return &TailscalePingResult{
 		LatencyMs:      response.LatencyMs,
