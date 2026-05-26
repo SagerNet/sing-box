@@ -1,13 +1,30 @@
 package libbox
 
 import (
+	"context"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/daemon"
 	M "github.com/sagernet/sing/common/metadata"
 )
+
+type streamSession struct {
+	ctx       context.Context
+	cancel    context.CancelFunc
+	closeOnce sync.Once
+	closeDone chan struct{}
+}
+
+func (s *streamSession) Close() error {
+	s.closeOnce.Do(func() {
+		s.cancel()
+	})
+	<-s.closeDone
+	return nil
+}
 
 type StatusMessage struct {
 	Memory           int64
