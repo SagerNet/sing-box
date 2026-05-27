@@ -2929,6 +2929,7 @@ type TailscaleSSHStart struct {
 	WidthPixels   int32                  `protobuf:"varint,7,opt,name=widthPixels,proto3" json:"widthPixels,omitempty"`
 	HeightPixels  int32                  `protobuf:"varint,8,opt,name=heightPixels,proto3" json:"heightPixels,omitempty"`
 	HostKeys      []string               `protobuf:"bytes,9,rep,name=hostKeys,proto3" json:"hostKeys,omitempty"`
+	ForwardAgent  bool                   `protobuf:"varint,10,opt,name=forward_agent,json=forwardAgent,proto3" json:"forward_agent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3024,6 +3025,13 @@ func (x *TailscaleSSHStart) GetHostKeys() []string {
 		return x.HostKeys
 	}
 	return nil
+}
+
+func (x *TailscaleSSHStart) GetForwardAgent() bool {
+	if x != nil {
+		return x.ForwardAgent
+	}
+	return false
 }
 
 type TailscaleSSHInput struct {
@@ -3777,7 +3785,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x05start\x18\x01 \x01(\v2\x19.daemon.TailscaleSSHStartH\x00R\x05start\x121\n" +
 	"\x05input\x18\x02 \x01(\v2\x19.daemon.TailscaleSSHInputH\x00R\x05input\x124\n" +
 	"\x06resize\x18\x03 \x01(\v2\x1a.daemon.TailscaleSSHResizeH\x00R\x06resizeB\t\n" +
-	"\amessage\"\xa7\x02\n" +
+	"\amessage\"\xcc\x02\n" +
 	"\x11TailscaleSSHStart\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12 \n" +
 	"\vpeerAddress\x18\x02 \x01(\tR\vpeerAddress\x12\x1a\n" +
@@ -3787,7 +3795,9 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x04rows\x18\x06 \x01(\x05R\x04rows\x12 \n" +
 	"\vwidthPixels\x18\a \x01(\x05R\vwidthPixels\x12\"\n" +
 	"\fheightPixels\x18\b \x01(\x05R\fheightPixels\x12\x1a\n" +
-	"\bhostKeys\x18\t \x03(\tR\bhostKeys\"'\n" +
+	"\bhostKeys\x18\t \x03(\tR\bhostKeys\x12#\n" +
+	"\rforward_agent\x18\n" +
+	" \x01(\bR\fforwardAgent\"'\n" +
 	"\x11TailscaleSSHInput\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\fR\x04data\"\x88\x01\n" +
 	"\x12TailscaleSSHResize\x12\x18\n" +

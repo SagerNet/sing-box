@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 	"google.golang.org/grpc"
 )
 
@@ -118,6 +120,23 @@ func (s *StartedService) StartTailscaleSSHSession(
 		return finishWithError(E.Cause(err, "ssh handshake").Error())
 	}
 	sshClient := ssh.NewClient(sshConn, chans, reqs)
+
+	if start.ForwardAgent {
+		agentChannels := sshClient.HandleChannelOpen("auth-agent@openssh.com")
+		if agentChannels != nil {
+			go func() {
+				for newChannel := range agentChannels {
+					channel, reqs, acceptErr := newChannel.Accept()
+					if acceptErr != nil {
+						continue
+					}
+					go ssh.DiscardRequests(reqs)
+					go s.forwardSSHAgentChannel(channel)
+				}
+			}()
+		}
+	}
+
 	sshSession, err := sshClient.NewSession()
 	if err != nil {
 		common.Close(sshClient)
@@ -155,6 +174,14 @@ func (s *StartedService) StartTailscaleSSHSession(
 			WidthPixels:  uint32(start.WidthPixels),
 			HeightPixels: uint32(start.HeightPixels),
 		}))
+	}
+
+	if start.ForwardAgent {
+		err = agent.RequestAgentForwarding(sshSession)
+		if err != nil {
+			common.Close(sshSession, sshClient)
+			return finishWithError(E.Cause(err, "request agent forwarding").Error())
+		}
 	}
 
 	stdin, err := sshSession.StdinPipe()
@@ -284,4 +311,30 @@ func (s *StartedService) StartTailscaleSSHSession(
 
 	workersWg.Wait()
 	return nil
+}
+
+func (s *StartedService) forwardSSHAgentChannel(channel ssh.Channel) {
+	defer channel.Close()
+	fd, err := s.handler.ConnectSSHAgent()
+	if err != nil {
+		return
+	}
+	file := os.NewFile(uintptr(fd), "ssh-agent")
+	conn, err := net.FileConn(file)
+	file.Close()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		io.Copy(conn, channel)
+	}()
+	go func() {
+		defer wg.Done()
+		io.Copy(channel, conn)
+	}()
+	wg.Wait()
 }

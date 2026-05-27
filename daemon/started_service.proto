@@ -361,6 +361,7 @@ message TailscaleSSHStart {
   int32 widthPixels = 7;
   int32 heightPixels = 8;
   repeated string hostKeys = 9;
+  bool forward_agent = 10;
 }
 
 message TailscaleSSHInput {

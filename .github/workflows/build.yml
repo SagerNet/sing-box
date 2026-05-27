@@ -673,6 +673,10 @@ jobs:
         run: |-
           cd clients/android
           git checkout dev
+      - name: Checkout submodule recursive
+        run: |-
+          cd clients/android
+          git submodule update --init --recursive -v
       - name: Gradle cache
         uses: actions/cache@v4
         with:

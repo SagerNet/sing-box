@@ -19,6 +19,7 @@ type TailscaleSSHOptions struct {
 	WidthPixels  int32
 	HeightPixels int32
 	HostKeys     StringIterator
+	ForwardAgent bool
 }
 
 type TailscaleSSHHandler interface {
