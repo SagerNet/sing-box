@@ -8,6 +8,7 @@ require (
 	github.com/caddyserver/certmagic v0.25.3-0.20260421143802-60d9d8b415d6
 	github.com/caddyserver/zerossl v0.1.5
 	github.com/coder/websocket v1.8.14
+	github.com/creack/pty v1.1.24
 	github.com/cretz/bine v0.2.0
 	github.com/database64128/tfo-go/v2 v2.3.2
 	github.com/go-chi/chi/v5 v5.2.5
@@ -28,12 +29,14 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/openai/openai-go/v3 v3.26.0
 	github.com/oschwald/maxminddb-golang v1.13.1
+	github.com/pkg/sftp v1.13.10
 	github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1
 	github.com/sagernet/bbolt v0.0.0-20231014093535-ea5cb2fe9f0a
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/cronet-go v0.0.0-20260712143338-d22f2ea3630e
 	github.com/sagernet/cronet-go/all v0.0.0-20260712143338-d22f2ea3630e
 	github.com/sagernet/fswatch v0.1.2
+	github.com/sagernet/gliderssh v0.3.4-0.20260531100337-2194faca5648
 	github.com/sagernet/gomobile v0.1.12
 	github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1
 	github.com/sagernet/quic-go v0.59.0-sing-box-mod.4
@@ -47,7 +50,7 @@ require (
 	github.com/sagernet/sing-tun v0.8.12-0.20260727151149-e5c21070ae46
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
-	github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.7.0.20260521041027-e9a3134eb397
+	github.com/sagernet/tailscale v1.92.4-sing-box-1.13-mod.7.0.20260527101438-dc40932c32d9
 	github.com/sagernet/wireguard-go v0.0.3
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.10.2
@@ -73,6 +76,7 @@ require (
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20231016080023-1a75b4708caa // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/coreos/go-iptables v0.7.1-0.20240112124308-65c67c9f46e6 // indirect
 	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
@@ -105,6 +109,7 @@ require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/koron/go-ssdp v0.0.4 // indirect
+	github.com/kr/fs v0.1.0 // indirect
 	github.com/libp2p/go-nat v1.0.1-0.20250821073202-01afc089f138 // indirect
 	github.com/libp2p/go-netroute v0.2.1 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
