@@ -31,6 +31,7 @@ import (
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/protocol/tailscale/tailssh"
 	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
@@ -95,6 +96,7 @@ type Endpoint struct {
 	icmpForwarder     *tun.ICMPForwarder
 	filter            *atomic.Pointer[filter.Filter]
 	onReconfigHook    wgengine.ReconfigListener
+	sshReconfigHook   wgengine.ReconfigListener
 
 	cfg           *wgcfg.Config
 	dnsCfg        *tsDNS.Config
@@ -112,6 +114,9 @@ type Endpoint struct {
 
 	udpTimeout  time.Duration
 	icmpTimeout time.Duration
+
+	sshServerInstance *tailssh.Server
+	sshServerOptions  *option.TailscaleSSHServerOptions
 
 	systemInterface     bool
 	systemInterfaceName string
@@ -224,6 +229,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		advertiseTags:              options.AdvertiseTags,
 		relayServerPort:            options.RelayServerPort,
 		relayServerStaticEndpoints: options.RelayServerStaticEndpoints,
+		sshServerOptions:           options.SSHServer,
 		udpTimeout:                 udpTimeout,
 		icmpTimeout:                C.ICMPTimeout,
 		systemInterface:            options.SystemInterface,
@@ -401,15 +407,27 @@ func (t *Endpoint) postStart() error {
 		}
 	}
 
+	sshEnabled := t.sshServerOptions != nil && t.sshServerOptions.Enabled
+	if sshEnabled {
+		degraded, fatal := tailssh.CheckServerSupport(t.platformInterface)
+		if fatal != nil {
+			t.logger.Warn(E.Cause(fatal, "SSH server unavailable"))
+			sshEnabled = false
+		} else if degraded != "" {
+			t.logger.Warn("SSH server degraded: ", degraded)
+		}
+	}
 	localBackend := t.server.ExportLocalBackend()
 	perfs := &ipn.MaskedPrefs{
 		Prefs: ipn.Prefs{
 			RouteAll:        t.acceptRoutes,
 			AdvertiseRoutes: t.advertiseRoutes,
+			RunSSH:          sshEnabled,
 		},
 		RouteAllSet:                   true,
 		ExitNodeIPSet:                 true,
 		AdvertiseRoutesSet:            true,
+		RunSSHSet:                     true,
 		RelayServerPortSet:            true,
 		RelayServerStaticEndpointsSet: true,
 	}
@@ -427,6 +445,18 @@ func (t *Endpoint) postStart() error {
 		return E.Cause(err, "update prefs")
 	}
 	t.filter = localBackend.ExportFilter()
+	if sshEnabled {
+		sshServer, err := tailssh.New(t.server, t.platformInterface, t.sshServerOptions, t.logger)
+		if err != nil {
+			return E.Cause(err, "create SSH server")
+		}
+		err = sshServer.Start()
+		if err != nil {
+			return E.Cause(err, "start SSH server")
+		}
+		t.sshReconfigHook = sshServer.OnReconfig
+		t.sshServerInstance = sshServer
+	}
 	go t.watchState()
 	t.started.Store(true)
 	return nil
@@ -536,6 +566,8 @@ func (t *Endpoint) SetTailscaleExitNode(ctx context.Context, stableID string) er
 func (t *Endpoint) Close() error {
 	var err error
 	t.started.Store(false)
+	common.Close(common.PtrOrNil(t.sshServerInstance))
+	t.sshServerInstance = nil
 	if t.serverStarted {
 		err = common.Close(common.PtrOrNil(t.server))
 		t.serverStarted = false
@@ -876,6 +908,9 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 
 	if t.onReconfigHook != nil {
 		t.onReconfigHook(cfg, routerCfg, dnsCfg)
+	}
+	if t.sshReconfigHook != nil {
+		t.sshReconfigHook(cfg, routerCfg, dnsCfg)
 	}
 }
 
