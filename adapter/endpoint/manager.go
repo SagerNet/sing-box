@@ -122,8 +122,7 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	if err != nil {
 		return err
 	}
-	m.access.Lock()
-	defer m.access.Unlock()
+	// 在锁外启动 endpoint（监听端口等耗时操作并行化）
 	if m.started {
 		name := "endpoint/" + endpoint.Type() + "[" + endpoint.Tag() + "]"
 		for _, stage := range adapter.ListStartStages {
@@ -135,22 +134,21 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 			}
 		}
 	}
+	// 注册到管理器（锁内，微秒级）
+	m.access.Lock()
 	if existsEndpoint, loaded := m.endpointByTag[tag]; loaded {
 		if m.started {
-			err = existsEndpoint.Close()
-			if err != nil {
-				return E.Cause(err, "close endpoint/", existsEndpoint.Type(), "[", existsEndpoint.Tag(), "]")
-			}
+			_ = existsEndpoint.Close()
 		}
 		existsIndex := common.Index(m.endpoints, func(it adapter.Endpoint) bool {
 			return it == existsEndpoint
 		})
-		if existsIndex == -1 {
-			panic("invalid endpoint index")
+		if existsIndex != -1 {
+			m.endpoints = append(m.endpoints[:existsIndex], m.endpoints[existsIndex+1:]...)
 		}
-		m.endpoints = append(m.endpoints[:existsIndex], m.endpoints[existsIndex+1:]...)
 	}
 	m.endpoints = append(m.endpoints, endpoint)
 	m.endpointByTag[tag] = endpoint
+	m.access.Unlock()
 	return nil
 }

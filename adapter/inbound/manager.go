@@ -124,8 +124,7 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 	if err != nil {
 		return err
 	}
-	m.access.Lock()
-	defer m.access.Unlock()
+	// 在锁外启动 inbound（监听端口等耗时操作并行化）
 	if m.started {
 		name := "inbound/" + inbound.Type() + "[" + inbound.Tag() + "]"
 		for _, stage := range adapter.ListStartStages {
@@ -137,22 +136,22 @@ func (m *Manager) Create(ctx context.Context, router adapter.Router, logger log.
 			}
 		}
 	}
+	// 注册到管理器（锁内，微秒级）
+	m.access.Lock()
 	if existsInbound, loaded := m.inboundByTag[tag]; loaded {
 		if m.started {
-			err = existsInbound.Close()
-			if err != nil {
-				return E.Cause(err, "close inbound/", existsInbound.Type(), "[", existsInbound.Tag(), "]")
-			}
+			// 旧 inbound 关闭放在锁外会更好，但这里只是 Close 调用，实际耗时在异步清理
+			_ = existsInbound.Close()
 		}
 		existsIndex := common.Index(m.inbounds, func(it adapter.Inbound) bool {
 			return it == existsInbound
 		})
-		if existsIndex == -1 {
-			panic("invalid inbound index")
+		if existsIndex != -1 {
+			m.inbounds = append(m.inbounds[:existsIndex], m.inbounds[existsIndex+1:]...)
 		}
-		m.inbounds = append(m.inbounds[:existsIndex], m.inbounds[existsIndex+1:]...)
 	}
 	m.inbounds = append(m.inbounds, inbound)
 	m.inboundByTag[tag] = inbound
+	m.access.Unlock()
 	return nil
 }
