@@ -3,6 +3,7 @@ package dialer
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/bufio"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -137,6 +139,27 @@ func (d *resolveDialer) QueryOptions() adapter.DNSQueryOptions {
 
 func (d *resolveDialer) Upstream() any {
 	return d.dialer
+}
+
+func (d *resolveDialer) WireGuardControl() control.Func {
+	if wg, ok := d.dialer.(WireGuardListener); ok {
+		return wg.WireGuardControl()
+	}
+	return nil
+}
+
+func (d *resolveDialer) WireGuardBindAddress4() (netip.Addr, bool) {
+	if wg, ok := d.dialer.(WireGuardListenerWithBind); ok {
+		return wg.WireGuardBindAddress4()
+	}
+	return netip.Addr{}, false
+}
+
+func (d *resolveDialer) WireGuardBindAddress6() (netip.Addr, bool) {
+	if wg, ok := d.dialer.(WireGuardListenerWithBind); ok {
+		return wg.WireGuardBindAddress6()
+	}
+	return netip.Addr{}, false
 }
 
 func (d *resolveParallelNetworkDialer) DialParallelInterface(ctx context.Context, network string, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, error) {
