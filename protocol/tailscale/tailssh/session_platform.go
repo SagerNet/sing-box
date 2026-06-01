@@ -28,6 +28,7 @@ func (b *platformShellBackend) OpenSession(request shellRequest) (shellSession, 
 	return &platformShellSession{
 		session: session,
 		master:  master,
+		isPty:   request.Term != "",
 	}, nil
 }
 
@@ -38,6 +39,7 @@ func (b *platformShellBackend) Close() error {
 type platformShellSession struct {
 	session adapter.ShellSession
 	master  *os.File
+	isPty   bool
 }
 
 func (s *platformShellSession) Read(p []byte) (int, error) {
@@ -53,8 +55,10 @@ func (s *platformShellSession) Close() error {
 }
 
 func (s *platformShellSession) CloseWrite() error {
-	// The platform owns the master fd lifecycle; rely on Close for teardown.
-	return nil
+	if s.isPty {
+		return nil
+	}
+	return syscall.Shutdown(int(s.master.Fd()), syscall.SHUT_WR)
 }
 
 func (s *platformShellSession) Resize(rows, cols uint16) error {
