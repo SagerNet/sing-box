@@ -19,7 +19,7 @@ type Manager struct {
 	logger       log.ContextLogger
 	registry     adapter.InboundRegistry
 	endpoint     adapter.EndpointManager
-	access       sync.Mutex
+	access       sync.RWMutex
 	started      bool
 	stage        adapter.StartStage
 	inbounds     []adapter.Inbound
@@ -81,15 +81,15 @@ func (m *Manager) Close() error {
 }
 
 func (m *Manager) Inbounds() []adapter.Inbound {
-	m.access.Lock()
-	defer m.access.Unlock()
+	m.access.RLock()
+	defer m.access.RUnlock()
 	return m.inbounds
 }
 
 func (m *Manager) Get(tag string) (adapter.Inbound, bool) {
-	m.access.Lock()
+	m.access.RLock()
 	inbound, found := m.inboundByTag[tag]
-	m.access.Unlock()
+	m.access.RUnlock()
 	if found {
 		return inbound, true
 	}
