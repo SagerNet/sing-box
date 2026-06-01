@@ -41,6 +41,8 @@ func StartSocketpairProcess(shell string, args, env []string, dir string, uid, g
 	if err != nil {
 		return nil, nil, E.Cause(err, "socketpair")
 	}
+	syscall.CloseOnExec(fds[0])
+	syscall.CloseOnExec(fds[1])
 	childFile := os.NewFile(uintptr(fds[1]), "socketpair-child")
 	cmd := exec.Command(shell)
 	cmd.Args = args
