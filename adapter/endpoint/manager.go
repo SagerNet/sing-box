@@ -18,7 +18,7 @@ var _ adapter.EndpointManager = (*Manager)(nil)
 type Manager struct {
 	logger        log.ContextLogger
 	registry      adapter.EndpointRegistry
-	access        sync.Mutex
+	access        sync.RWMutex
 	started       bool
 	stage         adapter.StartStage
 	endpoints     []adapter.Endpoint
@@ -82,14 +82,14 @@ func (m *Manager) Close() error {
 }
 
 func (m *Manager) Endpoints() []adapter.Endpoint {
-	m.access.Lock()
-	defer m.access.Unlock()
+	m.access.RLock()
+	defer m.access.RUnlock()
 	return m.endpoints
 }
 
 func (m *Manager) Get(tag string) (adapter.Endpoint, bool) {
-	m.access.Lock()
-	defer m.access.Unlock()
+	m.access.RLock()
+	defer m.access.RUnlock()
 	endpoint, found := m.endpointByTag[tag]
 	return endpoint, found
 }
