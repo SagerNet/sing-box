@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.28
+
+* Fixes and improvements
+
 #### 1.14.0-alpha.27
 
 * Add Tailscale SSH server **1**
