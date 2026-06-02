@@ -23,6 +23,7 @@ type TailscaleEndpointStatus struct {
 	MagicDNSSuffix string
 	Self           *TailscalePeer
 	ExitNode       *TailscalePeer
+	KeyAuth        bool
 	userGroups     []*TailscaleUserGroup
 }
 
@@ -107,6 +108,7 @@ func tailscaleEndpointStatusFromGRPC(status *daemon.TailscaleEndpointStatus) *Ta
 		AuthURL:        status.AuthURL,
 		NetworkName:    status.NetworkName,
 		MagicDNSSuffix: status.MagicDNSSuffix,
+		KeyAuth:        status.GetKeyAuth(),
 		userGroups:     userGroups,
 	}
 	if status.Self != nil {
