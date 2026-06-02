@@ -32,7 +32,7 @@ type (
 )
 
 type Registry struct {
-	access      sync.Mutex
+	access      sync.RWMutex
 	optionsType map[string]optionsConstructorFunc
 	constructor map[string]constructorFunc
 }
@@ -45,8 +45,8 @@ func NewRegistry() *Registry {
 }
 
 func (m *Registry) CreateOptions(outboundType string) (any, bool) {
-	m.access.Lock()
-	defer m.access.Unlock()
+	m.access.RLock()
+	defer m.access.RUnlock()
 	optionsConstructor, loaded := m.optionsType[outboundType]
 	if !loaded {
 		return nil, false
@@ -55,9 +55,9 @@ func (m *Registry) CreateOptions(outboundType string) (any, bool) {
 }
 
 func (m *Registry) Create(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, outboundType string, options any) (adapter.Inbound, error) {
-	m.access.Lock()
-	defer m.access.Unlock()
+	m.access.RLock()
 	constructor, loaded := m.constructor[outboundType]
+	m.access.RUnlock()
 	if !loaded {
 		return nil, E.New("outbound type not found: " + outboundType)
 	}
