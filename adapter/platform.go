@@ -51,6 +51,7 @@ type PlatformInterface interface {
 	LookupUser(username string) (*PlatformUser, error)
 	LookupSFTPServer() (string, error)
 	ReadSystemSSHHostKey() ([]byte, error)
+	TailscaleHostname() string
 }
 
 type PlatformUser struct {
