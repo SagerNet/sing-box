@@ -80,6 +80,10 @@ icon: material/new-box
 
 默认使用系统主机名。
 
+!!! question "自 sing-box 1.14.0 起"
+
+    在 iOS、tvOS 和 Android 上，默认使用设备名称。
+
 示例：`localhost`
 
 #### accept_routes

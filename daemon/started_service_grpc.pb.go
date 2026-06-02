@@ -44,6 +44,7 @@ const (
 	StartedService_SubscribeTailscaleStatus_FullMethodName = "/daemon.StartedService/SubscribeTailscaleStatus"
 	StartedService_StartTailscalePing_FullMethodName       = "/daemon.StartedService/StartTailscalePing"
 	StartedService_SetTailscaleExitNode_FullMethodName     = "/daemon.StartedService/SetTailscaleExitNode"
+	StartedService_TailscaleLogout_FullMethodName          = "/daemon.StartedService/TailscaleLogout"
 	StartedService_StartTailscaleSSHSession_FullMethodName = "/daemon.StartedService/StartTailscaleSSHSession"
 )
 
@@ -80,6 +81,7 @@ type StartedServiceClient interface {
 	SubscribeTailscaleStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscaleStatusUpdate], error)
 	StartTailscalePing(ctx context.Context, in *TailscalePingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscalePingResponse], error)
 	SetTailscaleExitNode(ctx context.Context, in *SetTailscaleExitNodeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	TailscaleLogout(ctx context.Context, in *TailscaleLogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	StartTailscaleSSHSession(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TailscaleSSHClientMessage, TailscaleSSHServerMessage], error)
 }
 
@@ -480,6 +482,16 @@ func (c *startedServiceClient) SetTailscaleExitNode(ctx context.Context, in *Set
 	return out, nil
 }
 
+func (c *startedServiceClient) TailscaleLogout(ctx context.Context, in *TailscaleLogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, StartedService_TailscaleLogout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *startedServiceClient) StartTailscaleSSHSession(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TailscaleSSHClientMessage, TailscaleSSHServerMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[11], StartedService_StartTailscaleSSHSession_FullMethodName, cOpts...)
@@ -526,6 +538,7 @@ type StartedServiceServer interface {
 	SubscribeTailscaleStatus(*emptypb.Empty, grpc.ServerStreamingServer[TailscaleStatusUpdate]) error
 	StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error
 	SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error)
+	TailscaleLogout(context.Context, *TailscaleLogoutRequest) (*emptypb.Empty, error)
 	StartTailscaleSSHSession(grpc.BidiStreamingServer[TailscaleSSHClientMessage, TailscaleSSHServerMessage]) error
 	mustEmbedUnimplementedStartedServiceServer()
 }
@@ -651,6 +664,10 @@ func (UnimplementedStartedServiceServer) StartTailscalePing(*TailscalePingReques
 
 func (UnimplementedStartedServiceServer) SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetTailscaleExitNode not implemented")
+}
+
+func (UnimplementedStartedServiceServer) TailscaleLogout(context.Context, *TailscaleLogoutRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method TailscaleLogout not implemented")
 }
 
 func (UnimplementedStartedServiceServer) StartTailscaleSSHSession(grpc.BidiStreamingServer[TailscaleSSHClientMessage, TailscaleSSHServerMessage]) error {
@@ -1122,6 +1139,24 @@ func _StartedService_SetTailscaleExitNode_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StartedService_TailscaleLogout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TailscaleLogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StartedServiceServer).TailscaleLogout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StartedService_TailscaleLogout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StartedServiceServer).TailscaleLogout(ctx, req.(*TailscaleLogoutRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StartedService_StartTailscaleSSHSession_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(StartedServiceServer).StartTailscaleSSHSession(&grpc.GenericServerStream[TailscaleSSHClientMessage, TailscaleSSHServerMessage]{ServerStream: stream})
 }
@@ -1207,6 +1242,10 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetTailscaleExitNode",
 			Handler:    _StartedService_SetTailscaleExitNode_Handler,
+		},
+		{
+			MethodName: "TailscaleLogout",
+			Handler:    _StartedService_TailscaleLogout_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

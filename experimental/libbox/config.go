@@ -187,6 +187,10 @@ func (s *platformInterfaceStub) ReadSystemSSHHostKey() ([]byte, error) {
 	return nil, os.ErrInvalid
 }
 
+func (s *platformInterfaceStub) TailscaleHostname() string {
+	return ""
+}
+
 func (s *platformInterfaceStub) LookupUser(username string) (*adapter.PlatformUser, error) {
 	return nil, os.ErrInvalid
 }
