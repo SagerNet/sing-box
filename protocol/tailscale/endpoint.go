@@ -122,6 +122,7 @@ type Endpoint struct {
 	systemInterface     bool
 	systemInterfaceName string
 	systemInterfaceMTU  uint32
+	keyAuth             bool
 	serverStarted       bool
 	started             atomic.Bool
 	systemTun           tun.Tun
@@ -134,7 +135,11 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	if stateDirectory == "" {
 		stateDirectory = "tailscale"
 	}
+	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
 	hostname := options.Hostname
+	if hostname == "" && platformInterface != nil {
+		hostname = platformInterface.TailscaleHostname()
+	}
 	if hostname == "" {
 		osHostname, _ := os.Hostname()
 		osHostname = strings.TrimSpace(osHostname)
@@ -179,7 +184,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		dnsRouter:         dnsRouter,
 		queryOptions:      dialerQueryOptions,
 		network:           service.FromContext[adapter.NetworkManager](ctx),
-		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
+		platformInterface: platformInterface,
 		server: &tsnet.Server{
 			Dir:      stateDirectory,
 			Hostname: hostname,
@@ -225,6 +230,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		systemInterface:            options.SystemInterface,
 		systemInterfaceName:        options.SystemInterfaceName,
 		systemInterfaceMTU:         options.SystemInterfaceMTU,
+		keyAuth:                    options.AuthKey != "",
 	}, nil
 }
 
@@ -549,6 +555,17 @@ func (t *Endpoint) SetTailscaleExitNode(ctx context.Context, stableID string) er
 	_, err := t.server.ExportLocalBackend().EditPrefs(perfs)
 	if err != nil {
 		return E.Cause(err, "update prefs")
+	}
+	return nil
+}
+
+func (t *Endpoint) Logout(ctx context.Context) error {
+	if !t.started.Load() {
+		return E.New("Tailscale is not ready yet")
+	}
+	err := common.Must1(t.server.LocalClient()).Logout(ctx)
+	if err != nil {
+		return E.Cause(err, "tailscale logout")
 	}
 	return nil
 }
