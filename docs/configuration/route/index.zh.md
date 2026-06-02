@@ -64,7 +64,7 @@ icon: material/alert-decagram
 | `geoip`   | [GeoIP](./geoip/)     |
 | `geosite` | [Geosite](./geosite/) |
 
-#### rule
+#### rules
 
 一组 [路由规则](./rule/)    。
 
