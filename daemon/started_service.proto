@@ -41,6 +41,7 @@ service StartedService {
   rpc SubscribeTailscaleStatus(google.protobuf.Empty) returns (stream TailscaleStatusUpdate) {}
   rpc StartTailscalePing(TailscalePingRequest) returns (stream TailscalePingResponse) {}
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
+  rpc TailscaleLogout(TailscaleLogoutRequest) returns (google.protobuf.Empty) {}
   rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
 }
 
@@ -295,6 +296,7 @@ message TailscaleEndpointStatus {
   TailscalePeer self = 6;
   repeated TailscaleUserGroup userGroups = 7;
   TailscalePeer exitNode = 8;
+  bool keyAuth = 9;
 }
 
 message TailscaleUserGroup {
@@ -341,6 +343,10 @@ message TailscalePingResponse {
 message SetTailscaleExitNodeRequest {
   string endpointTag = 1;
   string stableID = 2;
+}
+
+message TailscaleLogoutRequest {
+  string endpointTag = 1;
 }
 
 message TailscaleSSHClientMessage {
