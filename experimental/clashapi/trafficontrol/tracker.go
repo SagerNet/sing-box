@@ -69,6 +69,7 @@ func (t TrackerMetadata) MarshalJSON() ([]byte, error) {
 		"metadata": map[string]any{
 			"network":         t.Metadata.Network,
 			"type":            inbound,
+			"user":            t.Metadata.User,
 			"sourceIP":        t.Metadata.Source.Addr,
 			"destinationIP":   t.Metadata.Destination.Addr,
 			"sourcePort":      F.ToString(t.Metadata.Source.Port),
