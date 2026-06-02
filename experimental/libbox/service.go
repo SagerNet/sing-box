@@ -274,11 +274,7 @@ func (w *platformInterfaceWrapper) OpenShellSession(user *adapter.PlatformUser, 
 }
 
 func (w *platformInterfaceWrapper) LookupSFTPServer() (string, error) {
-	result, err := w.iif.LookupSFTPServer()
-	if err != nil {
-		return "", err
-	}
-	return result.Value, nil
+	return w.iif.LookupSFTPServer()
 }
 
 func (w *platformInterfaceWrapper) ReadSystemSSHHostKey() ([]byte, error) {
@@ -286,7 +282,11 @@ func (w *platformInterfaceWrapper) ReadSystemSSHHostKey() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte(result.Value), nil
+	return []byte(result), nil
+}
+
+func (w *platformInterfaceWrapper) TailscaleHostname() string {
+	return w.iif.TailscaleHostname()
 }
 
 func (w *platformInterfaceWrapper) LookupUser(username string) (*adapter.PlatformUser, error) {
