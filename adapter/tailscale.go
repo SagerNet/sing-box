@@ -6,6 +6,7 @@ type TailscaleEndpoint interface {
 	SubscribeTailscaleStatus(ctx context.Context, fn func(*TailscaleEndpointStatus)) error
 	StartTailscalePing(ctx context.Context, peerIP string, fn func(*TailscalePingResult)) error
 	SetTailscaleExitNode(ctx context.Context, stableID string) error
+	Logout(ctx context.Context) error
 }
 
 type TailscalePingResult struct {
@@ -25,6 +26,7 @@ type TailscaleEndpointStatus struct {
 	Self           *TailscalePeer
 	ExitNode       *TailscalePeer
 	UserGroups     []*TailscaleUserGroup
+	KeyAuth        bool
 }
 
 type TailscaleUserGroup struct {
