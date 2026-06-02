@@ -25,8 +25,9 @@ type PlatformInterface interface {
 	CheckPlatformShell() error
 	OpenShellSession(user *PlatformUser, command string, environ StringIterator, term string, rows int32, cols int32) (ShellSession, error)
 	LookupUser(username string) (*PlatformUser, error)
-	LookupSFTPServer() (*StringBox, error)
-	ReadSystemSSHHostKey() (*StringBox, error)
+	LookupSFTPServer() (string, error)
+	ReadSystemSSHHostKey() (string, error)
+	TailscaleHostname() string
 }
 
 type PlatformUser struct {

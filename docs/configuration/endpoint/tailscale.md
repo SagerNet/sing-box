@@ -81,6 +81,10 @@ The hostname of the node.
 
 System hostname is used by default.
 
+!!! question "Since sing-box 1.14.0"
+
+    On iOS, tvOS and Android, the device name is used by default.
+
 Example: `localhost`
 
 #### accept_routes
