@@ -17,7 +17,9 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 	localBackend := t.server.ExportLocalBackend()
 	sendStatus := func() {
 		status := localBackend.Status()
-		fn(convertTailscaleStatus(status))
+		result := convertTailscaleStatus(status)
+		result.KeyAuth = t.keyAuth
+		fn(result)
 	}
 	sendStatus()
 	localBackend.WatchNotifications(ctx, ipn.NotifyInitialState|ipn.NotifyInitialNetMap|ipn.NotifyRateLimit, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
