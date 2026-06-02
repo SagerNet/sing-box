@@ -881,6 +881,18 @@ func (c *CommandClient) SetTailscaleExitNode(endpointTag string, stableID string
 	return nil
 }
 
+func (c *CommandClient) TailscaleLogout(endpointTag string) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.TailscaleLogout(ctx, &daemon.TailscaleLogoutRequest{
+			EndpointTag: endpointTag,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "tailscale logout")
+	}
+	return nil
+}
+
 func (c *CommandClient) StartTailscalePing(endpointTag string, peerIP string, handler TailscalePingHandler) (*TailscalePingSession, error) {
 	client, parentCtx, err := c.getClientForCall()
 	if err != nil {

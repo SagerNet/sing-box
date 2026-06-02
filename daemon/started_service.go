@@ -1392,6 +1392,7 @@ func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStat
 		NetworkName:    s.NetworkName,
 		MagicDNSSuffix: s.MagicDNSSuffix,
 		UserGroups:     userGroups,
+		KeyAuth:        s.KeyAuth,
 	}
 	if s.Self != nil {
 		result.Self = tailscalePeerToProto(s.Self)
@@ -1496,6 +1497,30 @@ func (s *StartedService) SetTailscaleExitNode(ctx context.Context, request *SetT
 		return nil, status.Error(codes.FailedPrecondition, "endpoint does not support tailscale")
 	}
 	err = tsEndpoint.SetTailscaleExitNode(ctx, request.StableID)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *StartedService) TailscaleLogout(ctx context.Context, request *TailscaleLogoutRequest) (*emptypb.Empty, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpoint, err := resolveTailscaleEndpoint(boxService, request.EndpointTag)
+	if err != nil {
+		return nil, err
+	}
+	tsEndpoint, loaded := endpoint.(adapter.TailscaleEndpoint)
+	if !loaded {
+		return nil, status.Error(codes.FailedPrecondition, "endpoint does not support tailscale")
+	}
+	err = tsEndpoint.Logout(ctx)
 	if err != nil {
 		return nil, err
 	}
