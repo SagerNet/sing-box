@@ -101,8 +101,7 @@ func (t *TLSTransport) Reset() {
 }
 
 func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	var lastErr error
-	for range 2 {
+	for {
 		conn, created, err := t.connections.Acquire(ctx, func(ctx context.Context) (*tlsDNSConn, error) {
 			tlsConn, err := t.dialer.DialTLSContext(ctx, t.serverAddr)
 			if err != nil {
@@ -121,14 +120,12 @@ func (t *TLSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 			t.connections.Release(conn, true)
 			return response, nil
 		}
-		lastErr = err
 		t.logger.DebugContext(ctx, "discarded pooled connection: ", err)
 		t.connections.Release(conn, false)
 		if created {
 			return nil, err
 		}
 	}
-	return nil, lastErr
 }
 
 func (t *TLSTransport) exchange(ctx context.Context, message *mDNS.Msg, conn *tlsDNSConn) (*mDNS.Msg, error) {
