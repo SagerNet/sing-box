@@ -1,0 +1,64 @@
+; Copyright (c) 2022-2025 Vadym Hrynchyshyn <vadimgrn@gmail.com>
+;
+; usbip2_filter.inf
+; Upper-level device-specific filter driver.
+; @see Using an Extension INF File
+
+[Version]
+Signature = "$WINDOWS NT$"
+Class = Extension
+ClassGuid = {e2f84ce7-8efa-411c-aa69-97454ca4cb57}
+Provider = %Manufacturer%
+ExtensionId = {c1e0d1fe-d564-596e-4526-71da1249702a}
+CatalogFile = usbip2_filter.cat
+PnpLockDown = 1
+DriverVer = 01/30/2026,8.37.35.721
+
+[DestinationDirs]
+DefaultDestDir = 13 ; DriverStore
+
+[SourceDisksNames]
+1 = "USBip Upper Filter Installation Disk"
+
+[SourceDisksFiles]
+usbip2_filter.sys = 1
+
+[Manufacturer]
+; Windows 10, version 1903 and later
+%Manufacturer% = Generic, NTARM64.10.0...18362
+
+[Generic.NTARM64.10.0...18362]
+; HWID of "USB Root Hub (USB 3.0)" located on "USBip 3.X Emulated Host Controller"
+; See C:\Windows\INF\usbhub3.inf
+%DisplayName% = Generic_Inst, USB\ROOT_HUB30
+
+[Generic_Inst.NTARM64]
+CopyFiles = @usbip2_filter.sys
+
+[Generic_Inst.NTARM64.Filters]  
+; this directive is supported in Windows 10 version 1903 and later
+AddFilter = usbip2_filter,,usbip2_filter_Filter_Inst
+  
+[usbip2_filter_Filter_Inst]
+; HKLM\SYSTEM\CurrentControlSet\Enum\USB\ROOT_HUB30\<DEVICE_ID>\Filters\*Upper
+FilterPosition = Upper
+
+[Generic_Inst.NTARM64.Services]
+AddService = usbip2_filter,,usbip2_filter_Service_Inst
+
+[usbip2_filter_Service_Inst]
+DisplayName    = %DisplayName%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 2               ; SERVICE_ERROR_SEVERE
+ServiceBinary  = %13%\usbip2_filter.sys
+AddReg         = usbip2_filter_Service_AddReg
+
+[usbip2_filter_Service_AddReg]
+; Inflight Trace Recorder (IFR) parameter "VerboseOn".
+; The default setting of zero causes the IFR to log errors, warnings, and informational events
+HKR,Parameters,VerboseOn,0x00010001,1 ; show TRACE_LEVEL_VERBOSE
+
+[Strings]
+Manufacturer="USBIP-WIN2"
+DisplayName="USBip Upper Filter for USBHUB3" ; for device and service

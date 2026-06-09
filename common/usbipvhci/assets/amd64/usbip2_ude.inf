@@ -1,0 +1,86 @@
+; Copyright (c) 2022-2026 Vadym Hrynchyshyn <vadimgrn@gmail.com>
+;
+; usbip2_ude.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=USB
+ClassGuid={36FC9E60-C465-11CF-8056-444553540000} ; Devguid.h, GUID_DEVCLASS_USB, USB host controllers and USB hubs
+Provider=%Manufacturer%
+CatalogFile=usbip2_ude.cat ; do not modify, used by setup.iss for searching drivers for uninstallation
+PnpLockDown=1
+DriverVer = 04/19/2026,21.14.27.907
+
+[DestinationDirs]
+DefaultDestDir = 13 ; Driver package isolation
+
+[SourceDisksNames]
+1 = "USBip UDE Installation Disk"
+
+[SourceDisksFiles]
+usbip2_ude.sys = 1
+
+[Manufacturer]
+; Windows 10, version 1809 and later
+; For Windows 10+ you do not need to redistribute WDF or provide a Coinstaller
+%Manufacturer%=Standard,NTamd64.10.0...17763
+
+[Standard.NTamd64.10.0...17763]
+%DisplayName%=ude_Device, ROOT\USBIP_WIN2\UDE
+
+[ude_Device.NT]
+CopyFiles=@usbip2_ude.sys
+
+[ude_Device.NT.HW]
+Include=machine.inf
+Needs=PciD3ColdSupported.HW
+
+[ude_Device.NT.Services]
+; Flags: 0x00000002 (SPSVCINST_ASSOCSERVICE)
+AddService = usbip2_ude,2,ude_Device_Service_Inst
+
+[ude_Device_Service_Inst]
+DisplayName    = %DisplayName%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %13%\usbip2_ude.sys ; Driver package isolation
+Dependencies   = ucx01000, udecx, tcpip
+AddReg         = ude_Device_Service_AddReg
+
+[ude_Device_Service_AddReg]
+
+; Registry Values for Debugging WDF Drivers
+; Set these values ONLY while you are developing your driver
+; HKR, Parameters\Wdf, VerboseOn, %REG_DWORD%, 1
+; HKR, Parameters\Wdf, VerifierOn, %REG_DWORD%, 1
+; HKR, Parameters\Wdf, VerifyDownLevel, %REG_DWORD%, 1
+
+; Inflight Trace Recorder (IFR) parameter "VerboseOn".
+; The default setting of zero causes the IFR to log errors, warnings, and informational events
+HKR, Parameters, VerboseOn, %REG_DWORD%, 1 ; show TRACE_LEVEL_VERBOSE
+
+; The number of USB 2.0 ports on the root hub of the emulated host controller
+HKR, Parameters, NumberOfUsb20Ports, %REG_DWORD%, 30
+
+; The number of USB 3.0 ports on the root hub of the emulated host controller
+HKR, Parameters, NumberOfUsb30Ports, %REG_DWORD%, 30
+
+; The time (in seconds) the connection needs to remain idle before TCP starts sending keepalive probes
+HKR, Parameters, TCP_KEEPIDLE, %REG_DWORD%, 30
+
+; The maximum number of keepalive probes TCP should send before dropping the connection
+HKR, Parameters, TCP_KEEPCNT, %REG_DWORD%, 9
+
+; The time (in seconds) between individual keepalive probes
+HKR, Parameters, TCP_KEEPINTVL, %REG_DWORD%, 10
+
+HKR, Parameters, ReattachMaxAttempts, %REG_DWORD%, 20
+HKR, Parameters, ReattachFirstDelay, %REG_DWORD%, 30 ; seconds
+HKR, Parameters, ReattachMaxDelay, %REG_DWORD%, 480 ; seconds
+
+[Strings]
+Manufacturer = "USBIP-WIN2"
+DisplayName = "USBip 3.X Emulated Host Controller" ; for device and service
+REG_DWORD = 0x00010001 ; FLG_ADDREG_TYPE_DWORD

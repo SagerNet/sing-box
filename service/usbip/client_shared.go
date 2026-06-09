@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"slices"
 	"time"
@@ -150,14 +149,16 @@ func (c *ClientService) runControlSession() error {
 	ackMessage, err := cr.read(conn)
 	if err != nil {
 		// A plain usbipd reads our preface as an op-header, finds a bogus
-		// version, and closes cleanly: the client sees io.EOF. That means the
-		// peer lacks the sing-box USB/IP control extensions, including dynamic
-		// export discovery and hotplug updates. Other I/O errors (timeout, RST,
-		// partial read) point at a transient network problem instead.
-		if errors.Is(err, io.EOF) {
-			return E.Cause(errControlUnsupported, "read control ack: ", err)
+		// version, and drops the connection: cleanly (io.EOF) on Linux, or
+		// with a reset (ECONNRESET) on Windows. Any closed/reset/short read
+		// here means the peer lacks the sing-box USB/IP control extensions —
+		// dynamic export discovery and hotplug updates — so fall back to
+		// standard usbip static discovery. Only a read timeout points at a
+		// transient network problem worth retrying on the control channel.
+		if E.IsTimeout(err) {
+			return E.Cause(errControlTransient, "read control ack: ", err)
 		}
-		return E.Cause(errControlTransient, "read control ack: ", err)
+		return E.Cause(errControlUnsupported, "read control ack: ", err)
 	}
 	if len(ackMessage.Payload) > 0 {
 		return E.Cause(errControlUnsupported, "unexpected control ack payload length ", len(ackMessage.Payload))

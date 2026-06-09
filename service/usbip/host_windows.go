@@ -19,8 +19,8 @@ func newPlatformExportHost(ctx context.Context, logger log.ContextLogger, matche
 	return newWindowsExportHost(ctx, logger, matches), nil
 }
 
-func newPlatformImportHost(_ log.ContextLogger) (ImportHost, error) {
-	return nil, E.New("usbip-client service is not yet implemented on Windows")
+func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
+	return &windowsImportHost{logger: logger}, nil
 }
 
 type windowsExportHost struct {
