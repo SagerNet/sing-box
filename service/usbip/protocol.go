@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 	"strings"
+	"unsafe"
 
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -27,6 +28,20 @@ const (
 	maxOpRepDevListBodyBytes = 8 << 20
 	deviceInfoWireSize       = 312
 	deviceInterfaceWireSize  = 4
+)
+
+// DeviceInfoTruncated and DeviceInterface are serialized field-for-field
+// by binary.Write with no padding, so their in-memory size equals their
+// wire size. These two-sided constant assertions pin the hand-coded wire
+// bounds to the structs: a field added, removed, or resized changes the
+// kernel-visible layout and fails the build here instead of silently
+// mis-bounding the reader, whose only other safety net is the privileged
+// interop suite.
+const (
+	_ = uint(unsafe.Sizeof(DeviceInfoTruncated{})) - deviceInfoWireSize
+	_ = deviceInfoWireSize - uint(unsafe.Sizeof(DeviceInfoTruncated{}))
+	_ = uint(unsafe.Sizeof(DeviceInterface{})) - deviceInterfaceWireSize
+	_ = deviceInterfaceWireSize - uint(unsafe.Sizeof(DeviceInterface{}))
 )
 
 const (

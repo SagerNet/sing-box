@@ -41,6 +41,7 @@ type USBDeviceInfo struct {
 	Address     uint32 // device address on the bus (port path leaf)
 	BusID       string // "<bus>-<address>"
 	DeviceClass uint8
+	Speed       DeviceSpeed
 }
 
 // EnumerateUSBDevices walks GUID_DEVINTERFACE_USB_DEVICE and returns
@@ -60,6 +61,9 @@ func EnumerateUSBDevices() ([]USBDeviceInfo, error) {
 		return nil, E.Cause(err, "vboxusb: SetupDiGetClassDevsEx")
 	}
 	defer devInfo.Close()
+
+	probe := newHubSpeedProbe()
+	defer probe.close()
 
 	var out []USBDeviceInfo
 	for i := 0; ; i++ {
@@ -89,6 +93,7 @@ func EnumerateUSBDevices() ([]USBDeviceInfo, error) {
 			info.Address = toUint32(addressValue)
 		}
 		info.BusID = strconv.FormatUint(uint64(info.BusNumber), 10) + "-" + strconv.FormatUint(uint64(info.Address), 10)
+		info.Speed = probe.speedOf(devInfo, data, info.Address)
 		out = append(out, info)
 	}
 	return out, nil

@@ -294,6 +294,12 @@ func readUSBIPPayload(r io.Reader, direction uint32, bufferLength int32, packetC
 	if err != nil {
 		return nil, nil, err
 	}
+	if command {
+		err = validateUSBIPIsoDescriptorRanges(isoPackets, bufferLength)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	return buffer, isoPackets, nil
 }
 
@@ -396,6 +402,24 @@ func validateUSBIPIsoPacketCount(count int32) error {
 	}
 	if count > maxUSBIPIsoPackets {
 		return E.New("USB/IP iso packet count too large: ", count)
+	}
+	return nil
+}
+
+// validateUSBIPIsoDescriptorRanges rejects CMD_SUBMIT iso descriptors whose
+// offset/length fall outside the declared transfer buffer before they reach a
+// platform host engine. The IN copy-back path already clamps; the submit path
+// did not, leaving a remote peer's offsets unchecked against the buffer.
+func validateUSBIPIsoDescriptorRanges(packets []IsoPacketDescriptor, bufferLength int32) error {
+	for i := range packets {
+		offset := packets[i].Offset
+		length := packets[i].Length
+		if offset < 0 || length < 0 {
+			return E.New("USB/IP iso descriptor has negative offset/length: offset ", offset, ", length ", length)
+		}
+		if int64(offset)+int64(length) > int64(bufferLength) {
+			return E.New("USB/IP iso descriptor exceeds transfer buffer: offset ", offset, ", length ", length, ", buffer ", bufferLength)
+		}
 	}
 	return nil
 }

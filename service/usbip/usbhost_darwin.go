@@ -13,6 +13,7 @@ import "C"
 
 import (
 	"runtime/cgo"
+	"sync"
 	"unsafe"
 
 	E "github.com/sagernet/sing/common/exceptions"
@@ -110,8 +111,9 @@ type darwinUSBHostDeviceInfo struct {
 }
 
 type darwinUSBHostDevice struct {
-	handle *C.box_usbhost_device_t
-	info   darwinUSBHostDeviceInfo
+	handle    *C.box_usbhost_device_t
+	info      darwinUSBHostDeviceInfo
+	closeOnce sync.Once
 }
 
 func darwinCopyUSBHostDevices() ([]darwinUSBHostDeviceInfo, error) {
@@ -394,11 +396,13 @@ func box_usbip_darwin_usb_event(ref C.uintptr_t) {
 }
 
 func (d *darwinUSBHostDevice) Close() {
-	if d.handle == nil {
-		return
-	}
-	C.box_usbhost_device_close(d.handle)
-	d.handle = nil
+	d.closeOnce.Do(func() {
+		if d.handle == nil {
+			return
+		}
+		C.box_usbhost_device_close(d.handle)
+		d.handle = nil
+	})
 }
 
 func (d *darwinUSBHostDevice) control(setup [8]byte, buffer []byte) (int32, int32, []byte, error) {

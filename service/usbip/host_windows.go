@@ -95,8 +95,9 @@ func (h *windowsExportHost) Close() error {
 		_ = monitor.Close()
 	}
 	for _, exp := range exports {
-		if exp.device != nil {
-			_ = exp.device.Close()
+		device := exp.takeDevice()
+		if device != nil {
+			_ = device.Close()
 		}
 	}
 	return nil
@@ -191,9 +192,9 @@ func (h *windowsExportHost) FinishImport(busid string) (bool, error) {
 	if !ok {
 		return false, nil
 	}
-	if exp.device != nil {
-		_ = exp.device.Close()
-		exp.device = nil
+	device := exp.takeDevice()
+	if device != nil {
+		_ = device.Close()
 	}
 	return false, nil
 }
@@ -248,7 +249,27 @@ type windowsExport struct {
 	info   vboxusb.USBDeviceInfo
 	entry  DeviceEntry
 	logger log.ContextLogger
-	device *vboxusb.Device
+
+	deviceAccess sync.Mutex
+	device       *vboxusb.Device
+}
+
+// setDevice records the claimed handle once NewServerDataSession opens it.
+func (e *windowsExport) setDevice(device *vboxusb.Device) {
+	e.deviceAccess.Lock()
+	e.device = device
+	e.deviceAccess.Unlock()
+}
+
+// takeDevice atomically hands the claimed handle to exactly one caller and
+// clears the field, so FinishImport and Close racing on shutdown cannot both
+// close the same handle.
+func (e *windowsExport) takeDevice() *vboxusb.Device {
+	e.deviceAccess.Lock()
+	device := e.device
+	e.device = nil
+	e.deviceAccess.Unlock()
+	return device
 }
 
 func newWindowsExport(info vboxusb.USBDeviceInfo, logger log.ContextLogger) *windowsExport {
@@ -256,6 +277,7 @@ func newWindowsExport(info vboxusb.USBDeviceInfo, logger log.ContextLogger) *win
 		Info: DeviceInfoTruncated{
 			BusNum:             info.BusNumber,
 			DevNum:             info.Address,
+			Speed:              windowsSpeedToProtocol(info.Speed),
 			IDVendor:           info.VendorID,
 			IDProduct:          info.ProductID,
 			BCDDevice:          info.Revision,
@@ -266,6 +288,23 @@ func newWindowsExport(info vboxusb.USBDeviceInfo, logger log.ContextLogger) *win
 	copy(entry.Info.Path[:], "/sys/bus/usb/devices/"+info.BusID)
 	copy(entry.Info.BusID[:], info.BusID)
 	return &windowsExport{info: info, entry: entry, logger: logger}
+}
+
+func windowsSpeedToProtocol(speed vboxusb.DeviceSpeed) uint32 {
+	switch speed {
+	case vboxusb.SpeedLow:
+		return SpeedLow
+	case vboxusb.SpeedFull:
+		return SpeedFull
+	case vboxusb.SpeedHigh:
+		return SpeedHigh
+	case vboxusb.SpeedSuper:
+		return SpeedSuper
+	case vboxusb.SpeedSuperPlus:
+		return SpeedSuperPlus
+	default:
+		return SpeedUnknown
+	}
 }
 
 func (e *windowsExport) BusID() string {
@@ -316,6 +355,6 @@ func (e *windowsExport) NewServerDataSession(ctx context.Context, conn net.Conn)
 		_ = device.Close()
 		return nil, E.New("windows usbip: device ", e.info.BusID, " is already claimed by another handle")
 	}
-	e.device = device
+	e.setDevice(device)
 	return newUserspaceURBSession(ctx, e.logger, conn, newVBoxUSBEngine(device)), nil
 }

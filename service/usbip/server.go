@@ -199,6 +199,9 @@ func (s *ServerService) handleStandardConn(conn net.Conn, header OpHeader) {
 			s.logger.Debug("read import body: ", err)
 			break
 		}
+		// The connection becomes a data session below; drop the handshake
+		// read deadline so URB traffic is not bounded by it.
+		_ = conn.SetReadDeadline(time.Time{})
 		closeConn = !s.handleImportBusID(conn, busid)
 	default:
 		s.logger.Debug(fmt.Sprintf("unknown opcode 0x%04x", header.Code))
@@ -222,12 +225,17 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		s.logger.Debug("unsupported control version ", hello.Version)
 		return
 	}
+	// The handshake read deadline from dispatchConn has served its purpose;
+	// readControlConn installs its own per-iteration idle deadline.
+	_ = conn.SetReadDeadline(time.Time{})
 	sub := s.ledger.Subscribe(conn)
 	defer s.ledger.Unsubscribe(sub)
+	_ = conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
 	err = writeControlMessage(conn, controlFrame{
 		Type:    controlFrameAck,
 		Version: controlProtocolVersion,
 	}, nil)
+	_ = conn.SetWriteDeadline(time.Time{})
 	if err != nil {
 		s.logger.Debug("write control ack: ", err)
 		return
@@ -241,7 +249,9 @@ func (s *ServerService) handleControlConn(conn net.Conn) {
 		case <-readDone:
 			return
 		case message := <-sub.send:
+			_ = conn.SetWriteDeadline(time.Now().Add(controlWriteTimeout))
 			err = writeControlMessage(conn, message.Frame, message.Payload)
+			_ = conn.SetWriteDeadline(time.Time{})
 			if err != nil {
 				s.logger.Debug("write control frame: ", err)
 				return
@@ -267,7 +277,12 @@ func (s *ServerService) buildDevListEntries() []DeviceEntry {
 }
 
 func (s *ServerService) handleImportBusID(conn net.Conn, busid string) bool {
+	// Serialize the reservation against an in-flight Reconcile pass: both take
+	// reconcileAccess before inventoryAccess, so a reserve cannot interleave a
+	// pass that would otherwise release and close a just-reserved device.
+	s.reconcileAccess.Lock()
 	export, ok, reason := s.ledger.TryReserveForImport(busid)
+	s.reconcileAccess.Unlock()
 	if !ok {
 		s.logger.Info("import rejected (", busid, ": ", reason, ")")
 		_ = WriteOpRepImport(conn, OpRepImport, OpStatusError, nil)

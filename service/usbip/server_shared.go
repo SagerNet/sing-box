@@ -11,6 +11,11 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
+// serverHandshakeTimeout bounds how long an unauthenticated peer may hold a
+// goroutine before sending its preface/hello. The post-handshake control loop
+// uses controlReadTimeout, which tolerates the client's controlPingInterval.
+const serverHandshakeTimeout = 10 * time.Second
+
 func (s *ServerService) acceptLoop(ln net.Listener) {
 	for {
 		conn, err := ln.Accept()
@@ -41,6 +46,7 @@ func (s *ServerService) acceptLoop(ln net.Listener) {
 func (s *ServerService) dispatchConn(conn net.Conn) {
 	cancelClose := closeConnOnContextDone(s.ctx, conn)
 	defer cancelClose()
+	_ = conn.SetReadDeadline(time.Now().Add(serverHandshakeTimeout))
 	var prefix [controlPrefaceSize]byte
 	_, err := io.ReadFull(conn, prefix[:])
 	if err != nil {
@@ -59,6 +65,10 @@ func (s *ServerService) readControlConn(sub *exportSubscriber, done chan<- struc
 	defer close(done)
 	var reader controlReader
 	for {
+		err := sub.conn.SetReadDeadline(time.Now().Add(controlReadTimeout))
+		if err != nil {
+			return
+		}
 		message, err := reader.read(sub.conn)
 		if err != nil {
 			return
