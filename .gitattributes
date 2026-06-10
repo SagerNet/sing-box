@@ -1,0 +1,5 @@
+# Signed driver packages: catalog signatures cover the INF bytes, so
+# any line-ending normalization corrupts the package (SetupCopyOEMInfW
+# fails with ERROR_FILE_HASH_NOT_IN_CATALOG).
+common/vboxusb/assets/** -text
+common/usbipvhci/assets/** -text
