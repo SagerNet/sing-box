@@ -4,18 +4,31 @@ package usbip
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
 	"sync"
+	"time"
+	"unsafe"
 
 	"github.com/sagernet/sing-box/common/usbipvhci"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
+
+	"golang.org/x/sys/windows"
 )
 
-const loopbackHost = "127.0.0.1"
+const (
+	loopbackHost = "127.0.0.1"
+
+	// The VHCI driver connects from kernel WSK and sends OP_REQ_IMPORT
+	// immediately; a peer that stalls the handshake is not the driver.
+	relayHandshakeTimeout = 5 * time.Second
+
+	systemProcessID = 4
+)
 
 // windowsImportHost imports remote devices through the usbip-win2 UDE
 // driver. The driver connects and speaks USB/IP itself, in-kernel, so it
@@ -129,17 +142,38 @@ func (s *windowsClientSession) start(ctx context.Context) error {
 	return nil
 }
 
+// acceptAndRelay accepts loopback connections until one proves to be
+// the VHCI driver, then splices it to the server connection. The
+// listener address is observable by any local process between Listen
+// and the driver's in-kernel connect, so each accepted peer must be
+// authenticated (kernel-owned socket + correct import handshake)
+// before it sees device data; rejected peers do not end the session.
 func (s *windowsClientSession) acceptAndRelay() {
 	defer s.markDone()
 
-	driverConn, err := s.listener.Accept()
-	_ = s.listener.Close() // one-shot: only the driver should connect
-	if err != nil {
-		if s.ctx.Err() == nil {
-			s.logger.Debug("usbip windows: accept vhci driver: ", err)
+	var driverConn net.Conn
+	for {
+		conn, err := s.listener.Accept()
+		if err != nil {
+			if s.ctx.Err() == nil {
+				s.logger.Debug("usbip windows: accept vhci driver: ", err)
+			}
+			return
 		}
-		return
+		err = s.verifyDriverConn(conn)
+		if err != nil {
+			_ = conn.Close()
+			if s.ctx.Err() != nil {
+				return
+			}
+			s.logger.Warn("usbip windows: rejected loopback peer: ", err)
+			continue
+		}
+		driverConn = conn
+		break
 	}
+	_ = s.listener.Close() // one-shot: the driver has connected
+
 	s.connAccess.Lock()
 	s.driverConn = driverConn
 	s.connAccess.Unlock()
@@ -148,18 +182,28 @@ func (s *windowsClientSession) acceptAndRelay() {
 		return
 	}
 
-	err = s.respondImport(driverConn)
-	if err != nil {
-		s.setErr(err)
-		if s.ctx.Err() == nil {
-			s.logger.Debug("usbip windows: import handshake: ", err)
-		}
-		_ = driverConn.Close()
-		_ = s.remote.Close()
-		return
-	}
-
 	relay(driverConn, s.remote)
+}
+
+// verifyDriverConn authenticates an accepted loopback connection: the
+// peer socket must be owned by the kernel (the driver connects via
+// WSK, attributed to the System process) and must complete the import
+// handshake for exactly the device this session carries.
+func (s *windowsClientSession) verifyDriverConn(conn net.Conn) error {
+	pid, err := loopbackPeerPID(conn)
+	if err != nil {
+		return E.Cause(err, "resolve loopback peer")
+	}
+	if pid != systemProcessID && pid != 0 {
+		return E.New("peer is process ", pid, ", not the kernel")
+	}
+	_ = conn.SetDeadline(time.Now().Add(relayHandshakeTimeout))
+	err = s.respondImport(conn)
+	if err != nil {
+		return err
+	}
+	_ = conn.SetDeadline(time.Time{})
+	return nil
 }
 
 // respondImport answers the driver's in-kernel OP_REQ_IMPORT from the
@@ -174,9 +218,12 @@ func (s *windowsClientSession) respondImport(driverConn net.Conn) error {
 	if header.Code != OpReqImport {
 		return E.New("unexpected driver op code ", fmt.Sprintf("0x%04x", header.Code))
 	}
-	_, err = ReadOpReqImportBody(driverConn)
+	busid, err := ReadOpReqImportBody(driverConn)
 	if err != nil {
 		return E.Cause(err, "read driver OP_REQ_IMPORT body")
+	}
+	if busid != s.info.BusIDString() {
+		return E.New("import handshake for ", busid, ", session carries ", s.info.BusIDString())
 	}
 	info := s.info
 	err = WriteOpRepImport(driverConn, OpRepImport, OpStatusOK, &info)
@@ -185,6 +232,67 @@ func (s *windowsClientSession) respondImport(driverConn net.Conn) error {
 	}
 	return nil
 }
+
+// loopbackPeerPID resolves the owning process of the peer side of an
+// accepted loopback TCP connection via GetExtendedTcpTable: the row
+// whose local endpoint is our remote endpoint (and vice versa).
+func loopbackPeerPID(conn net.Conn) (uint32, error) {
+	remote, remoteOK := conn.RemoteAddr().(*net.TCPAddr)
+	local, localOK := conn.LocalAddr().(*net.TCPAddr)
+	if !remoteOK || !localOK {
+		return 0, E.New("unexpected address type")
+	}
+	const tcpTableOwnerPIDAll = 5
+	const rowSize = 24 // MIB_TCPROW_OWNER_PID
+	var size uint32
+	var table []byte
+	for {
+		var tablePtr *byte
+		if len(table) > 0 {
+			tablePtr = &table[0]
+		}
+		ret, _, _ := procGetExtendedTcpTable.Call(
+			uintptr(unsafe.Pointer(tablePtr)),
+			uintptr(unsafe.Pointer(&size)),
+			0,
+			uintptr(windows.AF_INET),
+			tcpTableOwnerPIDAll,
+			0,
+		)
+		if ret == uintptr(windows.ERROR_INSUFFICIENT_BUFFER) {
+			table = make([]byte, size)
+			continue
+		}
+		if ret != 0 {
+			return 0, E.New("GetExtendedTcpTable error ", ret)
+		}
+		break
+	}
+	if len(table) < 4 {
+		return 0, E.New("GetExtendedTcpTable returned no table")
+	}
+	count := int(binary.LittleEndian.Uint32(table[0:4]))
+	for i := 0; i < count; i++ {
+		row := table[4+i*rowSize:]
+		if len(row) < rowSize {
+			break
+		}
+		rowLocalIP := net.IP(row[4:8])
+		rowLocalPort := int(binary.BigEndian.Uint16(row[8:10]))
+		rowRemoteIP := net.IP(row[12:16])
+		rowRemotePort := int(binary.BigEndian.Uint16(row[16:18]))
+		if rowLocalPort == remote.Port && rowRemotePort == local.Port &&
+			rowLocalIP.Equal(remote.IP) && rowRemoteIP.Equal(local.IP) {
+			return binary.LittleEndian.Uint32(row[20:24]), nil
+		}
+	}
+	return 0, E.New("peer connection not found in tcp table")
+}
+
+var (
+	modIPHelper             = windows.NewLazySystemDLL("iphlpapi.dll")
+	procGetExtendedTcpTable = modIPHelper.NewProc("GetExtendedTcpTable")
+)
 
 // relay splices the loopback driver stream to the proxied server stream
 // until either direction ends, then closes both.
