@@ -101,6 +101,35 @@ func (c *Controller) Plugin(host, service, busid string) (int, error) {
 	return port, nil
 }
 
+// StopAttachAttempts cancels the driver's scheduled background
+// reconnect attempts for the given location (the exact host/service/
+// busid triple passed to Plugin), or for every location when all three
+// are empty. Returns the number of canceled requests. Must be called
+// on session teardown: the dropped connection's reattach attempts
+// target a one-shot loopback port that no longer exists and would
+// otherwise steal a later session's Accept.
+func (c *Controller) StopAttachAttempts(host, service, busid string) (int, error) {
+	var buf [stopAttachAttemptsSize]byte
+	binary.LittleEndian.PutUint32(buf[offsetPluginSize:], stopAttachAttemptsSize)
+	err := putCString(buf[offsetPluginBusID:offsetPluginBusID+BusIDSize], busid)
+	if err != nil {
+		return 0, E.Cause(err, "usbipvhci: busid")
+	}
+	err = putCString(buf[offsetPluginService:offsetPluginService+serviceSize], service)
+	if err != nil {
+		return 0, E.Cause(err, "usbipvhci: service")
+	}
+	err = putCString(buf[offsetPluginHost:offsetPluginHost+hostSize], host)
+	if err != nil {
+		return 0, E.Cause(err, "usbipvhci: host")
+	}
+	_, err = c.ioctl(ioctlStopAttachAttempts, buf[:], buf[:])
+	if err != nil {
+		return 0, E.Cause(err, "usbipvhci: STOP_ATTACH_ATTEMPTS")
+	}
+	return int(int32(binary.LittleEndian.Uint32(buf[offsetStopAttachAttemptsCount:]))), nil
+}
+
 // Plugout detaches the device on the given hub port. PortAll detaches
 // every device. A port the driver already tore down (after its socket
 // dropped) reports STATUS_DEVICE_NOT_CONNECTED, surfaced as an error.

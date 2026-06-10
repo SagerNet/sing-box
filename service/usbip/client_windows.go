@@ -90,8 +90,9 @@ type windowsClientSession struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	listener net.Listener
-	hubPort  int
+	listener     net.Listener
+	relayService string // loopback port passed to Plugin, for StopAttachAttempts
+	hubPort      int
 
 	connAccess sync.Mutex
 	driverConn net.Conn
@@ -132,7 +133,8 @@ func (s *windowsClientSession) start(ctx context.Context) error {
 	// Plugin blocks until the driver has connected to the loopback
 	// listener and the import handshake (run by acceptAndRelay) completed.
 	port := listener.Addr().(*net.TCPAddr).Port
-	hubPort, err := s.controller.Plugin(loopbackHost, strconv.Itoa(port), s.info.BusIDString())
+	s.relayService = strconv.Itoa(port)
+	hubPort, err := s.controller.Plugin(loopbackHost, s.relayService, s.info.BusIDString())
 	if err != nil {
 		s.cancel()
 		s.markDone()
@@ -344,8 +346,17 @@ func (s *windowsClientSession) Start() error {
 
 func (s *windowsClientSession) Close() error {
 	s.closeOnce.Do(func() {
+		// If the connection already dropped, the driver has scheduled
+		// background reattach attempts toward this session's dead
+		// loopback port; cancel them before detaching.
+		count, err := s.controller.StopAttachAttempts(loopbackHost, s.relayService, s.info.BusIDString())
+		if err != nil {
+			s.logger.Debug("usbip windows: stop attach attempts: ", err)
+		} else if count > 0 {
+			s.logger.Debug("usbip windows: canceled ", count, " driver reattach attempts")
+		}
 		if s.hubPort > 0 {
-			err := s.controller.Plugout(s.hubPort)
+			err = s.controller.Plugout(s.hubPort)
 			if err != nil {
 				s.logger.Debug("usbip windows: plugout port ", s.hubPort, ": ", err)
 			}
