@@ -23,6 +23,12 @@ func newPlatformImportHost(logger log.ContextLogger) (ImportHost, error) {
 	return &windowsImportHost{logger: logger}, nil
 }
 
+// windowsExportAbsenceGrace covers the window in which a device under
+// capture/release restart is removed from the PnP tree and therefore
+// missing from enumeration. Exports seen more recently than this are
+// not dropped just because the device is momentarily absent.
+const windowsExportAbsenceGrace = 10 * time.Second
+
 type windowsExportHost struct {
 	logger  log.ContextLogger
 	matches []option.USBIPDeviceMatch
@@ -85,6 +91,33 @@ func (h *windowsExportHost) Close() error {
 	exports := h.exports
 	h.exports = make(map[string]*windowsExport)
 	h.access.Unlock()
+	for busid, exp := range exports {
+		device := exp.takeDevice()
+		if device != nil {
+			_ = device.Close()
+		}
+		instanceID, captured := exp.lastState()
+		var restart *vboxusb.DeviceRestart
+		if captured {
+			var err error
+			restart, err = vboxusb.BeginDeviceRestart(instanceID, exp.info.Address)
+			if err != nil {
+				h.logger.Warn("restart ", busid, " for release: ", err)
+			}
+		}
+		if monitor != nil {
+			if id, ok := filters[busid]; ok {
+				delete(filters, busid)
+				err := monitor.RemoveFilter(id)
+				if err != nil {
+					h.logger.Debug("remove filter for ", busid, ": ", err)
+				}
+			}
+		}
+		if restart != nil {
+			restart.Finish()
+		}
+	}
 	if monitor != nil {
 		for busid, id := range filters {
 			err := monitor.RemoveFilter(id)
@@ -93,12 +126,6 @@ func (h *windowsExportHost) Close() error {
 			}
 		}
 		_ = monitor.Close()
-	}
-	for _, exp := range exports {
-		device := exp.takeDevice()
-		if device != nil {
-			_ = device.Close()
-		}
 	}
 	return nil
 }
@@ -129,23 +156,6 @@ func (h *windowsExportHost) Reconcile(isReserved func(busid string) bool) (map[s
 	if err != nil {
 		return h.snapshotSelf(), nil, E.Cause(err, "windows usbip: enumerate USB devices")
 	}
-	keys := make([]DeviceKey, 0, len(devices))
-	for _, d := range devices {
-		keys = append(keys, DeviceKey{
-			BusID:     d.BusID,
-			VendorID:  d.VendorID,
-			ProductID: d.ProductID,
-		})
-	}
-	desired := make(map[string]vboxusb.USBDeviceInfo)
-	for _, idx := range SelectMatches(h.matches, keys) {
-		info := devices[idx]
-		if info.DeviceClass == 0x09 {
-			h.logger.Warn("skip hub device ", info.BusID)
-			continue
-		}
-		desired[info.BusID] = info
-	}
 
 	h.access.Lock()
 	monitor := h.monitor
@@ -155,24 +165,67 @@ func (h *windowsExportHost) Reconcile(isReserved func(busid string) bool) (map[s
 	}
 	h.access.Unlock()
 
+	present := make(map[string]vboxusb.USBDeviceInfo, len(devices))
+	keys := make([]DeviceKey, 0, len(devices))
+	for _, d := range devices {
+		present[d.BusID] = d
+		key := DeviceKey{
+			BusID:     d.BusID,
+			VendorID:  d.VendorID,
+			ProductID: d.ProductID,
+		}
+		if exp, ok := current[d.BusID]; ok && d.Captured && d.IdentityIsStub() {
+			// The hub descriptor was unavailable and the registry reports
+			// the VBox stub ID; evaluate the match against the identity
+			// recorded when the export was created.
+			key.VendorID = exp.info.VendorID
+			key.ProductID = exp.info.ProductID
+		}
+		keys = append(keys, key)
+	}
+	desired := make(map[string]vboxusb.USBDeviceInfo)
+	for _, idx := range SelectMatches(h.matches, keys) {
+		info := present[keys[idx].BusID]
+		if info.DeviceClass == 0x09 {
+			h.logger.Warn("skip hub device ", info.BusID)
+			continue
+		}
+		if info.Captured {
+			if _, exported := current[info.BusID]; !exported {
+				h.logger.Warn("device ", info.BusID, " is captured by VBoxUSB outside this service; replug it to export")
+				continue
+			}
+		}
+		desired[info.BusID] = info
+	}
+
+	now := time.Now()
 	var released []string
 	for busid, info := range desired {
-		if _, ok := current[busid]; ok {
+		if exp, ok := current[busid]; ok {
+			exp.markSeen(now, info.InstanceID, info.Captured)
 			continue
 		}
 		exp := newWindowsExport(info, h.logger)
-		h.installFilterLocked(monitor, busid, info)
+		exp.markSeen(now, info.InstanceID, info.Captured)
+		h.captureDevice(monitor, busid, info)
 		current[busid] = exp
-		h.logger.Info("matched ", busid, " (vid=", fmt.Sprintf("0x%04x", info.VendorID), " pid=", fmt.Sprintf("0x%04x", info.ProductID), ") — capture pending PnP arrival")
+		h.logger.Info("matched ", busid, " (vid=", fmt.Sprintf("0x%04x", info.VendorID), " pid=", fmt.Sprintf("0x%04x", info.ProductID), ") — capturing")
 	}
-	for busid := range current {
+	for busid, exp := range current {
 		if _, ok := desired[busid]; ok {
 			continue
 		}
 		if isReserved(busid) {
 			continue
 		}
-		h.removeFilterLocked(monitor, busid)
+		info, isPresent := present[busid]
+		if !isPresent && now.Sub(exp.seenAt()) < windowsExportAbsenceGrace {
+			// Likely mid-restart: the devnode is removed while PnP
+			// re-enumerates it. Keep the export until the grace passes.
+			continue
+		}
+		h.releaseDevice(monitor, busid, exp, info, isPresent)
 		delete(current, busid)
 		released = append(released, busid)
 		h.logger.Info("released ", busid, " (no longer matches)")
@@ -209,9 +262,18 @@ func (h *windowsExportHost) snapshotSelf() map[string]Export {
 	return out
 }
 
-func (h *windowsExportHost) installFilterLocked(monitor *vboxusb.Monitor, busid string, info vboxusb.USBDeviceInfo) {
+// captureDevice installs a capture filter and forces the device through
+// PnP re-enumeration. VBoxUSBMon only rewrites a device's IDs (handing
+// it to VBoxUSB.sys) while the device enumerates, so without the
+// restart an already-plugged device would keep its function driver
+// until physically replugged.
+func (h *windowsExportHost) captureDevice(monitor *vboxusb.Monitor, busid string, info vboxusb.USBDeviceInfo) {
 	if monitor == nil {
 		return
+	}
+	restart, err := vboxusb.BeginDeviceRestart(info.InstanceID, info.Address)
+	if err != nil {
+		h.logger.Warn("restart ", busid, " for capture: ", err)
 	}
 	vendor := info.VendorID
 	product := info.ProductID
@@ -221,14 +283,40 @@ func (h *windowsExportHost) installFilterLocked(monitor *vboxusb.Monitor, busid 
 	})
 	if err != nil {
 		h.logger.Warn("ADD_FILTER for ", busid, ": ", err)
-		return
+	} else {
+		h.access.Lock()
+		h.filters[busid] = filterID
+		h.access.Unlock()
 	}
-	h.access.Lock()
-	h.filters[busid] = filterID
-	h.access.Unlock()
+	if restart != nil {
+		restart.Finish()
+	}
 }
 
-func (h *windowsExportHost) removeFilterLocked(monitor *vboxusb.Monitor, busid string) {
+// releaseDevice removes the capture filter and, if the device is still
+// present and captured, restarts it so its original function driver
+// re-binds. Without the restart the device stays dead to Windows until
+// physically replugged.
+func (h *windowsExportHost) releaseDevice(monitor *vboxusb.Monitor, busid string, exp *windowsExport, info vboxusb.USBDeviceInfo, isPresent bool) {
+	device := exp.takeDevice()
+	if device != nil {
+		_ = device.Close()
+	}
+	var restart *vboxusb.DeviceRestart
+	if isPresent && info.Captured {
+		var err error
+		restart, err = vboxusb.BeginDeviceRestart(info.InstanceID, info.Address)
+		if err != nil {
+			h.logger.Warn("restart ", busid, " for release: ", err)
+		}
+	}
+	h.removeFilter(monitor, busid)
+	if restart != nil {
+		restart.Finish()
+	}
+}
+
+func (h *windowsExportHost) removeFilter(monitor *vboxusb.Monitor, busid string) {
 	if monitor == nil {
 		return
 	}
@@ -250,26 +338,51 @@ type windowsExport struct {
 	entry  DeviceEntry
 	logger log.ContextLogger
 
-	deviceAccess sync.Mutex
-	device       *vboxusb.Device
+	stateAccess       sync.Mutex
+	device            *vboxusb.Device
+	lastSeen          time.Time
+	currentInstanceID string
+	seenCaptured      bool
 }
 
 // setDevice records the claimed handle once NewServerDataSession opens it.
 func (e *windowsExport) setDevice(device *vboxusb.Device) {
-	e.deviceAccess.Lock()
+	e.stateAccess.Lock()
 	e.device = device
-	e.deviceAccess.Unlock()
+	e.stateAccess.Unlock()
 }
 
 // takeDevice atomically hands the claimed handle to exactly one caller and
 // clears the field, so FinishImport and Close racing on shutdown cannot both
 // close the same handle.
 func (e *windowsExport) takeDevice() *vboxusb.Device {
-	e.deviceAccess.Lock()
+	e.stateAccess.Lock()
 	device := e.device
 	e.device = nil
-	e.deviceAccess.Unlock()
+	e.stateAccess.Unlock()
 	return device
+}
+
+// markSeen records the device's enumeration state. The instance ID must be
+// re-tracked every pass because capture rewrites it to the VBox stub ID.
+func (e *windowsExport) markSeen(now time.Time, instanceID string, captured bool) {
+	e.stateAccess.Lock()
+	e.lastSeen = now
+	e.currentInstanceID = instanceID
+	e.seenCaptured = captured
+	e.stateAccess.Unlock()
+}
+
+func (e *windowsExport) seenAt() time.Time {
+	e.stateAccess.Lock()
+	defer e.stateAccess.Unlock()
+	return e.lastSeen
+}
+
+func (e *windowsExport) lastState() (string, bool) {
+	e.stateAccess.Lock()
+	defer e.stateAccess.Unlock()
+	return e.currentInstanceID, e.seenCaptured
 }
 
 func newWindowsExport(info vboxusb.USBDeviceInfo, logger log.ContextLogger) *windowsExport {
@@ -329,7 +442,7 @@ func (e *windowsExport) DeviceInfo() (DeviceInfoTruncated, error) {
 }
 
 func (e *windowsExport) NewServerDataSession(ctx context.Context, conn net.Conn) (DataSession, error) {
-	path, err := vboxusb.WaitForVBoxUSBInterface(e.info.InstanceID, 10*time.Second)
+	path, err := vboxusb.WaitForCapturedDevice(e.info.BusNumber, e.info.Address, 10*time.Second)
 	if err != nil {
 		return nil, E.Cause(err, "windows usbip: locate VBoxUSB interface")
 	}

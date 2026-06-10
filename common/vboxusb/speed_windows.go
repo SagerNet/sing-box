@@ -69,11 +69,23 @@ const (
 	nodeConnInfoExV2FlagSuperSpeedPlus = 0x4
 )
 
-// hubSpeedProbe resolves the negotiated link speed of devices by querying their
-// parent hub. Open hub handles are cached for the lifetime of one enumeration;
-// a nil/InvalidHandle entry caches a failure so it is not retried per device.
+// hubSpeedProbe resolves devices' negotiated link speed and cached device
+// descriptor by querying their parent hub. Open hub handles are cached for
+// the lifetime of one enumeration; a nil/InvalidHandle entry caches a
+// failure so it is not retried per device.
 type hubSpeedProbe struct {
 	hubs map[string]windows.Handle
+}
+
+// hubDeviceDescriptor carries the identity fields of the
+// USB_DEVICE_DESCRIPTOR embedded in USB_NODE_CONNECTION_INFORMATION_EX.
+// The hub reports the real descriptor regardless of which function
+// driver owns the device, so these survive VBoxUSB capture.
+type hubDeviceDescriptor struct {
+	vendorID    uint16
+	productID   uint16
+	bcdDevice   uint16
+	deviceClass uint8
 }
 
 func newHubSpeedProbe() *hubSpeedProbe {
@@ -89,15 +101,16 @@ func (p *hubSpeedProbe) close() {
 	p.hubs = nil
 }
 
-// speedOf returns the device's link speed, or SpeedUnknown if the parent hub
-// could not be opened or did not answer. port is the hub port index
-// (SPDRP_ADDRESS) the device is attached to.
-func (p *hubSpeedProbe) speedOf(devInfo windows.DevInfo, data *windows.DevInfoData, port uint32) DeviceSpeed {
+// describe returns the device's descriptor identity and link speed, or
+// (nil, SpeedUnknown) if the parent hub could not be opened or did not
+// answer. port is the hub port index (SPDRP_ADDRESS) the device is
+// attached to.
+func (p *hubSpeedProbe) describe(devInfo windows.DevInfo, data *windows.DevInfoData, port uint32) (*hubDeviceDescriptor, DeviceSpeed) {
 	hub := p.parentHub(devInfo, data)
 	if hub == windows.InvalidHandle {
-		return SpeedUnknown
+		return nil, SpeedUnknown
 	}
-	return querySpeed(hub, port)
+	return queryNodeConnection(hub, port)
 }
 
 func (p *hubSpeedProbe) parentHub(devInfo windows.DevInfo, data *windows.DevInfoData) windows.Handle {
@@ -144,7 +157,7 @@ func openHub(hubPath string) windows.Handle {
 	return handle
 }
 
-func querySpeed(hub windows.Handle, port uint32) DeviceSpeed {
+func queryNodeConnection(hub windows.Handle, port uint32) (*hubDeviceDescriptor, DeviceSpeed) {
 	buffer := make([]byte, nodeConnInfoExBufferSize)
 	binary.LittleEndian.PutUint32(buffer[0:4], port)
 	var returned uint32
@@ -156,23 +169,34 @@ func querySpeed(hub windows.Handle, port uint32) DeviceSpeed {
 		&returned, nil,
 	)
 	if err != nil || returned <= nodeConnInfoExSpeedOffset {
-		return SpeedUnknown
+		return nil, SpeedUnknown
 	}
+	// USB_DEVICE_DESCRIPTOR starts at offset 4 (after ConnectionIndex):
+	// bDeviceClass at +4, idVendor at +8, idProduct at +10, bcdDevice at +12.
+	descriptor := &hubDeviceDescriptor{
+		deviceClass: buffer[8],
+		vendorID:    binary.LittleEndian.Uint16(buffer[12:14]),
+		productID:   binary.LittleEndian.Uint16(buffer[14:16]),
+		bcdDevice:   binary.LittleEndian.Uint16(buffer[16:18]),
+	}
+	var speed DeviceSpeed
 	switch buffer[nodeConnInfoExSpeedOffset] {
 	case usbDeviceSpeedLow:
-		return SpeedLow
+		speed = SpeedLow
 	case usbDeviceSpeedFull:
-		return SpeedFull
+		speed = SpeedFull
 	case usbDeviceSpeedHigh:
-		return SpeedHigh
+		speed = SpeedHigh
 	case usbDeviceSpeedSuper:
 		if superSpeedPlus(hub, port) {
-			return SpeedSuperPlus
+			speed = SpeedSuperPlus
+		} else {
+			speed = SpeedSuper
 		}
-		return SpeedSuper
 	default:
-		return SpeedUnknown
+		speed = SpeedUnknown
 	}
+	return descriptor, speed
 }
 
 func superSpeedPlus(hub windows.Handle, port uint32) bool {
