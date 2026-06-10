@@ -4,18 +4,24 @@ package usbip
 
 import (
 	"bytes"
+	"os"
 
 	"golang.org/x/sys/unix"
 )
 
 const ueventReceiveBufferSize = 1 << 20
 
+// ueventListener wraps the netlink socket in an *os.File so the fd is
+// owned by the Go runtime poller: Close wakes a goroutine blocked in
+// WaitUSBEvent, is idempotent, and the fd number cannot be recycled to
+// another connection while a read is still in flight — all of which a
+// raw fd with blocking Recvfrom gets wrong.
 type ueventListener struct {
-	fd int
+	file *os.File
 }
 
 func newUEventListener() (*ueventListener, error) {
-	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_DGRAM, unix.NETLINK_KOBJECT_UEVENT)
+	fd, err := unix.Socket(unix.AF_NETLINK, unix.SOCK_DGRAM|unix.SOCK_NONBLOCK|unix.SOCK_CLOEXEC, unix.NETLINK_KOBJECT_UEVENT)
 	if err != nil {
 		return nil, err
 	}
@@ -29,22 +35,42 @@ func newUEventListener() (*ueventListener, error) {
 		_ = unix.Close(fd)
 		return nil, err
 	}
-	return &ueventListener{fd: fd}, nil
+	return &ueventListener{file: os.NewFile(uintptr(fd), "netlink-uevent")}, nil
 }
 
 func (l *ueventListener) Close() error {
-	return unix.Close(l.fd)
+	return l.file.Close()
 }
 
 func (l *ueventListener) WaitUSBEvent() error {
+	rawConn, err := l.file.SyscallConn()
+	if err != nil {
+		return err
+	}
 	var buf [16384]byte
 	for {
-		n, from, err := unix.Recvfrom(l.fd, buf[:], 0)
-		if err == unix.ENOBUFS {
-			return nil
-		}
+		var (
+			n       int
+			from    unix.Sockaddr
+			recvErr error
+		)
+		err = rawConn.Read(func(fd uintptr) bool {
+			for {
+				n, from, recvErr = unix.Recvfrom(int(fd), buf[:], 0)
+				if recvErr == unix.EINTR {
+					continue
+				}
+				return recvErr != unix.EAGAIN
+			}
+		})
 		if err != nil {
 			return err
+		}
+		if recvErr == unix.ENOBUFS {
+			return nil
+		}
+		if recvErr != nil {
+			return recvErr
 		}
 		if source, ok := from.(*unix.SockaddrNetlink); ok && source.Pid != 0 {
 			continue
