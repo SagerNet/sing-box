@@ -153,14 +153,29 @@ func (s *ServerService) eventLoop(events <-chan struct{}) {
 func (s *ServerService) tearDownPreparedSession(busid string, session DataSession) {
 	_ = session.Close()
 	<-session.Done()
-	released, _ := s.host.FinishImport(busid)
-	s.ledger.ReleaseImport(busid, released)
+	released := s.finishImport(busid)
 	if released {
 		err := s.reconcileAndBroadcast(true)
 		if err != nil {
 			s.logger.Debug("reconcile after ", busid, ": ", err)
 		}
 	}
+}
+
+// finishImport must hold reconcileAccess: FinishImport mutates the
+// host's export table, and Reconcile snapshots that table, works on
+// the copy unlocked, then commits it wholesale — an unserialized
+// FinishImport in that window is overwritten by the stale commit
+// (leaking the re-captured device handle on darwin).
+func (s *ServerService) finishImport(busid string) bool {
+	s.reconcileAccess.Lock()
+	defer s.reconcileAccess.Unlock()
+	released, err := s.host.FinishImport(busid)
+	if err != nil {
+		s.logger.Debug("finish import ", busid, ": ", err)
+	}
+	s.ledger.ReleaseImport(busid, released)
+	return released
 }
 
 func (s *ServerService) reconcileAndBroadcast(notify bool) error {
@@ -340,13 +355,9 @@ func (s *ServerService) handleImportReserved(conn net.Conn, busid string, export
 		s.sessionsAccess.Lock()
 		delete(s.sessions, session)
 		s.sessionsAccess.Unlock()
-		released, err := s.host.FinishImport(busid)
-		if err != nil {
-			s.logger.Debug("finish import ", busid, ": ", err)
-		}
-		s.ledger.ReleaseImport(busid, released)
+		released := s.finishImport(busid)
 		if released {
-			err = s.reconcileAndBroadcast(true)
+			err := s.reconcileAndBroadcast(true)
 			if err != nil {
 				s.logger.Debug("reconcile after ", busid, ": ", err)
 			}
