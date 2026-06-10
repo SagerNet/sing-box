@@ -99,13 +99,13 @@ func (c *ClientService) Close() error {
 	return nil
 }
 
-func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description string) {
+func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description string, expected option.USBIPDeviceMatch) {
 	for {
 		if ctx.Err() != nil {
 			return
 		}
 		c.assignment.SetActive(busid, true)
-		session, err := c.attemptAttach(ctx, busid)
+		session, err := c.attemptAttach(ctx, busid, expected)
 		if err != nil {
 			c.assignment.SetActive(busid, false)
 			c.logger.Error("attach ", description, " (", busid, "): ", err)
@@ -146,7 +146,7 @@ func (c *ClientService) runBusIDLoop(ctx context.Context, busid, description str
 	}
 }
 
-func (c *ClientService) attemptAttach(ctx context.Context, busid string) (AttachedSession, error) {
+func (c *ClientService) attemptAttach(ctx context.Context, busid string, expected option.USBIPDeviceMatch) (AttachedSession, error) {
 	conn, err := c.dialer.DialContext(ctx, N.NetworkTCP, c.serverAddr)
 	if err != nil {
 		return nil, E.Cause(err, "dial ", c.serverAddr)
@@ -181,10 +181,67 @@ func (c *ClientService) attemptAttach(ctx context.Context, busid string) (Attach
 	if err != nil {
 		return nil, E.Cause(err, "read OP_REP_IMPORT body")
 	}
+	err = c.verifyImportedDevice(busid, info, expected)
+	if err != nil {
+		return nil, err
+	}
 	session, err := c.host.Attach(ctx, info, conn)
 	if err != nil {
 		return nil, err
 	}
 	releaseConn = false
 	return session, nil
+}
+
+// verifyImportedDevice checks the OP_REP_IMPORT identity against the
+// rule the worker is serving. Bus ids are positional: after a server
+// restart or a replug, the same busid can carry an arbitrary other
+// device, and the worker retries its last busid every few seconds —
+// without this check it would import whatever now sits on that port.
+func (c *ClientService) verifyImportedDevice(busid string, info DeviceInfoTruncated, expected option.USBIPDeviceMatch) error {
+	replyBusID := info.BusIDString()
+	if replyBusID != busid {
+		return E.New("server attached ", replyBusID, " instead of ", busid)
+	}
+	key := DeviceKey{
+		BusID:     busid,
+		VendorID:  info.IDVendor,
+		ProductID: info.IDProduct,
+		Serial:    info.SerialString(),
+	}
+	if key.Serial == "" {
+		// Standard usbipd replies carry no serial; fall back to the
+		// control snapshot (the state the assignment was made from).
+		if snapshotKey, found := c.remoteDeviceKey(busid); found &&
+			snapshotKey.VendorID == key.VendorID && snapshotKey.ProductID == key.ProductID {
+			key.Serial = snapshotKey.Serial
+		}
+	}
+	adjusted := expected
+	if adjusted.Serial != "" && key.Serial == "" {
+		// No serial available anywhere to compare against; enforcing it
+		// would reject every import from serial-less servers.
+		adjusted.Serial = ""
+	}
+	if !matches(adjusted, key) {
+		return E.New("imported device vid=", fmt.Sprintf("0x%04x", key.VendorID),
+			" pid=", fmt.Sprintf("0x%04x", key.ProductID),
+			" serial=", key.Serial, " does not match ", describeMatch(expected))
+	}
+	return nil
+}
+
+func (c *ClientService) remoteDeviceKey(busid string) (DeviceKey, bool) {
+	c.remoteAccess.Lock()
+	defer c.remoteAccess.Unlock()
+	device, found := c.remoteDevices[busid]
+	if !found {
+		return DeviceKey{}, false
+	}
+	return DeviceKey{
+		BusID:     device.BusID,
+		VendorID:  device.VendorID,
+		ProductID: device.ProductID,
+		Serial:    device.Serial,
+	}, true
 }

@@ -394,10 +394,10 @@ func (c *ClientService) runAssignedWorker(worker *clientAssignedWorker) {
 			if worker.target.fixedBusID != "" {
 				match = option.USBIPDeviceMatch{BusID: worker.target.fixedBusID}
 			}
-			go func(busid, description string) {
+			go func(busid, description string, expected option.USBIPDeviceMatch) {
 				defer close(done)
-				c.runBusIDLoop(runCtx, busid, description)
-			}(desired, describeMatch(match))
+				c.runBusIDLoop(runCtx, busid, description, expected)
+			}(desired, describeMatch(match), match)
 		}
 	}
 }
@@ -426,7 +426,7 @@ func (c *ClientService) startRemoteBusIDWorkerLocked(busid string) {
 	worker := &clientRemoteWorker{cancel: cancel}
 	c.allWorkers[busid] = worker
 	go func() {
-		c.runBusIDLoop(runCtx, busid, busid)
+		c.runBusIDLoop(runCtx, busid, busid, option.USBIPDeviceMatch{BusID: busid})
 		cancel()
 		c.workerAccess.Lock()
 		if c.allWorkers[busid] == worker {
