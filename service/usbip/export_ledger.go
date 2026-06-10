@@ -13,10 +13,12 @@ import (
 	"github.com/sagernet/sing-box/log"
 )
 
-// exportLedger holds two mutexes that are never acquired together.
-// BroadcastIfChanged computes the next state under inventoryAccess via
-// snapshotDeviceState, then takes broadcastAccess to compare against
-// l.state, swap it in, and snapshot the subscriber list.
+// exportLedger lock order: broadcastAccess may be taken first and then
+// inventoryAccess nested inside (BroadcastIfChanged computes the next
+// state via snapshotDeviceState while holding broadcastAccess, so that
+// compute and publish are one atomic step — two racing broadcasts can
+// otherwise publish out of order and lock in a stale snapshot). Code
+// holding inventoryAccess must never take broadcastAccess.
 type exportLedger struct {
 	logger log.ContextLogger
 	now    func() time.Time
@@ -113,31 +115,27 @@ func (l *exportLedger) ApplyHostSnapshot(snapshot map[string]Export, released []
 }
 
 func (l *exportLedger) SeedBroadcastState() {
-	nextState := controlDeviceInfoMap(l.snapshotDeviceState())
 	l.broadcastAccess.Lock()
-	l.state = nextState
+	l.state = controlDeviceInfoMap(l.snapshotDeviceState())
 	l.broadcastAccess.Unlock()
 }
 
+// BroadcastIfChanged computes, publishes, and enqueues the snapshot in
+// one broadcastAccess critical section. Enqueueing outside the lock
+// would let two racing broadcasts deliver in the opposite order they
+// published, leaving subscribers on the stale snapshot. Enqueue is a
+// non-blocking channel send, so holding the lock across it is cheap.
 func (l *exportLedger) BroadcastIfChanged() bool {
-	nextState := controlDeviceInfoMap(l.snapshotDeviceState())
-
 	l.broadcastAccess.Lock()
+	defer l.broadcastAccess.Unlock()
+	nextState := controlDeviceInfoMap(l.snapshotDeviceState())
 	if maps.EqualFunc(l.state, nextState, controlDeviceInfoEqual) {
-		l.broadcastAccess.Unlock()
 		return false
 	}
 	l.state = nextState
-	devices := sortedControlDeviceInfoValues(nextState)
-	targets := make([]*exportSubscriber, 0, len(l.subs))
-	for _, sub := range l.subs {
-		targets = append(targets, sub)
-	}
-	l.broadcastAccess.Unlock()
-
 	frame := controlFrame{Type: controlFrameDeviceSnapshot, Version: controlProtocolVersion}
-	payload := controlDeviceSnapshot{Devices: devices}
-	for _, sub := range targets {
+	payload := controlDeviceSnapshot{Devices: sortedControlDeviceInfoValues(nextState)}
+	for _, sub := range l.subs {
 		l.enqueuePayload(sub, frame, payload)
 	}
 	return true
