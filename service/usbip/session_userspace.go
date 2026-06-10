@@ -10,6 +10,7 @@ import (
 	"net"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common"
@@ -41,10 +42,18 @@ type userspaceURBSession struct {
 	closeErr    error
 }
 
+// started marks a submit whose goroutine has been scheduled; entered
+// marks one whose goroutine has actually reached engine.Submit. The
+// gap matters for unlink: aborting an endpoint before the submit
+// reaches the engine aborts nothing, and the submit then blocks in the
+// engine forever (engines time out EP0 only). Unlinking a started but
+// not yet entered submit therefore flips unlinked and lets the gate in
+// startSubmit skip the engine instead of aborting.
 type userspaceSubmitState struct {
 	command  SubmitCommand
 	endpoint uint8
 	started  bool
+	entered  bool
 	unlinked bool
 	drained  chan struct{}
 }
@@ -125,10 +134,7 @@ func (s *userspaceURBSession) run() {
 func (s *userspaceURBSession) serve() error {
 	stopCloseOnCancel := closeConnOnContextDone(s.ctx, s.conn)
 	defer stopCloseOnCancel()
-	defer func() {
-		s.abortPendingSubmits()
-		s.wg.Wait()
-	}()
+	defer s.drainSubmits()
 	for {
 		header, err := ReadDataHeader(s.conn)
 		if err != nil {
@@ -161,7 +167,7 @@ func (s *userspaceURBSession) serve() error {
 						s.logger.Debug("abort endpoint 0x", hex8(endpoint), ": ", abortErr)
 					}
 				}
-				<-drained
+				s.awaitDrained(endpoint, drained, shouldAbort)
 				status = usbipStatusECONNRESET
 			}
 			s.writeAccess.Lock()
@@ -214,9 +220,13 @@ func (s *userspaceURBSession) startSubmit(next userspaceNextSubmit) {
 	go func() {
 		defer s.wg.Done()
 
-		response := s.handleSubmit(next.command)
+		var response SubmitResponse
+		entered := s.enterSubmit(next.sequence)
+		if entered {
+			response = s.handleSubmit(next.command)
+		}
 		shouldSend, followUp, hasFollowUp := s.finishSubmit(next.sequence)
-		if shouldSend {
+		if shouldSend && entered {
 			s.writeAccess.Lock()
 			err := WriteSubmitResponse(s.conn, response)
 			s.writeAccess.Unlock()
@@ -228,6 +238,51 @@ func (s *userspaceURBSession) startSubmit(next userspaceNextSubmit) {
 			s.startSubmit(followUp)
 		}
 	}()
+}
+
+// enterSubmit is the gate between scheduling and the blocking engine
+// call. It transfers responsibility atomically: if an unlink marked the
+// submit first, the goroutine skips the engine; once entered is set,
+// the unlinker knows aborting the endpoint will reach this submit.
+func (s *userspaceURBSession) enterSubmit(seq uint32) bool {
+	s.access.Lock()
+	defer s.access.Unlock()
+	pending, found := s.pending[seq]
+	if !found || pending.unlinked {
+		return false
+	}
+	pending.entered = true
+	s.pending[seq] = pending
+	return true
+}
+
+// awaitDrained waits for the unlinked submit's goroutine to leave the
+// engine. The endpoint abort and the submit's entry into the engine
+// race inside the driver, so a single abort may fire before the URB is
+// queued and strand it; re-abort periodically until the drain closes.
+func (s *userspaceURBSession) awaitDrained(endpoint uint8, drained <-chan struct{}, reAbort bool) {
+	if !reAbort {
+		<-drained
+		return
+	}
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-drained:
+			return
+		case <-ticker.C:
+			select {
+			case <-drained:
+				return
+			default:
+			}
+			abortErr := s.engine.AbortEndpoint(endpoint)
+			if abortErr != nil {
+				s.logger.Debug("re-abort endpoint 0x", hex8(endpoint), ": ", abortErr)
+			}
+		}
+	}
 }
 
 func (s *userspaceURBSession) handleSubmit(command SubmitCommand) SubmitResponse {
@@ -339,7 +394,7 @@ func (s *userspaceURBSession) unlinkSubmit(seq uint32) (uint8, <-chan struct{}, 
 		close(drained)
 		return pending.endpoint, drained, false, true
 	}
-	shouldAbort := !pending.unlinked
+	shouldAbort := pending.entered && !pending.unlinked
 	pending.unlinked = true
 	s.pending[seq] = pending
 	s.access.Unlock()
@@ -393,6 +448,33 @@ func (s *userspaceURBSession) finishSubmit(seq uint32) (bool, userspaceNextSubmi
 	return !unlinked, followUp, hasFollowUp
 }
 
+// drainSubmits tears down all outstanding submits at session end and
+// waits for their goroutines. Submits stuck in the engine are aborted
+// repeatedly: the first abort can race ahead of a submit that was
+// scheduled but had not reached the engine yet.
+func (s *userspaceURBSession) drainSubmits() {
+	s.abortPendingSubmits()
+	waitDone := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(waitDone)
+	}()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-waitDone:
+			return
+		case <-ticker.C:
+			s.abortPendingSubmits()
+		}
+	}
+}
+
+// abortPendingSubmits unlinks every outstanding submit and aborts the
+// endpoints of those already inside the engine. Idempotent; submits
+// that have not passed the enterSubmit gate skip the engine on their
+// own once marked unlinked.
 func (s *userspaceURBSession) abortPendingSubmits() {
 	var (
 		activeEndpoints []uint8
@@ -409,7 +491,7 @@ func (s *userspaceURBSession) abortPendingSubmits() {
 			}
 			continue
 		}
-		if !pending.unlinked {
+		if pending.entered {
 			seen[pending.endpoint] = struct{}{}
 		}
 		pending.unlinked = true
