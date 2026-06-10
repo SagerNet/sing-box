@@ -1,4 +1,4 @@
-//go:build unix && !ios
+//go:build unix
 
 package tailssh
 
