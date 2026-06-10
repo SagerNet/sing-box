@@ -17,9 +17,12 @@ type clientAssignment struct {
 	matchedKnownKeys map[string]DeviceKey
 
 	allDesired map[string]struct{}
-	registered map[string]struct{}
 
-	activeBusIDs map[string]struct{}
+	// activeBusIDs counts attach attempts per busid. A count, not a
+	// flag: during matched-mode handoff two workers briefly reference
+	// the same busid, and a failing worker's deactivation must not
+	// erase the mark of the worker that is genuinely attached.
+	activeBusIDs map[string]int
 }
 
 func newClientAssignment(matches []option.USBIPDeviceMatch) *clientAssignment {
@@ -42,8 +45,7 @@ func newClientAssignment(matches []option.USBIPDeviceMatch) *clientAssignment {
 	return &clientAssignment{
 		targets:      targets,
 		allDesired:   make(map[string]struct{}),
-		registered:   make(map[string]struct{}),
-		activeBusIDs: make(map[string]struct{}),
+		activeBusIDs: make(map[string]int),
 	}
 }
 
@@ -66,10 +68,21 @@ func (a *clientAssignment) SetActive(busid string, active bool) {
 	a.access.Lock()
 	defer a.access.Unlock()
 	if active {
-		a.activeBusIDs[busid] = struct{}{}
-	} else {
-		delete(a.activeBusIDs, busid)
+		a.activeBusIDs[busid]++
+		return
 	}
+	count := a.activeBusIDs[busid]
+	if count <= 1 {
+		delete(a.activeBusIDs, busid)
+	} else {
+		a.activeBusIDs[busid] = count - 1
+	}
+}
+
+func (a *clientAssignment) IsActive(busid string) bool {
+	a.access.Lock()
+	defer a.access.Unlock()
+	return a.activeBusIDs[busid] > 0
 }
 
 func (a *clientAssignment) ApplyMatched(entries []DeviceEntry, knownKeys map[string]DeviceKey) (next []string, previous []string) {
@@ -90,44 +103,15 @@ func (a *clientAssignment) ApplyMatched(entries []DeviceEntry, knownKeys map[str
 	return nextAssigned, prev
 }
 
-func (a *clientAssignment) ApplyAll(entries []DeviceEntry) (start []string, stop []string) {
-	desired := make(map[string]struct{}, len(entries))
-	for i := range entries {
-		busid := entries[i].Info.BusIDString()
-		if busid == "" {
-			continue
-		}
-		desired[busid] = struct{}{}
-	}
+func (a *clientAssignment) SetAllDesired(desired map[string]struct{}) {
 	a.access.Lock()
-	defer a.access.Unlock()
 	a.allDesired = desired
-	for busid := range a.registered {
-		if _, ok := desired[busid]; ok {
-			continue
-		}
-		if _, active := a.activeBusIDs[busid]; active {
-			continue
-		}
-		stop = append(stop, busid)
-		delete(a.registered, busid)
-	}
-	for busid := range desired {
-		if _, ok := a.registered[busid]; ok {
-			continue
-		}
-		start = append(start, busid)
-		a.registered[busid] = struct{}{}
-	}
-	return start, stop
+	a.access.Unlock()
 }
 
 func (a *clientAssignment) IsRetryDesired(busid string) bool {
 	a.access.Lock()
 	defer a.access.Unlock()
-	if _, registered := a.registered[busid]; !registered {
-		return false
-	}
 	_, desired := a.allDesired[busid]
 	return desired
 }
@@ -276,7 +260,7 @@ func (a *clientAssignment) activeCurrentAssignmentsLocked(current []string, know
 		if _, ok := knownKeys[busid]; !ok {
 			continue
 		}
-		if _, active := a.activeBusIDs[busid]; !active {
+		if a.activeBusIDs[busid] == 0 {
 			continue
 		}
 		if activeCurrent == nil {

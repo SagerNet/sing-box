@@ -292,27 +292,51 @@ func (c *ClientService) applyRemoteDeviceState(devices []ControlDeviceInfo) {
 	c.applyMatchedExportsWithRetained(availableEntries, knownKeys)
 }
 
+// applyRemoteExports reconciles the all-devices worker set against a
+// devlist/snapshot in one workerAccess critical section. allWorkers is
+// the single source of truth for running workers; diffing and mutating
+// it under separate locks let a concurrent sync interleave and start a
+// second worker for the same busid.
 func (c *ClientService) applyRemoteExports(entries []DeviceEntry) {
-	start, stop := c.assignment.ApplyAll(entries)
-
-	c.workerAccess.Lock()
-	stopCancels := make([]context.CancelFunc, 0, len(stop))
-	for _, busid := range stop {
-		cancel, ok := c.allWorkers[busid]
-		if !ok {
+	desired := make(map[string]struct{}, len(entries))
+	for i := range entries {
+		busid := entries[i].Info.BusIDString()
+		if busid == "" {
 			continue
 		}
-		stopCancels = append(stopCancels, cancel)
+		desired[busid] = struct{}{}
+	}
+
+	c.workerAccess.Lock()
+	c.assignment.SetAllDesired(desired)
+	var stopCancels []context.CancelFunc
+	for busid, worker := range c.allWorkers {
+		if _, wanted := desired[busid]; wanted {
+			continue
+		}
+		// A busy device is omitted from devlists; never stop the worker
+		// that is the reason it is busy.
+		if c.assignment.IsActive(busid) {
+			continue
+		}
+		stopCancels = append(stopCancels, worker.cancel)
 		delete(c.allWorkers, busid)
+	}
+	var start []string
+	for busid := range desired {
+		if _, exists := c.allWorkers[busid]; exists {
+			continue
+		}
+		start = append(start, busid)
+	}
+	slices.Sort(start)
+	for _, busid := range start {
+		c.startRemoteBusIDWorkerLocked(busid)
 	}
 	c.workerAccess.Unlock()
 
 	for _, cancel := range stopCancels {
 		cancel()
-	}
-	slices.Sort(start)
-	for _, busid := range start {
-		c.startRemoteBusIDWorker(busid, busid)
 	}
 }
 
@@ -391,29 +415,37 @@ func (w *clientAssignedWorker) setDesiredBusID(busid string) {
 	w.updates <- busid
 }
 
-func (c *ClientService) startRemoteBusIDWorker(busid, description string) {
+// startRemoteBusIDWorkerLocked must run under workerAccess. The worker
+// removes itself from allWorkers when it exits on its own (export
+// disappeared); the identity check keeps a stop-and-restart for the
+// same busid from deleting its successor. If the busid became desired
+// again while the worker was deciding to exit, restart it immediately —
+// the next snapshot may be far away.
+func (c *ClientService) startRemoteBusIDWorkerLocked(busid string) {
 	runCtx, cancel := context.WithCancel(c.ctx)
-
-	c.workerAccess.Lock()
-	c.allWorkers[busid] = cancel
-	c.workerAccess.Unlock()
-
+	worker := &clientRemoteWorker{cancel: cancel}
+	c.allWorkers[busid] = worker
 	go func() {
-		c.runBusIDLoop(runCtx, busid, description)
+		c.runBusIDLoop(runCtx, busid, busid)
+		cancel()
+		c.workerAccess.Lock()
+		if c.allWorkers[busid] == worker {
+			delete(c.allWorkers, busid)
+			if c.ctx.Err() == nil && c.assignment.IsRetryDesired(busid) {
+				c.startRemoteBusIDWorkerLocked(busid)
+			}
+		}
+		c.workerAccess.Unlock()
 	}()
 }
 
 func (c *ClientService) stopAllWorkers() {
-	c.assignment.access.Lock()
-	c.assignment.registered = make(map[string]struct{})
-	c.assignment.access.Unlock()
-
 	c.workerAccess.Lock()
 	cancels := make([]context.CancelFunc, 0, len(c.allWorkers))
-	for _, cancel := range c.allWorkers {
-		cancels = append(cancels, cancel)
+	for _, worker := range c.allWorkers {
+		cancels = append(cancels, worker.cancel)
 	}
-	c.allWorkers = make(map[string]context.CancelFunc)
+	c.allWorkers = make(map[string]*clientRemoteWorker)
 	c.workerAccess.Unlock()
 
 	for _, cancel := range cancels {

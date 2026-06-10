@@ -27,13 +27,21 @@ type ClientService struct {
 	serverAddr M.Socksaddr
 	host       ImportHost
 
+	// workerAccess guards assignedWorkers and allWorkers. All-devices
+	// worker bookkeeping (diffing the desired set, starting, stopping,
+	// self-removal) happens in single workerAccess critical sections;
+	// assignment.access may be taken nested inside, never the reverse.
 	assignment      *clientAssignment
 	workerAccess    sync.Mutex
 	assignedWorkers []*clientAssignedWorker
-	allWorkers      map[string]context.CancelFunc
+	allWorkers      map[string]*clientRemoteWorker
 
 	remoteAccess  sync.Mutex
 	remoteDevices map[string]ControlDeviceInfo
+}
+
+type clientRemoteWorker struct {
+	cancel context.CancelFunc
 }
 
 func NewClientService(ctx context.Context, logger log.ContextLogger, tag string, options option.USBIPClientServiceOptions) (adapter.Service, error) {
@@ -66,7 +74,7 @@ func NewClientService(ctx context.Context, logger log.ContextLogger, tag string,
 		serverAddr: options.ServerOptions.Build(),
 		host:       host,
 		assignment: newClientAssignment(options.Devices),
-		allWorkers: make(map[string]context.CancelFunc),
+		allWorkers: make(map[string]*clientRemoteWorker),
 	}, nil
 }
 
