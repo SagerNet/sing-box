@@ -559,35 +559,48 @@ func (h *linuxExportHost) releaseExport(exp *linuxExport) error {
 	if err != nil {
 		return err
 	}
-	restoreCurrentDevice, err := h.shouldRestoreCurrentDevice(exp)
-	if err != nil {
-		return err
-	}
-	if !restoreCurrentDevice {
-		h.logger.Info("removed export state for ", exp.busid)
-		return nil
-	}
-	if exp.originalDriver == "" {
-		h.logger.Info("released ", exp.busid, " from usbip-host")
-		return nil
-	}
-	err = writeSysfs(filepath.Join("/sys/bus/usb/drivers", exp.originalDriver, "bind"), exp.busid)
-	if err != nil {
-		return err
-	}
-	h.logger.Info("restored ", exp.busid, " to ", exp.originalDriver)
-	return nil
-}
-
-func (h *linuxExportHost) shouldRestoreCurrentDevice(exp *linuxExport) (bool, error) {
 	descriptor, err := readSysfsDevice(exp.busid, filepath.Join(sysBusUSBDevices, exp.busid))
 	if err != nil {
 		if os.IsNotExist(err) || isMissingUSBDeviceError(err) {
-			return false, nil
+			h.logger.Info("removed export state for ", exp.busid)
+			return nil
 		}
-		return false, E.Cause(err, "read current device ", exp.busid)
+		return E.Cause(err, "read current device ", exp.busid)
 	}
-	return exp.identity.Equal(newLinuxExportIdentity(descriptor)), nil
+	if exp.originalDriver != "" && exp.identity.Equal(newLinuxExportIdentity(descriptor)) {
+		err = writeSysfs(filepath.Join("/sys/bus/usb/drivers", exp.originalDriver, "bind"), exp.busid)
+		if err == nil {
+			h.logger.Info("restored ", exp.busid, " to ", exp.originalDriver)
+			return nil
+		}
+		h.logger.Warn("bind ", exp.busid, " back to ", exp.originalDriver, ": ", err)
+	}
+	// Device replaced while exported, original driver unknown, or the
+	// precise re-bind failed. The USB core never re-probes a driverless
+	// device on its own — without an explicit re-probe the device stays
+	// dead until physically replugged.
+	err = h.reprobeDevice(exp.busid)
+	if err != nil {
+		return E.Cause(err, "re-probe ", exp.busid)
+	}
+	h.logger.Info("released ", exp.busid, " for driver re-probe")
+	return nil
+}
+
+// reprobeDevice asks the kernel to attach a driver to a currently
+// driverless device. usbip-host's rebind attribute calls
+// device_attach — the path the official usbip unbind tool uses;
+// drivers_probe is the bus-generic fallback.
+func (h *linuxExportHost) reprobeDevice(busid string) error {
+	err := writeSysfs(filepath.Join(sysUsbipHostDriver, "rebind"), busid)
+	if err == nil {
+		return nil
+	}
+	probeErr := writeSysfs("/sys/bus/usb/drivers_probe", busid)
+	if probeErr == nil {
+		return nil
+	}
+	return E.Errors(err, probeErr)
 }
 
 func (h *linuxExportHost) newExport(descriptor sysfsDevice, managed bool, originalDriver string) *linuxExport {
