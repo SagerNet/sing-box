@@ -45,9 +45,8 @@ var (
 )
 
 func installDriver() error {
-	controller, err := Open()
+	err := probeDriver()
 	if err == nil {
-		_ = controller.Close()
 		return nil
 	}
 
@@ -69,9 +68,8 @@ func installDriver() error {
 	defer windows.ReleaseMutex(mutex)
 
 	// Another process may have completed the install while we waited.
-	controller, err = Open()
+	err = probeDriver()
 	if err == nil {
-		_ = controller.Close()
 		return nil
 	}
 
@@ -86,6 +84,28 @@ func installDriver() error {
 		return E.Cause(err, "usbipvhci: create VHCI devnode")
 	}
 	return waitForInterface(20 * time.Second)
+}
+
+// probeDriver verifies not just that the VHCI interface exists but that
+// the bound driver speaks the bundled ABI. The interface GUID is
+// identical across all usbip-win2 releases, while PLUGIN_HARDWARE_ONCE
+// and STOP_ATTACH_ATTEMPTS only exist since 0.9.7.5 — an installed
+// community release older than that opens fine and then fails every
+// Plugin, so interface presence alone must not short-circuit the
+// install. The probe doubles as cleanup: the empty location means
+// "cancel all scheduled attach attempts", discarding ghost reconnects
+// left over from a previous process toward dead loopback ports.
+func probeDriver() error {
+	controller, err := Open()
+	if err != nil {
+		return err
+	}
+	defer controller.Close()
+	_, err = controller.StopAttachAttempts("", "", "")
+	if err != nil {
+		return E.Cause(err, "usbipvhci: installed driver lacks STOP_ATTACH_ATTEMPTS (older than 0.9.7.5); upgrading")
+	}
+	return nil
 }
 
 // addToDriverStore imports an INF (and its catalog-verified payload) into
@@ -179,9 +199,8 @@ func updateDriverForPlugAndPlayDevices(hardwareID, infPath string) error {
 func waitForInterface(timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
-		controller, err := Open()
+		err := probeDriver()
 		if err == nil {
-			_ = controller.Close()
 			return nil
 		}
 		if time.Now().After(deadline) {
