@@ -136,7 +136,7 @@ func (m *Monitor) ioctl(code uint32, in []byte, out []byte) (uint32, error) {
 // Layout (offsets):
 //
 //	 0 u32Magic    uint32  (0x19670408)
-//	 4 enmType     uint32  (5 = CAPTURE)
+//	 4 enmType     uint32  (4 = CAPTURE)
 //	 8 aFields     [11]{enmMatch uint16, u16Value uint16}  (44 bytes)
 //	52 offCurEnd   uint32  (0)
 //	56 achStrTab   [256]byte  (0)
@@ -148,7 +148,7 @@ func (m *Monitor) ioctl(code uint32, in []byte, out []byte) (uint32, error) {
 func encodeFilter(f Filter) [312]byte {
 	const (
 		filterMagic   uint32 = 0x19670408
-		filterCapture uint32 = 5 // UsbFilterType.CAPTURE
+		filterCapture uint32 = 4 // UsbFilterType.CAPTURE (5 is END, the enum sentinel)
 		matchIgnore   uint16 = 1 // UsbFilterMatch.IGNORE
 		matchNumExact uint16 = 3 // UsbFilterMatch.NUM_EXACT
 	)
