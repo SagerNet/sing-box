@@ -31,6 +31,9 @@ func (iosShellBackend) Close() error {
 	return nil
 }
 
-func lookupSFTPServer(_ adapter.PlatformInterface) (string, error) {
-	return "", E.New("sftp is not supported on iOS and tvOS")
+func lookupSFTPServer(platformInterface adapter.PlatformInterface) (string, error) {
+	if platformInterface == nil {
+		return "", E.New("sftp is not supported on iOS and tvOS")
+	}
+	return platformInterface.LookupSFTPServer()
 }
