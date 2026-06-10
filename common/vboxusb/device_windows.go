@@ -14,13 +14,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Device holds an open handle to one VBoxUSB-claimed USB device plus a
-// private event for overlapped I/O. Methods are not safe for
-// concurrent use on the same Device — the session layer serializes
-// per-endpoint via per-endpoint goroutines.
+// Device holds an open handle to one VBoxUSB-claimed USB device.
+// Methods are safe for concurrent use: the session layer runs one
+// goroutine per endpoint, so URBs for different endpoints (and aborts)
+// overlap on this handle, each with its own OVERLAPPED + event.
 type Device struct {
 	handle   windows.Handle
-	event    windows.Handle
 	closing  sync.Once
 	closeErr error
 }
@@ -51,34 +50,17 @@ func OpenDevice(interfacePath string) (*Device, error) {
 	// Skip IOCP wakeup on synchronous completion. Tolerated on Windows
 	// 7+; ignore errors since the slow path still works.
 	_ = windows.SetFileCompletionNotificationModes(handle, windows.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)
-	event, err := windows.CreateEvent(nil, 1, 0, nil)
-	if err != nil {
-		windows.CloseHandle(handle)
-		return nil, E.Cause(err, "vboxusb: create event")
-	}
-	return &Device{handle: handle, event: event}, nil
+	return &Device{handle: handle}, nil
 }
 
 // Close releases the handle. Aborts any in-flight IOCTLs (they return
 // ERROR_OPERATION_ABORTED). Idempotent.
 func (d *Device) Close() error {
 	d.closing.Do(func() {
-		var errs []error
 		if d.handle != 0 {
-			err := windows.CloseHandle(d.handle)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			d.closeErr = windows.CloseHandle(d.handle)
 			d.handle = 0
 		}
-		if d.event != 0 {
-			err := windows.CloseHandle(d.event)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			d.event = 0
-		}
-		d.closeErr = E.Errors(errs...)
 	})
 	return d.closeErr
 }
@@ -268,13 +250,22 @@ func (e *URBStatusError) Error() string {
 }
 
 func (d *Device) ioctl(code uint32, in []byte, out []byte) (uint32, error) {
-	return overlappedIoctl(d.handle, code, in, out, d.event)
+	return overlappedIoctl(d.handle, code, in, out)
 }
 
-func overlappedIoctl(handle windows.Handle, code uint32, in []byte, out []byte, event windows.Handle) (uint32, error) {
+// overlappedIoctl issues one DeviceIoControl with a dedicated
+// OVERLAPPED and event. Sharing one event across simultaneously
+// pending IOCTLs is forbidden by the overlapped-I/O contract: the
+// first completion would release every waiter with the first
+// operation's results.
+func overlappedIoctl(handle windows.Handle, code uint32, in []byte, out []byte) (uint32, error) {
+	event, err := windows.CreateEvent(nil, 1, 0, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer windows.CloseHandle(event)
 	var overlapped windows.Overlapped
 	overlapped.HEvent = event
-	_ = windows.ResetEvent(event)
 	var inPtr *byte
 	var inLen uint32
 	if len(in) > 0 {
@@ -288,7 +279,7 @@ func overlappedIoctl(handle windows.Handle, code uint32, in []byte, out []byte, 
 		outLen = uint32(len(out))
 	}
 	var returned uint32
-	err := windows.DeviceIoControl(handle, code, inPtr, inLen, outPtr, outLen, &returned, &overlapped)
+	err = windows.DeviceIoControl(handle, code, inPtr, inLen, outPtr, outLen, &returned, &overlapped)
 	if err != nil && !errors.Is(err, windows.ERROR_IO_PENDING) {
 		return 0, err
 	}

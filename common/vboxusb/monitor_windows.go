@@ -14,14 +14,11 @@ import (
 
 // Monitor is a handle to \\.\VBoxUSBMon. It is shared across the
 // process (one global monitor handle per sing-box server); per-device
-// filters are added/removed against it. Concurrent ADD_FILTER /
-// REMOVE_FILTER calls are serialized inside the driver but our handle
-// reuses a single overlapped event — so Monitor methods are not safe
-// for concurrent use across goroutines. The caller (the export host)
-// is expected to serialize.
+// filters are added/removed against it. Methods are safe for
+// concurrent use: each IOCTL carries its own OVERLAPPED + event and
+// the driver serializes filter mutations internally.
 type Monitor struct {
 	handle   windows.Handle
-	event    windows.Handle
 	closing  sync.Once
 	closeErr error
 }
@@ -52,32 +49,15 @@ func OpenMonitor() (*Monitor, error) {
 		}
 		return nil, E.Cause(err, "vboxusb: open monitor")
 	}
-	event, err := windows.CreateEvent(nil, 1, 0, nil)
-	if err != nil {
-		windows.CloseHandle(handle)
-		return nil, E.Cause(err, "vboxusb: create monitor event")
-	}
-	return &Monitor{handle: handle, event: event}, nil
+	return &Monitor{handle: handle}, nil
 }
 
 func (m *Monitor) Close() error {
 	m.closing.Do(func() {
-		var errs []error
 		if m.handle != 0 {
-			err := windows.CloseHandle(m.handle)
-			if err != nil {
-				errs = append(errs, err)
-			}
+			m.closeErr = windows.CloseHandle(m.handle)
 			m.handle = 0
 		}
-		if m.event != 0 {
-			err := windows.CloseHandle(m.event)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			m.event = 0
-		}
-		m.closeErr = E.Errors(errs...)
 	})
 	return m.closeErr
 }
@@ -126,7 +106,7 @@ func (m *Monitor) RemoveFilter(id uint64) error {
 }
 
 func (m *Monitor) ioctl(code uint32, in []byte, out []byte) (uint32, error) {
-	return overlappedIoctl(m.handle, code, in, out, m.event)
+	return overlappedIoctl(m.handle, code, in, out)
 }
 
 // encodeFilter builds a 312-byte USBFILTER packed struct matching the
