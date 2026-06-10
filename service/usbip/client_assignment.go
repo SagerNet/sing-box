@@ -51,6 +51,17 @@ func (a *clientAssignment) Matched() bool {
 	return len(a.targets) > 0
 }
 
+// HasSerialTargets reports whether any match rule requires a serial
+// number. targets is immutable after construction.
+func (a *clientAssignment) HasSerialTargets() bool {
+	for _, target := range a.targets {
+		if target.match.Serial != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *clientAssignment) SetActive(busid string, active bool) {
 	a.access.Lock()
 	defer a.access.Unlock()

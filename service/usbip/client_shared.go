@@ -23,6 +23,13 @@ const (
 	controlSessionIdleHint       = "control session lost"
 	controlHandshakeBackoffStart = time.Second
 	controlHandshakeBackoffMax   = 30 * time.Second
+
+	// Standard usbipd has no change notifications; poll the devlist so
+	// replugged or re-enumerated devices are discovered, and re-probe
+	// the control extension occasionally in case the server was
+	// upgraded to sing-box.
+	staticModeRefreshInterval      = 15 * time.Second
+	staticModeControlRetryInterval = 10 * time.Minute
 )
 
 var (
@@ -115,12 +122,30 @@ func (c *ClientService) run() {
 }
 
 func (c *ClientService) runStandardStaticMode() error {
+	if c.assignment.HasSerialTargets() {
+		c.logger.Warn("serial device matches cannot be evaluated against a standard usbipd server (its device list carries no serial numbers)")
+	}
 	err := c.syncRemoteStateContext(c.ctx)
 	if err != nil {
 		return E.Cause(err, "initial static devlist sync")
 	}
-	<-c.ctx.Done()
-	return nil
+	refresh := time.NewTicker(staticModeRefreshInterval)
+	defer refresh.Stop()
+	retryControl := time.NewTimer(staticModeControlRetryInterval)
+	defer retryControl.Stop()
+	for {
+		select {
+		case <-c.ctx.Done():
+			return nil
+		case <-retryControl.C:
+			return nil
+		case <-refresh.C:
+			err = c.syncRemoteStateContext(c.ctx)
+			if err != nil && c.ctx.Err() == nil {
+				c.logger.Debug("static devlist refresh: ", err)
+			}
+		}
+	}
 }
 
 func (c *ClientService) runControlSession() error {
