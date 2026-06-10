@@ -1,4 +1,4 @@
-//go:build !linux && !android && (!darwin || ios)
+//go:build !linux && !android && !darwin && !ios
 
 package libbox
 

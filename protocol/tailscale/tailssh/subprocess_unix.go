@@ -1,13 +1,13 @@
-//go:build unix && !ios
+//go:build unix
 
 package tailssh
 
 import (
 	"os"
 	"os/exec"
-	"runtime"
 	"syscall"
 
+	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/creack/pty"
@@ -75,9 +75,9 @@ func setCredential(attr *syscall.SysProcAttr, uid, gid int, groups []int) {
 	if uid == os.Getuid() && gid == os.Getgid() {
 		return
 	}
-	// macOS rejects setgroups with more than 16 groups (EINVAL), which fails the
-	// exec; cap to the first 16.
-	if runtime.GOOS == "darwin" && len(groups) > 16 {
+	// macOS and iOS reject setgroups with more than 16 groups (EINVAL), which
+	// fails the exec; cap to the first 16.
+	if C.IsDarwin && len(groups) > 16 {
 		groups = groups[:16]
 	}
 	cred := &syscall.Credential{
