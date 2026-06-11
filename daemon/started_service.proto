@@ -6,6 +6,7 @@ option go_package = "github.com/sagernet/sing-box/daemon";
 import "google/protobuf/empty.proto";
 
 service StartedService {
+  rpc GetVersion(google.protobuf.Empty) returns(Version) {}
   rpc SubscribeServiceStatus(google.protobuf.Empty) returns(stream ServiceStatus) {}
   rpc SubscribeLog(google.protobuf.Empty) returns(stream Log) {}
   rpc GetDefaultLogLevel(google.protobuf.Empty) returns(DefaultLogLevel) {}
@@ -37,6 +38,11 @@ service StartedService {
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
   rpc TailscaleLogout(TailscaleLogoutRequest) returns (google.protobuf.Empty) {}
   rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
+}
+
+message Version {
+  string version = 1;
+  int32 apiVersion = 2;
 }
 
 message ServiceStatus {
