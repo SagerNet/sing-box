@@ -5,10 +5,10 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"runtime"
 	"runtime/debug"
 	"time"
 
-	"github.com/sagernet/sing-box/experimental/clashapi/trafficontrol"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/ws"
 	"github.com/sagernet/ws/wsutil"
@@ -28,7 +28,7 @@ func (s *Server) setupMetaAPI(r chi.Router) {
 		})
 		r.Mount("/", middleware.Profiler())
 	}
-	r.Get("/memory", memory(s.ctx, s.trafficManager))
+	r.Get("/memory", memory(s.ctx))
 	r.Mount("/group", groupRouter(s))
 	r.Mount("/upgrade", upgradeRouter(s))
 }
@@ -38,7 +38,13 @@ type Memory struct {
 	OSLimit uint64 `json:"oslimit"` // maybe we need it in the future
 }
 
-func memory(ctx context.Context, trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
+func inuseMemory() uint64 {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	return memStats.StackInuse + memStats.HeapInuse + memStats.HeapIdle - memStats.HeapReleased
+}
+
+func memory(ctx context.Context) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var conn net.Conn
 		if r.Header.Get("Upgrade") == "websocket" {
@@ -68,7 +74,7 @@ func memory(ctx context.Context, trafficManager *trafficontrol.Manager) func(w h
 			}
 			buf.Reset()
 
-			inuse := trafficManager.Snapshot().Memory
+			inuse := inuseMemory()
 
 			// make chat.js begin with zero
 			// this is shit var,but we need output 0 for first time

@@ -121,7 +121,7 @@ func (s *StartedService) StartTailscaleSSHSession(
 	}
 	sshClient := ssh.NewClient(sshConn, chans, reqs)
 
-	if start.ForwardAgent {
+	if start.ForwardAgent && s.handler != nil {
 		agentChannels := sshClient.HandleChannelOpen("auth-agent@openssh.com")
 		if agentChannels != nil {
 			go func() {
@@ -176,7 +176,7 @@ func (s *StartedService) StartTailscaleSSHSession(
 		}))
 	}
 
-	if start.ForwardAgent {
+	if start.ForwardAgent && s.handler != nil {
 		err = agent.RequestAgentForwarding(sshSession)
 		if err != nil {
 			common.Close(sshSession, sshClient)
