@@ -23,6 +23,7 @@ icon: material/new-box
 
 | 类型              | 格式                                  |
 |-------------------|---------------------------------------|
+| `api`             | [sing-box API](./api)                 |
 | `ccm`             | [CCM](./ccm)                          |
 | `derp`            | [DERP](./derp)                        |
 | `hysteria-realm`  | [Hysteria Realm](./hysteria-realm)    |

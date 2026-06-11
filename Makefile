@@ -264,8 +264,8 @@ lib_apple_new:
 	$(SING_FFI) generate --config $(LIBBOX_FFI_CONFIG) --platform-type apple
 
 lib_install:
-	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.12
-	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.1.12
+	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.13
+	go install -v github.com/sagernet/gomobile/cmd/gobind@v0.1.13
 
 docs:
 	venv/bin/mkdocs serve
