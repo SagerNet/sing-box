@@ -13,9 +13,9 @@ import (
 
 type ClashServer interface {
 	LifecycleService
-	ConnectionTracker
 	Mode() string
 	ModeList() []string
+	SetMode(mode string)
 	SetModeUpdateHook(hook *observable.Subscriber[struct{}])
 	HistoryStorage() URLTestHistoryStorage
 }
