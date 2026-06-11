@@ -15,6 +15,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	StartedService_GetVersion_FullMethodName               = "/daemon.StartedService/GetVersion"
 	StartedService_SubscribeServiceStatus_FullMethodName   = "/daemon.StartedService/SubscribeServiceStatus"
 	StartedService_SubscribeLog_FullMethodName             = "/daemon.StartedService/SubscribeLog"
 	StartedService_GetDefaultLogLevel_FullMethodName       = "/daemon.StartedService/GetDefaultLogLevel"
@@ -47,6 +48,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StartedServiceClient interface {
+	GetVersion(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Version, error)
 	SubscribeServiceStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServiceStatus], error)
 	SubscribeLog(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Log], error)
 	GetDefaultLogLevel(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*DefaultLogLevel, error)
@@ -81,6 +83,16 @@ type startedServiceClient struct {
 
 func NewStartedServiceClient(cc grpc.ClientConnInterface) StartedServiceClient {
 	return &startedServiceClient{cc}
+}
+
+func (c *startedServiceClient) GetVersion(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Version, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Version)
+	err := c.cc.Invoke(ctx, StartedService_GetVersion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *startedServiceClient) SubscribeServiceStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServiceStatus], error) {
@@ -449,6 +461,7 @@ type StartedService_StartTailscaleSSHSessionClient = grpc.BidiStreamingClient[Ta
 // All implementations must embed UnimplementedStartedServiceServer
 // for forward compatibility.
 type StartedServiceServer interface {
+	GetVersion(context.Context, *emptypb.Empty) (*Version, error)
 	SubscribeServiceStatus(*emptypb.Empty, grpc.ServerStreamingServer[ServiceStatus]) error
 	SubscribeLog(*emptypb.Empty, grpc.ServerStreamingServer[Log]) error
 	GetDefaultLogLevel(context.Context, *emptypb.Empty) (*DefaultLogLevel, error)
@@ -484,6 +497,10 @@ type StartedServiceServer interface {
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
 type UnimplementedStartedServiceServer struct{}
+
+func (UnimplementedStartedServiceServer) GetVersion(context.Context, *emptypb.Empty) (*Version, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetVersion not implemented")
+}
 
 func (UnimplementedStartedServiceServer) SubscribeServiceStatus(*emptypb.Empty, grpc.ServerStreamingServer[ServiceStatus]) error {
 	return status.Error(codes.Unimplemented, "method SubscribeServiceStatus not implemented")
@@ -607,6 +624,24 @@ func RegisterStartedServiceServer(s grpc.ServiceRegistrar, srv StartedServiceSer
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&StartedService_ServiceDesc, srv)
+}
+
+func _StartedService_GetVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StartedServiceServer).GetVersion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StartedService_GetVersion_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StartedServiceServer).GetVersion(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _StartedService_SubscribeServiceStatus_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -996,6 +1031,10 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "daemon.StartedService",
 	HandlerType: (*StartedServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "GetVersion",
+			Handler:    _StartedService_GetVersion_Handler,
+		},
 		{
 			MethodName: "GetDefaultLogLevel",
 			Handler:    _StartedService_GetDefaultLogLevel_Handler,
