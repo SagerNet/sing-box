@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -259,22 +258,6 @@ func (s *StartedService) SetError(err error) {
 	s.serviceAccess.Lock()
 	s.updateStatusError(err)
 	s.WriteMessage(log.LevelError, err.Error())
-}
-
-func (s *StartedService) StopService(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
-	err := s.handler.ServiceStop()
-	if err != nil {
-		return nil, err
-	}
-	return &emptypb.Empty{}, nil
-}
-
-func (s *StartedService) ReloadService(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
-	err := s.handler.ServiceReload()
-	if err != nil {
-		return nil, err
-	}
-	return &emptypb.Empty{}, nil
 }
 
 func (s *StartedService) SubscribeServiceStatus(empty *emptypb.Empty, server grpc.ServerStreamingServer[ServiceStatus]) error {
@@ -680,41 +663,6 @@ func (s *StartedService) SetGroupExpand(ctx context.Context, request *SetGroupEx
 		if err != nil {
 			return nil, err
 		}
-	}
-	return &emptypb.Empty{}, nil
-}
-
-func (s *StartedService) GetSystemProxyStatus(ctx context.Context, empty *emptypb.Empty) (*SystemProxyStatus, error) {
-	return s.handler.SystemProxyStatus()
-}
-
-func (s *StartedService) SetSystemProxyEnabled(ctx context.Context, request *SetSystemProxyEnabledRequest) (*emptypb.Empty, error) {
-	err := s.handler.SetSystemProxyEnabled(request.Enabled)
-	if err != nil {
-		return nil, err
-	}
-	return &emptypb.Empty{}, nil
-}
-
-func (s *StartedService) TriggerDebugCrash(ctx context.Context, request *DebugCrashRequest) (*emptypb.Empty, error) {
-	if !s.debug {
-		return nil, status.Error(codes.PermissionDenied, "debug crash trigger unavailable")
-	}
-	if request == nil {
-		return nil, status.Error(codes.InvalidArgument, "missing debug crash request")
-	}
-	switch request.Type {
-	case DebugCrashRequest_GO:
-		time.AfterFunc(200*time.Millisecond, func() {
-			*(*int)(unsafe.Pointer(uintptr(0))) = 0
-		})
-	case DebugCrashRequest_NATIVE:
-		err := s.handler.TriggerNativeCrash()
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, status.Error(codes.InvalidArgument, "unknown debug crash type")
 	}
 	return &emptypb.Empty{}, nil
 }
