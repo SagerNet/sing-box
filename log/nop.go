@@ -80,6 +80,9 @@ func (f *nopFactory) FatalContext(ctx context.Context, args ...any) {
 func (f *nopFactory) PanicContext(ctx context.Context, args ...any) {
 }
 
+func (f *nopFactory) AttachPlatformWriter(writer PlatformWriter) {
+}
+
 func (f *nopFactory) Subscribe() (subscription observable.Subscription[Entry], done <-chan struct{}, err error) {
 	return nil, nil, os.ErrInvalid
 }
