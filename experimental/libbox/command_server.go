@@ -20,12 +20,15 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
 type CommandServer struct {
 	*daemon.StartedService
+	managedService    *daemon.ManagedService
 	handler           CommandServerHandler
 	platformInterface PlatformInterface
 	platformWrapper   *platformInterfaceWrapper
@@ -70,6 +73,10 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 		// UserID:           sUserID,
 		// GroupID:          sGroupID,
 		// SystemProxyEnabled: false,
+	})
+	server.managedService = daemon.NewManagedService(daemon.ManagedServiceOptions{
+		Handler: (*platformHandler)(server),
+		Debug:   sDebug,
 	})
 	return server, nil
 }
@@ -155,6 +162,11 @@ func (s *CommandServer) Start() error {
 	}
 	s.grpcServer = grpc.NewServer(serverOptions...)
 	daemon.RegisterStartedServiceServer(s.grpcServer, s.StartedService)
+	daemon.RegisterManagedServiceServer(s.grpcServer, s.managedService)
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus(daemon.StartedService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus(daemon.ManagedService_ServiceDesc.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+	grpc_health_v1.RegisterHealthServer(s.grpcServer, healthServer)
 	go s.grpcServer.Serve(listener)
 	return nil
 }

@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package daemon;
+option go_package = "github.com/sagernet/sing-box/daemon";
+
+import "google/protobuf/empty.proto";
+
+service ManagedService {
+  rpc StopService(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc ReloadService(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  rpc GetSystemProxyStatus(google.protobuf.Empty) returns(SystemProxyStatus) {}
+  rpc SetSystemProxyEnabled(SetSystemProxyEnabledRequest) returns(google.protobuf.Empty) {}
+  rpc TriggerDebugCrash(DebugCrashRequest) returns(google.protobuf.Empty) {}
+}
+
+message SystemProxyStatus {
+  bool available = 1;
+  bool enabled = 2;
+}
+
+message SetSystemProxyEnabledRequest {
+  bool enabled = 1;
+}
+
+message DebugCrashRequest {
+  enum Type {
+    GO = 0;
+    NATIVE = 1;
+  }
+
+  Type type = 1;
+}
