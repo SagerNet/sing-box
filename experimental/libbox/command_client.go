@@ -23,14 +23,15 @@ import (
 )
 
 type CommandClient struct {
-	handler     CommandClientHandler
-	grpcConn    *grpc.ClientConn
-	grpcClient  daemon.StartedServiceClient
-	options     CommandClientOptions
-	ctx         context.Context
-	cancel      context.CancelFunc
-	clientMutex sync.RWMutex
-	standalone  bool
+	handler           CommandClientHandler
+	grpcConn          *grpc.ClientConn
+	grpcClient        daemon.StartedServiceClient
+	grpcManagedClient daemon.ManagedServiceClient
+	options           CommandClientOptions
+	ctx               context.Context
+	cancel            context.CancelFunc
+	clientMutex       sync.RWMutex
+	standalone        bool
 }
 
 type CommandClientOptions struct {
@@ -201,6 +202,7 @@ func (c *CommandClient) Connect() error {
 	}
 	c.grpcConn = connection
 	c.grpcClient = client
+	c.grpcManagedClient = daemon.NewManagedServiceClient(connection)
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	c.clientMutex.Unlock()
 
@@ -227,6 +229,7 @@ func (c *CommandClient) ConnectWithFD(fd int32) error {
 	}
 	c.grpcConn = connection
 	c.grpcClient = client
+	c.grpcManagedClient = daemon.NewManagedServiceClient(connection)
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	c.clientMutex.Unlock()
 
@@ -287,6 +290,7 @@ func (c *CommandClient) getClientForCall() (daemon.StartedServiceClient, context
 	}
 	c.grpcConn = connection
 	c.grpcClient = client
+	c.grpcManagedClient = daemon.NewManagedServiceClient(connection)
 	if c.ctx == nil {
 		c.ctx, c.cancel = context.WithCancel(context.Background())
 	}
@@ -300,6 +304,7 @@ func (c *CommandClient) closeConnection() {
 		c.grpcConn.Close()
 		c.grpcConn = nil
 		c.grpcClient = nil
+		c.grpcManagedClient = nil
 	}
 }
 
@@ -311,6 +316,25 @@ func callWithResult[T any](c *CommandClient, call func(ctx context.Context, clie
 	}
 	if c.standalone {
 		defer c.closeConnection()
+	}
+	return call(ctx, client)
+}
+
+func callManagedWithResult[T any](c *CommandClient, call func(ctx context.Context, client daemon.ManagedServiceClient) (T, error)) (T, error) {
+	_, ctx, err := c.getClientForCall()
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	if c.standalone {
+		defer c.closeConnection()
+	}
+	c.clientMutex.RLock()
+	client := c.grpcManagedClient
+	c.clientMutex.RUnlock()
+	if client == nil {
+		var zero T
+		return zero, os.ErrClosed
 	}
 	return call(ctx, client)
 }
@@ -541,7 +565,7 @@ func (c *CommandClient) CloseConnections() error {
 }
 
 func (c *CommandClient) ServiceReload() error {
-	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+	_, err := callManagedWithResult(c, func(ctx context.Context, client daemon.ManagedServiceClient) (*emptypb.Empty, error) {
 		return client.ReloadService(ctx, &emptypb.Empty{})
 	})
 	if err != nil {
@@ -551,7 +575,7 @@ func (c *CommandClient) ServiceReload() error {
 }
 
 func (c *CommandClient) ServiceClose() error {
-	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+	_, err := callManagedWithResult(c, func(ctx context.Context, client daemon.ManagedServiceClient) (*emptypb.Empty, error) {
 		return client.StopService(ctx, &emptypb.Empty{})
 	})
 	if err != nil {
@@ -571,7 +595,7 @@ func (c *CommandClient) ClearLogs() error {
 }
 
 func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
-	return callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*SystemProxyStatus, error) {
+	return callManagedWithResult(c, func(ctx context.Context, client daemon.ManagedServiceClient) (*SystemProxyStatus, error) {
 		status, err := client.GetSystemProxyStatus(ctx, &emptypb.Empty{})
 		if err != nil {
 			return nil, E.Cause(err, "get system proxy status")
@@ -581,7 +605,7 @@ func (c *CommandClient) GetSystemProxyStatus() (*SystemProxyStatus, error) {
 }
 
 func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
-	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+	_, err := callManagedWithResult(c, func(ctx context.Context, client daemon.ManagedServiceClient) (*emptypb.Empty, error) {
 		return client.SetSystemProxyEnabled(ctx, &daemon.SetSystemProxyEnabledRequest{
 			Enabled: isEnabled,
 		})
@@ -593,7 +617,7 @@ func (c *CommandClient) SetSystemProxyEnabled(isEnabled bool) error {
 }
 
 func (c *CommandClient) TriggerGoCrash() error {
-	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+	_, err := callManagedWithResult(c, func(ctx context.Context, client daemon.ManagedServiceClient) (*emptypb.Empty, error) {
 		return client.TriggerDebugCrash(ctx, &daemon.DebugCrashRequest{
 			Type: daemon.DebugCrashRequest_GO,
 		})
@@ -605,7 +629,7 @@ func (c *CommandClient) TriggerGoCrash() error {
 }
 
 func (c *CommandClient) TriggerNativeCrash() error {
-	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+	_, err := callManagedWithResult(c, func(ctx context.Context, client daemon.ManagedServiceClient) (*emptypb.Empty, error) {
 		return client.TriggerDebugCrash(ctx, &daemon.DebugCrashRequest{
 			Type: daemon.DebugCrashRequest_NATIVE,
 		})
