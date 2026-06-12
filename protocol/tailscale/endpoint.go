@@ -424,6 +424,77 @@ func (t *Endpoint) postStart() error {
 		}
 	}
 	localBackend := t.server.ExportLocalBackend()
+	err = t.editPrefs(sshEnabled)
+	if err != nil {
+		return err
+	}
+	t.filter = localBackend.ExportFilter()
+	if sshEnabled {
+		sshServer, err := tailssh.New(t.server, t.platformInterface, t.sshServerOptions, t.logger)
+		if err != nil {
+			return E.Cause(err, "create SSH server")
+		}
+		err = sshServer.Start()
+		if err != nil {
+			return E.Cause(err, "start SSH server")
+		}
+		t.sshReconfigHook = sshServer.OnReconfig
+		t.sshServerInstance = sshServer
+	}
+	go t.watchState()
+	t.started.Store(true)
+	return nil
+}
+
+func (t *Endpoint) watchState() {
+	localBackend := t.server.ExportLocalBackend()
+	var reportedAuthURL string
+	exitNodePending := t.exitNode != ""
+	localBackend.WatchNotifications(t.ctx, ipn.NotifyInitialState, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
+		if roNotify.State == nil && roNotify.BrowseToURL == nil {
+			return true
+		}
+		status := localBackend.StatusWithoutPeers()
+		switch status.BackendState {
+		case ipn.NoState.String(), ipn.NeedsLogin.String():
+			if t.exitNode != "" {
+				exitNodePending = true
+			}
+			authURL := status.AuthURL
+			if authURL == "" || authURL == reportedAuthURL {
+				return true
+			}
+			reportedAuthURL = authURL
+			t.logger.Info("Waiting for authentication: ", authURL)
+			if t.platformInterface != nil {
+				err := t.platformInterface.SendNotification(&adapter.Notification{
+					Identifier: "tailscale-authentication",
+					TypeName:   "Tailscale Authentication Notifications",
+					TypeID:     10,
+					Title:      "Tailscale Authentication",
+					Body:       F.ToString("Tailscale outbound[", t.Tag(), "] is waiting for authentication."),
+					OpenURL:    authURL,
+				})
+				if err != nil {
+					t.logger.Error("send authentication notification: ", err)
+				}
+			}
+		case ipn.Running.String():
+			reportedAuthURL = ""
+			if exitNodePending {
+				err := t.applyExitNode()
+				if err != nil {
+					t.logger.Error("set exit node: ", err)
+				} else {
+					exitNodePending = false
+				}
+			}
+		}
+		return true
+	})
+}
+
+func (t *Endpoint) editPrefs(sshEnabled bool) error {
 	perfs := &ipn.MaskedPrefs{
 		Prefs: ipn.Prefs{
 			RouteAll:        t.acceptRoutes,
@@ -446,84 +517,31 @@ func (t *Endpoint) postStart() error {
 	if len(t.relayServerStaticEndpoints) > 0 {
 		perfs.RelayServerStaticEndpoints = t.relayServerStaticEndpoints
 	}
-	_, err = localBackend.EditPrefs(perfs)
+	_, err := t.server.ExportLocalBackend().EditPrefs(perfs)
 	if err != nil {
 		return E.Cause(err, "update prefs")
 	}
-	t.filter = localBackend.ExportFilter()
-	if sshEnabled {
-		sshServer, err := tailssh.New(t.server, t.platformInterface, t.sshServerOptions, t.logger)
-		if err != nil {
-			return E.Cause(err, "create SSH server")
-		}
-		err = sshServer.Start()
-		if err != nil {
-			return E.Cause(err, "start SSH server")
-		}
-		t.sshReconfigHook = sshServer.OnReconfig
-		t.sshServerInstance = sshServer
-	}
-	go t.watchState()
-	t.started.Store(true)
 	return nil
 }
 
-func (t *Endpoint) watchState() {
-	localBackend := t.server.ExportLocalBackend()
-	localBackend.WatchNotifications(t.ctx, ipn.NotifyInitialState, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
-		if roNotify.State != nil && *roNotify.State != ipn.NeedsLogin && *roNotify.State != ipn.NoState {
-			return false
-		}
-		authURL := localBackend.StatusWithoutPeers().AuthURL
-		if authURL != "" {
-			t.logger.Info("Waiting for authentication: ", authURL)
-			if t.platformInterface != nil {
-				err := t.platformInterface.SendNotification(&adapter.Notification{
-					Identifier: "tailscale-authentication",
-					TypeName:   "Tailscale Authentication Notifications",
-					TypeID:     10,
-					Title:      "Tailscale Authentication",
-					Body:       F.ToString("Tailscale outbound[", t.Tag(), "] is waiting for authentication."),
-					OpenURL:    authURL,
-				})
-				if err != nil {
-					t.logger.Error("send authentication notification: ", err)
-				}
-			}
-			return false
-		}
-		return true
-	})
-	if t.exitNode != "" {
-		localBackend.WatchNotifications(t.ctx, ipn.NotifyInitialState, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
-			if roNotify.State == nil || *roNotify.State != ipn.Running {
-				return true
-			}
-			status, err := common.Must1(t.server.LocalClient()).Status(t.ctx)
-			if err != nil {
-				t.logger.Error("set exit node: ", err)
-				return
-			}
-			perfs := &ipn.MaskedPrefs{
-				Prefs: ipn.Prefs{
-					ExitNodeAllowLANAccess: t.exitNodeAllowLANAccess,
-				},
-				ExitNodeIPSet:             true,
-				ExitNodeAllowLANAccessSet: true,
-			}
-			err = perfs.SetExitNodeIP(t.exitNode, status)
-			if err != nil {
-				t.logger.Error("set exit node: ", err)
-				return true
-			}
-			_, err = localBackend.EditPrefs(perfs)
-			if err != nil {
-				t.logger.Error("set exit node: ", err)
-				return true
-			}
-			return false
-		})
+func (t *Endpoint) applyExitNode() error {
+	status, err := common.Must1(t.server.LocalClient()).Status(t.ctx)
+	if err != nil {
+		return err
 	}
+	perfs := &ipn.MaskedPrefs{
+		Prefs: ipn.Prefs{
+			ExitNodeAllowLANAccess: t.exitNodeAllowLANAccess,
+		},
+		ExitNodeIPSet:             true,
+		ExitNodeAllowLANAccessSet: true,
+	}
+	err = perfs.SetExitNodeIP(t.exitNode, status)
+	if err != nil {
+		return err
+	}
+	_, err = t.server.ExportLocalBackend().EditPrefs(perfs)
+	return err
 }
 
 func (t *Endpoint) SetTailscaleExitNode(ctx context.Context, stableID string) error {
@@ -576,6 +594,27 @@ func (t *Endpoint) Logout(ctx context.Context) error {
 	err := common.Must1(t.server.LocalClient()).Logout(ctx)
 	if err != nil {
 		return E.Cause(err, "tailscale logout")
+	}
+	// LocalBackend.Logout deletes the profile and restarts the backend with
+	// empty preferences, and only tsnet.Server.Start performs the login
+	// bootstrap, so redo it here to obtain a new auth URL.
+	localBackend := t.server.ExportLocalBackend()
+	prefs := ipn.NewPrefs()
+	prefs.Hostname = t.server.Hostname
+	prefs.WantRunning = true
+	prefs.ControlURL = t.server.ControlURL
+	prefs.AdvertiseTags = t.server.AdvertiseTags
+	err = localBackend.Start(ipn.Options{UpdatePrefs: prefs})
+	if err != nil {
+		return E.Cause(err, "restart backend")
+	}
+	err = t.editPrefs(t.sshServerInstance != nil)
+	if err != nil {
+		return err
+	}
+	err = localBackend.StartLoginInteractive(ctx)
+	if err != nil {
+		return E.Cause(err, "start interactive login")
 	}
 	return nil
 }
