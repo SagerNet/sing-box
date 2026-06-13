@@ -23,6 +23,13 @@ for bidirectional streaming methods.
   "secret": "",
   "access_control_allow_origin": [],
   "access_control_allow_private_network": false,
+  "dashboard": {
+    "enabled": true,
+    "path": "",
+    "download_url": "",
+    "http_client": "", // or {}
+    "update_interval": ""
+  },
   "tls": {}
 }
 ```
@@ -48,6 +55,59 @@ CORS allowed origins, `*` will be used if empty.
 #### access_control_allow_private_network
 
 Allow access from private network.
+
+#### dashboard
+
+Web dashboard downloaded and served over the API listener at `/dashboard/`; other browser
+requests are redirected to it.
+
+!!! info ""
+
+    The object can be replaced with a boolean value (equivalent to `{ "enabled": <bool> }`),
+    or with a string path (equivalent to `{ "enabled": true, "path": "<string>" }`).
+
+##### enabled
+
+Enable the dashboard.
+
+##### path
+
+Directory the dashboard files are stored in.
+
+`dashboard` in the working directory will be used by default.
+
+If the directory is empty, the dashboard is downloaded and an `.etag` file is stored inside
+it to skip unchanged updates. A non-empty directory without an `.etag` file is served as-is
+and never updated automatically.
+
+##### download_url
+
+Download URL of the dashboard archive (zip).
+
+`https://github.com/SagerNet/sing-box-dashboard/archive/refs/heads/gh-pages.zip` will be used by default.
+
+##### http_client
+
+HTTP client used to download the dashboard, with the same behavior as remote rule-sets.
+
+See [HTTP Client Fields](/configuration/shared/http-client/) for details.
+
+When empty, the default HTTP client is used: the one named by
+[`default_http_client`](/configuration/route/#default_http_client), or the first top-level
+`http_clients` entry when `default_http_client` is empty.
+
+!!! failure "Implicit default deprecated in sing-box 1.14.0"
+
+    When neither `http_clients` nor `default_http_client` is configured, an implicit HTTP
+    client connecting through the default outbound is used. This implicit default is
+    deprecated in sing-box 1.14.0 and will be removed in sing-box 1.16.0; define
+    `http_clients` instead.
+
+##### update_interval
+
+Update interval of the dashboard.
+
+`1d` will be used by default.
 
 #### tls
 
