@@ -119,7 +119,13 @@
 
 参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/) 了解详情。
 
-如果为空，将使用默认传输。
+留空时使用默认 HTTP 客户端：即由 [`default_http_client`](/zh/configuration/route/#default_http_client)
+指定的客户端，或当 `default_http_client` 为空时使用顶级 `http_clients` 的第一项。
+
+!!! failure "隐式默认已在 sing-box 1.14.0 废弃"
+
+    当 `http_clients` 与 `default_http_client` 均未配置时，将使用通过默认出站连接的隐式 HTTP 客户端。
+    该隐式默认已在 sing-box 1.14.0 废弃，并将在 sing-box 1.16.0 移除；请改为定义 `http_clients`。
 
 #### update_interval
 
