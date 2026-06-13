@@ -26,14 +26,14 @@ const (
 // (https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-WEB.md) and gRPC-Web
 // streams over WebSocket, wire compatible with the improbable-eng/grpc-web
 // client transports.
-func newHTTPHandler(logger log.ContextLogger, grpcServer *grpc.Server, options option.APIServiceOptions) http.Handler {
+func newHTTPHandler(logger log.ContextLogger, grpcServer *grpc.Server, options option.APIServiceOptions, dashboard *dashboard) http.Handler {
 	allowedOrigins := options.AccessControlAllowOrigin
 	if len(allowedOrigins) == 0 {
 		allowedOrigins = []string{"*"}
 	}
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:      allowedOrigins,
-		AllowedMethods:      []string{http.MethodPost, http.MethodOptions},
+		AllowedMethods:      []string{http.MethodGet, http.MethodPost, http.MethodOptions},
 		AllowedHeaders:      []string{"Content-Type", "Authorization", "X-Grpc-Web", "X-User-Agent", "Grpc-Timeout"},
 		ExposedHeaders:      []string{"Grpc-Status", "Grpc-Message", "Grpc-Status-Details-Bin"},
 		AllowPrivateNetwork: options.AccessControlAllowPrivateNetwork,
@@ -42,12 +42,14 @@ func newHTTPHandler(logger log.ContextLogger, grpcServer *grpc.Server, options o
 	return corsHandler.Handler(&webBridge{
 		logger:     logger,
 		grpcServer: grpcServer,
+		dashboard:  dashboard,
 	})
 }
 
 type webBridge struct {
 	logger     log.ContextLogger
 	grpcServer *grpc.Server
+	dashboard  *dashboard
 }
 
 func (b *webBridge) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -59,6 +61,8 @@ func (b *webBridge) ServeHTTP(writer http.ResponseWriter, request *http.Request)
 		b.serveWeb(writer, request)
 	case request.ProtoMajor == 2 && strings.HasPrefix(contentType, contentTypeGRPC):
 		b.grpcServer.ServeHTTP(writer, request)
+	case b.dashboard != nil:
+		b.dashboard.serveHTTP(writer, request)
 	default:
 		http.NotFound(writer, request)
 	}
