@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -43,7 +42,6 @@ type RemoteRuleSet struct {
 	metadata       adapter.RuleSetMetadata
 	lastUpdated    time.Time
 	lastEtag       string
-	updateTicker   *time.Ticker
 	cacheFile      adapter.CacheFile
 	pauseManager   pause.Manager
 	callbacks      list.List[adapter.RuleSetUpdateCallback]
@@ -102,12 +100,6 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 			return E.Cause(err, "initial rule-set: ", s.options.Tag)
 		}
 	}
-	s.updateTicker = time.NewTicker(s.updateInterval)
-	return nil
-}
-
-func (s *RemoteRuleSet) PostStart() error {
-	go s.loopUpdate()
 	return nil
 }
 
@@ -195,21 +187,6 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 		callback(s)
 	}
 	return nil
-}
-
-func (s *RemoteRuleSet) loopUpdate() {
-	if time.Since(s.lastUpdated) > s.updateInterval {
-		s.updateOnce()
-	}
-	for {
-		runtime.GC()
-		select {
-		case <-s.ctx.Done():
-			return
-		case <-s.updateTicker.C:
-			s.updateOnce()
-		}
-	}
 }
 
 func (s *RemoteRuleSet) updateOnce() {
@@ -312,9 +289,6 @@ func (s *RemoteRuleSet) resolveTransport() (adapter.HTTPTransport, error) {
 func (s *RemoteRuleSet) Close() error {
 	s.rules = nil
 	s.cancel()
-	if s.updateTicker != nil {
-		s.updateTicker.Stop()
-	}
 	return nil
 }
 
