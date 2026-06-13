@@ -62,7 +62,6 @@ type StartedService struct {
 	startedAt               time.Time
 	urlTestSubscriber       *observable.Subscriber[struct{}]
 	urlTestObserver         *observable.Observer[struct{}]
-	urlTestHistoryStorage   *urltest.HistoryStorage
 	clashModeSubscriber     *observable.Subscriber[struct{}]
 	clashModeObserver       *observable.Observer[struct{}]
 }
@@ -102,7 +101,6 @@ func NewStartedService(options ServiceOptions) *StartedService {
 		serviceStatusSubscriber: observable.NewSubscriber[*ServiceStatus](4),
 		logSubscriber:           observable.NewSubscriber[*log.Entry](128),
 		urlTestSubscriber:       observable.NewSubscriber[struct{}](1),
-		urlTestHistoryStorage:   urltest.NewHistoryStorage(),
 		clashModeSubscriber:     observable.NewSubscriber[struct{}](1),
 	}
 	s.serviceStatusObserver = observable.NewObserver(s.serviceStatusSubscriber, 2)
@@ -202,9 +200,9 @@ func (s *StartedService) StartOrReloadService(profileContent string, options *Ov
 		return s.updateStatusError(err)
 	}
 	s.instance = instance
-	instance.urlTestHistoryStorage.SetHook(s.urlTestSubscriber)
+	instance.urlTestHistoryStorage.AddUpdateHook(s.urlTestSubscriber)
 	if instance.clashServer != nil {
-		instance.clashServer.SetModeUpdateHook(s.clashModeSubscriber)
+		instance.clashServer.AddModeUpdateHook(s.clashModeSubscriber)
 	}
 	s.serviceAccess.Unlock()
 	err = instance.Start()
@@ -649,7 +647,6 @@ func (s *StartedService) SelectOutbound(ctx context.Context, request *SelectOutb
 	if !selector.SelectOutbound(request.OutboundTag) {
 		return nil, status.Error(codes.NotFound, "outbound not found in selector: "+request.OutboundTag)
 	}
-	s.urlTestObserver.Emit(struct{}{})
 	return &emptypb.Empty{}, nil
 }
 
