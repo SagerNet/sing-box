@@ -159,7 +159,7 @@ func New(options Options) (*Box, error) {
 	needAPIService := common.Any(options.Services, func(it option.Service) bool {
 		return it.Type == C.TypeAPI
 	})
-	if needAPIService && service.PtrFromContext[urltest.HistoryStorage](ctx) == nil {
+	if service.PtrFromContext[urltest.HistoryStorage](ctx) == nil {
 		ctx = service.ContextWithPtr(ctx, urltest.NewHistoryStorage())
 	}
 	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)

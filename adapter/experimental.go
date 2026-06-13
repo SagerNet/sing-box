@@ -16,21 +16,12 @@ type ClashServer interface {
 	Mode() string
 	ModeList() []string
 	SetMode(mode string)
-	SetModeUpdateHook(hook *observable.Subscriber[struct{}])
-	HistoryStorage() URLTestHistoryStorage
+	AddModeUpdateHook(hook *observable.Subscriber[struct{}])
 }
 
 type URLTestHistory struct {
 	Time  time.Time `json:"time"`
 	Delay uint16    `json:"delay"`
-}
-
-type URLTestHistoryStorage interface {
-	SetHook(hook *observable.Subscriber[struct{}])
-	LoadURLTestHistory(tag string) *URLTestHistory
-	DeleteURLTestHistory(tag string)
-	StoreURLTestHistory(tag string, history *URLTestHistory)
-	Close() error
 }
 
 type V2RayServer interface {
