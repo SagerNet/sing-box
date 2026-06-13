@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -49,12 +50,13 @@ type Server struct {
 	logger         log.Logger
 	httpServer     *http.Server
 	trafficManager *trafficcontrol.Manager
-	urlTestHistory adapter.URLTestHistoryStorage
+	urlTestHistory *urltest.HistoryStorage
 	logDebug       bool
 
-	mode           string
-	modeList       []string
-	modeUpdateHook *observable.Subscriber[struct{}]
+	mode             string
+	modeList         []string
+	modeUpdateAccess sync.Mutex
+	modeUpdateHooks  []*observable.Subscriber[struct{}]
 
 	externalController       bool
 	externalUI               string
@@ -66,6 +68,10 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 	trafficManager := service.PtrFromContext[trafficcontrol.Manager](ctx)
 	if trafficManager == nil {
 		return nil, E.New("missing traffic manager")
+	}
+	urlTestHistory := service.PtrFromContext[urltest.HistoryStorage](ctx)
+	if urlTestHistory == nil {
+		return nil, E.New("missing URL test history storage")
 	}
 	chiRouter := chi.NewRouter()
 	s := &Server{
@@ -81,15 +87,12 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 			Handler: chiRouter,
 		},
 		trafficManager:           trafficManager,
+		urlTestHistory:           urlTestHistory,
 		logDebug:                 logFactory.Level() >= log.LevelDebug,
 		modeList:                 options.ModeList,
 		externalController:       options.ExternalController != "",
 		externalUIDownloadURL:    options.ExternalUIDownloadURL,
 		externalUIDownloadDetour: options.ExternalUIDownloadDetour,
-	}
-	s.urlTestHistory = service.FromContext[adapter.URLTestHistoryStorage](ctx)
-	if s.urlTestHistory == nil {
-		s.urlTestHistory = urltest.NewHistoryStorage()
 	}
 	defaultMode := "Rule"
 	if options.DefaultMode != "" {
@@ -195,7 +198,6 @@ func (s *Server) Start(stage adapter.StartStage) error {
 func (s *Server) Close() error {
 	return common.Close(
 		common.PtrOrNil(s.httpServer),
-		s.urlTestHistory,
 	)
 }
 
@@ -207,8 +209,10 @@ func (s *Server) ModeList() []string {
 	return s.modeList
 }
 
-func (s *Server) SetModeUpdateHook(hook *observable.Subscriber[struct{}]) {
-	s.modeUpdateHook = hook
+func (s *Server) AddModeUpdateHook(hook *observable.Subscriber[struct{}]) {
+	s.modeUpdateAccess.Lock()
+	defer s.modeUpdateAccess.Unlock()
+	s.modeUpdateHooks = append(s.modeUpdateHooks, hook)
 }
 
 func (s *Server) SetMode(newMode string) {
@@ -224,9 +228,11 @@ func (s *Server) SetMode(newMode string) {
 		return
 	}
 	s.mode = newMode
-	if s.modeUpdateHook != nil {
-		s.modeUpdateHook.Emit(struct{}{})
+	s.modeUpdateAccess.Lock()
+	for _, hook := range s.modeUpdateHooks {
+		hook.Emit(struct{}{})
 	}
+	s.modeUpdateAccess.Unlock()
 	s.dnsRouter.ClearCache()
 	cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
 	if cacheFile != nil {
@@ -236,10 +242,6 @@ func (s *Server) SetMode(newMode string) {
 		}
 	}
 	s.logger.Info("updated mode: ", newMode)
-}
-
-func (s *Server) HistoryStorage() adapter.URLTestHistoryStorage {
-	return s.urlTestHistory
 }
 
 func authentication(serverSecret string) func(next http.Handler) http.Handler {

@@ -28,7 +28,7 @@ type Instance struct {
 	trafficManager        *trafficcontrol.Manager
 	cacheFile             adapter.CacheFile
 	pauseManager          pause.Manager
-	urlTestHistoryStorage adapter.URLTestHistoryStorage
+	urlTestHistoryStorage *urltest.HistoryStorage
 	outboundManager       adapter.OutboundManager
 	endpointManager       adapter.EndpointManager
 	logFactory            log.Factory
