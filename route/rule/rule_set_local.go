@@ -154,10 +154,6 @@ func (s *LocalRuleSet) reloadRules(headlessRules []option.HeadlessRule) error {
 	return nil
 }
 
-func (s *LocalRuleSet) PostStart() error {
-	return nil
-}
-
 func (s *LocalRuleSet) Metadata() adapter.RuleSetMetadata {
 	s.access.RLock()
 	defer s.access.RUnlock()

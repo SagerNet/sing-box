@@ -24,10 +24,6 @@ func (f *fakeRuleSet) StartContext(context.Context, *adapter.HTTPStartContext) e
 	return nil
 }
 
-func (f *fakeRuleSet) PostStart() error {
-	return nil
-}
-
 func (f *fakeRuleSet) Metadata() adapter.RuleSetMetadata {
 	return adapter.RuleSetMetadata{}
 }
