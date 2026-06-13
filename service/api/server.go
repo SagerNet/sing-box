@@ -38,6 +38,7 @@ type Service struct {
 	startedService *daemon.StartedService
 	grpcServer     *grpc.Server
 	httpServer     *http.Server
+	dashboard      *dashboard
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.APIServiceOptions) (adapter.Service, error) {
@@ -63,6 +64,9 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 		}
 		s.tlsConfig = tlsConfig
 	}
+	if options.Dashboard != nil && options.Dashboard.Enabled {
+		s.dashboard = newDashboard(ctx, logger, *options.Dashboard)
+	}
 	return s, nil
 }
 
@@ -72,8 +76,14 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	}
 	s.startedService = daemon.NewAttachedService(s.ctx)
 	s.grpcServer = daemon.NewServer(s.startedService, s.options.Secret)
+	if s.dashboard != nil {
+		err := s.dashboard.start()
+		if err != nil {
+			return E.Cause(err, "start dashboard")
+		}
+	}
 	s.httpServer = &http.Server{
-		Handler: h2c.NewHandler(newHTTPHandler(s.logger, s.grpcServer, s.options), new(http2.Server)),
+		Handler: h2c.NewHandler(newHTTPHandler(s.logger, s.grpcServer, s.options, s.dashboard), new(http2.Server)),
 		BaseContext: func(net.Listener) context.Context {
 			return s.ctx
 		},
@@ -108,6 +118,9 @@ func (s *Service) Start(stage adapter.StartStage) error {
 
 func (s *Service) Close() error {
 	s.cancel()
+	if s.dashboard != nil {
+		s.dashboard.close()
+	}
 	if s.httpServer != nil {
 		s.httpServer.Close()
 	}
