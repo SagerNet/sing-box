@@ -195,7 +195,7 @@ type URLTestGroup struct {
 	interval                     time.Duration
 	tolerance                    uint16
 	idleTimeout                  time.Duration
-	history                      adapter.URLTestHistoryStorage
+	history                      *urltest.HistoryStorage
 	checking                     atomic.Bool
 	selectedOutboundTCP          adapter.Outbound
 	selectedOutboundUDP          adapter.Outbound
@@ -221,13 +221,9 @@ func NewURLTestGroup(ctx context.Context, outboundManager adapter.OutboundManage
 	if interval > idleTimeout {
 		return nil, E.New("interval must be less or equal than idle_timeout")
 	}
-	var history adapter.URLTestHistoryStorage
-	if historyFromCtx := service.PtrFromContext[urltest.HistoryStorage](ctx); historyFromCtx != nil {
-		history = historyFromCtx
-	} else if clashServer := service.FromContext[adapter.ClashServer](ctx); clashServer != nil {
-		history = clashServer.HistoryStorage()
-	} else {
-		history = urltest.NewHistoryStorage()
+	history := service.PtrFromContext[urltest.HistoryStorage](ctx)
+	if history == nil {
+		return nil, E.New("missing URL test history storage")
 	}
 	return &URLTestGroup{
 		ctx:                          ctx,
