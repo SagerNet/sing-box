@@ -46,7 +46,6 @@ type ConnectionRouterEx interface {
 type RuleSet interface {
 	Name() string
 	StartContext(ctx context.Context, startContext *HTTPStartContext) error
-	PostStart() error
 	Metadata() RuleSetMetadata
 	ExtractIPSet() []*netipx.IPSet
 	IncRef()
