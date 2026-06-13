@@ -19,9 +19,9 @@ func NewAttachedService(ctx context.Context) *StartedService {
 	s.instance = instance
 	s.serviceStatus = &ServiceStatus{Status: ServiceStatus_STARTED}
 	s.startedAt = time.Now()
-	instance.urlTestHistoryStorage.SetHook(s.urlTestSubscriber)
+	instance.urlTestHistoryStorage.AddUpdateHook(s.urlTestSubscriber)
 	if instance.clashServer != nil {
-		instance.clashServer.SetModeUpdateHook(s.clashModeSubscriber)
+		instance.clashServer.AddModeUpdateHook(s.clashModeSubscriber)
 	}
 	instance.logFactory.(log.ObservableFactory).AttachPlatformWriter(s)
 	return s
