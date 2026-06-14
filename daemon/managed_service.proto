@@ -12,6 +12,7 @@ service ManagedService {
   rpc GetSystemProxyStatus(google.protobuf.Empty) returns(SystemProxyStatus) {}
   rpc SetSystemProxyEnabled(SetSystemProxyEnabledRequest) returns(google.protobuf.Empty) {}
   rpc TriggerDebugCrash(DebugCrashRequest) returns(google.protobuf.Empty) {}
+  rpc TriggerOOMReport(google.protobuf.Empty) returns(google.protobuf.Empty) {}
 }
 
 message SystemProxyStatus {
