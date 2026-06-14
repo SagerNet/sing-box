@@ -22,8 +22,6 @@ service StartedService {
   rpc SelectOutbound(SelectOutboundRequest) returns (google.protobuf.Empty) {}
   rpc SetGroupExpand(SetGroupExpandRequest) returns (google.protobuf.Empty) {}
 
-  rpc TriggerOOMReport(google.protobuf.Empty) returns(google.protobuf.Empty) {}
-
   rpc SubscribeConnections(SubscribeConnectionsRequest) returns(stream ConnectionEvents) {}
   rpc CloseConnection(CloseConnectionRequest) returns(google.protobuf.Empty) {}
   rpc CloseAllConnections(google.protobuf.Empty) returns(google.protobuf.Empty) {}
@@ -38,6 +36,8 @@ service StartedService {
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
   rpc TailscaleLogout(TailscaleLogoutRequest) returns (google.protobuf.Empty) {}
   rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
+  rpc ProvideUSBDevices(stream USBProviderMessage) returns (stream USBServerMessage) {}
+  rpc SubscribeUSBIPServerStatus(google.protobuf.Empty) returns (stream USBIPServerStatusUpdate) {}
 }
 
 message Version {
@@ -388,4 +388,131 @@ message TailscaleSSHExit {
 
 message TailscaleSSHError {
   string message = 1;
+}
+
+message USBProviderMessage {
+  oneof message {
+    USBDeviceAttach attach = 1;
+    USBDeviceDetach detach = 2;
+    USBURBResponse urbResponse = 3;
+  }
+}
+
+message USBServerMessage {
+  oneof message {
+    USBDeviceReady ready = 1;
+    USBURBRequest urbRequest = 2;
+    USBEndpointAbort abort = 3;
+    USBError error = 4;
+  }
+}
+
+message USBDeviceDescriptor {
+  string deviceId = 1;
+  uint32 busNum = 2;
+  uint32 devNum = 3;
+  uint32 speed = 4;
+  uint32 vendorId = 5;
+  uint32 productId = 6;
+  uint32 bcdDevice = 7;
+  uint32 deviceClass = 8;
+  uint32 deviceSubClass = 9;
+  uint32 deviceProtocol = 10;
+  uint32 configurationValue = 11;
+  uint32 numConfigurations = 12;
+  repeated USBInterface interfaces = 13;
+  string serial = 14;
+  string product = 15;
+}
+
+message USBDeviceAttach {
+  string serverTag = 1;
+  USBDeviceDescriptor descriptor = 2;
+}
+
+message USBInterface {
+  uint32 interfaceClass = 1;
+  uint32 interfaceSubClass = 2;
+  uint32 interfaceProtocol = 3;
+}
+
+message USBDeviceDetach {
+  string deviceId = 1;
+}
+
+message USBDeviceReady {
+  string deviceId = 1;
+  string busId = 2;
+}
+
+message USBURBRequest {
+  string deviceId = 1;
+  uint64 seq = 2;
+  uint32 endpoint = 3;
+  bool directionIn = 4;
+  uint32 transferFlags = 5;
+  bytes setup = 6;
+  uint32 transferBufferLength = 7;
+  bytes outData = 8;
+  int32 numberOfPackets = 9;
+  int32 startFrame = 10;
+  int32 interval = 11;
+  repeated USBIsoPacket isoPackets = 12;
+}
+
+message USBURBResponse {
+  string deviceId = 1;
+  uint64 seq = 2;
+  int32 status = 3;
+  int32 actualLength = 4;
+  bytes inData = 5;
+  repeated USBIsoPacket isoPackets = 6;
+}
+
+message USBIsoPacket {
+  int32 offset = 1;
+  int32 length = 2;
+  int32 actualLength = 3;
+  int32 status = 4;
+}
+
+message USBEndpointAbort {
+  string deviceId = 1;
+  uint32 endpoint = 2;
+}
+
+message USBError {
+  string deviceId = 1;
+  string message = 2;
+}
+
+message USBIPServerStatusUpdate {
+  repeated USBIPServerStatus servers = 1;
+}
+
+message USBIPServerStatus {
+  string serverTag = 1;
+  repeated USBSharedDevice devices = 2;
+}
+
+message USBSharedDevice {
+  USBDeviceDescriptor descriptor = 1;
+  string busId = 2;
+  string stableId = 3;
+  USBBackend backend = 4;
+  USBDeviceState state = 5;
+}
+
+enum USBDeviceState {
+  USB_DEVICE_STATE_IDLE = 0;
+  USB_DEVICE_STATE_ATTACHED = 1;
+  USB_DEVICE_STATE_UNAVAILABLE = 2;
+}
+
+enum USBBackend {
+  USB_BACKEND_UNSPECIFIED = 0;
+  USB_BACKEND_LINUX_SYSFS = 1;
+  USB_BACKEND_DYNAMIC = 2;
+  USB_BACKEND_DARWIN_IOKIT = 3;
+  USB_BACKEND_WINDOWS_VBOXUSB = 4;
 }

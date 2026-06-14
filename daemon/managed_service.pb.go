@@ -218,13 +218,14 @@ const file_daemon_managed_service_proto_rawDesc = "" +
 	"\x04Type\x12\x06\n" +
 	"\x02GO\x10\x00\x12\n" +
 	"\n" +
-	"\x06NATIVE\x10\x012\x80\x03\n" +
+	"\x06NATIVE\x10\x012\xc6\x03\n" +
 	"\x0eManagedService\x12=\n" +
 	"\vStopService\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12?\n" +
 	"\rReloadService\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x12K\n" +
 	"\x14GetSystemProxyStatus\x12\x16.google.protobuf.Empty\x1a\x19.daemon.SystemProxyStatus\"\x00\x12W\n" +
 	"\x15SetSystemProxyEnabled\x12$.daemon.SetSystemProxyEnabledRequest\x1a\x16.google.protobuf.Empty\"\x00\x12H\n" +
-	"\x11TriggerDebugCrash\x12\x19.daemon.DebugCrashRequest\x1a\x16.google.protobuf.Empty\"\x00B%Z#github.com/sagernet/sing-box/daemonb\x06proto3"
+	"\x11TriggerDebugCrash\x12\x19.daemon.DebugCrashRequest\x1a\x16.google.protobuf.Empty\"\x00\x12D\n" +
+	"\x10TriggerOOMReport\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00B%Z#github.com/sagernet/sing-box/daemonb\x06proto3"
 
 var (
 	file_daemon_managed_service_proto_rawDescOnce sync.Once
@@ -257,13 +258,15 @@ var file_daemon_managed_service_proto_depIdxs = []int32{
 	4, // 3: daemon.ManagedService.GetSystemProxyStatus:input_type -> google.protobuf.Empty
 	2, // 4: daemon.ManagedService.SetSystemProxyEnabled:input_type -> daemon.SetSystemProxyEnabledRequest
 	3, // 5: daemon.ManagedService.TriggerDebugCrash:input_type -> daemon.DebugCrashRequest
-	4, // 6: daemon.ManagedService.StopService:output_type -> google.protobuf.Empty
-	4, // 7: daemon.ManagedService.ReloadService:output_type -> google.protobuf.Empty
-	1, // 8: daemon.ManagedService.GetSystemProxyStatus:output_type -> daemon.SystemProxyStatus
-	4, // 9: daemon.ManagedService.SetSystemProxyEnabled:output_type -> google.protobuf.Empty
-	4, // 10: daemon.ManagedService.TriggerDebugCrash:output_type -> google.protobuf.Empty
-	6, // [6:11] is the sub-list for method output_type
-	1, // [1:6] is the sub-list for method input_type
+	4, // 6: daemon.ManagedService.TriggerOOMReport:input_type -> google.protobuf.Empty
+	4, // 7: daemon.ManagedService.StopService:output_type -> google.protobuf.Empty
+	4, // 8: daemon.ManagedService.ReloadService:output_type -> google.protobuf.Empty
+	1, // 9: daemon.ManagedService.GetSystemProxyStatus:output_type -> daemon.SystemProxyStatus
+	4, // 10: daemon.ManagedService.SetSystemProxyEnabled:output_type -> google.protobuf.Empty
+	4, // 11: daemon.ManagedService.TriggerDebugCrash:output_type -> google.protobuf.Empty
+	4, // 12: daemon.ManagedService.TriggerOOMReport:output_type -> google.protobuf.Empty
+	7, // [7:13] is the sub-list for method output_type
+	1, // [1:7] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
