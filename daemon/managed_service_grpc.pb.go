@@ -20,6 +20,7 @@ const (
 	ManagedService_GetSystemProxyStatus_FullMethodName  = "/daemon.ManagedService/GetSystemProxyStatus"
 	ManagedService_SetSystemProxyEnabled_FullMethodName = "/daemon.ManagedService/SetSystemProxyEnabled"
 	ManagedService_TriggerDebugCrash_FullMethodName     = "/daemon.ManagedService/TriggerDebugCrash"
+	ManagedService_TriggerOOMReport_FullMethodName      = "/daemon.ManagedService/TriggerOOMReport"
 )
 
 // ManagedServiceClient is the client API for ManagedService service.
@@ -31,6 +32,7 @@ type ManagedServiceClient interface {
 	GetSystemProxyStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*SystemProxyStatus, error)
 	SetSystemProxyEnabled(ctx context.Context, in *SetSystemProxyEnabledRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	TriggerDebugCrash(ctx context.Context, in *DebugCrashRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	TriggerOOMReport(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type managedServiceClient struct {
@@ -91,6 +93,16 @@ func (c *managedServiceClient) TriggerDebugCrash(ctx context.Context, in *DebugC
 	return out, nil
 }
 
+func (c *managedServiceClient) TriggerOOMReport(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, ManagedService_TriggerOOMReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ManagedServiceServer is the server API for ManagedService service.
 // All implementations must embed UnimplementedManagedServiceServer
 // for forward compatibility.
@@ -100,6 +112,7 @@ type ManagedServiceServer interface {
 	GetSystemProxyStatus(context.Context, *emptypb.Empty) (*SystemProxyStatus, error)
 	SetSystemProxyEnabled(context.Context, *SetSystemProxyEnabledRequest) (*emptypb.Empty, error)
 	TriggerDebugCrash(context.Context, *DebugCrashRequest) (*emptypb.Empty, error)
+	TriggerOOMReport(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	mustEmbedUnimplementedManagedServiceServer()
 }
 
@@ -128,6 +141,10 @@ func (UnimplementedManagedServiceServer) SetSystemProxyEnabled(context.Context, 
 
 func (UnimplementedManagedServiceServer) TriggerDebugCrash(context.Context, *DebugCrashRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method TriggerDebugCrash not implemented")
+}
+
+func (UnimplementedManagedServiceServer) TriggerOOMReport(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method TriggerOOMReport not implemented")
 }
 func (UnimplementedManagedServiceServer) mustEmbedUnimplementedManagedServiceServer() {}
 func (UnimplementedManagedServiceServer) testEmbeddedByValue()                        {}
@@ -240,6 +257,24 @@ func _ManagedService_TriggerDebugCrash_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ManagedService_TriggerOOMReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagedServiceServer).TriggerOOMReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagedService_TriggerOOMReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagedServiceServer).TriggerOOMReport(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ManagedService_ServiceDesc is the grpc.ServiceDesc for ManagedService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -266,6 +301,10 @@ var ManagedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TriggerDebugCrash",
 			Handler:    _ManagedService_TriggerDebugCrash_Handler,
+		},
+		{
+			MethodName: "TriggerOOMReport",
+			Handler:    _ManagedService_TriggerOOMReport_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
