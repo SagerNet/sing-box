@@ -75,8 +75,9 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 		// SystemProxyEnabled: false,
 	})
 	server.managedService = daemon.NewManagedService(daemon.ManagedServiceOptions{
-		Handler: (*platformHandler)(server),
-		Debug:   sDebug,
+		Handler:     (*platformHandler)(server),
+		Debug:       sDebug,
+		OOMReporter: sOOMReporter,
 	})
 	return server, nil
 }
