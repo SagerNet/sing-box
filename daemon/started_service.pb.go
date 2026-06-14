@@ -127,6 +127,110 @@ func (ConnectionEventType) EnumDescriptor() ([]byte, []int) {
 	return file_daemon_started_service_proto_rawDescGZIP(), []int{1}
 }
 
+type USBDeviceState int32
+
+const (
+	USBDeviceState_USB_DEVICE_STATE_IDLE        USBDeviceState = 0
+	USBDeviceState_USB_DEVICE_STATE_ATTACHED    USBDeviceState = 1
+	USBDeviceState_USB_DEVICE_STATE_UNAVAILABLE USBDeviceState = 2
+)
+
+// Enum value maps for USBDeviceState.
+var (
+	USBDeviceState_name = map[int32]string{
+		0: "USB_DEVICE_STATE_IDLE",
+		1: "USB_DEVICE_STATE_ATTACHED",
+		2: "USB_DEVICE_STATE_UNAVAILABLE",
+	}
+	USBDeviceState_value = map[string]int32{
+		"USB_DEVICE_STATE_IDLE":        0,
+		"USB_DEVICE_STATE_ATTACHED":    1,
+		"USB_DEVICE_STATE_UNAVAILABLE": 2,
+	}
+)
+
+func (x USBDeviceState) Enum() *USBDeviceState {
+	p := new(USBDeviceState)
+	*p = x
+	return p
+}
+
+func (x USBDeviceState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (USBDeviceState) Descriptor() protoreflect.EnumDescriptor {
+	return file_daemon_started_service_proto_enumTypes[2].Descriptor()
+}
+
+func (USBDeviceState) Type() protoreflect.EnumType {
+	return &file_daemon_started_service_proto_enumTypes[2]
+}
+
+func (x USBDeviceState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use USBDeviceState.Descriptor instead.
+func (USBDeviceState) EnumDescriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{2}
+}
+
+type USBBackend int32
+
+const (
+	USBBackend_USB_BACKEND_UNSPECIFIED     USBBackend = 0
+	USBBackend_USB_BACKEND_LINUX_SYSFS     USBBackend = 1
+	USBBackend_USB_BACKEND_DYNAMIC         USBBackend = 2
+	USBBackend_USB_BACKEND_DARWIN_IOKIT    USBBackend = 3
+	USBBackend_USB_BACKEND_WINDOWS_VBOXUSB USBBackend = 4
+)
+
+// Enum value maps for USBBackend.
+var (
+	USBBackend_name = map[int32]string{
+		0: "USB_BACKEND_UNSPECIFIED",
+		1: "USB_BACKEND_LINUX_SYSFS",
+		2: "USB_BACKEND_DYNAMIC",
+		3: "USB_BACKEND_DARWIN_IOKIT",
+		4: "USB_BACKEND_WINDOWS_VBOXUSB",
+	}
+	USBBackend_value = map[string]int32{
+		"USB_BACKEND_UNSPECIFIED":     0,
+		"USB_BACKEND_LINUX_SYSFS":     1,
+		"USB_BACKEND_DYNAMIC":         2,
+		"USB_BACKEND_DARWIN_IOKIT":    3,
+		"USB_BACKEND_WINDOWS_VBOXUSB": 4,
+	}
+)
+
+func (x USBBackend) Enum() *USBBackend {
+	p := new(USBBackend)
+	*p = x
+	return p
+}
+
+func (x USBBackend) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (USBBackend) Descriptor() protoreflect.EnumDescriptor {
+	return file_daemon_started_service_proto_enumTypes[3].Descriptor()
+}
+
+func (USBBackend) Type() protoreflect.EnumType {
+	return &file_daemon_started_service_proto_enumTypes[3]
+}
+
+func (x USBBackend) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use USBBackend.Descriptor instead.
+func (USBBackend) EnumDescriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{3}
+}
+
 type ServiceStatus_Type int32
 
 const (
@@ -166,11 +270,11 @@ func (x ServiceStatus_Type) String() string {
 }
 
 func (ServiceStatus_Type) Descriptor() protoreflect.EnumDescriptor {
-	return file_daemon_started_service_proto_enumTypes[2].Descriptor()
+	return file_daemon_started_service_proto_enumTypes[4].Descriptor()
 }
 
 func (ServiceStatus_Type) Type() protoreflect.EnumType {
-	return &file_daemon_started_service_proto_enumTypes[2]
+	return &file_daemon_started_service_proto_enumTypes[4]
 }
 
 func (x ServiceStatus_Type) Number() protoreflect.EnumNumber {
@@ -3378,6 +3482,1142 @@ func (x *TailscaleSSHError) GetMessage() string {
 	return ""
 }
 
+type USBProviderMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Message:
+	//
+	//	*USBProviderMessage_Attach
+	//	*USBProviderMessage_Detach
+	//	*USBProviderMessage_UrbResponse
+	Message       isUSBProviderMessage_Message `protobuf_oneof:"message"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBProviderMessage) Reset() {
+	*x = USBProviderMessage{}
+	mi := &file_daemon_started_service_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBProviderMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBProviderMessage) ProtoMessage() {}
+
+func (x *USBProviderMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBProviderMessage.ProtoReflect.Descriptor instead.
+func (*USBProviderMessage) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *USBProviderMessage) GetMessage() isUSBProviderMessage_Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *USBProviderMessage) GetAttach() *USBDeviceAttach {
+	if x != nil {
+		if x, ok := x.Message.(*USBProviderMessage_Attach); ok {
+			return x.Attach
+		}
+	}
+	return nil
+}
+
+func (x *USBProviderMessage) GetDetach() *USBDeviceDetach {
+	if x != nil {
+		if x, ok := x.Message.(*USBProviderMessage_Detach); ok {
+			return x.Detach
+		}
+	}
+	return nil
+}
+
+func (x *USBProviderMessage) GetUrbResponse() *USBURBResponse {
+	if x != nil {
+		if x, ok := x.Message.(*USBProviderMessage_UrbResponse); ok {
+			return x.UrbResponse
+		}
+	}
+	return nil
+}
+
+type isUSBProviderMessage_Message interface {
+	isUSBProviderMessage_Message()
+}
+
+type USBProviderMessage_Attach struct {
+	Attach *USBDeviceAttach `protobuf:"bytes,1,opt,name=attach,proto3,oneof"`
+}
+
+type USBProviderMessage_Detach struct {
+	Detach *USBDeviceDetach `protobuf:"bytes,2,opt,name=detach,proto3,oneof"`
+}
+
+type USBProviderMessage_UrbResponse struct {
+	UrbResponse *USBURBResponse `protobuf:"bytes,3,opt,name=urbResponse,proto3,oneof"`
+}
+
+func (*USBProviderMessage_Attach) isUSBProviderMessage_Message() {}
+
+func (*USBProviderMessage_Detach) isUSBProviderMessage_Message() {}
+
+func (*USBProviderMessage_UrbResponse) isUSBProviderMessage_Message() {}
+
+type USBServerMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Message:
+	//
+	//	*USBServerMessage_Ready
+	//	*USBServerMessage_UrbRequest
+	//	*USBServerMessage_Abort
+	//	*USBServerMessage_Error
+	Message       isUSBServerMessage_Message `protobuf_oneof:"message"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBServerMessage) Reset() {
+	*x = USBServerMessage{}
+	mi := &file_daemon_started_service_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBServerMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBServerMessage) ProtoMessage() {}
+
+func (x *USBServerMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBServerMessage.ProtoReflect.Descriptor instead.
+func (*USBServerMessage) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *USBServerMessage) GetMessage() isUSBServerMessage_Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *USBServerMessage) GetReady() *USBDeviceReady {
+	if x != nil {
+		if x, ok := x.Message.(*USBServerMessage_Ready); ok {
+			return x.Ready
+		}
+	}
+	return nil
+}
+
+func (x *USBServerMessage) GetUrbRequest() *USBURBRequest {
+	if x != nil {
+		if x, ok := x.Message.(*USBServerMessage_UrbRequest); ok {
+			return x.UrbRequest
+		}
+	}
+	return nil
+}
+
+func (x *USBServerMessage) GetAbort() *USBEndpointAbort {
+	if x != nil {
+		if x, ok := x.Message.(*USBServerMessage_Abort); ok {
+			return x.Abort
+		}
+	}
+	return nil
+}
+
+func (x *USBServerMessage) GetError() *USBError {
+	if x != nil {
+		if x, ok := x.Message.(*USBServerMessage_Error); ok {
+			return x.Error
+		}
+	}
+	return nil
+}
+
+type isUSBServerMessage_Message interface {
+	isUSBServerMessage_Message()
+}
+
+type USBServerMessage_Ready struct {
+	Ready *USBDeviceReady `protobuf:"bytes,1,opt,name=ready,proto3,oneof"`
+}
+
+type USBServerMessage_UrbRequest struct {
+	UrbRequest *USBURBRequest `protobuf:"bytes,2,opt,name=urbRequest,proto3,oneof"`
+}
+
+type USBServerMessage_Abort struct {
+	Abort *USBEndpointAbort `protobuf:"bytes,3,opt,name=abort,proto3,oneof"`
+}
+
+type USBServerMessage_Error struct {
+	Error *USBError `protobuf:"bytes,4,opt,name=error,proto3,oneof"`
+}
+
+func (*USBServerMessage_Ready) isUSBServerMessage_Message() {}
+
+func (*USBServerMessage_UrbRequest) isUSBServerMessage_Message() {}
+
+func (*USBServerMessage_Abort) isUSBServerMessage_Message() {}
+
+func (*USBServerMessage_Error) isUSBServerMessage_Message() {}
+
+type USBDeviceDescriptor struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId           string                 `protobuf:"bytes,1,opt,name=deviceId,proto3" json:"deviceId,omitempty"`
+	BusNum             uint32                 `protobuf:"varint,2,opt,name=busNum,proto3" json:"busNum,omitempty"`
+	DevNum             uint32                 `protobuf:"varint,3,opt,name=devNum,proto3" json:"devNum,omitempty"`
+	Speed              uint32                 `protobuf:"varint,4,opt,name=speed,proto3" json:"speed,omitempty"`
+	VendorId           uint32                 `protobuf:"varint,5,opt,name=vendorId,proto3" json:"vendorId,omitempty"`
+	ProductId          uint32                 `protobuf:"varint,6,opt,name=productId,proto3" json:"productId,omitempty"`
+	BcdDevice          uint32                 `protobuf:"varint,7,opt,name=bcdDevice,proto3" json:"bcdDevice,omitempty"`
+	DeviceClass        uint32                 `protobuf:"varint,8,opt,name=deviceClass,proto3" json:"deviceClass,omitempty"`
+	DeviceSubClass     uint32                 `protobuf:"varint,9,opt,name=deviceSubClass,proto3" json:"deviceSubClass,omitempty"`
+	DeviceProtocol     uint32                 `protobuf:"varint,10,opt,name=deviceProtocol,proto3" json:"deviceProtocol,omitempty"`
+	ConfigurationValue uint32                 `protobuf:"varint,11,opt,name=configurationValue,proto3" json:"configurationValue,omitempty"`
+	NumConfigurations  uint32                 `protobuf:"varint,12,opt,name=numConfigurations,proto3" json:"numConfigurations,omitempty"`
+	Interfaces         []*USBInterface        `protobuf:"bytes,13,rep,name=interfaces,proto3" json:"interfaces,omitempty"`
+	Serial             string                 `protobuf:"bytes,14,opt,name=serial,proto3" json:"serial,omitempty"`
+	Product            string                 `protobuf:"bytes,15,opt,name=product,proto3" json:"product,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *USBDeviceDescriptor) Reset() {
+	*x = USBDeviceDescriptor{}
+	mi := &file_daemon_started_service_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBDeviceDescriptor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBDeviceDescriptor) ProtoMessage() {}
+
+func (x *USBDeviceDescriptor) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBDeviceDescriptor.ProtoReflect.Descriptor instead.
+func (*USBDeviceDescriptor) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *USBDeviceDescriptor) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *USBDeviceDescriptor) GetBusNum() uint32 {
+	if x != nil {
+		return x.BusNum
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetDevNum() uint32 {
+	if x != nil {
+		return x.DevNum
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetSpeed() uint32 {
+	if x != nil {
+		return x.Speed
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetVendorId() uint32 {
+	if x != nil {
+		return x.VendorId
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetProductId() uint32 {
+	if x != nil {
+		return x.ProductId
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetBcdDevice() uint32 {
+	if x != nil {
+		return x.BcdDevice
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetDeviceClass() uint32 {
+	if x != nil {
+		return x.DeviceClass
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetDeviceSubClass() uint32 {
+	if x != nil {
+		return x.DeviceSubClass
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetDeviceProtocol() uint32 {
+	if x != nil {
+		return x.DeviceProtocol
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetConfigurationValue() uint32 {
+	if x != nil {
+		return x.ConfigurationValue
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetNumConfigurations() uint32 {
+	if x != nil {
+		return x.NumConfigurations
+	}
+	return 0
+}
+
+func (x *USBDeviceDescriptor) GetInterfaces() []*USBInterface {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+func (x *USBDeviceDescriptor) GetSerial() string {
+	if x != nil {
+		return x.Serial
+	}
+	return ""
+}
+
+func (x *USBDeviceDescriptor) GetProduct() string {
+	if x != nil {
+		return x.Product
+	}
+	return ""
+}
+
+type USBDeviceAttach struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ServerTag     string                 `protobuf:"bytes,1,opt,name=serverTag,proto3" json:"serverTag,omitempty"`
+	Descriptor_   *USBDeviceDescriptor   `protobuf:"bytes,2,opt,name=descriptor,proto3" json:"descriptor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBDeviceAttach) Reset() {
+	*x = USBDeviceAttach{}
+	mi := &file_daemon_started_service_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBDeviceAttach) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBDeviceAttach) ProtoMessage() {}
+
+func (x *USBDeviceAttach) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBDeviceAttach.ProtoReflect.Descriptor instead.
+func (*USBDeviceAttach) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *USBDeviceAttach) GetServerTag() string {
+	if x != nil {
+		return x.ServerTag
+	}
+	return ""
+}
+
+func (x *USBDeviceAttach) GetDescriptor_() *USBDeviceDescriptor {
+	if x != nil {
+		return x.Descriptor_
+	}
+	return nil
+}
+
+type USBInterface struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	InterfaceClass    uint32                 `protobuf:"varint,1,opt,name=interfaceClass,proto3" json:"interfaceClass,omitempty"`
+	InterfaceSubClass uint32                 `protobuf:"varint,2,opt,name=interfaceSubClass,proto3" json:"interfaceSubClass,omitempty"`
+	InterfaceProtocol uint32                 `protobuf:"varint,3,opt,name=interfaceProtocol,proto3" json:"interfaceProtocol,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *USBInterface) Reset() {
+	*x = USBInterface{}
+	mi := &file_daemon_started_service_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBInterface) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBInterface) ProtoMessage() {}
+
+func (x *USBInterface) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBInterface.ProtoReflect.Descriptor instead.
+func (*USBInterface) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *USBInterface) GetInterfaceClass() uint32 {
+	if x != nil {
+		return x.InterfaceClass
+	}
+	return 0
+}
+
+func (x *USBInterface) GetInterfaceSubClass() uint32 {
+	if x != nil {
+		return x.InterfaceSubClass
+	}
+	return 0
+}
+
+func (x *USBInterface) GetInterfaceProtocol() uint32 {
+	if x != nil {
+		return x.InterfaceProtocol
+	}
+	return 0
+}
+
+type USBDeviceDetach struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=deviceId,proto3" json:"deviceId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBDeviceDetach) Reset() {
+	*x = USBDeviceDetach{}
+	mi := &file_daemon_started_service_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBDeviceDetach) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBDeviceDetach) ProtoMessage() {}
+
+func (x *USBDeviceDetach) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBDeviceDetach.ProtoReflect.Descriptor instead.
+func (*USBDeviceDetach) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *USBDeviceDetach) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+type USBDeviceReady struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=deviceId,proto3" json:"deviceId,omitempty"`
+	BusId         string                 `protobuf:"bytes,2,opt,name=busId,proto3" json:"busId,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBDeviceReady) Reset() {
+	*x = USBDeviceReady{}
+	mi := &file_daemon_started_service_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBDeviceReady) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBDeviceReady) ProtoMessage() {}
+
+func (x *USBDeviceReady) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBDeviceReady.ProtoReflect.Descriptor instead.
+func (*USBDeviceReady) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *USBDeviceReady) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *USBDeviceReady) GetBusId() string {
+	if x != nil {
+		return x.BusId
+	}
+	return ""
+}
+
+type USBURBRequest struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId             string                 `protobuf:"bytes,1,opt,name=deviceId,proto3" json:"deviceId,omitempty"`
+	Seq                  uint64                 `protobuf:"varint,2,opt,name=seq,proto3" json:"seq,omitempty"`
+	Endpoint             uint32                 `protobuf:"varint,3,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	DirectionIn          bool                   `protobuf:"varint,4,opt,name=directionIn,proto3" json:"directionIn,omitempty"`
+	TransferFlags        uint32                 `protobuf:"varint,5,opt,name=transferFlags,proto3" json:"transferFlags,omitempty"`
+	Setup                []byte                 `protobuf:"bytes,6,opt,name=setup,proto3" json:"setup,omitempty"`
+	TransferBufferLength uint32                 `protobuf:"varint,7,opt,name=transferBufferLength,proto3" json:"transferBufferLength,omitempty"`
+	OutData              []byte                 `protobuf:"bytes,8,opt,name=outData,proto3" json:"outData,omitempty"`
+	NumberOfPackets      int32                  `protobuf:"varint,9,opt,name=numberOfPackets,proto3" json:"numberOfPackets,omitempty"`
+	StartFrame           int32                  `protobuf:"varint,10,opt,name=startFrame,proto3" json:"startFrame,omitempty"`
+	Interval             int32                  `protobuf:"varint,11,opt,name=interval,proto3" json:"interval,omitempty"`
+	IsoPackets           []*USBIsoPacket        `protobuf:"bytes,12,rep,name=isoPackets,proto3" json:"isoPackets,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *USBURBRequest) Reset() {
+	*x = USBURBRequest{}
+	mi := &file_daemon_started_service_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBURBRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBURBRequest) ProtoMessage() {}
+
+func (x *USBURBRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBURBRequest.ProtoReflect.Descriptor instead.
+func (*USBURBRequest) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *USBURBRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *USBURBRequest) GetSeq() uint64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *USBURBRequest) GetEndpoint() uint32 {
+	if x != nil {
+		return x.Endpoint
+	}
+	return 0
+}
+
+func (x *USBURBRequest) GetDirectionIn() bool {
+	if x != nil {
+		return x.DirectionIn
+	}
+	return false
+}
+
+func (x *USBURBRequest) GetTransferFlags() uint32 {
+	if x != nil {
+		return x.TransferFlags
+	}
+	return 0
+}
+
+func (x *USBURBRequest) GetSetup() []byte {
+	if x != nil {
+		return x.Setup
+	}
+	return nil
+}
+
+func (x *USBURBRequest) GetTransferBufferLength() uint32 {
+	if x != nil {
+		return x.TransferBufferLength
+	}
+	return 0
+}
+
+func (x *USBURBRequest) GetOutData() []byte {
+	if x != nil {
+		return x.OutData
+	}
+	return nil
+}
+
+func (x *USBURBRequest) GetNumberOfPackets() int32 {
+	if x != nil {
+		return x.NumberOfPackets
+	}
+	return 0
+}
+
+func (x *USBURBRequest) GetStartFrame() int32 {
+	if x != nil {
+		return x.StartFrame
+	}
+	return 0
+}
+
+func (x *USBURBRequest) GetInterval() int32 {
+	if x != nil {
+		return x.Interval
+	}
+	return 0
+}
+
+func (x *USBURBRequest) GetIsoPackets() []*USBIsoPacket {
+	if x != nil {
+		return x.IsoPackets
+	}
+	return nil
+}
+
+type USBURBResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=deviceId,proto3" json:"deviceId,omitempty"`
+	Seq           uint64                 `protobuf:"varint,2,opt,name=seq,proto3" json:"seq,omitempty"`
+	Status        int32                  `protobuf:"varint,3,opt,name=status,proto3" json:"status,omitempty"`
+	ActualLength  int32                  `protobuf:"varint,4,opt,name=actualLength,proto3" json:"actualLength,omitempty"`
+	InData        []byte                 `protobuf:"bytes,5,opt,name=inData,proto3" json:"inData,omitempty"`
+	IsoPackets    []*USBIsoPacket        `protobuf:"bytes,6,rep,name=isoPackets,proto3" json:"isoPackets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBURBResponse) Reset() {
+	*x = USBURBResponse{}
+	mi := &file_daemon_started_service_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBURBResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBURBResponse) ProtoMessage() {}
+
+func (x *USBURBResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBURBResponse.ProtoReflect.Descriptor instead.
+func (*USBURBResponse) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *USBURBResponse) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *USBURBResponse) GetSeq() uint64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *USBURBResponse) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *USBURBResponse) GetActualLength() int32 {
+	if x != nil {
+		return x.ActualLength
+	}
+	return 0
+}
+
+func (x *USBURBResponse) GetInData() []byte {
+	if x != nil {
+		return x.InData
+	}
+	return nil
+}
+
+func (x *USBURBResponse) GetIsoPackets() []*USBIsoPacket {
+	if x != nil {
+		return x.IsoPackets
+	}
+	return nil
+}
+
+type USBIsoPacket struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Offset        int32                  `protobuf:"varint,1,opt,name=offset,proto3" json:"offset,omitempty"`
+	Length        int32                  `protobuf:"varint,2,opt,name=length,proto3" json:"length,omitempty"`
+	ActualLength  int32                  `protobuf:"varint,3,opt,name=actualLength,proto3" json:"actualLength,omitempty"`
+	Status        int32                  `protobuf:"varint,4,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBIsoPacket) Reset() {
+	*x = USBIsoPacket{}
+	mi := &file_daemon_started_service_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBIsoPacket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBIsoPacket) ProtoMessage() {}
+
+func (x *USBIsoPacket) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBIsoPacket.ProtoReflect.Descriptor instead.
+func (*USBIsoPacket) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *USBIsoPacket) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+func (x *USBIsoPacket) GetLength() int32 {
+	if x != nil {
+		return x.Length
+	}
+	return 0
+}
+
+func (x *USBIsoPacket) GetActualLength() int32 {
+	if x != nil {
+		return x.ActualLength
+	}
+	return 0
+}
+
+func (x *USBIsoPacket) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+type USBEndpointAbort struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=deviceId,proto3" json:"deviceId,omitempty"`
+	Endpoint      uint32                 `protobuf:"varint,2,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBEndpointAbort) Reset() {
+	*x = USBEndpointAbort{}
+	mi := &file_daemon_started_service_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBEndpointAbort) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBEndpointAbort) ProtoMessage() {}
+
+func (x *USBEndpointAbort) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBEndpointAbort.ProtoReflect.Descriptor instead.
+func (*USBEndpointAbort) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *USBEndpointAbort) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *USBEndpointAbort) GetEndpoint() uint32 {
+	if x != nil {
+		return x.Endpoint
+	}
+	return 0
+}
+
+type USBError struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=deviceId,proto3" json:"deviceId,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBError) Reset() {
+	*x = USBError{}
+	mi := &file_daemon_started_service_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBError) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBError) ProtoMessage() {}
+
+func (x *USBError) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBError.ProtoReflect.Descriptor instead.
+func (*USBError) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *USBError) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *USBError) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type USBIPServerStatusUpdate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Servers       []*USBIPServerStatus   `protobuf:"bytes,1,rep,name=servers,proto3" json:"servers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBIPServerStatusUpdate) Reset() {
+	*x = USBIPServerStatusUpdate{}
+	mi := &file_daemon_started_service_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBIPServerStatusUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBIPServerStatusUpdate) ProtoMessage() {}
+
+func (x *USBIPServerStatusUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBIPServerStatusUpdate.ProtoReflect.Descriptor instead.
+func (*USBIPServerStatusUpdate) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *USBIPServerStatusUpdate) GetServers() []*USBIPServerStatus {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
+type USBIPServerStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ServerTag     string                 `protobuf:"bytes,1,opt,name=serverTag,proto3" json:"serverTag,omitempty"`
+	Devices       []*USBSharedDevice     `protobuf:"bytes,2,rep,name=devices,proto3" json:"devices,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBIPServerStatus) Reset() {
+	*x = USBIPServerStatus{}
+	mi := &file_daemon_started_service_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBIPServerStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBIPServerStatus) ProtoMessage() {}
+
+func (x *USBIPServerStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBIPServerStatus.ProtoReflect.Descriptor instead.
+func (*USBIPServerStatus) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *USBIPServerStatus) GetServerTag() string {
+	if x != nil {
+		return x.ServerTag
+	}
+	return ""
+}
+
+func (x *USBIPServerStatus) GetDevices() []*USBSharedDevice {
+	if x != nil {
+		return x.Devices
+	}
+	return nil
+}
+
+type USBSharedDevice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Descriptor_   *USBDeviceDescriptor   `protobuf:"bytes,1,opt,name=descriptor,proto3" json:"descriptor,omitempty"`
+	BusId         string                 `protobuf:"bytes,2,opt,name=busId,proto3" json:"busId,omitempty"`
+	StableId      string                 `protobuf:"bytes,3,opt,name=stableId,proto3" json:"stableId,omitempty"`
+	Backend       USBBackend             `protobuf:"varint,4,opt,name=backend,proto3,enum=daemon.USBBackend" json:"backend,omitempty"`
+	State         USBDeviceState         `protobuf:"varint,5,opt,name=state,proto3,enum=daemon.USBDeviceState" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *USBSharedDevice) Reset() {
+	*x = USBSharedDevice{}
+	mi := &file_daemon_started_service_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *USBSharedDevice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*USBSharedDevice) ProtoMessage() {}
+
+func (x *USBSharedDevice) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_started_service_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use USBSharedDevice.ProtoReflect.Descriptor instead.
+func (*USBSharedDevice) Descriptor() ([]byte, []int) {
+	return file_daemon_started_service_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *USBSharedDevice) GetDescriptor_() *USBDeviceDescriptor {
+	if x != nil {
+		return x.Descriptor_
+	}
+	return nil
+}
+
+func (x *USBSharedDevice) GetBusId() string {
+	if x != nil {
+		return x.BusId
+	}
+	return ""
+}
+
+func (x *USBSharedDevice) GetStableId() string {
+	if x != nil {
+		return x.StableId
+	}
+	return ""
+}
+
+func (x *USBSharedDevice) GetBackend() USBBackend {
+	if x != nil {
+		return x.Backend
+	}
+	return USBBackend_USB_BACKEND_UNSPECIFIED
+}
+
+func (x *USBSharedDevice) GetState() USBDeviceState {
+	if x != nil {
+		return x.State
+	}
+	return USBDeviceState_USB_DEVICE_STATE_IDLE
+}
+
 type Log_Message struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Level         LogLevel               `protobuf:"varint,1,opt,name=level,proto3,enum=daemon.LogLevel" json:"level,omitempty"`
@@ -3388,7 +4628,7 @@ type Log_Message struct {
 
 func (x *Log_Message) Reset() {
 	*x = Log_Message{}
-	mi := &file_daemon_started_service_proto_msgTypes[46]
+	mi := &file_daemon_started_service_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3400,7 +4640,7 @@ func (x *Log_Message) String() string {
 func (*Log_Message) ProtoMessage() {}
 
 func (x *Log_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_daemon_started_service_proto_msgTypes[46]
+	mi := &file_daemon_started_service_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3693,7 +4933,104 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x06signal\x18\x02 \x01(\tR\x06signal\x12\"\n" +
 	"\ferrorMessage\x18\x03 \x01(\tR\ferrorMessage\"-\n" +
 	"\x11TailscaleSSHError\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage*U\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"\xc1\x01\n" +
+	"\x12USBProviderMessage\x121\n" +
+	"\x06attach\x18\x01 \x01(\v2\x17.daemon.USBDeviceAttachH\x00R\x06attach\x121\n" +
+	"\x06detach\x18\x02 \x01(\v2\x17.daemon.USBDeviceDetachH\x00R\x06detach\x12:\n" +
+	"\vurbResponse\x18\x03 \x01(\v2\x16.daemon.USBURBResponseH\x00R\vurbResponseB\t\n" +
+	"\amessage\"\xe2\x01\n" +
+	"\x10USBServerMessage\x12.\n" +
+	"\x05ready\x18\x01 \x01(\v2\x16.daemon.USBDeviceReadyH\x00R\x05ready\x127\n" +
+	"\n" +
+	"urbRequest\x18\x02 \x01(\v2\x15.daemon.USBURBRequestH\x00R\n" +
+	"urbRequest\x120\n" +
+	"\x05abort\x18\x03 \x01(\v2\x18.daemon.USBEndpointAbortH\x00R\x05abort\x12(\n" +
+	"\x05error\x18\x04 \x01(\v2\x10.daemon.USBErrorH\x00R\x05errorB\t\n" +
+	"\amessage\"\x87\x04\n" +
+	"\x13USBDeviceDescriptor\x12\x1a\n" +
+	"\bdeviceId\x18\x01 \x01(\tR\bdeviceId\x12\x16\n" +
+	"\x06busNum\x18\x02 \x01(\rR\x06busNum\x12\x16\n" +
+	"\x06devNum\x18\x03 \x01(\rR\x06devNum\x12\x14\n" +
+	"\x05speed\x18\x04 \x01(\rR\x05speed\x12\x1a\n" +
+	"\bvendorId\x18\x05 \x01(\rR\bvendorId\x12\x1c\n" +
+	"\tproductId\x18\x06 \x01(\rR\tproductId\x12\x1c\n" +
+	"\tbcdDevice\x18\a \x01(\rR\tbcdDevice\x12 \n" +
+	"\vdeviceClass\x18\b \x01(\rR\vdeviceClass\x12&\n" +
+	"\x0edeviceSubClass\x18\t \x01(\rR\x0edeviceSubClass\x12&\n" +
+	"\x0edeviceProtocol\x18\n" +
+	" \x01(\rR\x0edeviceProtocol\x12.\n" +
+	"\x12configurationValue\x18\v \x01(\rR\x12configurationValue\x12,\n" +
+	"\x11numConfigurations\x18\f \x01(\rR\x11numConfigurations\x124\n" +
+	"\n" +
+	"interfaces\x18\r \x03(\v2\x14.daemon.USBInterfaceR\n" +
+	"interfaces\x12\x16\n" +
+	"\x06serial\x18\x0e \x01(\tR\x06serial\x12\x18\n" +
+	"\aproduct\x18\x0f \x01(\tR\aproduct\"l\n" +
+	"\x0fUSBDeviceAttach\x12\x1c\n" +
+	"\tserverTag\x18\x01 \x01(\tR\tserverTag\x12;\n" +
+	"\n" +
+	"descriptor\x18\x02 \x01(\v2\x1b.daemon.USBDeviceDescriptorR\n" +
+	"descriptor\"\x92\x01\n" +
+	"\fUSBInterface\x12&\n" +
+	"\x0einterfaceClass\x18\x01 \x01(\rR\x0einterfaceClass\x12,\n" +
+	"\x11interfaceSubClass\x18\x02 \x01(\rR\x11interfaceSubClass\x12,\n" +
+	"\x11interfaceProtocol\x18\x03 \x01(\rR\x11interfaceProtocol\"-\n" +
+	"\x0fUSBDeviceDetach\x12\x1a\n" +
+	"\bdeviceId\x18\x01 \x01(\tR\bdeviceId\"B\n" +
+	"\x0eUSBDeviceReady\x12\x1a\n" +
+	"\bdeviceId\x18\x01 \x01(\tR\bdeviceId\x12\x14\n" +
+	"\x05busId\x18\x02 \x01(\tR\x05busId\"\xa1\x03\n" +
+	"\rUSBURBRequest\x12\x1a\n" +
+	"\bdeviceId\x18\x01 \x01(\tR\bdeviceId\x12\x10\n" +
+	"\x03seq\x18\x02 \x01(\x04R\x03seq\x12\x1a\n" +
+	"\bendpoint\x18\x03 \x01(\rR\bendpoint\x12 \n" +
+	"\vdirectionIn\x18\x04 \x01(\bR\vdirectionIn\x12$\n" +
+	"\rtransferFlags\x18\x05 \x01(\rR\rtransferFlags\x12\x14\n" +
+	"\x05setup\x18\x06 \x01(\fR\x05setup\x122\n" +
+	"\x14transferBufferLength\x18\a \x01(\rR\x14transferBufferLength\x12\x18\n" +
+	"\aoutData\x18\b \x01(\fR\aoutData\x12(\n" +
+	"\x0fnumberOfPackets\x18\t \x01(\x05R\x0fnumberOfPackets\x12\x1e\n" +
+	"\n" +
+	"startFrame\x18\n" +
+	" \x01(\x05R\n" +
+	"startFrame\x12\x1a\n" +
+	"\binterval\x18\v \x01(\x05R\binterval\x124\n" +
+	"\n" +
+	"isoPackets\x18\f \x03(\v2\x14.daemon.USBIsoPacketR\n" +
+	"isoPackets\"\xc8\x01\n" +
+	"\x0eUSBURBResponse\x12\x1a\n" +
+	"\bdeviceId\x18\x01 \x01(\tR\bdeviceId\x12\x10\n" +
+	"\x03seq\x18\x02 \x01(\x04R\x03seq\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\x05R\x06status\x12\"\n" +
+	"\factualLength\x18\x04 \x01(\x05R\factualLength\x12\x16\n" +
+	"\x06inData\x18\x05 \x01(\fR\x06inData\x124\n" +
+	"\n" +
+	"isoPackets\x18\x06 \x03(\v2\x14.daemon.USBIsoPacketR\n" +
+	"isoPackets\"z\n" +
+	"\fUSBIsoPacket\x12\x16\n" +
+	"\x06offset\x18\x01 \x01(\x05R\x06offset\x12\x16\n" +
+	"\x06length\x18\x02 \x01(\x05R\x06length\x12\"\n" +
+	"\factualLength\x18\x03 \x01(\x05R\factualLength\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\x05R\x06status\"J\n" +
+	"\x10USBEndpointAbort\x12\x1a\n" +
+	"\bdeviceId\x18\x01 \x01(\tR\bdeviceId\x12\x1a\n" +
+	"\bendpoint\x18\x02 \x01(\rR\bendpoint\"@\n" +
+	"\bUSBError\x12\x1a\n" +
+	"\bdeviceId\x18\x01 \x01(\tR\bdeviceId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"N\n" +
+	"\x17USBIPServerStatusUpdate\x123\n" +
+	"\aservers\x18\x01 \x03(\v2\x19.daemon.USBIPServerStatusR\aservers\"d\n" +
+	"\x11USBIPServerStatus\x12\x1c\n" +
+	"\tserverTag\x18\x01 \x01(\tR\tserverTag\x121\n" +
+	"\adevices\x18\x02 \x03(\v2\x17.daemon.USBSharedDeviceR\adevices\"\xdc\x01\n" +
+	"\x0fUSBSharedDevice\x12;\n" +
+	"\n" +
+	"descriptor\x18\x01 \x01(\v2\x1b.daemon.USBDeviceDescriptorR\n" +
+	"descriptor\x12\x14\n" +
+	"\x05busId\x18\x02 \x01(\tR\x05busId\x12\x1a\n" +
+	"\bstableId\x18\x03 \x01(\tR\bstableId\x12,\n" +
+	"\abackend\x18\x04 \x01(\x0e2\x12.daemon.USBBackendR\abackend\x12,\n" +
+	"\x05state\x18\x05 \x01(\x0e2\x16.daemon.USBDeviceStateR\x05state*U\n" +
 	"\bLogLevel\x12\t\n" +
 	"\x05PANIC\x10\x00\x12\t\n" +
 	"\x05FATAL\x10\x01\x12\t\n" +
@@ -3705,7 +5042,18 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x13ConnectionEventType\x12\x18\n" +
 	"\x14CONNECTION_EVENT_NEW\x10\x00\x12\x1b\n" +
 	"\x17CONNECTION_EVENT_UPDATE\x10\x01\x12\x1b\n" +
-	"\x17CONNECTION_EVENT_CLOSED\x10\x022\xee\x0f\n" +
+	"\x17CONNECTION_EVENT_CLOSED\x10\x02*l\n" +
+	"\x0eUSBDeviceState\x12\x19\n" +
+	"\x15USB_DEVICE_STATE_IDLE\x10\x00\x12\x1d\n" +
+	"\x19USB_DEVICE_STATE_ATTACHED\x10\x01\x12 \n" +
+	"\x1cUSB_DEVICE_STATE_UNAVAILABLE\x10\x02*\x9e\x01\n" +
+	"\n" +
+	"USBBackend\x12\x1b\n" +
+	"\x17USB_BACKEND_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17USB_BACKEND_LINUX_SYSFS\x10\x01\x12\x17\n" +
+	"\x13USB_BACKEND_DYNAMIC\x10\x02\x12\x1c\n" +
+	"\x18USB_BACKEND_DARWIN_IOKIT\x10\x03\x12\x1f\n" +
+	"\x1bUSB_BACKEND_WINDOWS_VBOXUSB\x10\x042\xd4\x10\n" +
 	"\x0eStartedService\x127\n" +
 	"\n" +
 	"GetVersion\x12\x16.google.protobuf.Empty\x1a\x0f.daemon.Version\"\x00\x12K\n" +
@@ -3720,8 +5068,7 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\fSetClashMode\x12\x11.daemon.ClashMode\x1a\x16.google.protobuf.Empty\"\x00\x12;\n" +
 	"\aURLTest\x12\x16.daemon.URLTestRequest\x1a\x16.google.protobuf.Empty\"\x00\x12I\n" +
 	"\x0eSelectOutbound\x12\x1d.daemon.SelectOutboundRequest\x1a\x16.google.protobuf.Empty\"\x00\x12I\n" +
-	"\x0eSetGroupExpand\x12\x1d.daemon.SetGroupExpandRequest\x1a\x16.google.protobuf.Empty\"\x00\x12D\n" +
-	"\x10TriggerOOMReport\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12Y\n" +
+	"\x0eSetGroupExpand\x12\x1d.daemon.SetGroupExpandRequest\x1a\x16.google.protobuf.Empty\"\x00\x12Y\n" +
 	"\x14SubscribeConnections\x12#.daemon.SubscribeConnectionsRequest\x1a\x18.daemon.ConnectionEvents\"\x000\x01\x12K\n" +
 	"\x0fCloseConnection\x12\x1e.daemon.CloseConnectionRequest\x1a\x16.google.protobuf.Empty\"\x00\x12G\n" +
 	"\x13CloseAllConnections\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12M\n" +
@@ -3734,7 +5081,9 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x12StartTailscalePing\x12\x1c.daemon.TailscalePingRequest\x1a\x1d.daemon.TailscalePingResponse\"\x000\x01\x12U\n" +
 	"\x14SetTailscaleExitNode\x12#.daemon.SetTailscaleExitNodeRequest\x1a\x16.google.protobuf.Empty\"\x00\x12K\n" +
 	"\x0fTailscaleLogout\x12\x1e.daemon.TailscaleLogoutRequest\x1a\x16.google.protobuf.Empty\"\x00\x12f\n" +
-	"\x18StartTailscaleSSHSession\x12!.daemon.TailscaleSSHClientMessage\x1a!.daemon.TailscaleSSHServerMessage\"\x00(\x010\x01B%Z#github.com/sagernet/sing-box/daemonb\x06proto3"
+	"\x18StartTailscaleSSHSession\x12!.daemon.TailscaleSSHClientMessage\x1a!.daemon.TailscaleSSHServerMessage\"\x00(\x010\x01\x12O\n" +
+	"\x11ProvideUSBDevices\x12\x1a.daemon.USBProviderMessage\x1a\x18.daemon.USBServerMessage\"\x00(\x010\x01\x12Y\n" +
+	"\x1aSubscribeUSBIPServerStatus\x12\x16.google.protobuf.Empty\x1a\x1f.daemon.USBIPServerStatusUpdate\"\x000\x01B%Z#github.com/sagernet/sing-box/daemonb\x06proto3"
 
 var (
 	file_daemon_started_service_proto_rawDescOnce sync.Once
@@ -3749,148 +5098,183 @@ func file_daemon_started_service_proto_rawDescGZIP() []byte {
 }
 
 var (
-	file_daemon_started_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-	file_daemon_started_service_proto_msgTypes  = make([]protoimpl.MessageInfo, 47)
+	file_daemon_started_service_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+	file_daemon_started_service_proto_msgTypes  = make([]protoimpl.MessageInfo, 62)
 	file_daemon_started_service_proto_goTypes   = []any{
 		(LogLevel)(0),                       // 0: daemon.LogLevel
 		(ConnectionEventType)(0),            // 1: daemon.ConnectionEventType
-		(ServiceStatus_Type)(0),             // 2: daemon.ServiceStatus.Type
-		(*Version)(nil),                     // 3: daemon.Version
-		(*ServiceStatus)(nil),               // 4: daemon.ServiceStatus
-		(*SubscribeStatusRequest)(nil),      // 5: daemon.SubscribeStatusRequest
-		(*Log)(nil),                         // 6: daemon.Log
-		(*DefaultLogLevel)(nil),             // 7: daemon.DefaultLogLevel
-		(*Status)(nil),                      // 8: daemon.Status
-		(*Groups)(nil),                      // 9: daemon.Groups
-		(*Group)(nil),                       // 10: daemon.Group
-		(*GroupItem)(nil),                   // 11: daemon.GroupItem
-		(*URLTestRequest)(nil),              // 12: daemon.URLTestRequest
-		(*SelectOutboundRequest)(nil),       // 13: daemon.SelectOutboundRequest
-		(*SetGroupExpandRequest)(nil),       // 14: daemon.SetGroupExpandRequest
-		(*ClashMode)(nil),                   // 15: daemon.ClashMode
-		(*ClashModeStatus)(nil),             // 16: daemon.ClashModeStatus
-		(*SubscribeConnectionsRequest)(nil), // 17: daemon.SubscribeConnectionsRequest
-		(*ConnectionEvent)(nil),             // 18: daemon.ConnectionEvent
-		(*ConnectionEvents)(nil),            // 19: daemon.ConnectionEvents
-		(*Connection)(nil),                  // 20: daemon.Connection
-		(*ProcessInfo)(nil),                 // 21: daemon.ProcessInfo
-		(*CloseConnectionRequest)(nil),      // 22: daemon.CloseConnectionRequest
-		(*DeprecatedWarnings)(nil),          // 23: daemon.DeprecatedWarnings
-		(*DeprecatedWarning)(nil),           // 24: daemon.DeprecatedWarning
-		(*StartedAt)(nil),                   // 25: daemon.StartedAt
-		(*OutboundList)(nil),                // 26: daemon.OutboundList
-		(*NetworkQualityTestRequest)(nil),   // 27: daemon.NetworkQualityTestRequest
-		(*NetworkQualityTestProgress)(nil),  // 28: daemon.NetworkQualityTestProgress
-		(*STUNTestRequest)(nil),             // 29: daemon.STUNTestRequest
-		(*STUNTestProgress)(nil),            // 30: daemon.STUNTestProgress
-		(*TailscaleStatusUpdate)(nil),       // 31: daemon.TailscaleStatusUpdate
-		(*TailscaleEndpointStatus)(nil),     // 32: daemon.TailscaleEndpointStatus
-		(*TailscaleUserGroup)(nil),          // 33: daemon.TailscaleUserGroup
-		(*TailscalePeer)(nil),               // 34: daemon.TailscalePeer
-		(*TailscalePingRequest)(nil),        // 35: daemon.TailscalePingRequest
-		(*TailscalePingResponse)(nil),       // 36: daemon.TailscalePingResponse
-		(*SetTailscaleExitNodeRequest)(nil), // 37: daemon.SetTailscaleExitNodeRequest
-		(*TailscaleLogoutRequest)(nil),      // 38: daemon.TailscaleLogoutRequest
-		(*TailscaleSSHClientMessage)(nil),   // 39: daemon.TailscaleSSHClientMessage
-		(*TailscaleSSHStart)(nil),           // 40: daemon.TailscaleSSHStart
-		(*TailscaleSSHInput)(nil),           // 41: daemon.TailscaleSSHInput
-		(*TailscaleSSHResize)(nil),          // 42: daemon.TailscaleSSHResize
-		(*TailscaleSSHServerMessage)(nil),   // 43: daemon.TailscaleSSHServerMessage
-		(*TailscaleSSHAuthBanner)(nil),      // 44: daemon.TailscaleSSHAuthBanner
-		(*TailscaleSSHReady)(nil),           // 45: daemon.TailscaleSSHReady
-		(*TailscaleSSHOutput)(nil),          // 46: daemon.TailscaleSSHOutput
-		(*TailscaleSSHExit)(nil),            // 47: daemon.TailscaleSSHExit
-		(*TailscaleSSHError)(nil),           // 48: daemon.TailscaleSSHError
-		(*Log_Message)(nil),                 // 49: daemon.Log.Message
-		(*emptypb.Empty)(nil),               // 50: google.protobuf.Empty
+		(USBDeviceState)(0),                 // 2: daemon.USBDeviceState
+		(USBBackend)(0),                     // 3: daemon.USBBackend
+		(ServiceStatus_Type)(0),             // 4: daemon.ServiceStatus.Type
+		(*Version)(nil),                     // 5: daemon.Version
+		(*ServiceStatus)(nil),               // 6: daemon.ServiceStatus
+		(*SubscribeStatusRequest)(nil),      // 7: daemon.SubscribeStatusRequest
+		(*Log)(nil),                         // 8: daemon.Log
+		(*DefaultLogLevel)(nil),             // 9: daemon.DefaultLogLevel
+		(*Status)(nil),                      // 10: daemon.Status
+		(*Groups)(nil),                      // 11: daemon.Groups
+		(*Group)(nil),                       // 12: daemon.Group
+		(*GroupItem)(nil),                   // 13: daemon.GroupItem
+		(*URLTestRequest)(nil),              // 14: daemon.URLTestRequest
+		(*SelectOutboundRequest)(nil),       // 15: daemon.SelectOutboundRequest
+		(*SetGroupExpandRequest)(nil),       // 16: daemon.SetGroupExpandRequest
+		(*ClashMode)(nil),                   // 17: daemon.ClashMode
+		(*ClashModeStatus)(nil),             // 18: daemon.ClashModeStatus
+		(*SubscribeConnectionsRequest)(nil), // 19: daemon.SubscribeConnectionsRequest
+		(*ConnectionEvent)(nil),             // 20: daemon.ConnectionEvent
+		(*ConnectionEvents)(nil),            // 21: daemon.ConnectionEvents
+		(*Connection)(nil),                  // 22: daemon.Connection
+		(*ProcessInfo)(nil),                 // 23: daemon.ProcessInfo
+		(*CloseConnectionRequest)(nil),      // 24: daemon.CloseConnectionRequest
+		(*DeprecatedWarnings)(nil),          // 25: daemon.DeprecatedWarnings
+		(*DeprecatedWarning)(nil),           // 26: daemon.DeprecatedWarning
+		(*StartedAt)(nil),                   // 27: daemon.StartedAt
+		(*OutboundList)(nil),                // 28: daemon.OutboundList
+		(*NetworkQualityTestRequest)(nil),   // 29: daemon.NetworkQualityTestRequest
+		(*NetworkQualityTestProgress)(nil),  // 30: daemon.NetworkQualityTestProgress
+		(*STUNTestRequest)(nil),             // 31: daemon.STUNTestRequest
+		(*STUNTestProgress)(nil),            // 32: daemon.STUNTestProgress
+		(*TailscaleStatusUpdate)(nil),       // 33: daemon.TailscaleStatusUpdate
+		(*TailscaleEndpointStatus)(nil),     // 34: daemon.TailscaleEndpointStatus
+		(*TailscaleUserGroup)(nil),          // 35: daemon.TailscaleUserGroup
+		(*TailscalePeer)(nil),               // 36: daemon.TailscalePeer
+		(*TailscalePingRequest)(nil),        // 37: daemon.TailscalePingRequest
+		(*TailscalePingResponse)(nil),       // 38: daemon.TailscalePingResponse
+		(*SetTailscaleExitNodeRequest)(nil), // 39: daemon.SetTailscaleExitNodeRequest
+		(*TailscaleLogoutRequest)(nil),      // 40: daemon.TailscaleLogoutRequest
+		(*TailscaleSSHClientMessage)(nil),   // 41: daemon.TailscaleSSHClientMessage
+		(*TailscaleSSHStart)(nil),           // 42: daemon.TailscaleSSHStart
+		(*TailscaleSSHInput)(nil),           // 43: daemon.TailscaleSSHInput
+		(*TailscaleSSHResize)(nil),          // 44: daemon.TailscaleSSHResize
+		(*TailscaleSSHServerMessage)(nil),   // 45: daemon.TailscaleSSHServerMessage
+		(*TailscaleSSHAuthBanner)(nil),      // 46: daemon.TailscaleSSHAuthBanner
+		(*TailscaleSSHReady)(nil),           // 47: daemon.TailscaleSSHReady
+		(*TailscaleSSHOutput)(nil),          // 48: daemon.TailscaleSSHOutput
+		(*TailscaleSSHExit)(nil),            // 49: daemon.TailscaleSSHExit
+		(*TailscaleSSHError)(nil),           // 50: daemon.TailscaleSSHError
+		(*USBProviderMessage)(nil),          // 51: daemon.USBProviderMessage
+		(*USBServerMessage)(nil),            // 52: daemon.USBServerMessage
+		(*USBDeviceDescriptor)(nil),         // 53: daemon.USBDeviceDescriptor
+		(*USBDeviceAttach)(nil),             // 54: daemon.USBDeviceAttach
+		(*USBInterface)(nil),                // 55: daemon.USBInterface
+		(*USBDeviceDetach)(nil),             // 56: daemon.USBDeviceDetach
+		(*USBDeviceReady)(nil),              // 57: daemon.USBDeviceReady
+		(*USBURBRequest)(nil),               // 58: daemon.USBURBRequest
+		(*USBURBResponse)(nil),              // 59: daemon.USBURBResponse
+		(*USBIsoPacket)(nil),                // 60: daemon.USBIsoPacket
+		(*USBEndpointAbort)(nil),            // 61: daemon.USBEndpointAbort
+		(*USBError)(nil),                    // 62: daemon.USBError
+		(*USBIPServerStatusUpdate)(nil),     // 63: daemon.USBIPServerStatusUpdate
+		(*USBIPServerStatus)(nil),           // 64: daemon.USBIPServerStatus
+		(*USBSharedDevice)(nil),             // 65: daemon.USBSharedDevice
+		(*Log_Message)(nil),                 // 66: daemon.Log.Message
+		(*emptypb.Empty)(nil),               // 67: google.protobuf.Empty
 	}
 )
 
 var file_daemon_started_service_proto_depIdxs = []int32{
-	2,  // 0: daemon.ServiceStatus.status:type_name -> daemon.ServiceStatus.Type
-	49, // 1: daemon.Log.messages:type_name -> daemon.Log.Message
+	4,  // 0: daemon.ServiceStatus.status:type_name -> daemon.ServiceStatus.Type
+	66, // 1: daemon.Log.messages:type_name -> daemon.Log.Message
 	0,  // 2: daemon.DefaultLogLevel.level:type_name -> daemon.LogLevel
-	10, // 3: daemon.Groups.group:type_name -> daemon.Group
-	11, // 4: daemon.Group.items:type_name -> daemon.GroupItem
+	12, // 3: daemon.Groups.group:type_name -> daemon.Group
+	13, // 4: daemon.Group.items:type_name -> daemon.GroupItem
 	1,  // 5: daemon.ConnectionEvent.type:type_name -> daemon.ConnectionEventType
-	20, // 6: daemon.ConnectionEvent.connection:type_name -> daemon.Connection
-	18, // 7: daemon.ConnectionEvents.events:type_name -> daemon.ConnectionEvent
-	21, // 8: daemon.Connection.processInfo:type_name -> daemon.ProcessInfo
-	24, // 9: daemon.DeprecatedWarnings.warnings:type_name -> daemon.DeprecatedWarning
-	11, // 10: daemon.OutboundList.outbounds:type_name -> daemon.GroupItem
-	32, // 11: daemon.TailscaleStatusUpdate.endpoints:type_name -> daemon.TailscaleEndpointStatus
-	34, // 12: daemon.TailscaleEndpointStatus.self:type_name -> daemon.TailscalePeer
-	33, // 13: daemon.TailscaleEndpointStatus.userGroups:type_name -> daemon.TailscaleUserGroup
-	34, // 14: daemon.TailscaleEndpointStatus.exitNode:type_name -> daemon.TailscalePeer
-	34, // 15: daemon.TailscaleUserGroup.peers:type_name -> daemon.TailscalePeer
-	40, // 16: daemon.TailscaleSSHClientMessage.start:type_name -> daemon.TailscaleSSHStart
-	41, // 17: daemon.TailscaleSSHClientMessage.input:type_name -> daemon.TailscaleSSHInput
-	42, // 18: daemon.TailscaleSSHClientMessage.resize:type_name -> daemon.TailscaleSSHResize
-	44, // 19: daemon.TailscaleSSHServerMessage.authBanner:type_name -> daemon.TailscaleSSHAuthBanner
-	45, // 20: daemon.TailscaleSSHServerMessage.ready:type_name -> daemon.TailscaleSSHReady
-	46, // 21: daemon.TailscaleSSHServerMessage.output:type_name -> daemon.TailscaleSSHOutput
-	47, // 22: daemon.TailscaleSSHServerMessage.exit:type_name -> daemon.TailscaleSSHExit
-	48, // 23: daemon.TailscaleSSHServerMessage.error:type_name -> daemon.TailscaleSSHError
-	0,  // 24: daemon.Log.Message.level:type_name -> daemon.LogLevel
-	50, // 25: daemon.StartedService.GetVersion:input_type -> google.protobuf.Empty
-	50, // 26: daemon.StartedService.SubscribeServiceStatus:input_type -> google.protobuf.Empty
-	50, // 27: daemon.StartedService.SubscribeLog:input_type -> google.protobuf.Empty
-	50, // 28: daemon.StartedService.GetDefaultLogLevel:input_type -> google.protobuf.Empty
-	50, // 29: daemon.StartedService.ClearLogs:input_type -> google.protobuf.Empty
-	5,  // 30: daemon.StartedService.SubscribeStatus:input_type -> daemon.SubscribeStatusRequest
-	50, // 31: daemon.StartedService.SubscribeGroups:input_type -> google.protobuf.Empty
-	50, // 32: daemon.StartedService.GetClashModeStatus:input_type -> google.protobuf.Empty
-	50, // 33: daemon.StartedService.SubscribeClashMode:input_type -> google.protobuf.Empty
-	15, // 34: daemon.StartedService.SetClashMode:input_type -> daemon.ClashMode
-	12, // 35: daemon.StartedService.URLTest:input_type -> daemon.URLTestRequest
-	13, // 36: daemon.StartedService.SelectOutbound:input_type -> daemon.SelectOutboundRequest
-	14, // 37: daemon.StartedService.SetGroupExpand:input_type -> daemon.SetGroupExpandRequest
-	50, // 38: daemon.StartedService.TriggerOOMReport:input_type -> google.protobuf.Empty
-	17, // 39: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
-	22, // 40: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
-	50, // 41: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
-	50, // 42: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
-	50, // 43: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
-	50, // 44: daemon.StartedService.SubscribeOutbounds:input_type -> google.protobuf.Empty
-	27, // 45: daemon.StartedService.StartNetworkQualityTest:input_type -> daemon.NetworkQualityTestRequest
-	29, // 46: daemon.StartedService.StartSTUNTest:input_type -> daemon.STUNTestRequest
-	50, // 47: daemon.StartedService.SubscribeTailscaleStatus:input_type -> google.protobuf.Empty
-	35, // 48: daemon.StartedService.StartTailscalePing:input_type -> daemon.TailscalePingRequest
-	37, // 49: daemon.StartedService.SetTailscaleExitNode:input_type -> daemon.SetTailscaleExitNodeRequest
-	38, // 50: daemon.StartedService.TailscaleLogout:input_type -> daemon.TailscaleLogoutRequest
-	39, // 51: daemon.StartedService.StartTailscaleSSHSession:input_type -> daemon.TailscaleSSHClientMessage
-	3,  // 52: daemon.StartedService.GetVersion:output_type -> daemon.Version
-	4,  // 53: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
-	6,  // 54: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
-	7,  // 55: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
-	50, // 56: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
-	8,  // 57: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
-	9,  // 58: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
-	16, // 59: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
-	15, // 60: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
-	50, // 61: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
-	50, // 62: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
-	50, // 63: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
-	50, // 64: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
-	50, // 65: daemon.StartedService.TriggerOOMReport:output_type -> google.protobuf.Empty
-	19, // 66: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
-	50, // 67: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
-	50, // 68: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
-	23, // 69: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
-	25, // 70: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
-	26, // 71: daemon.StartedService.SubscribeOutbounds:output_type -> daemon.OutboundList
-	28, // 72: daemon.StartedService.StartNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
-	30, // 73: daemon.StartedService.StartSTUNTest:output_type -> daemon.STUNTestProgress
-	31, // 74: daemon.StartedService.SubscribeTailscaleStatus:output_type -> daemon.TailscaleStatusUpdate
-	36, // 75: daemon.StartedService.StartTailscalePing:output_type -> daemon.TailscalePingResponse
-	50, // 76: daemon.StartedService.SetTailscaleExitNode:output_type -> google.protobuf.Empty
-	50, // 77: daemon.StartedService.TailscaleLogout:output_type -> google.protobuf.Empty
-	43, // 78: daemon.StartedService.StartTailscaleSSHSession:output_type -> daemon.TailscaleSSHServerMessage
-	52, // [52:79] is the sub-list for method output_type
-	25, // [25:52] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	22, // 6: daemon.ConnectionEvent.connection:type_name -> daemon.Connection
+	20, // 7: daemon.ConnectionEvents.events:type_name -> daemon.ConnectionEvent
+	23, // 8: daemon.Connection.processInfo:type_name -> daemon.ProcessInfo
+	26, // 9: daemon.DeprecatedWarnings.warnings:type_name -> daemon.DeprecatedWarning
+	13, // 10: daemon.OutboundList.outbounds:type_name -> daemon.GroupItem
+	34, // 11: daemon.TailscaleStatusUpdate.endpoints:type_name -> daemon.TailscaleEndpointStatus
+	36, // 12: daemon.TailscaleEndpointStatus.self:type_name -> daemon.TailscalePeer
+	35, // 13: daemon.TailscaleEndpointStatus.userGroups:type_name -> daemon.TailscaleUserGroup
+	36, // 14: daemon.TailscaleEndpointStatus.exitNode:type_name -> daemon.TailscalePeer
+	36, // 15: daemon.TailscaleUserGroup.peers:type_name -> daemon.TailscalePeer
+	42, // 16: daemon.TailscaleSSHClientMessage.start:type_name -> daemon.TailscaleSSHStart
+	43, // 17: daemon.TailscaleSSHClientMessage.input:type_name -> daemon.TailscaleSSHInput
+	44, // 18: daemon.TailscaleSSHClientMessage.resize:type_name -> daemon.TailscaleSSHResize
+	46, // 19: daemon.TailscaleSSHServerMessage.authBanner:type_name -> daemon.TailscaleSSHAuthBanner
+	47, // 20: daemon.TailscaleSSHServerMessage.ready:type_name -> daemon.TailscaleSSHReady
+	48, // 21: daemon.TailscaleSSHServerMessage.output:type_name -> daemon.TailscaleSSHOutput
+	49, // 22: daemon.TailscaleSSHServerMessage.exit:type_name -> daemon.TailscaleSSHExit
+	50, // 23: daemon.TailscaleSSHServerMessage.error:type_name -> daemon.TailscaleSSHError
+	54, // 24: daemon.USBProviderMessage.attach:type_name -> daemon.USBDeviceAttach
+	56, // 25: daemon.USBProviderMessage.detach:type_name -> daemon.USBDeviceDetach
+	59, // 26: daemon.USBProviderMessage.urbResponse:type_name -> daemon.USBURBResponse
+	57, // 27: daemon.USBServerMessage.ready:type_name -> daemon.USBDeviceReady
+	58, // 28: daemon.USBServerMessage.urbRequest:type_name -> daemon.USBURBRequest
+	61, // 29: daemon.USBServerMessage.abort:type_name -> daemon.USBEndpointAbort
+	62, // 30: daemon.USBServerMessage.error:type_name -> daemon.USBError
+	55, // 31: daemon.USBDeviceDescriptor.interfaces:type_name -> daemon.USBInterface
+	53, // 32: daemon.USBDeviceAttach.descriptor:type_name -> daemon.USBDeviceDescriptor
+	60, // 33: daemon.USBURBRequest.isoPackets:type_name -> daemon.USBIsoPacket
+	60, // 34: daemon.USBURBResponse.isoPackets:type_name -> daemon.USBIsoPacket
+	64, // 35: daemon.USBIPServerStatusUpdate.servers:type_name -> daemon.USBIPServerStatus
+	65, // 36: daemon.USBIPServerStatus.devices:type_name -> daemon.USBSharedDevice
+	53, // 37: daemon.USBSharedDevice.descriptor:type_name -> daemon.USBDeviceDescriptor
+	3,  // 38: daemon.USBSharedDevice.backend:type_name -> daemon.USBBackend
+	2,  // 39: daemon.USBSharedDevice.state:type_name -> daemon.USBDeviceState
+	0,  // 40: daemon.Log.Message.level:type_name -> daemon.LogLevel
+	67, // 41: daemon.StartedService.GetVersion:input_type -> google.protobuf.Empty
+	67, // 42: daemon.StartedService.SubscribeServiceStatus:input_type -> google.protobuf.Empty
+	67, // 43: daemon.StartedService.SubscribeLog:input_type -> google.protobuf.Empty
+	67, // 44: daemon.StartedService.GetDefaultLogLevel:input_type -> google.protobuf.Empty
+	67, // 45: daemon.StartedService.ClearLogs:input_type -> google.protobuf.Empty
+	7,  // 46: daemon.StartedService.SubscribeStatus:input_type -> daemon.SubscribeStatusRequest
+	67, // 47: daemon.StartedService.SubscribeGroups:input_type -> google.protobuf.Empty
+	67, // 48: daemon.StartedService.GetClashModeStatus:input_type -> google.protobuf.Empty
+	67, // 49: daemon.StartedService.SubscribeClashMode:input_type -> google.protobuf.Empty
+	17, // 50: daemon.StartedService.SetClashMode:input_type -> daemon.ClashMode
+	14, // 51: daemon.StartedService.URLTest:input_type -> daemon.URLTestRequest
+	15, // 52: daemon.StartedService.SelectOutbound:input_type -> daemon.SelectOutboundRequest
+	16, // 53: daemon.StartedService.SetGroupExpand:input_type -> daemon.SetGroupExpandRequest
+	19, // 54: daemon.StartedService.SubscribeConnections:input_type -> daemon.SubscribeConnectionsRequest
+	24, // 55: daemon.StartedService.CloseConnection:input_type -> daemon.CloseConnectionRequest
+	67, // 56: daemon.StartedService.CloseAllConnections:input_type -> google.protobuf.Empty
+	67, // 57: daemon.StartedService.GetDeprecatedWarnings:input_type -> google.protobuf.Empty
+	67, // 58: daemon.StartedService.GetStartedAt:input_type -> google.protobuf.Empty
+	67, // 59: daemon.StartedService.SubscribeOutbounds:input_type -> google.protobuf.Empty
+	29, // 60: daemon.StartedService.StartNetworkQualityTest:input_type -> daemon.NetworkQualityTestRequest
+	31, // 61: daemon.StartedService.StartSTUNTest:input_type -> daemon.STUNTestRequest
+	67, // 62: daemon.StartedService.SubscribeTailscaleStatus:input_type -> google.protobuf.Empty
+	37, // 63: daemon.StartedService.StartTailscalePing:input_type -> daemon.TailscalePingRequest
+	39, // 64: daemon.StartedService.SetTailscaleExitNode:input_type -> daemon.SetTailscaleExitNodeRequest
+	40, // 65: daemon.StartedService.TailscaleLogout:input_type -> daemon.TailscaleLogoutRequest
+	41, // 66: daemon.StartedService.StartTailscaleSSHSession:input_type -> daemon.TailscaleSSHClientMessage
+	51, // 67: daemon.StartedService.ProvideUSBDevices:input_type -> daemon.USBProviderMessage
+	67, // 68: daemon.StartedService.SubscribeUSBIPServerStatus:input_type -> google.protobuf.Empty
+	5,  // 69: daemon.StartedService.GetVersion:output_type -> daemon.Version
+	6,  // 70: daemon.StartedService.SubscribeServiceStatus:output_type -> daemon.ServiceStatus
+	8,  // 71: daemon.StartedService.SubscribeLog:output_type -> daemon.Log
+	9,  // 72: daemon.StartedService.GetDefaultLogLevel:output_type -> daemon.DefaultLogLevel
+	67, // 73: daemon.StartedService.ClearLogs:output_type -> google.protobuf.Empty
+	10, // 74: daemon.StartedService.SubscribeStatus:output_type -> daemon.Status
+	11, // 75: daemon.StartedService.SubscribeGroups:output_type -> daemon.Groups
+	18, // 76: daemon.StartedService.GetClashModeStatus:output_type -> daemon.ClashModeStatus
+	17, // 77: daemon.StartedService.SubscribeClashMode:output_type -> daemon.ClashMode
+	67, // 78: daemon.StartedService.SetClashMode:output_type -> google.protobuf.Empty
+	67, // 79: daemon.StartedService.URLTest:output_type -> google.protobuf.Empty
+	67, // 80: daemon.StartedService.SelectOutbound:output_type -> google.protobuf.Empty
+	67, // 81: daemon.StartedService.SetGroupExpand:output_type -> google.protobuf.Empty
+	21, // 82: daemon.StartedService.SubscribeConnections:output_type -> daemon.ConnectionEvents
+	67, // 83: daemon.StartedService.CloseConnection:output_type -> google.protobuf.Empty
+	67, // 84: daemon.StartedService.CloseAllConnections:output_type -> google.protobuf.Empty
+	25, // 85: daemon.StartedService.GetDeprecatedWarnings:output_type -> daemon.DeprecatedWarnings
+	27, // 86: daemon.StartedService.GetStartedAt:output_type -> daemon.StartedAt
+	28, // 87: daemon.StartedService.SubscribeOutbounds:output_type -> daemon.OutboundList
+	30, // 88: daemon.StartedService.StartNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
+	32, // 89: daemon.StartedService.StartSTUNTest:output_type -> daemon.STUNTestProgress
+	33, // 90: daemon.StartedService.SubscribeTailscaleStatus:output_type -> daemon.TailscaleStatusUpdate
+	38, // 91: daemon.StartedService.StartTailscalePing:output_type -> daemon.TailscalePingResponse
+	67, // 92: daemon.StartedService.SetTailscaleExitNode:output_type -> google.protobuf.Empty
+	67, // 93: daemon.StartedService.TailscaleLogout:output_type -> google.protobuf.Empty
+	45, // 94: daemon.StartedService.StartTailscaleSSHSession:output_type -> daemon.TailscaleSSHServerMessage
+	52, // 95: daemon.StartedService.ProvideUSBDevices:output_type -> daemon.USBServerMessage
+	63, // 96: daemon.StartedService.SubscribeUSBIPServerStatus:output_type -> daemon.USBIPServerStatusUpdate
+	69, // [69:97] is the sub-list for method output_type
+	41, // [41:69] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_daemon_started_service_proto_init() }
@@ -3910,13 +5294,24 @@ func file_daemon_started_service_proto_init() {
 		(*TailscaleSSHServerMessage_Exit)(nil),
 		(*TailscaleSSHServerMessage_Error)(nil),
 	}
+	file_daemon_started_service_proto_msgTypes[46].OneofWrappers = []any{
+		(*USBProviderMessage_Attach)(nil),
+		(*USBProviderMessage_Detach)(nil),
+		(*USBProviderMessage_UrbResponse)(nil),
+	}
+	file_daemon_started_service_proto_msgTypes[47].OneofWrappers = []any{
+		(*USBServerMessage_Ready)(nil),
+		(*USBServerMessage_UrbRequest)(nil),
+		(*USBServerMessage_Abort)(nil),
+		(*USBServerMessage_Error)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_daemon_started_service_proto_rawDesc), len(file_daemon_started_service_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   47,
+			NumEnums:      5,
+			NumMessages:   62,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
