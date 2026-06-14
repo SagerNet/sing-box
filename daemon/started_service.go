@@ -17,7 +17,6 @@ import (
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/protocol/group"
-	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	"github.com/sagernet/sing/common/memory"
@@ -32,7 +31,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const APIVersion = 1
+const APIVersion = 2
 
 var _ StartedServiceServer = (*StartedService)(nil)
 
@@ -667,18 +666,6 @@ func (s *StartedService) SetGroupExpand(ctx context.Context, request *SetGroupEx
 		}
 	}
 	return &emptypb.Empty{}, nil
-}
-
-func (s *StartedService) TriggerOOMReport(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
-	instance := s.Instance()
-	if instance == nil {
-		return nil, status.Error(codes.FailedPrecondition, "service not started")
-	}
-	reporter := service.FromContext[oomkiller.OOMReporter](instance.ctx)
-	if reporter == nil {
-		return nil, status.Error(codes.Unavailable, "OOM reporter not available")
-	}
-	return &emptypb.Empty{}, reporter.WriteReport(memory.Total())
 }
 
 func (s *StartedService) SubscribeConnections(request *SubscribeConnectionsRequest, server grpc.ServerStreamingServer[ConnectionEvents]) error {
