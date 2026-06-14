@@ -5,6 +5,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/sagernet/sing-box/service/oomkiller"
+	"github.com/sagernet/sing/common/memory"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -13,19 +16,22 @@ import (
 var _ ManagedServiceServer = (*ManagedService)(nil)
 
 type ManagedService struct {
-	handler ManagedHandler
-	debug   bool
+	handler     ManagedHandler
+	debug       bool
+	oomReporter oomkiller.OOMReporter
 }
 
 type ManagedServiceOptions struct {
-	Handler ManagedHandler
-	Debug   bool
+	Handler     ManagedHandler
+	Debug       bool
+	OOMReporter oomkiller.OOMReporter
 }
 
 func NewManagedService(options ManagedServiceOptions) *ManagedService {
 	return &ManagedService{
-		handler: options.Handler,
-		debug:   options.Debug,
+		handler:     options.Handler,
+		debug:       options.Debug,
+		oomReporter: options.OOMReporter,
 	}
 }
 
@@ -78,6 +84,13 @@ func (s *ManagedService) TriggerDebugCrash(ctx context.Context, request *DebugCr
 		return nil, status.Error(codes.InvalidArgument, "unknown debug crash type")
 	}
 	return &emptypb.Empty{}, nil
+}
+
+func (s *ManagedService) TriggerOOMReport(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
+	if s.oomReporter == nil {
+		return nil, status.Error(codes.Unavailable, "OOM reporter not available")
+	}
+	return &emptypb.Empty{}, s.oomReporter.WriteReport(memory.Total())
 }
 
 func (s *ManagedService) mustEmbedUnimplementedManagedServiceServer() {
