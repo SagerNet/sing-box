@@ -456,23 +456,17 @@ func (c *CommandClient) handleClashModeStream() {
 
 	modeStatus, err := client.GetClashModeStatus(ctx, &emptypb.Empty{})
 	if err != nil {
-		c.handler.Disconnected(E.Cause(err, "get clash mode status").Error())
-		return
+		if status.Code(err) != codes.NotFound {
+			c.handler.Disconnected(E.Cause(err, "get clash mode status").Error())
+			return
+		}
+		modeStatus = &daemon.ClashModeStatus{}
 	}
 
 	if sFixAndroidStack {
-		go func() {
-			c.handler.InitializeClashMode(newIterator(modeStatus.ModeList), modeStatus.CurrentMode)
-			if len(modeStatus.ModeList) == 0 {
-				c.handler.Disconnected(E.Cause(os.ErrInvalid, "empty clash mode list").Error())
-			}
-		}()
+		go c.handler.InitializeClashMode(newIterator(modeStatus.ModeList), modeStatus.CurrentMode)
 	} else {
 		c.handler.InitializeClashMode(newIterator(modeStatus.ModeList), modeStatus.CurrentMode)
-		if len(modeStatus.ModeList) == 0 {
-			c.handler.Disconnected(E.Cause(os.ErrInvalid, "empty clash mode list").Error())
-			return
-		}
 	}
 
 	if len(modeStatus.ModeList) == 0 {
@@ -481,6 +475,9 @@ func (c *CommandClient) handleClashModeStream() {
 
 	stream, err := client.SubscribeClashMode(ctx, &emptypb.Empty{})
 	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return
+		}
 		c.handler.Disconnected(E.Cause(err, "subscribe clash mode").Error())
 		return
 	}
@@ -488,6 +485,9 @@ func (c *CommandClient) handleClashModeStream() {
 	for {
 		mode, err := stream.Recv()
 		if err != nil {
+			if status.Code(err) == codes.NotFound {
+				return
+			}
 			c.handler.Disconnected(E.Cause(err, "clash mode stream recv").Error())
 			return
 		}
