@@ -185,6 +185,7 @@ nav:
           - DNS: configuration/outbound/dns.md
           - Selector: configuration/outbound/selector.md
           - URLTest: configuration/outbound/urltest.md
+          - Priority: configuration/outbound/priority.md
       - Service:
           - configuration/service/index.md
           - sing-box API: configuration/service/api.md
