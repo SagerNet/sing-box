@@ -106,6 +106,3 @@ API 密钥。
 #### tls
 
 TLS 配置,参阅 [TLS](/zh/configuration/shared/tls/#inbound)。
-
-连接跟踪与 Clash 模式方法需要配置 [Clash API](/zh/configuration/experimental/clash-api/),
-否则将以 `UNIMPLEMENTED` 失败。
