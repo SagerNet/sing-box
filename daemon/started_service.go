@@ -510,7 +510,7 @@ func (s *StartedService) GetClashModeStatus(ctx context.Context, empty *emptypb.
 	clashServer := s.instance.clashServer
 	s.serviceAccess.RUnlock()
 	if clashServer == nil {
-		return nil, status.Error(codes.Unimplemented, "clash mode not available")
+		return nil, status.Error(codes.NotFound, "clash mode not available")
 	}
 	return &ClashModeStatus{
 		ModeList:    clashServer.ModeList(),
@@ -537,7 +537,7 @@ func (s *StartedService) SubscribeClashMode(empty *emptypb.Empty, server grpc.Se
 		clashServer := s.instance.clashServer
 		if clashServer == nil {
 			s.serviceAccess.RUnlock()
-			return status.Error(codes.Unimplemented, "clash mode not available")
+			return status.Error(codes.NotFound, "clash mode not available")
 		}
 		message := &ClashMode{Mode: clashServer.Mode()}
 		s.serviceAccess.RUnlock()
@@ -566,7 +566,7 @@ func (s *StartedService) SetClashMode(ctx context.Context, request *ClashMode) (
 	clashServer := s.instance.clashServer
 	s.serviceAccess.RUnlock()
 	if clashServer == nil {
-		return nil, status.Error(codes.Unimplemented, "clash mode not available")
+		return nil, status.Error(codes.NotFound, "clash mode not available")
 	}
 	clashServer.SetMode(request.Mode)
 	return &emptypb.Empty{}, nil
