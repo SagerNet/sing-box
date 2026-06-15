@@ -112,6 +112,3 @@ Update interval of the dashboard.
 #### tls
 
 TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
-
-Connection tracking and Clash mode methods require [Clash API](/configuration/experimental/clash-api/)
-to be configured, otherwise they fail with `UNIMPLEMENTED`.
