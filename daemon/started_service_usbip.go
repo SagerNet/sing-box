@@ -287,28 +287,39 @@ func addUSBDevice(ctx context.Context, serviceManager adapter.ServiceManager, se
 		ctx:      ctx,
 		pending:  make(map[uint64]chan *USBURBResponse),
 	}
-	busID, err := provider.AddDevice(usbip.DynamicDeviceInfo{
-		BusID:              descriptor.GetDeviceId(),
-		BusNum:             descriptor.GetBusNum(),
-		DevNum:             descriptor.GetDevNum(),
-		Speed:              descriptor.GetSpeed(),
-		VendorID:           uint16(descriptor.GetVendorId()),
-		ProductID:          uint16(descriptor.GetProductId()),
-		BCDDevice:          uint16(descriptor.GetBcdDevice()),
-		DeviceClass:        uint8(descriptor.GetDeviceClass()),
-		DeviceSubClass:     uint8(descriptor.GetDeviceSubClass()),
-		DeviceProtocol:     uint8(descriptor.GetDeviceProtocol()),
-		ConfigurationValue: uint8(descriptor.GetConfigurationValue()),
-		NumConfigurations:  uint8(descriptor.GetNumConfigurations()),
-		Interfaces:         usbInterfacesFromProto(descriptor.GetInterfaces()),
-		Serial:             descriptor.GetSerial(),
-		Product:            descriptor.GetProduct(),
-	}, device)
+	entry := usbDeviceEntryFromDescriptor(descriptor)
+	busID, err := provider.AddDevice(usbip.ProvidedDeviceInfo{Entry: entry}, device)
 	if err != nil {
 		return nil, err
 	}
 	device.busID = busID
 	return device, nil
+}
+
+func usbDeviceEntryFromDescriptor(descriptor *USBDeviceDescriptor) usbip.DeviceEntry {
+	deviceID := descriptor.GetDeviceId()
+	interfaces := usbInterfacesFromProto(descriptor.GetInterfaces())
+	info := usbip.DeviceInfoTruncated{
+		BusNum:              descriptor.GetBusNum(),
+		DevNum:              descriptor.GetDevNum(),
+		Speed:               descriptor.GetSpeed(),
+		IDVendor:            uint16(descriptor.GetVendorId()),
+		IDProduct:           uint16(descriptor.GetProductId()),
+		BCDDevice:           uint16(descriptor.GetBcdDevice()),
+		BDeviceClass:        uint8(descriptor.GetDeviceClass()),
+		BDeviceSubClass:     uint8(descriptor.GetDeviceSubClass()),
+		BDeviceProtocol:     uint8(descriptor.GetDeviceProtocol()),
+		BConfigurationValue: uint8(descriptor.GetConfigurationValue()),
+		BNumConfigurations:  uint8(descriptor.GetNumConfigurations()),
+		BNumInterfaces:      uint8(len(interfaces)),
+	}
+	copy(info.BusID[:], deviceID)
+	return usbip.DeviceEntry{
+		Info:       info,
+		Interfaces: interfaces,
+		Serial:     descriptor.GetSerial(),
+		Product:    descriptor.GetProduct(),
+	}
 }
 
 // sing-usbip calls Submit concurrently across endpoints for a single device.
