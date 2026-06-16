@@ -94,7 +94,7 @@ func (s *ServerService) Close() error {
 	return s.inner.Close()
 }
 
-func (s *dynamicServerService) AddDevice(info usbip.DynamicDeviceInfo, transport usbip.DeviceTransport) (string, error) {
+func (s *dynamicServerService) AddDevice(info usbip.ProvidedDeviceInfo, transport usbip.DeviceTransport) (string, error) {
 	return s.host.AddDevice(info, transport)
 }
 
