@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -30,7 +32,14 @@ import (
 const (
 	mdnsPort        = 5353
 	mdnsClassTopBit = 1 << 15
-	mdnsTimeout     = time.Second
+	// mdnsTimeout is the hard cap of the response collection window.
+	mdnsTimeout = time.Second
+	// mdnsSettleTimeout is how long we keep collecting after the first answer
+	// arrived, so answers from other responders/interfaces can be merged.
+	mdnsSettleTimeout = 250 * time.Millisecond
+	// mdnsHeadroom is reserved from the caller's deadline so the merged
+	// response can still be delivered before upstream timeouts fire.
+	mdnsHeadroom = 500 * time.Millisecond
 )
 
 var (
@@ -114,40 +123,61 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	if err != nil {
 		return nil, E.Cause(err, "mdns: pack request")
 	}
-	deadline, loaded := ctx.Deadline()
-	if !loaded || deadline.IsZero() {
-		deadline = time.Now().Add(mdnsTimeout)
-	}
+	question := message.Question[0]
+	deadline := queryDeadline(ctx, time.Now())
 	exchangeCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	results := make(chan exchangeResult, len(targets))
-	var group task.Group
+	response := newResponse(message)
+	var (
+		responseAccess sync.Mutex
+		seenRecords    = make(map[string]bool)
+		settleTimer    *time.Timer
+		lastErr        error
+	)
+	defer func() {
+		responseAccess.Lock()
+		defer responseAccess.Unlock()
+		if settleTimer != nil {
+			settleTimer.Stop()
+		}
+	}()
+	// PTR and ANY questions expect shared records from multiple responders,
+	// so they always use the full collection window.
+	settleEligible := question.Qtype != mDNS.TypePTR && question.Qtype != mDNS.TypeANY
+	onResponse := func(candidate *mDNS.Msg) {
+		responseAccess.Lock()
+		defer responseAccess.Unlock()
+		mergeResponse(response, candidate, seenRecords)
+		if settleEligible && settleTimer == nil && len(response.Answer) > 0 {
+			settleTimer = time.AfterFunc(mdnsSettleTimeout, cancel)
+		}
+	}
+	var (
+		group     task.Group
+		sentQuery atomic.Bool
+	)
 	for _, target := range targets {
-		group.Append0(func(ctx context.Context) error {
-			response, err := t.exchangeTarget(ctx, target, rawMessage, message.Question[0], deadline)
-			if err != nil || response != nil {
-				results <- exchangeResult{
-					response: response,
-					err:      err,
-				}
+		group.Append0(func(taskCtx context.Context) error {
+			targetErr := t.exchangeTarget(taskCtx, target, rawMessage, question, deadline, &sentQuery, onResponse)
+			if targetErr != nil {
+				t.logger.TraceContext(ctx, targetErr)
+				responseAccess.Lock()
+				lastErr = targetErr
+				responseAccess.Unlock()
 			}
 			return nil
 		})
 	}
 	groupErr := group.Run(exchangeCtx)
-	close(results)
-	response := newResponse(message)
-	seenRecords := make(map[string]bool)
-	var lastErr error
-	for result := range results {
-		if result.err != nil {
-			lastErr = result.err
-			t.logger.TraceContext(ctx, result.err)
-			continue
-		}
-		mergeResponse(response, result.response, seenRecords)
-	}
+	responseAccess.Lock()
+	defer responseAccess.Unlock()
 	if len(response.Answer) > 0 || len(response.Ns) > 0 || len(response.Extra) > 0 {
+		return response, nil
+	}
+	if sentQuery.Load() {
+		// The query went out but nobody answered, which is normal for mDNS
+		// (e.g. unsupported record types or offline hosts). Return NODATA
+		// instead of an error so the inbound connection is not torn down.
 		return response, nil
 	}
 	if lastErr != nil {
@@ -159,9 +189,17 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	return nil, E.New("mdns: query timeout")
 }
 
-type exchangeResult struct {
-	response *mDNS.Msg
-	err      error
+// queryDeadline bounds the collection window: at most mdnsTimeout, and never
+// closer to the caller's deadline than mdnsHeadroom, so a merged response is
+// always ready before upstream contexts and connection timeouts expire.
+func queryDeadline(ctx context.Context, now time.Time) time.Time {
+	deadline := now.Add(mdnsTimeout)
+	if ctxDeadline, loaded := ctx.Deadline(); loaded && !ctxDeadline.IsZero() {
+		if clamped := ctxDeadline.Add(-mdnsHeadroom); clamped.Before(deadline) {
+			deadline = clamped
+		}
+	}
+	return deadline
 }
 
 type queryTarget struct {
@@ -169,35 +207,41 @@ type queryTarget struct {
 	family string
 }
 
-func (t *Transport) exchangeTarget(ctx context.Context, target queryTarget, rawMessage []byte, question mDNS.Question, deadline time.Time) (*mDNS.Msg, error) {
+func (t *Transport) exchangeTarget(ctx context.Context, target queryTarget, rawMessage []byte, question mDNS.Question, deadline time.Time, sentQuery *atomic.Bool, onResponse func(*mDNS.Msg)) error {
 	packetConn, destination, err := t.listenPacket(ctx, target)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer packetConn.Close()
+	// Wake up the blocking read when the exchange is canceled, either by the
+	// settle timer after the first answer or by the upstream context.
+	stopAfterFunc := context.AfterFunc(ctx, func() {
+		packetConn.SetReadDeadline(time.Unix(0, 1))
+	})
+	defer stopAfterFunc()
 
 	_, err = packetConn.WriteTo(rawMessage, destination)
 	if err != nil {
-		return nil, E.Cause(err, "mdns: write request on ", target.iface.Name, " ", target.family)
+		return E.Cause(err, "mdns: write request on ", target.iface.Name, " ", target.family)
 	}
+	sentQuery.Store(true)
 	err = packetConn.SetReadDeadline(deadline)
 	if err != nil {
-		return nil, E.Cause(err, "mdns: set deadline on ", target.iface.Name, " ", target.family)
+		return E.Cause(err, "mdns: set deadline on ", target.iface.Name, " ", target.family)
 	}
-	response := newResponseFromQuestion(question)
-	seenRecords := make(map[string]bool)
+	if ctx.Err() != nil {
+		// The AfterFunc may have fired before the deadline above overwrote it.
+		return nil
+	}
 	buffer := buf.Get(buf.UDPBufferSize)
 	defer buf.Put(buffer)
 	for {
 		n, source, readErr := packetConn.ReadFrom(buffer)
 		if readErr != nil {
-			if E.IsTimeout(readErr) {
-				if len(response.Answer) > 0 || len(response.Ns) > 0 || len(response.Extra) > 0 {
-					return response, nil
-				}
-				return nil, nil
+			if ctx.Err() != nil || E.IsTimeout(readErr) {
+				return nil
 			}
-			return nil, E.Cause(readErr, "mdns: read response on ", target.iface.Name, " ", target.family)
+			return E.Cause(readErr, "mdns: read response on ", target.iface.Name, " ", target.family)
 		}
 		if !validSource(source, target) {
 			continue
@@ -212,7 +256,7 @@ func (t *Transport) exchangeTarget(ctx context.Context, target queryTarget, rawM
 			continue
 		}
 		normalizeResponse(&candidate, question)
-		mergeResponse(response, &candidate, seenRecords)
+		onResponse(&candidate)
 	}
 }
 
@@ -307,7 +351,10 @@ func (t *Transport) fetchInterfaces() ([]control.Interface, error) {
 func isUsableInterface(iface control.Interface) bool {
 	return iface.Flags&net.FlagUp != 0 &&
 		iface.Flags&net.FlagMulticast != 0 &&
-		iface.Flags&net.FlagLoopback == 0
+		iface.Flags&net.FlagLoopback == 0 &&
+		// mDNS is link-local; point-to-point tunnels (VPNs) cannot carry it
+		// and multicast writes on them fail on some platforms.
+		iface.Flags&net.FlagPointToPoint == 0
 }
 
 func interfaceFamilies(iface control.Interface) (supports4, supports6 bool) {
