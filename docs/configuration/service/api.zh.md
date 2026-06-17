@@ -8,6 +8,8 @@ icon: material/new-box
 
 sing-box API 服务是用于观察与控制正在运行的 sing-box 实例的 gRPC 服务器。
 
+它可以由 iOS、macOS 和 Android 上的 [sing-box 图形客户端](/zh/clients/)（通过 Remote Control 功能）或 [sing-box dashboard](https://github.com/SagerNet/sing-box-dashboard) 访问。
+
 服务器同时接受 [gRPC-Web](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-WEB.md) 请求,
 包括用于双向流方法的 [@improbable-eng/grpc-web](https://github.com/improbable-eng/grpc-web) WebSocket 传输。
 
