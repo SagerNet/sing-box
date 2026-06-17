@@ -194,6 +194,8 @@ nav:
           - CCM: configuration/service/ccm.md
           - OCM: configuration/service/ocm.md
           - Hysteria Realm: configuration/service/hysteria-realm.md
+          - USB/IP Server: configuration/service/usbip-server.md
+          - USB/IP Client: configuration/service/usbip-client.md
 markdown_extensions:
   - toc:
       slugify: !!python/object/apply:pymdownx.slugs.slugify
