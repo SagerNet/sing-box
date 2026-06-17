@@ -122,7 +122,7 @@ func (c *STDServerConfig) SetServerName(serverName string) {
 func (c *STDServerConfig) NextProtos() []string {
 	c.access.RLock()
 	defer c.access.RUnlock()
-	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == C.ACMETLS1Protocol {
+	if c.hasACMEALPN() && len(c.config.NextProtos) > 0 && c.config.NextProtos[0] == C.ACMETLS1Protocol {
 		return c.config.NextProtos[1:]
 	}
 	return c.config.NextProtos
@@ -132,7 +132,7 @@ func (c *STDServerConfig) SetNextProtos(nextProto []string) {
 	c.access.Lock()
 	defer c.access.Unlock()
 	config := c.config.Clone()
-	if c.hasACMEALPN() && len(c.config.NextProtos) > 1 && c.config.NextProtos[0] == C.ACMETLS1Protocol {
+	if c.hasACMEALPN() && len(c.config.NextProtos) > 0 && c.config.NextProtos[0] == C.ACMETLS1Protocol {
 		config.NextProtos = append(c.config.NextProtos[:1], nextProto...)
 	} else {
 		config.NextProtos = nextProto
