@@ -51,7 +51,7 @@ func (o *USBIPServerServiceOptions) UnmarshalJSON(content []byte) error {
 
 type USBIPClientServiceOptions struct {
 	DialerOptions
-	Server  string             `json:"server,omitempty"`
+	ServerOptions
 	Devices []USBIPDeviceMatch `json:"devices,omitempty"`
 }
 
