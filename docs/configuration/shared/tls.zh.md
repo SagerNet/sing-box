@@ -673,7 +673,11 @@ ECH 配置路径，PEM 格式。
 
 !!! question "自 sing-box 1.14.0 起"
 
-==仅客户端，仅 Linux/macOS/Windows，需要提权==
+==仅客户端==
+
+!!! quote ""
+
+    仅支持 Linux、macOS 和 Windows，需要提升的权限。
 
 在真实 ClientHello 之前注入一个伪造的、携带白名单 SNI 的 TLS ClientHello，
 以欺骗基于 SNI 过滤的中间盒放行连接。

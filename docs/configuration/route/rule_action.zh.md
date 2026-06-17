@@ -248,7 +248,9 @@ UDP 连接超时时间。
 
 !!! question "自 sing-box 1.14.0 起"
 
-==仅 Linux/macOS/Windows，需要管理员权限==
+!!! quote ""
+
+    仅支持 Linux、macOS 和 Windows，需要提升的权限。
 
 在真实 ClientHello 之前注入携带本字段所指定 SNI 的伪造 TLS ClientHello，
 用于欺骗仅放行特定主机名的 SNI 过滤中间盒。
