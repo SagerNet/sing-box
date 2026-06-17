@@ -13,7 +13,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-usbip"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
 )
 
 type ClientService struct {
@@ -37,7 +36,7 @@ func NewClientService(ctx context.Context, logger log.ContextLogger, tag string,
 	inner, err := usbip.NewClientService(ctx, usbip.ClientOptions{
 		Logger:        logger,
 		Dialer:        serviceDialer,
-		ServerAddress: M.ParseSocksaddr(options.Server),
+		ServerAddress: options.ServerOptions.Build(),
 		Devices:       toDeviceMatches(options.Devices),
 	})
 	if err != nil {
