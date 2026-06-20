@@ -115,17 +115,16 @@ upload_ios_app_store:
 	cd ../sing-box-for-apple && \
 	xcodebuild -exportArchive -archivePath build/SFI.xcarchive -exportOptionsPlist SFI/Upload.plist -allowProvisioningUpdates
 
-export_ios_ipa:
-	cd ../sing-box-for-apple && \
-	xcodebuild -exportArchive -archivePath build/SFI.xcarchive -exportOptionsPlist SFI/Export.plist -allowProvisioningUpdates -exportPath build/SFI && \
-	cp build/SFI/sing-box.ipa dist/SFI.ipa
+build_ios_deb:
+	$(MAKE) -C ../sing-box-for-apple build_ios_deb
 
-upload_ios_ipa:
+upload_ios_deb:
 	cd dist && \
-	cp SFI.ipa "SFI-${VERSION}.ipa" && \
-	ghr --replace --draft --prerelease "v${VERSION}" "SFI-${VERSION}.ipa"
+	ghr --replace --draft --prerelease "v${VERSION}" ../sing-box-for-apple/build/jailbreak/"SFI-${VERSION}-iphoneos-arm64.deb"
 
 release_ios: build_ios upload_ios_app_store
+
+release_ios_deb: build_ios_deb upload_ios_deb
 
 build_macos:
 	cd ../sing-box-for-apple && \
