@@ -9,7 +9,7 @@ platform-specific function implementation, such as TUN transparent proxy impleme
 
 !!! failure ""
 
-    Due to non-technical reasons, we are temporarily unable to update the sing-box app on the App Store and release the standalone version of the macOS client (TestFlight users are not affected)
+    We are temporarily unable to update sing-box apps on the App Store because the reviewer mistakenly found that we violated the rules (TestFlight users are not affected).
 
 ## :material-graph: Requirements
 
@@ -26,15 +26,26 @@ TestFlight quota is only available to [sponsors](https://github.com/sponsors/nek
 Once you donate, you can get an invitation by join our Telegram group for sponsors from [@yet_another_sponsor_bot](https://t.me/yet_another_sponsor_bot)
 or sending us your Apple ID [via email](mailto:contact@sagernet.org).
 
-## ~~:material-file-download: Download (macOS standalone version)~~
+## :material-cellphone-arrow-down: Download (iOS jailbreak version)
 
-* ~~[Homebrew Cask](https://formulae.brew.sh/cask/sfm)~~
+* [GitHub Releases](https://github.com/SagerNet/sing-box/releases) (`SFI-iphoneos-arm64.deb`)
+
+The jailbroken version of SFI: requires rootless iOS 15.0+
+
+Additional features:
+
+* It can run a [Tailscale SSH server](/configuration/endpoint/tailscale/#ssh_server) on the device.
+* [Process matching](/configuration/route/rule/#process_name) (`process_name`, `process_path`, `user`, and so on) works in route and DNS rules.
+
+## :material-file-download: Download (macOS standalone version)
+
+* [Homebrew Cask](https://formulae.brew.sh/cask/sfm)
 
 ```bash
 # brew install sfm
 ```
 
-* ~~[GitHub Releases](https://github.com/SagerNet/sing-box/releases)~~
+* [GitHub Releases](https://github.com/SagerNet/sing-box/releases)
 
 ## :material-source-repository: Source code
 
