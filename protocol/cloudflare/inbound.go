@@ -9,18 +9,19 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
-	boxDialer "github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/route/rule"
-	cloudflared "github.com/sagernet/sing-cloudflared"
-	tun "github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-cloudflared"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/pipe"
+	"github.com/sagernet/sing/service"
 )
 
 func RegisterInbound(registry *inbound.Registry) {
@@ -28,28 +29,35 @@ func RegisterInbound(registry *inbound.Registry) {
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.CloudflaredInboundOptions) (adapter.Inbound, error) {
-	controlDialer, err := boxDialer.NewWithOptions(boxDialer.Options{
-		Context:        ctx,
-		Options:        options.ControlDialer,
-		RemoteIsDomain: true,
+	controlDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context:          ctx,
+		Options:          options.ControlDialer,
+		RemoteIsDomain:   true,
+		ResolverOnDetour: true,
 	})
 	if err != nil {
 		return nil, E.Cause(err, "build cloudflared control dialer")
 	}
-	tunnelDialer, err := boxDialer.NewWithOptions(boxDialer.Options{
-		Context:        ctx,
-		Options:        options.TunnelDialer,
-		RemoteIsDomain: true,
+	tunnelDialer, err := dialer.NewWithOptions(dialer.Options{
+		Context:          ctx,
+		Options:          options.TunnelDialer,
+		RemoteIsDomain:   true,
+		ResolverOnDetour: true,
 	})
 	if err != nil {
 		return nil, E.Cause(err, "build cloudflared tunnel dialer")
 	}
+	dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
+	controlResolver := newRouterResolver(dnsRouter, controlDialer.(dialer.ResolveDialer).QueryOptions())
+	tunnelResolver := newRouterResolver(dnsRouter, tunnelDialer.(dialer.ResolveDialer).QueryOptions())
 
 	service, err := cloudflared.NewService(cloudflared.ServiceOptions{
 		Logger:           logger,
 		ConnectionDialer: &routerDialer{router: router, tag: tag},
 		ControlDialer:    controlDialer,
 		TunnelDialer:     tunnelDialer,
+		ControlResolver:  controlResolver,
+		TunnelResolver:   tunnelResolver,
 		ICMPHandler:      &icmpRouterHandler{router: router, logger: logger, tag: tag},
 		ConnContext: func(connCtx context.Context) context.Context {
 			return adapter.WithContext(connCtx, &adapter.InboundContext{
