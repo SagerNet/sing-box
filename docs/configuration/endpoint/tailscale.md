@@ -169,7 +169,8 @@ Access is controlled by the SSH ACL in the Tailscale admin console, which maps e
 - **Windows**: sessions run as the sing-box process identity; the mapped user is not impersonated, so a session mapped to a different local account is refused.
 - **Android**: the user is resolved by the app rather than the system user database. `root` is the superuser (UID 0) and `shell` is the ADB shell user (UID 2000); every other name is resolved as the package name of an installed application, running as that application's UID with its data directory as the home directory, so the target application must be installed. `termux` is a shortcut for `com.termux`, and `sing-box` for the app's own package name; when Termux is installed, the `root` and `termux` users load the Termux environment. Running as the sing-box application itself requires no root, while any other user requires granted root access; without root, sessions are limited to the sing-box user.
 - **macOS**: the SSH server is only available in the standalone version and requires the Root Helper; the App Store version is not supported.
-- **iOS** and **tvOS**: not yet supported.
+- **iOS**: the SSH server is only available in the jailbreak build; the App Store and TestFlight versions are not supported.
+- **tvOS**: not yet supported.
 
 Object format:
 
