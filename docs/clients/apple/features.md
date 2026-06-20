@@ -40,13 +40,13 @@ SFI/SFM/SFT provides an unprivileged TUN implementation through NetworkExtension
 
 | Route/DNS rule option | Available        | Note                  |
 |-----------------------|------------------|-----------------------|
-| `process_name`        | :material-close: | No permission         |
-| `process_path`        | :material-close: | No permission         |
-| `process_path_regex`  | :material-close: | No permission         |
+| `process_name`        | :material-alert: | Only supported in the macOS standalone and iOS jailbreak versions |
+| `process_path`        | :material-alert: | Only supported in the macOS standalone and iOS jailbreak versions |
+| `process_path_regex`  | :material-alert: | Only supported in the macOS standalone and iOS jailbreak versions |
 | `package_name`        | :material-close: | /                     |
 | `package_name_regex`  | :material-close: | /                     |
-| `user`                | :material-close: | No permission         |
-| `user_id`             | :material-close: | No permission         |
+| `user`                | :material-alert: | Only supported in the macOS standalone and iOS jailbreak versions |
+| `user_id`             | :material-alert: | Only supported in the macOS standalone and iOS jailbreak versions |
 | `wifi_ssid`           | :material-alert: | Only supported on iOS |
 | `wifi_bssid`          | :material-alert: | Only supported on iOS |
 
