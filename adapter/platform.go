@@ -29,7 +29,6 @@ type PlatformInterface interface {
 	ClearDNSCache()
 	RequestPermissionForWIFIState() error
 	ReadWIFIState() WIFIState
-	SystemCertificates() []string
 
 	UsePlatformConnectionOwnerFinder() bool
 	FindConnectionOwner(request *FindConnectionOwnerRequest) (*ConnectionOwner, error)

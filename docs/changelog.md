@@ -5,6 +5,18 @@ icon: material/alert-decagram
 #### 1.14.0-alpha.33
 
 * Fixes and improvements
+* Add iOS jailbreak release **1**
+* Fixes and improvements
+
+**1**:
+
+A new jailbreak build of the iOS [sing-box for Apple](/clients/apple/) client is
+available, distributed as a `.deb` for rootless iOS 15.0+ from
+[GitHub Releases](https://github.com/SagerNet/sing-box/releases)
+(`SFI-iphoneos-arm64.deb`). Unlike the App Store and TestFlight builds, it can run
+a [Tailscale SSH server](/configuration/endpoint/tailscale/#ssh_server) on the
+device and supports [process matching](/configuration/route/rule/#process_name)
+(`process_name`, `process_path`, `user`, and so on) in route and DNS rules.
 
 #### 1.14.0-alpha.32
 
