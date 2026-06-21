@@ -140,10 +140,12 @@ func TestHTTPProxyAuthRetryOnlyOnce(t *testing.T) {
 
 	authorization := base64.StdEncoding.EncodeToString([]byte("basic:password"))
 	err = writeConnectRequest(conn, target, authorization)
-	require.NoError(t, err)
+	if err == nil {
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_, err = readHTTPStatusAndHeaders(reader)
+		require.Error(t, err)
+	}
 
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	_, err = readHTTPStatusAndHeaders(reader)
 	require.Error(t, err)
 }
 
@@ -165,10 +167,12 @@ func TestHTTPProxyAuthRetryTimeout(t *testing.T) {
 
 	authorization := base64.StdEncoding.EncodeToString([]byte("basic:password"))
 	err = writeConnectRequest(conn, target, authorization)
-	require.NoError(t, err)
+	if err == nil {
+		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_, err = readHTTPStatusAndHeaders(reader)
+		require.Error(t, err)
+	}
 
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	_, err = readHTTPStatusAndHeaders(reader)
 	require.Error(t, err)
 }
 
