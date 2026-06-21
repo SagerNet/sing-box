@@ -4,6 +4,7 @@ import (
 	std_bufio "bufio"
 	"context"
 	"net"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -18,6 +19,11 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/protocol/http"
+)
+
+const (
+	httpAuthenticationRetryError = "http: authentication failed, no Proxy-Authorization header"
+	httpAuthenticationRetryWait  = C.TCPConnectTimeout
 )
 
 func RegisterInbound(registry *inbound.Registry) {
@@ -96,11 +102,27 @@ func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata ada
 		}
 		conn = tlsConn
 	}
-	err := http.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
-	if err != nil {
-		N.CloseOnHandshakeFailure(conn, onClose, err)
-		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+	reader := std_bufio.NewReader(conn)
+	retriedAuthFailure := false
+	for {
+		err := http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+		if retriedAuthFailure {
+			_ = conn.SetReadDeadline(time.Time{})
+		} else if isRetryableHTTPAuthFailure(err) {
+			retriedAuthFailure = true
+			_ = conn.SetReadDeadline(time.Now().Add(httpAuthenticationRetryWait))
+			continue
+		}
+		if err != nil {
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+		}
+		return
 	}
+}
+
+func isRetryableHTTPAuthFailure(err error) bool {
+	return err != nil && err.Error() == httpAuthenticationRetryError
 }
 
 func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {

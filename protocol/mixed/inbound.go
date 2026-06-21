@@ -24,6 +24,11 @@ import (
 	"github.com/sagernet/sing/protocol/socks/socks5"
 )
 
+const (
+	httpAuthenticationRetryError = "http: authentication failed, no Proxy-Authorization header"
+	httpAuthenticationRetryWait  = C.TCPConnectTimeout
+)
+
 func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.HTTPMixedInboundOptions](registry, C.TypeMixed, NewInbound)
 }
@@ -127,8 +132,23 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	case socks4.Version, socks5.Version:
 		return socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
 	default:
-		return http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+		retriedAuthFailure := false
+		for {
+			err = http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+			if retriedAuthFailure {
+				_ = conn.SetReadDeadline(time.Time{})
+			} else if isRetryableHTTPAuthFailure(err) {
+				retriedAuthFailure = true
+				_ = conn.SetReadDeadline(time.Now().Add(httpAuthenticationRetryWait))
+				continue
+			}
+			return err
+		}
 	}
+}
+
+func isRetryableHTTPAuthFailure(err error) bool {
+	return err != nil && err.Error() == httpAuthenticationRetryError
 }
 
 func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
