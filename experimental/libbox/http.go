@@ -18,10 +18,13 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/sagernet/sing-box/common/certificate"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/protocol/socks"
 	"github.com/sagernet/sing/protocol/socks/socks5"
@@ -69,6 +72,7 @@ type httpClient struct {
 	tls       tls.Config
 	client    http.Client
 	transport http.Transport
+	store     *certificate.Store
 }
 
 func NewHTTPClient() HTTPClient {
@@ -78,6 +82,13 @@ func NewHTTPClient() HTTPClient {
 	client.transport.TLSHandshakeTimeout = C.TCPTimeout
 	client.transport.TLSClientConfig = &client.tls
 	client.transport.DisableKeepAlives = true
+	if C.IsAndroid {
+		store, err := certificate.NewStore(logger.NOP(), option.CertificateOptions{})
+		if err != nil {
+			panic(E.Cause(err, "initialize certificate store"))
+		}
+		client.tls.RootCAs = store.Pool()
+	}
 	return client
 }
 
@@ -150,6 +161,9 @@ func (c *httpClient) NewRequest() HTTPRequest {
 }
 
 func (c *httpClient) Close() {
+	if c.store != nil {
+		c.store.Close()
+	}
 	c.transport.CloseIdleConnections()
 }
 
