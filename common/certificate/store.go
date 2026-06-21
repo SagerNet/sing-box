@@ -2,7 +2,6 @@ package certificate
 
 import (
 	"bytes"
-	"context"
 	"crypto/x509"
 	"io/fs"
 	"os"
@@ -16,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
-	"github.com/sagernet/sing/service"
 )
 
 var _ adapter.CertificateStore = (*Store)(nil)
@@ -34,7 +32,7 @@ type Store struct {
 	platform storePlatform
 }
 
-func NewStore(ctx context.Context, logger logger.Logger, options option.CertificateOptions) (*Store, error) {
+func NewStore(logger logger.Logger, options option.CertificateOptions) (*Store, error) {
 	storeType := options.Store
 	if storeType == "" {
 		storeType = C.CertificateStoreSystem
@@ -43,14 +41,10 @@ func NewStore(ctx context.Context, logger logger.Logger, options option.Certific
 	switch storeType {
 	case C.CertificateStoreSystem:
 		systemPool = x509.NewCertPool()
-		platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
 		var systemValid bool
-		if platformInterface != nil {
-			for _, cert := range platformInterface.SystemCertificates() {
-				if systemPool.AppendCertsFromPEM([]byte(cert)) {
-					systemValid = true
-				}
-			}
+		for _, certificate := range systemCertificates() {
+			systemPool.AddCert(certificate)
+			systemValid = true
 		}
 		if !systemValid {
 			certPool, err := x509.SystemCertPool()
