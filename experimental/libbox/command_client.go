@@ -711,6 +711,16 @@ func (c *CommandClient) GetStartedAt() (int64, error) {
 	})
 }
 
+func (c *CommandClient) GetAPIVersion() (int32, error) {
+	return callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (int32, error) {
+		version, err := client.GetVersion(ctx, &emptypb.Empty{})
+		if err != nil {
+			return 0, E.Cause(err, "get version")
+		}
+		return version.ApiVersion, nil
+	})
+}
+
 func (c *CommandClient) SetGroupExpand(groupTag string, isExpand bool) error {
 	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.SetGroupExpand(ctx, &daemon.SetGroupExpandRequest{
