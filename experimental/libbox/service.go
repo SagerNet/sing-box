@@ -175,10 +175,6 @@ func (w *platformInterfaceWrapper) ReadWIFIState() adapter.WIFIState {
 	return (adapter.WIFIState)(*wifiState)
 }
 
-func (w *platformInterfaceWrapper) SystemCertificates() []string {
-	return iteratorToArray[string](w.iif.SystemCertificates())
-}
-
 func (w *platformInterfaceWrapper) UsePlatformConnectionOwnerFinder() bool {
 	return true
 }
