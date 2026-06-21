@@ -131,10 +131,6 @@ func (s *platformInterfaceStub) ReadWIFIState() adapter.WIFIState {
 	return adapter.WIFIState{}
 }
 
-func (s *platformInterfaceStub) SystemCertificates() []string {
-	return nil
-}
-
 func (s *platformInterfaceStub) UsePlatformConnectionOwnerFinder() bool {
 	return false
 }
