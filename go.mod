@@ -177,3 +177,5 @@ require (
 	lukechampine.com/blake3 v1.3.0 // indirect
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
+
+replace github.com/sagernet/sing => github.com/tianhuyang/sing v0.8.11-0.20260623101140-6c597e4bf541

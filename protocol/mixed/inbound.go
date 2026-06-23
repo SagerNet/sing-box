@@ -127,7 +127,16 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	case socks4.Version, socks5.Version:
 		return socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
 	default:
-		return http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+		return http.HandleConnectionExWithOptions(
+			ctx,
+			conn,
+			reader,
+			h.authenticator,
+			adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection),
+			metadata.Source,
+			onClose,
+			http.HTTPServerOptions{Logger: h.logger},
+		)
 	}
 }
 
