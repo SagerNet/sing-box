@@ -34,12 +34,15 @@ import "C"
 
 import (
 	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common/byteformats"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
 )
+
+const oomDraftMinInterval = time.Hour
 
 var (
 	globalAccess   sync.Mutex
@@ -107,6 +110,14 @@ func goMemoryPressureCallback(status C.ulong) {
 
 func (s *Service) writeOOMDraft(memoryUsage uint64) {
 	if s.draftCancelled.Load() {
+		return
+	}
+	now := time.Now().UnixNano()
+	lastDraft := s.lastDraftTime.Load()
+	if time.Duration(now-lastDraft) < oomDraftMinInterval {
+		return
+	}
+	if !s.lastDraftTime.CompareAndSwap(lastDraft, now) {
 		return
 	}
 	reporter := service.FromContext[OOMReporter](s.ctx)
