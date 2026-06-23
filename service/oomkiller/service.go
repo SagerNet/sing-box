@@ -32,6 +32,8 @@ type Service struct {
 	adaptiveTimer  *adaptiveTimer
 	lastReportTime atomic.Int64
 	//nolint:unused // touched only on darwin && cgo via writeOOMDraft/discardOOMDraft.
+	lastDraftTime atomic.Int64
+	//nolint:unused // touched only on darwin && cgo via writeOOMDraft/discardOOMDraft.
 	draftCancelled atomic.Bool
 }
 
