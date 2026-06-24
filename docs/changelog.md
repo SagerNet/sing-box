@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.34
+
+* Fixes and improvements
+
 #### 1.14.0-alpha.33
 
 * Add iOS jailbreak release **1**
