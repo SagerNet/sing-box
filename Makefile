@@ -119,7 +119,6 @@ build_ios_deb:
 	$(MAKE) -C ../sing-box-for-apple build_ios_deb
 
 upload_ios_deb:
-	cd dist && \
 	ghr --replace --draft --prerelease "v${VERSION}" ../sing-box-for-apple/build/jailbreak/"SFI-${VERSION}-iphoneos-arm64.deb"
 
 release_ios: build_ios upload_ios_app_store
