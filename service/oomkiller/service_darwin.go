@@ -117,9 +117,7 @@ func (s *Service) writeOOMDraft(memoryUsage uint64) {
 	if time.Duration(now-lastDraft) < oomDraftMinInterval {
 		return
 	}
-	if !s.lastDraftTime.CompareAndSwap(lastDraft, now) {
-		return
-	}
+	s.lastDraftTime.Store(now)
 	reporter := service.FromContext[OOMReporter](s.ctx)
 	if reporter == nil {
 		return
