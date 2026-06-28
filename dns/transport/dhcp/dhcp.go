@@ -39,12 +39,15 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 
 var _ adapter.DNSTransport = (*Transport)(nil)
 
+var errInterfaceIsCellular = E.New("interface is cellular")
+
 type Transport struct {
 	dns.TransportAdapter
 	ctx               context.Context
 	dialer            N.Dialer
 	logger            logger.ContextLogger
 	networkManager    adapter.NetworkManager
+	platformInterface adapter.PlatformInterface
 	interfaceName     string
 	interfaceCallback *list.Element[tun.DefaultInterfaceUpdateCallback]
 	transportLock     sync.RWMutex
@@ -54,6 +57,7 @@ type Transport struct {
 	search            []string
 	ndots             int
 	attempts          int
+	optional          bool
 }
 
 func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, options option.DHCPDNSServerOptions) (adapter.DNSTransport, error) {
@@ -62,26 +66,29 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		return nil, err
 	}
 	return &Transport{
-		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeDHCP, tag, options.LocalDNSServerOptions),
-		ctx:              ctx,
-		dialer:           transportDialer,
-		logger:           logger,
-		networkManager:   service.FromContext[adapter.NetworkManager](ctx),
-		interfaceName:    options.Interface,
-		ndots:            1,
-		attempts:         2,
+		TransportAdapter:  dns.NewTransportAdapterWithLocalOptions(C.DNSTypeDHCP, tag, options.LocalDNSServerOptions),
+		ctx:               ctx,
+		dialer:            transportDialer,
+		logger:            logger,
+		networkManager:    service.FromContext[adapter.NetworkManager](ctx),
+		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
+		interfaceName:     options.Interface,
+		ndots:             1,
+		attempts:          2,
 	}, nil
 }
 
 func NewRawTransport(transportAdapter dns.TransportAdapter, ctx context.Context, dialer N.Dialer, logger log.ContextLogger) *Transport {
 	return &Transport{
-		TransportAdapter: transportAdapter,
-		ctx:              ctx,
-		dialer:           dialer,
-		logger:           logger,
-		networkManager:   service.FromContext[adapter.NetworkManager](ctx),
-		ndots:            1,
-		attempts:         2,
+		TransportAdapter:  transportAdapter,
+		ctx:               ctx,
+		dialer:            dialer,
+		logger:            logger,
+		networkManager:    service.FromContext[adapter.NetworkManager](ctx),
+		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
+		ndots:             1,
+		attempts:          2,
+		optional:          true,
 	}
 }
 
@@ -95,7 +102,11 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 	go func() {
 		_, err := t.fetch()
 		if err != nil {
-			t.logger.Error(E.Cause(err, "fetch DNS servers"))
+			if errors.Is(err, errInterfaceIsCellular) && t.optional {
+				t.logger.Debug(E.Cause(errInterfaceIsCellular, "dhcp: fetch DNS servers"))
+			} else {
+				t.logger.Error(E.Cause(err, "dhcp: fetch DNS servers"))
+			}
 		}
 	}()
 	return nil
@@ -119,7 +130,7 @@ func (t *Transport) Reset() {
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	servers, err := t.fetch()
 	if err != nil {
-		return nil, err
+		return nil, E.Cause(err, "dhcp: fetch DNS servers")
 	}
 	if len(servers) == 0 {
 		return nil, E.New("dhcp: empty DNS servers from response")
@@ -171,11 +182,22 @@ func (t *Transport) fetchInterface() (*control.Interface, error) {
 		if t.networkManager.InterfaceMonitor() == nil {
 			return nil, E.New("missing monitor for auto DHCP, set route.auto_detect_interface")
 		}
-		defaultInterface := t.networkManager.InterfaceMonitor().DefaultInterface()
-		if defaultInterface == nil {
-			return nil, E.New("missing default interface")
+		if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
+			defaultInterface := t.networkManager.DefaultNetworkInterface()
+			if defaultInterface == nil {
+				return nil, E.New("missing default interface")
+			}
+			if defaultInterface.Type == C.InterfaceTypeCellular {
+				return nil, errInterfaceIsCellular
+			}
+			return &defaultInterface.Interface, nil
+		} else {
+			defaultInterface := t.networkManager.InterfaceMonitor().DefaultInterface()
+			if defaultInterface == nil {
+				return nil, E.New("missing default interface")
+			}
+			return defaultInterface, nil
 		}
-		return defaultInterface, nil
 	} else {
 		return t.networkManager.InterfaceFinder().ByName(t.interfaceName)
 	}
@@ -184,9 +206,10 @@ func (t *Transport) fetchInterface() (*control.Interface, error) {
 func (t *Transport) updateServers() error {
 	iface, err := t.fetchInterface()
 	if err != nil {
-		return E.Cause(err, "dhcp: prepare interface")
+		t.lastError = err
+		t.updatedAt = time.Now()
+		return E.Cause(err, "prepare interface")
 	}
-
 	t.logger.Info("dhcp: query DNS servers on ", iface.Name)
 	fetchCtx, cancel := context.WithTimeout(t.ctx, C.DHCPTimeout)
 	err = t.fetchServers0(fetchCtx, iface)
@@ -207,7 +230,11 @@ func (t *Transport) updateServers() error {
 func (t *Transport) interfaceUpdated(defaultInterface *control.Interface, flags int) {
 	err := t.updateServers()
 	if err != nil {
-		t.logger.Error("update servers: ", err)
+		if errors.Is(err, errInterfaceIsCellular) && t.optional {
+			t.logger.Debug(E.Cause(errInterfaceIsCellular, "dhcp: update DNS servers"))
+		} else {
+			t.logger.Error("dhcp: update DNS servers: ", err)
+		}
 	}
 }
 
