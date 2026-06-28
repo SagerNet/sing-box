@@ -3,21 +3,20 @@
 package libbox
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/oomprofile"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing/common/byteformats"
 	"github.com/sagernet/sing/common/memory"
 )
-
-func init() {
-	sOOMReporter = &oomReporter{}
-}
 
 var oomReportProfiles = []string{
 	"allocs",
@@ -59,7 +58,9 @@ type oomReportMetadata struct {
 	LastGC       string `json:"lastGC,omitempty"`
 }
 
-type oomReporter struct{}
+type oomReporter struct {
+	startedService *daemon.StartedService
+}
 
 var _ oomkiller.OOMReporter = (*oomReporter)(nil)
 
@@ -172,8 +173,42 @@ func (r *oomReporter) writeSnapshot(destPath string, memoryUsage uint64) error {
 	}
 	writeReportMetadata(destPath, metadata)
 	copyConfigSnapshot(destPath)
+	writeOOMLog(destPath, r.startedService.SavedLog())
 
 	return nil
+}
+
+func writeOOMLog(destPath string, entries []*log.Entry) {
+	if len(entries) == 0 {
+		return
+	}
+	var buffer bytes.Buffer
+	for _, entry := range entries {
+		writeWithoutColors(&buffer, entry.Message)
+		buffer.WriteByte('\n')
+	}
+	writeReportFile(destPath, "go.log", buffer.Bytes())
+}
+
+func writeWithoutColors(buffer *bytes.Buffer, message string) {
+	start := 0
+	for index := 0; index < len(message); {
+		if message[index] != '\x1b' || index+1 >= len(message) || message[index+1] != '[' {
+			index++
+			continue
+		}
+		end := index + 2
+		for end < len(message) && message[end] != 'm' {
+			end++
+		}
+		if end >= len(message) {
+			break
+		}
+		buffer.WriteString(message[start:index])
+		index = end + 1
+		start = index
+	}
+	buffer.WriteString(message[start:])
 }
 
 func writeOOMProfile(destPath string, name string) {
