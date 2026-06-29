@@ -77,6 +77,12 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	success := false
+	defer func() {
+		if !success {
+			conn.Close()
+		}
+	}()
 	request := &http.Request{
 		Method: http.MethodGet,
 		URL:    &c.requestURL,
@@ -97,6 +103,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if response.StatusCode != 101 ||
 		!strings.EqualFold(response.Header.Get("Connection"), "upgrade") ||
 		!strings.EqualFold(response.Header.Get("Upgrade"), "websocket") {
+		response.Body.Close()
 		return nil, E.New("v2ray-http-upgrade: unexpected status: ", response.Status)
 	}
 	if bufReader.Buffered() > 0 {
@@ -107,6 +114,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		}
 		conn = bufio.NewCachedConn(conn, buffer)
 	}
+	success = true
 	return conn, nil
 }
 
