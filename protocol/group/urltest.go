@@ -364,7 +364,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 		return result, nil
 	}
 	defer g.checking.Store(false)
-	b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
+	b, batchCtx := batch.New(ctx, batch.WithConcurrencyNum[any](10))
 	checked := make(map[string]bool)
 	var resultAccess sync.Mutex
 	for _, detour := range g.outbounds {
@@ -383,7 +383,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 			continue
 		}
 		b.Go(realTag, func() (any, error) {
-			testCtx, cancel := context.WithTimeout(g.ctx, C.TCPTimeout)
+			testCtx, cancel := context.WithTimeout(batchCtx, C.TCPTimeout)
 			defer cancel()
 			t, err := urltest.URLTest(testCtx, g.link, p)
 			if err != nil {
@@ -402,7 +402,29 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 			return nil, nil
 		})
 	}
-	b.Wait()
+	waitDone := make(chan struct{})
+	go func() {
+		b.Wait()
+		close(waitDone)
+	}()
+	timer := time.NewTimer(2 * C.TCPTimeout)
+	defer timer.Stop()
+	var timedOut bool
+	select {
+	case <-waitDone:
+	case <-timer.C:
+		timedOut = true
+		g.logger.Debug("urltest batch timed out, proceeding with available results")
+	}
+	if timedOut {
+		resultAccess.Lock()
+		for tag := range checked {
+			if _, ok := result[tag]; !ok {
+				g.history.DeleteURLTestHistory(tag)
+			}
+		}
+		resultAccess.Unlock()
+	}
 	g.performUpdateCheck()
 	return result, nil
 }

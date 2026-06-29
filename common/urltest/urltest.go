@@ -102,6 +102,11 @@ func URLTest(ctx context.Context, link string, detour N.Dialer) (t uint16, err e
 		return
 	}
 	defer instance.Close()
+	// Set hard read deadline: context cancellation does not interrupt
+	// net.Conn.Read() on connections from custom DialContext.
+	// Use relative timeout (not ctx.Deadline) because the context
+	// deadline includes DialContext time already consumed.
+	instance.SetReadDeadline(time.Now().Add(C.TCPTimeout))
 	if N.NeedHandshakeForWrite(instance) {
 		start = time.Now()
 	}
