@@ -258,8 +258,8 @@ github.com/sagernet/nftables v0.3.0-mod.2 h1:ck2KMU02OxL1eDFgGaWYglMDpoOZ7OHzxje
 github.com/sagernet/nftables v0.3.0-mod.2/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
 github.com/sagernet/quic-go v0.59.0-sing-box-mod.4 h1:6qvrUW79S+CrPwWz6cMePXohgjHoKxLo3c+MDhNwc3o=
 github.com/sagernet/quic-go v0.59.0-sing-box-mod.4/go.mod h1:OqILvS182CyOol5zNNo6bguvOGgXzV459+chpRaUC+4=
-github.com/sagernet/sing v0.8.12-0.20260702074557-63e2fd680d8a h1:I8FFJ8IOS+vUSNIq7L1pzBv0fMI507FEpe2CzmT0Jz0=
-github.com/sagernet/sing v0.8.12-0.20260702074557-63e2fd680d8a/go.mod h1:olXxWQNqRW/l2Q6JI3b2Qmz8iQnIFlOeeH8bx6JhgUA=
+github.com/sagernet/sing v0.8.12-0.20260702081104-2ded2af32d3d h1:BhsQU0Iug1tU4xR52cjm8Sc+LBo+KwdyLTRn3ie9moo=
+github.com/sagernet/sing v0.8.12-0.20260702081104-2ded2af32d3d/go.mod h1:olXxWQNqRW/l2Q6JI3b2Qmz8iQnIFlOeeH8bx6JhgUA=
 github.com/sagernet/sing-cloudflared v0.1.2 h1:rEz98+q2nvbNlQXaDXJQlRKngK81FHK+rm7pNCSLXB4=
 github.com/sagernet/sing-cloudflared v0.1.2/go.mod h1:bH2NKX+NpDTY1Zkxfboxw6MXB/ZywaNLmrDJYgKMJ2Y=
 github.com/sagernet/sing-mux v0.3.5 h1:RHnhVEc+SFqkrK4xMygYjDwwLhzp2Bj3lztSukONfhI=
@@ -272,6 +272,8 @@ github.com/sagernet/sing-shadowsocks2 v0.2.1 h1:dWV9OXCeFPuYGHb6IRqlSptVnSzOelnq
 github.com/sagernet/sing-shadowsocks2 v0.2.1/go.mod h1:RnXS0lExcDAovvDeniJ4IKa2IuChrdipolPYWBv9hWQ=
 github.com/sagernet/sing-shadowtls v0.2.1 h1:ZiHZdnEnP+YS73NMsxiZmIFCwNd0M4k7PkGCKNXhbaM=
 github.com/sagernet/sing-shadowtls v0.2.1/go.mod h1:sWqKnGlMipCHaGsw1sTTlimyUpgzP4WP3pjhCsYt9oA=
+github.com/sagernet/sing-snell v0.0.0-20260704161615-8d6d0bbb6662 h1:8NsGL7lPMHzrj4/+B1W1sypTNRiptZ5+UP7xIjlwFag=
+github.com/sagernet/sing-snell v0.0.0-20260704161615-8d6d0bbb6662/go.mod h1:PcwzX/Xvqky0EP3kGt8OCjYb3R1pydenPHNQZcPZmXY=
 github.com/sagernet/sing-tun v0.8.12-0.20260629021427-b3c6babbd353 h1:HA0TGrBQSFfvcoVXL1DxzF+i8pmaGOGb33jdReB7L4s=
 github.com/sagernet/sing-tun v0.8.12-0.20260629021427-b3c6babbd353/go.mod h1:QvarqUtHfj1ULaRR+6kZOS/OoCE+pYGq67A5tyIy+dQ=
 github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb h1:KEMbfexD4DvrQGYWwx6r+AwH9Veh8z6cnBZmtCS2G+0=
