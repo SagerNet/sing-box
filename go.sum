@@ -284,6 +284,8 @@ github.com/sagernet/sing-shadowsocks2 v0.2.1 h1:dWV9OXCeFPuYGHb6IRqlSptVnSzOelnq
 github.com/sagernet/sing-shadowsocks2 v0.2.1/go.mod h1:RnXS0lExcDAovvDeniJ4IKa2IuChrdipolPYWBv9hWQ=
 github.com/sagernet/sing-shadowtls v0.2.1 h1:ZiHZdnEnP+YS73NMsxiZmIFCwNd0M4k7PkGCKNXhbaM=
 github.com/sagernet/sing-shadowtls v0.2.1/go.mod h1:sWqKnGlMipCHaGsw1sTTlimyUpgzP4WP3pjhCsYt9oA=
+github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73 h1:Iyhoka9XutVbIhkhjn6s2Ez2AEuBG5i4KbkQKqRMsug=
+github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73/go.mod h1:et8Lws4f5QbOrY65DmjevHGup3mijJkhswkto6cwciM=
 github.com/sagernet/sing-tun v0.8.12-0.20260727151149-e5c21070ae46 h1:Fcp4+2pgM2LbCKRGm41LJxZqry/TmE3ChVcqIPPGttY=
 github.com/sagernet/sing-tun v0.8.12-0.20260727151149-e5c21070ae46/go.mod h1:BPbhYPXfcoJhQERTFf9DLEXkp2lMA8J47f892W+a/gM=
 github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb h1:KEMbfexD4DvrQGYWwx6r+AwH9Veh8z6cnBZmtCS2G+0=
