@@ -20,7 +20,7 @@ type ruleSetItemTestRouter struct {
 
 func (r *ruleSetItemTestRouter) Start(adapter.StartStage) error { return nil }
 func (r *ruleSetItemTestRouter) Close() error                   { return nil }
-func (r *ruleSetItemTestRouter) PreMatch(adapter.InboundContext) adapter.PreMatchResult {
+func (r *ruleSetItemTestRouter) PreMatch(adapter.InboundContext, []byte) adapter.PreMatchResult {
 	return adapter.PreMatchResult{}
 }
 
