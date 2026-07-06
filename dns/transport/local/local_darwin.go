@@ -50,10 +50,12 @@ const (
 	mdnsResponderFlagMoreComing          = 0x1
 	mdnsResponderFlagAdd                 = 0x2
 	mdnsResponderFlagReturnIntermediates = 0x1000
+	mdnsResponderFlagTimeout             = 0x10000
 
 	mdnsResponderErrNoError      = 0
 	mdnsResponderErrNoSuchName   = -65538
 	mdnsResponderErrNoSuchRecord = -65554
+	mdnsResponderErrTimeout      = -65568
 )
 
 func darwinLookupSystemDNS(ctx context.Context, name string, qtype, qclass uint16) (*mDNS.Msg, error) {
@@ -84,25 +86,36 @@ func darwinLookupSystemDNS(ctx context.Context, name string, qtype, qclass uint1
 		return nil, darwinResolverError(name, statusCode)
 	}
 
+	return readQueryResponse(ctx, conn, name, qtype, qclass)
+}
+
+func readQueryResponse(ctx context.Context, conn net.Conn, name string, qtype, qclass uint16) (*mDNS.Msg, error) {
 	var answers []mDNS.RR
+	var hasFinalAnswer bool
 	for {
 		reply, replyErr := readReply(conn)
 		if replyErr != nil {
 			return nil, contextError(ctx, E.Cause(replyErr, "read mDNSResponder reply"))
 		}
 		if reply.errorCode != mdnsResponderErrNoError {
-			if len(answers) > 0 {
-				break
+			if len(answers) == 0 {
+				return nil, darwinResolverError(name, reply.errorCode)
 			}
-			return nil, darwinResolverError(name, reply.errorCode)
+			break
 		}
 		if reply.flags&mdnsResponderFlagAdd != 0 && len(reply.rdata) > 0 {
 			record, buildErr := buildResourceRecord(reply)
 			if buildErr == nil {
 				answers = append(answers, record)
+				if record.Header().Rrtype == qtype {
+					hasFinalAnswer = true
+				}
 			}
 		}
-		if reply.flags&mdnsResponderFlagMoreComing == 0 {
+		if reply.flags&mdnsResponderFlagMoreComing != 0 {
+			continue
+		}
+		if hasFinalAnswer && reply.rrtype == qtype {
 			break
 		}
 	}
@@ -115,7 +128,7 @@ func darwinLookupSystemDNS(ctx context.Context, name string, qtype, qclass uint1
 
 func buildQueryRequest(name string, qtype, qclass uint16) []byte {
 	payload := make([]byte, 0, 8+len(name)+1+4)
-	payload = binary.BigEndian.AppendUint32(payload, mdnsResponderFlagReturnIntermediates)
+	payload = binary.BigEndian.AppendUint32(payload, mdnsResponderFlagReturnIntermediates|mdnsResponderFlagTimeout)
 	payload = binary.BigEndian.AppendUint32(payload, 0) // interfaceIndex
 	payload = append(payload, name...)
 	payload = append(payload, 0) // C string terminator
@@ -204,6 +217,8 @@ func darwinResolverError(name string, code int32) error {
 		return dns.RcodeSuccess
 	case mdnsResponderErrNoSuchName:
 		return dns.RcodeNameError
+	case mdnsResponderErrTimeout:
+		return E.New("mDNSResponder query timeout for ", name)
 	default:
 		return E.New("mDNSResponder query failed for ", name, ": error ", code)
 	}
