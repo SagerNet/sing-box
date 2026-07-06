@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
-	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -500,7 +499,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			case C.RuleActionRejectMethodDrop:
 				return exchangeWithRulesResult{
 					rejectAction: action,
-					err:          tun.ErrDrop,
+					err:          R.ErrDrop,
 				}
 			}
 		case *R.RuleActionPredefined:
@@ -691,7 +690,7 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 							Question: []mDNS.Question{message.Question[0]},
 						}, nil
 					case C.RuleActionRejectMethodDrop:
-						return nil, tun.ErrDrop
+						return nil, R.ErrDrop
 					}
 				case *R.RuleActionPredefined:
 					err = nil
@@ -767,6 +766,8 @@ func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQ
 				r.logger.DebugContext(ctx, "response rejected for ", domain)
 			} else if R.IsRejected(err) {
 				r.logger.DebugContext(ctx, "lookup rejected for ", domain)
+			} else if errors.Is(err, ErrNotCached) {
+				r.logger.DebugContext(ctx, "cache-only lookup missed for ", domain)
 			} else {
 				r.logger.ErrorContext(ctx, E.Cause(err, "lookup failed for ", domain))
 			}
