@@ -14,7 +14,6 @@ import (
 	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -388,6 +387,11 @@ func (r *RuleActionDirect) String() string {
 	return "direct" + r.description
 }
 
+var (
+	ErrReset = E.New("connection reset")
+	ErrDrop  = E.New("packet dropped")
+)
+
 type RejectedError struct {
 	Cause error
 }
@@ -445,9 +449,9 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 	var returnErr error
 	switch r.Method {
 	case C.RuleActionRejectMethodDefault:
-		returnErr = &RejectedError{tun.ErrReset}
+		returnErr = &RejectedError{ErrReset}
 	case C.RuleActionRejectMethodDrop:
-		return &RejectedError{tun.ErrDrop}
+		return &RejectedError{ErrDrop}
 	case C.RuleActionRejectMethodReply:
 		return nil
 	default:
@@ -467,7 +471,7 @@ func (r *RuleActionReject) Error(ctx context.Context) error {
 		if ctx != nil {
 			r.logger.DebugContext(ctx, "dropped due to flooding")
 		}
-		return &RejectedError{tun.ErrDrop}
+		return &RejectedError{ErrDrop}
 	}
 	return returnErr
 }
