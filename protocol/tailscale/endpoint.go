@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -34,7 +35,6 @@ import (
 	"github.com/sagernet/sing-box/protocol/tailscale/tailssh"
 	R "github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/control"
@@ -56,7 +56,6 @@ import (
 	tsTUN "github.com/sagernet/tailscale/net/tstun"
 	"github.com/sagernet/tailscale/tailcfg"
 	"github.com/sagernet/tailscale/tsnet"
-	"github.com/sagernet/tailscale/types/ipproto"
 	"github.com/sagernet/tailscale/types/nettype"
 	"github.com/sagernet/tailscale/version"
 	"github.com/sagernet/tailscale/wgengine"
@@ -70,8 +69,8 @@ import (
 
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
-	_ adapter.DirectRouteOutbound         = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
+	_ tun.Port                            = (*Endpoint)(nil)
 )
 
 func init() {
@@ -95,6 +94,9 @@ type Endpoint struct {
 	stack             *stack.Stack
 	icmpForwarder     *tun.ICMPForwarder
 	filter            *atomic.Pointer[filter.Filter]
+	returnAccess      sync.Mutex
+	returnPath        tun.Return
+	wgEngine          wgengine.ExportedUserspaceEngine
 	onReconfigHook    wgengine.ReconfigListener
 	sshReconfigHook   wgengine.ReconfigListener
 
@@ -287,6 +289,7 @@ func (t *Endpoint) start() error {
 		if mtu == 0 {
 			mtu = uint32(tsTUN.DefaultTUNMTU())
 		}
+		t.systemInterfaceMTU = mtu
 		tunName := t.systemInterfaceName
 		if tunName == "" {
 			tunName = tun.CalculateInterfaceName("tailscale")
@@ -361,7 +364,9 @@ func (t *Endpoint) postStart() error {
 			}, true
 		})
 	}
-	t.server.ExportLocalBackend().ExportEngine().(wgengine.ExportedUserspaceEngine).SetOnReconfigListener(t.onReconfig)
+	wgEngine := t.server.ExportLocalBackend().ExportEngine().(wgengine.ExportedUserspaceEngine)
+	wgEngine.SetOnReconfigListener(t.onReconfig)
+	t.wgEngine = wgEngine
 
 	ipStack := t.server.ExportNetstack().ExportIPStack()
 	gErr := ipStack.SetSpoofing(tun.DefaultNIC, true)
@@ -372,7 +377,7 @@ func (t *Endpoint) postStart() error {
 	if gErr != nil {
 		return gonet.TranslateNetstackError(gErr)
 	}
-	icmpForwarder := tun.NewICMPForwarder(t.ctx, ipStack, t.logger, t, t.icmpTimeout)
+	icmpForwarder := tun.NewICMPForwarder(ipStack, t, t.logger)
 	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 	ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
 	t.stack = ipStack
@@ -622,6 +627,10 @@ func (t *Endpoint) Logout(ctx context.Context) error {
 func (t *Endpoint) Close() error {
 	var err error
 	t.started.Store(false)
+	if t.icmpForwarder != nil {
+		t.icmpForwarder.Close()
+		t.icmpForwarder = nil
+	}
 	common.Close(common.PtrOrNil(t.sshServerInstance))
 	t.sshServerInstance = nil
 	if t.serverStarted {
@@ -776,62 +785,6 @@ func (t *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return packetConn, nil
 }
 
-func (t *Endpoint) PrepareConnection(network string, source M.Socksaddr, destination M.Socksaddr, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
-	if !t.started.Load() {
-		return nil, E.New("Tailscale is not ready yet")
-	}
-	tsFilter := t.filter.Load()
-	if tsFilter != nil {
-		var ipProto ipproto.Proto
-		switch N.NetworkName(network) {
-		case N.NetworkTCP:
-			ipProto = ipproto.TCP
-		case N.NetworkUDP:
-			ipProto = ipproto.UDP
-		case N.NetworkICMP:
-			if !destination.IsIPv6() {
-				ipProto = ipproto.ICMPv4
-			} else {
-				ipProto = ipproto.ICMPv6
-			}
-		}
-		response := tsFilter.Check(source.Addr, destination.Addr, destination.Port, ipProto)
-		switch response {
-		case filter.Drop:
-			return nil, syscall.ECONNREFUSED
-		case filter.DropSilently:
-			return nil, tun.ErrDrop
-		}
-	}
-	var ipVersion uint8
-	if !destination.IsIPv6() {
-		ipVersion = 4
-	} else {
-		ipVersion = 6
-	}
-	routeDestination, err := t.router.PreMatch(adapter.InboundContext{
-		Inbound:     t.Tag(),
-		InboundType: t.Type(),
-		IPVersion:   ipVersion,
-		Network:     network,
-		Source:      source,
-		Destination: destination,
-	}, routeContext, timeout, false)
-	if err != nil {
-		switch {
-		case R.IsBypassed(err):
-			err = nil
-		case R.IsRejected(err):
-			t.logger.Trace("reject ", network, " connection from ", source.AddrString(), " to ", destination.AddrString())
-		default:
-			if network == N.NetworkICMP {
-				t.logger.Warn(E.Cause(err, "link ", network, " connection from ", source.AddrString(), " to ", destination.AddrString()))
-			}
-		}
-	}
-	return routeDestination, err
-}
-
 func (t *Endpoint) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	var metadata adapter.InboundContext
 	metadata.Inbound = t.Tag()
@@ -872,40 +825,6 @@ func (t *Endpoint) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 	t.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (t *Endpoint) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
-	if !t.started.Load() {
-		return nil, E.New("Tailscale is not ready yet")
-	}
-	ctx := log.ContextWithNewID(t.ctx)
-	var destination tun.DirectRouteDestination
-	var err error
-	if t.systemDialer != nil {
-		destination, err = ping.ConnectDestination(
-			ctx, t.logger,
-			t.systemDialer.DialerForICMPDestination(metadata.Destination.Addr).Control,
-			metadata.Destination.Addr, routeContext, timeout,
-		)
-	} else {
-		inet4Address, inet6Address := t.server.TailscaleIPs()
-		if metadata.Destination.Addr.Is4() && !inet4Address.IsValid() || metadata.Destination.Addr.Is6() && !inet6Address.IsValid() {
-			return nil, E.New("Tailscale is not ready yet")
-		}
-		destination, err = ping.ConnectGVisor(
-			ctx, t.logger,
-			metadata.Source.Addr, metadata.Destination.Addr,
-			routeContext,
-			t.stack,
-			inet4Address, inet6Address,
-			timeout,
-		)
-	}
-	if err != nil {
-		return nil, err
-	}
-	t.logger.InfoContext(ctx, "linked ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
-	return destination, nil
-}
-
 func (t *Endpoint) PreferredDomain(domain string) bool {
 	routeDomains := t.routeDomains.Load()
 	if routeDomains == nil {
@@ -933,15 +852,6 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 	if (t.cfg != nil && reflect.DeepEqual(t.cfg, cfg)) && (t.dnsCfg != nil && reflect.DeepEqual(t.dnsCfg, dnsCfg)) {
 		return
 	}
-	var inet4Address, inet6Address netip.Addr
-	for _, address := range cfg.Addresses {
-		if address.Addr().Is4() {
-			inet4Address = address.Addr()
-		} else if address.Addr().Is6() {
-			inet6Address = address.Addr()
-		}
-	}
-	t.icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
 	t.cfg = cfg
 	t.dnsCfg = dnsCfg
 
