@@ -5,10 +5,8 @@ import (
 	"net"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-tun"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
 
@@ -22,8 +20,8 @@ type ruleSetItemTestRouter struct {
 
 func (r *ruleSetItemTestRouter) Start(adapter.StartStage) error { return nil }
 func (r *ruleSetItemTestRouter) Close() error                   { return nil }
-func (r *ruleSetItemTestRouter) PreMatch(adapter.InboundContext, tun.DirectRouteContext, time.Duration, bool) (tun.DirectRouteDestination, error) {
-	return nil, nil
+func (r *ruleSetItemTestRouter) PreMatch(adapter.InboundContext) adapter.PreMatchResult {
+	return adapter.PreMatchResult{}
 }
 
 func (r *ruleSetItemTestRouter) RouteConnection(context.Context, net.Conn, adapter.InboundContext) error {
