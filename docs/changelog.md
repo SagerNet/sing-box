@@ -2,6 +2,20 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.39
+
+* Add L3 forwarding support **1**
+* Fixes and improvements
+
+**1**:
+
+Building on the ICMP proxy support introduced in sing-box 1.13.0, TCP and UDP
+traffic from L3 inbounds (TUN, WireGuard, and Tailscale) can now be forwarded
+directly to WireGuard and Tailscale endpoints at L3, without going through
+L3 to L4 translation.
+
+See [Pre-match](/configuration/shared/pre-match/).
+
 #### 1.14.0-alpha.38
 
 * Add Snell protocol support **1**
