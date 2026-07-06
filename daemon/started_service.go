@@ -986,8 +986,13 @@ func (s *StartedService) CloseAllConnections(ctx context.Context, empty *emptypb
 	s.serviceAccess.RLock()
 	nowService := s.instance
 	s.serviceAccess.RUnlock()
-	if nowService != nil && nowService.connectionManager != nil {
-		nowService.connectionManager.CloseAll()
+	if nowService != nil {
+		if nowService.connectionManager != nil {
+			nowService.connectionManager.CloseAll()
+		}
+		if nowService.trafficManager != nil {
+			nowService.trafficManager.CloseAllConnections()
+		}
 	}
 	return &emptypb.Empty{}, nil
 }

@@ -6,7 +6,8 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
-    :material-alert: [route](#route)
+    :material-alert: [route](#route)  
+    :material-plus: [sniff](#sniff)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -16,11 +17,11 @@ Pre-match is rule matching that runs before the connection is established.
 
 ### How it works
 
-When an L3 inbound (TUN, WireGuard, or Tailscale) receives a connection request, the connection has not yet been established,
-so no connection data can be read. In this phase, sing-box runs the routing rules in pre-match mode.
+When an L3 inbound (TUN, WireGuard, or Tailscale) receives a connection request, the connection has not yet been established:
+for TCP connections no connection data is available, while for UDP connections only the first packet is available.
+In this phase, sing-box runs the routing rules in pre-match mode.
 
-Since connection data is unavailable, only actions that do not require connection data can be executed.
-When a rule matches an action that requires an established connection, pre-match stops at that rule.
+When a rule matches an action that requires more connection data than available, pre-match stops at that rule.
 
 ### Supported actions
 
@@ -52,6 +53,19 @@ FakeIP destinations require a `resolve` action performed in pre-match,
 otherwise connections will be rejected.
 
 See [route](/configuration/route/rule_action/#route) for details.
+
+#### sniff
+
+!!! question "Since sing-box 1.14.0"
+
+For UDP connections, the first packet is available in pre-match,
+so protocol sniffing runs on it directly and rule matching continues with the sniffed metadata.
+
+When sniffers require more data (like a fragmented QUIC Client Hello), pre-match stops at that rule.
+
+For TCP connections, pre-match always stops at that rule.
+
+See [sniff](/configuration/route/rule_action/#sniff) for details.
 
 #### bypass
 
