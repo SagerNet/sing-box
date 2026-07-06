@@ -110,6 +110,38 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return inbound, nil
 }
 
+func (h *Inbound) UpdateUsers(users []option.TUICUser) {
+	var userList []int
+	var userNameList []string
+	var userUUIDList [][16]byte
+	var userPasswordList []string
+	for index, user := range users {
+		if user.UUID == "" {
+			h.logger.Error(E.New("update users: missing uuid for user ", index))
+			return
+		}
+		userUUID, err := uuid.FromString(user.UUID)
+		if err != nil {
+			h.logger.Error(E.Cause(err, "update users: invalid uuid for user ", index))
+			return
+		}
+		userList = append(userList, index)
+		userNameList = append(userNameList, user.Name)
+		userUUIDList = append(userUUIDList, userUUID)
+		userPasswordList = append(userPasswordList, user.Password)
+	}
+	h.userNameList = userNameList
+	h.server.UpdateUsers(userList, userUUIDList, userPasswordList)
+}
+
+func (h *Inbound) userName(userID int) string {
+	userNameList := h.userNameList
+	if userID < 0 || userID >= len(userNameList) {
+		return ""
+	}
+	return userNameList[userID]
+}
+
 func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
@@ -123,7 +155,7 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.S
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
-	if userName := h.userNameList[userID]; userName != "" {
+	if userName := h.userName(userID); userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", metadata.Destination)
 	} else {
@@ -145,7 +177,7 @@ func (h *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
-	if userName := h.userNameList[userID]; userName != "" {
+	if userName := h.userName(userID); userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound packet connection to ", metadata.Destination)
 	} else {

@@ -28,6 +28,8 @@ func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.AnyTLSInboundOptions](registry, C.TypeAnyTLS, NewInbound)
 }
 
+var _ adapter.ManagedSSMServer = (*Inbound)(nil)
+
 type Inbound struct {
 	inbound.Adapter
 	tlsConfig tls.ServerConfig
@@ -35,6 +37,7 @@ type Inbound struct {
 	logger    logger.ContextLogger
 	listener  *listener.Listener
 	service   *anytls.Service
+	tracker   adapter.SSMTracker
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.AnyTLSInboundOptions) (adapter.Inbound, error) {
@@ -96,6 +99,20 @@ func (h *Inbound) Close() error {
 	return common.Close(h.listener, h.tlsConfig)
 }
 
+func (h *Inbound) SetTracker(tracker adapter.SSMTracker) {
+	h.tracker = tracker
+}
+
+func (h *Inbound) UpdateUsers(users []string, uPSKs []string) error {
+	h.service.UpdateUsers(common.MapIndexed(users, func(index int, user string) anytls.User {
+		return anytls.User{
+			Name:     user,
+			Password: uPSKs[index],
+		}
+	}))
+	return nil
+}
+
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	if h.tlsConfig != nil {
 		tlsConn, err := tls.ServerHandshake(ctx, conn, h.tlsConfig)
@@ -127,6 +144,9 @@ func (h *inboundHandler) NewConnectionEx(ctx context.Context, conn net.Conn, sou
 	if userName, _ := auth.UserFromContext[string](ctx); userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", metadata.Destination)
+		if h.tracker != nil {
+			conn = h.tracker.TrackConnection(conn, metadata)
+		}
 	} else {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	}

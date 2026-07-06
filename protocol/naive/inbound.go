@@ -38,6 +38,8 @@ func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.NaiveInboundOptions](registry, C.TypeNaive, NewInbound)
 }
 
+var _ adapter.ManagedSSMServer = (*Inbound)(nil)
+
 type Inbound struct {
 	inbound.Adapter
 	ctx              context.Context
@@ -48,6 +50,7 @@ type Inbound struct {
 	network          []string
 	networkIsDefault bool
 	authenticator    *auth.Authenticator
+	tracker          adapter.SSMTracker
 	tlsConfig        tls.ServerConfig
 	httpServer       *http.Server
 	h3Server         io.Closer
@@ -147,6 +150,20 @@ func (n *Inbound) Close() error {
 	)
 }
 
+func (n *Inbound) SetTracker(tracker adapter.SSMTracker) {
+	n.tracker = tracker
+}
+
+func (n *Inbound) UpdateUsers(users []string, uPSKs []string) error {
+	n.authenticator = auth.NewAuthenticator(common.MapIndexed(users, func(index int, user string) auth.User {
+		return auth.User{
+			Username: user,
+			Password: uPSKs[index],
+		}
+	}))
+	return nil
+}
+
 func (n *Inbound) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	ctx := log.ContextWithNewID(request.Context())
 	if request.Method != "CONNECT" {
@@ -160,7 +177,8 @@ func (n *Inbound) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 	userName, password, authOk := sHttp.ParseBasicAuth(request.Header.Get("Proxy-Authorization"))
 	if authOk {
-		authOk = n.authenticator.Verify(userName, password)
+		authenticator := n.authenticator
+		authOk = authenticator != nil && authenticator.Verify(userName, password)
 	}
 	if !authOk {
 		rejectHTTP(writer, http.StatusProxyAuthRequired)
@@ -216,6 +234,9 @@ func (n *Inbound) newConnection(ctx context.Context, waitForClose bool, conn net
 	metadata.Destination = destination
 	metadata.OriginDestination = M.SocksaddrFromNet(conn.LocalAddr()).Unwrap()
 	metadata.User = userName
+	if n.tracker != nil {
+		conn = n.tracker.TrackConnection(conn, metadata)
+	}
 	if !waitForClose {
 		n.router.RouteConnectionEx(ctx, conn, metadata, nil)
 	} else {

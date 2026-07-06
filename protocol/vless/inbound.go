@@ -147,6 +147,25 @@ func (h *Inbound) Close() error {
 	)
 }
 
+func (h *Inbound) UpdateUsers(users []option.VLESSUser) {
+	h.users = users
+	h.service.UpdateUsers(common.MapIndexed(users, func(index int, _ option.VLESSUser) int {
+		return index
+	}), common.Map(users, func(it option.VLESSUser) string {
+		return it.UUID
+	}), common.Map(users, func(it option.VLESSUser) string {
+		return it.Flow
+	}))
+}
+
+func (h *Inbound) userName(userIndex int) string {
+	users := h.users
+	if userIndex < 0 || userIndex >= len(users) {
+		return ""
+	}
+	return users[userIndex].Name
+}
+
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	if h.tlsConfig != nil && h.transport == nil {
 		tlsConn, err := tls.ServerHandshake(ctx, conn, h.tlsConfig)
@@ -172,7 +191,7 @@ func (h *Inbound) newConnectionEx(ctx context.Context, conn net.Conn, metadata a
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	user := h.userName(userIndex)
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -190,7 +209,7 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	user := h.userName(userIndex)
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
