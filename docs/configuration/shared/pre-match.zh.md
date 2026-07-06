@@ -6,7 +6,8 @@ icon: material/new-box
 
 !!! quote "sing-box 1.14.0 中的更改"
 
-    :material-alert: [route](#route)
+    :material-alert: [route](#route)  
+    :material-plus: [sniff](#sniff)
 
 !!! quote "sing-box 1.13.0 中的更改"
 
@@ -16,9 +17,9 @@ icon: material/new-box
 
 ### 工作原理
 
-当 L3 入站（TUN、WireGuard 或 Tailscale）收到连接请求时，连接尚未建立，因此无法读取连接数据。在此阶段，sing-box 在预匹配模式下运行路由规则。
+当 L3 入站（TUN、WireGuard 或 Tailscale）收到连接请求时，连接尚未建立：对于 TCP 连接，无连接数据可用；对于 UDP 连接，仅首个数据包可用。在此阶段，sing-box 在预匹配模式下运行路由规则。
 
-由于连接数据不可用，只有不需要连接数据的动作才能执行。当规则匹配到需要已建立连接的动作时，预匹配将在该规则处停止。
+当规则匹配到需要比当前可用数据更多连接数据的动作时，预匹配将在该规则处停止。
 
 ### 支持的动作
 
@@ -46,6 +47,18 @@ icon: material/new-box
 FakeIP 目标需要在预匹配中先执行 `resolve` 动作，否则连接将被拒绝。
 
 详情参阅 [route](/zh/configuration/route/rule_action/#route)。
+
+#### sniff
+
+!!! question "自 sing-box 1.14.0 起"
+
+对于 UDP 连接，首个数据包在预匹配中可用，因此协议探测将直接在其上运行，随后规则匹配将携带探测结果继续。
+
+当探测器需要更多数据时（如分片的 QUIC Client Hello），预匹配将在该规则处停止。
+
+对于 TCP 连接，预匹配总是在该规则处停止。
+
+详情参阅 [sniff](/zh/configuration/route/rule_action/#sniff)。
 
 #### bypass
 

@@ -161,13 +161,13 @@ func (w *Endpoint) DetachReturn(returnPath tun.Return) error {
 	return w.endpoint.DetachReturn(returnPath)
 }
 
-func (w *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort) tun.FlowVerdict {
+func (w *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
 	for _, localPrefix := range w.localAddresses {
 		if localPrefix.Contains(destination.Addr()) {
 			return tun.FlowVerdict{Action: tun.ActionAccept}
 		}
 	}
-	return adapter.JudgeFlow(w.router, w.Tag(), w.Type(), network, source, destination)
+	return adapter.JudgeFlow(w.router, w.Tag(), w.Type(), network, source, destination, firstPacket)
 }
 
 func (w *Endpoint) WritePackets(packets [][]byte) error {
