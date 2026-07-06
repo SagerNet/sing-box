@@ -478,8 +478,13 @@ func (t *Inbound) Close() error {
 	)
 }
 
-func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort) tun.FlowVerdict {
-	return adapter.JudgeFlow(t.router, t.tag, C.TypeTun, network, source, destination)
+func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
+	for _, dnsHijackAddress := range t.dnsHijackAddress {
+		if destination.Addr() == dnsHijackAddress {
+			return tun.FlowVerdict{Action: tun.ActionAccept}
+		}
+	}
+	return adapter.JudgeFlow(t.router, t.tag, C.TypeTun, network, source, destination, firstPacket)
 }
 
 func (t *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
@@ -526,8 +531,8 @@ func (t *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 
 type autoRedirectHandler Inbound
 
-func (t *autoRedirectHandler) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort) tun.FlowVerdict {
-	return (*Inbound)(t).JudgeFlow(network, source, destination)
+func (t *autoRedirectHandler) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
+	return (*Inbound)(t).JudgeFlow(network, source, destination, firstPacket)
 }
 
 func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {

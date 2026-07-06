@@ -38,7 +38,7 @@ func (t *Endpoint) PortMTU() uint32 {
 	return uint32(tsTUN.DefaultTUNMTU())
 }
 
-func (t *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort) tun.FlowVerdict {
+func (t *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
 	inet4Address, inet6Address := t.PortAddresses()
 	if destination.Addr() == inet4Address || destination.Addr() == inet6Address {
 		return tun.FlowVerdict{Action: tun.ActionAccept}
@@ -70,7 +70,7 @@ func (t *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination n
 			}
 		}
 	}
-	return adapter.JudgeFlow(t.router, t.Tag(), t.Type(), network, source, destination)
+	return adapter.JudgeFlow(t.router, t.Tag(), t.Type(), network, source, destination, firstPacket)
 }
 
 func (t *Endpoint) AttachReturn(returnPath tun.Return) error {

@@ -17,7 +17,7 @@ import (
 type Router interface {
 	Lifecycle
 	ConnectionRouter
-	PreMatch(metadata InboundContext) PreMatchResult
+	PreMatch(metadata InboundContext, firstPacket []byte) PreMatchResult
 	ConnectionRouterEx
 	RuleSet(tag string) (RuleSet, bool)
 	Rules() []Rule
@@ -42,9 +42,10 @@ type PreMatchResult struct {
 	Action      PreMatchAction
 	Outbound    Outbound
 	Destination netip.AddrPort
+	NewTracker  func() tun.FlowTracker
 }
 
-func JudgeFlow(router Router, inbound string, inboundType string, network uint8, source netip.AddrPort, destination netip.AddrPort) tun.FlowVerdict {
+func JudgeFlow(router Router, inbound string, inboundType string, network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
 	var networkName string
 	switch network {
 	case uint8(header.TCPProtocolNumber):
@@ -67,14 +68,14 @@ func JudgeFlow(router Router, inbound string, inboundType string, network uint8,
 		metadata.Source.Port = 0
 		metadata.Destination.Port = 0
 	}
-	result := router.PreMatch(metadata)
+	result := router.PreMatch(metadata, firstPacket)
 	switch result.Action {
 	case PreMatchFlow:
 		port, isPort := result.Outbound.(tun.Port)
 		if !isPort {
 			return tun.FlowVerdict{Action: tun.ActionAccept}
 		}
-		verdict := tun.FlowVerdict{Action: tun.ActionFlow, Port: port}
+		verdict := tun.FlowVerdict{Action: tun.ActionFlow, Port: port, NewTracker: result.NewTracker}
 		if result.Destination.IsValid() {
 			destinationPort := result.Destination.Port()
 			if networkName == N.NetworkICMP {
@@ -97,6 +98,7 @@ func JudgeFlow(router Router, inbound string, inboundType string, network uint8,
 type ConnectionTracker interface {
 	RoutedConnection(ctx context.Context, conn net.Conn, metadata InboundContext, matchedRule Rule, matchOutbound Outbound) net.Conn
 	RoutedPacketConnection(ctx context.Context, conn N.PacketConn, metadata InboundContext, matchedRule Rule, matchOutbound Outbound) N.PacketConn
+	RoutedFlow(ctx context.Context, metadata InboundContext, matchedRule Rule, matchOutbound Outbound) tun.FlowTracker
 }
 
 // Deprecated: Use ConnectionRouterEx instead.
