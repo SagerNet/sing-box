@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -31,7 +32,7 @@ var (
 	_ N.ParallelDialer             = (*Outbound)(nil)
 	_ dialer.ParallelNetworkDialer = (*Outbound)(nil)
 	_ dialer.DirectDialer          = (*Outbound)(nil)
-	_ adapter.DirectRouteOutbound  = (*Outbound)(nil)
+	_ adapter.FlowOutbound         = (*Outbound)(nil)
 )
 
 type Outbound struct {
@@ -44,6 +45,7 @@ type Outbound struct {
 	fallbackDelay  time.Duration
 	isEmpty        bool
 	myAddresses    common.TypedValue[[]netip.Prefix]
+	icmpPort       *ping.Port
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.DirectOutboundOptions) (adapter.Outbound, error) {
@@ -74,6 +76,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	//nolint:staticcheck
 	if options.ProxyProtocol != 0 {
 		return nil, E.New("Proxy Protocol is deprecated and removed in sing-box 1.6.0")
+	}
+	if defaultDialer, isDefaultDialer := common.Cast[*dialer.DefaultDialer](outbound.dialer); isDefaultDialer {
+		outbound.icmpPort = ping.NewPort(ctx, logger, func(destination netip.Addr) control.Func {
+			return defaultDialer.DialerForICMPDestination(destination).Control
+		}, 0)
 	}
 	return outbound, nil
 }
@@ -148,14 +155,35 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return conn, nil
 }
 
-func (h *Outbound) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
-	ctx := log.ContextWithNewID(h.ctx)
-	destination, err := ping.ConnectDestination(ctx, h.logger, common.MustCast[*dialer.DefaultDialer](h.dialer).DialerForICMPDestination(metadata.Destination.Addr).Control, metadata.Destination.Addr, routeContext, timeout)
-	if err != nil {
-		return nil, err
+func (h *Outbound) SupportsFlow(network string) bool {
+	return network == N.NetworkICMP && h.icmpPort != nil
+}
+
+func (h *Outbound) PortAddresses() (netip.Addr, netip.Addr) {
+	return h.icmpPort.PortAddresses()
+}
+
+func (h *Outbound) PortMTU() uint32 {
+	return h.icmpPort.PortMTU()
+}
+
+func (h *Outbound) AttachReturn(returnPath tun.Return) error {
+	return h.icmpPort.AttachReturn(returnPath)
+}
+
+func (h *Outbound) DetachReturn(returnPath tun.Return) error {
+	return h.icmpPort.DetachReturn(returnPath)
+}
+
+func (h *Outbound) WritePackets(packets [][]byte) error {
+	return h.icmpPort.WritePackets(packets)
+}
+
+func (h *Outbound) Close() error {
+	if h.icmpPort != nil {
+		return h.icmpPort.Close()
 	}
-	h.logger.InfoContext(ctx, "linked ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
-	return destination, nil
+	return nil
 }
 
 func (h *Outbound) DialParallel(ctx context.Context, network string, destination M.Socksaddr, destinationAddresses []netip.Addr) (net.Conn, error) {
