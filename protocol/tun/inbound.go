@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -478,8 +479,11 @@ func (t *Inbound) Close() error {
 	)
 }
 
-func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort) tun.FlowVerdict {
-	return adapter.JudgeFlow(t.router, t.tag, C.TypeTun, network, source, destination)
+func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
+	if slices.Contains(t.dnsHijackAddress, destination.Addr()) {
+		return tun.FlowVerdict{Action: tun.ActionAccept}
+	}
+	return adapter.JudgeFlow(t.router, t.tag, C.TypeTun, network, source, destination, firstPacket)
 }
 
 func (t *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
@@ -489,10 +493,8 @@ func (t *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.S
 	metadata.InboundType = C.TypeTun
 	metadata.Source = source
 	metadata.Destination = destination
-	for _, dnsHijackAddress := range t.dnsHijackAddress {
-		if destination.Addr == dnsHijackAddress {
-			metadata.Protocol = C.ProtocolDNS
-		}
+	if slices.Contains(t.dnsHijackAddress, destination.Addr) {
+		metadata.Protocol = C.ProtocolDNS
 	}
 	if metadata.Protocol == C.ProtocolDNS {
 		t.logger.InfoContext(ctx, "inbound DNS connection from ", metadata.Source)
@@ -526,8 +528,8 @@ func (t *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 
 type autoRedirectHandler Inbound
 
-func (t *autoRedirectHandler) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort) tun.FlowVerdict {
-	return (*Inbound)(t).JudgeFlow(network, source, destination)
+func (t *autoRedirectHandler) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
+	return (*Inbound)(t).JudgeFlow(network, source, destination, firstPacket)
 }
 
 func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
