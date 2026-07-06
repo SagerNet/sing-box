@@ -10,12 +10,9 @@ import (
 	"os"
 	"reflect"
 	"strings"
-	"time"
 	"unsafe"
 
-	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
-	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -35,7 +32,7 @@ type Endpoint struct {
 	ipcConf        string
 	allowedAddress []netip.Prefix
 	tunDevice      Device
-	natDevice      NatDevice
+	returnDevice   *returnDeviceWrapper
 	device         *device.Device
 	allowedIPs     *device.AllowedIPs
 	pause          pause.Manager
@@ -120,17 +117,13 @@ func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 	if err != nil {
 		return nil, E.Cause(err, "create WireGuard device")
 	}
-	natDevice, isNatDevice := tunDevice.(NatDevice)
-	if !isNatDevice {
-		natDevice = NewNATDevice(options.Context, options.Logger, tunDevice)
-	}
 	return &Endpoint{
 		options:        options,
 		peers:          peers,
 		ipcConf:        ipcConf,
 		allowedAddress: allowedAddresses,
 		tunDevice:      tunDevice,
-		natDevice:      natDevice,
+		returnDevice:   &returnDeviceWrapper{Device: tunDevice},
 	}, nil
 }
 
@@ -157,7 +150,11 @@ func (e *Endpoint) Start(resolve bool) error {
 	var bind conn.Bind
 	wgListener, isWgListener := common.Cast[dialer.WireGuardListener](e.options.Dialer)
 	if isWgListener {
-		bind = conn.NewStdNetBind(wgListener.WireGuardControl())
+		stdBind := conn.NewStdNetBind(wgListener.WireGuardControl())
+		if e.options.ListenPort == 0 && len(e.peers) == 1 && e.peers[0].endpoint.IsValid() {
+			stdBind.(*conn.StdNetBind).SetSinglePeerMode()
+		}
+		bind = stdBind
 	} else {
 		var (
 			isConnect   bool
@@ -190,13 +187,7 @@ func (e *Endpoint) Start(resolve bool) error {
 			e.options.Logger.Error(fmt.Sprintf(strings.ToLower(format), args...))
 		},
 	}
-	var deviceInput Device
-	if e.natDevice != nil {
-		deviceInput = e.natDevice
-	} else {
-		deviceInput = e.tunDevice
-	}
-	wgDevice := device.NewDevice(e.options.Context, deviceInput, bind, logger, e.options.Workers)
+	wgDevice := device.NewDevice(e.options.Context, e.returnDevice, bind, logger, e.options.Workers)
 	e.tunDevice.SetDevice(wgDevice)
 	var ipcConf strings.Builder
 	ipcConf.WriteString(e.ipcConf)
@@ -249,13 +240,6 @@ func (e *Endpoint) Lookup(address netip.Addr) *device.Peer {
 		return nil
 	}
 	return e.allowedIPs.Lookup(address.AsSlice())
-}
-
-func (e *Endpoint) NewDirectRouteConnection(metadata adapter.InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error) {
-	if e.natDevice == nil {
-		return nil, os.ErrInvalid
-	}
-	return e.natDevice.CreateDestination(metadata, routeContext, timeout)
 }
 
 func (e *Endpoint) onPauseUpdated(event int) {
