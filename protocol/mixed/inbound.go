@@ -28,7 +28,10 @@ func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.HTTPMixedInboundOptions](registry, C.TypeMixed, NewInbound)
 }
 
-var _ adapter.TCPInjectableInbound = (*Inbound)(nil)
+var (
+	_ adapter.TCPInjectableInbound = (*Inbound)(nil)
+	_ adapter.ManagedSSMServer     = (*Inbound)(nil)
+)
 
 type Inbound struct {
 	inbound.Adapter
@@ -36,6 +39,7 @@ type Inbound struct {
 	logger        log.ContextLogger
 	listener      *listener.Listener
 	authenticator *auth.Authenticator
+	tracker       adapter.SSMTracker
 	tlsConfig     tls.ServerConfig
 	udpTimeout    time.Duration
 }
@@ -98,6 +102,20 @@ func (h *Inbound) Close() error {
 	)
 }
 
+func (h *Inbound) SetTracker(tracker adapter.SSMTracker) {
+	h.tracker = tracker
+}
+
+func (h *Inbound) UpdateUsers(users []string, uPSKs []string) error {
+	h.authenticator = auth.NewAuthenticator(common.MapIndexed(users, func(index int, user string) auth.User {
+		return auth.User{
+			Username: user,
+			Password: uPSKs[index],
+		}
+	}))
+	return nil
+}
+
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	err := h.newConnection(ctx, conn, metadata, onClose)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
@@ -142,6 +160,9 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
 	}
 	metadata.User = user
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
+	if h.tracker != nil {
+		conn = h.tracker.TrackConnection(conn, metadata)
+	}
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
@@ -163,6 +184,9 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection")
 	} else {
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	}
+	if h.tracker != nil {
+		conn = h.tracker.TrackPacketConnection(conn, metadata)
 	}
 	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }

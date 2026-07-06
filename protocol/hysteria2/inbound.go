@@ -32,6 +32,8 @@ func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.Hysteria2InboundOptions](registry, C.TypeHysteria2, NewInbound)
 }
 
+var _ adapter.ManagedSSMServer = (*Inbound)(nil)
+
 type Inbound struct {
 	inbound.Adapter
 	router       adapter.Router
@@ -40,6 +42,7 @@ type Inbound struct {
 	tlsConfig    tls.ServerConfig
 	service      *hysteria2.Service[int]
 	userNameList []string
+	tracker      adapter.SSMTracker
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.Hysteria2InboundOptions) (adapter.Inbound, error) {
@@ -197,6 +200,26 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return inbound, nil
 }
 
+func (h *Inbound) SetTracker(tracker adapter.SSMTracker) {
+	h.tracker = tracker
+}
+
+func (h *Inbound) UpdateUsers(users []string, uPSKs []string) error {
+	h.service.UpdateUsers(common.MapIndexed(users, func(index int, _ string) int {
+		return index
+	}), uPSKs)
+	h.userNameList = users
+	return nil
+}
+
+func (h *Inbound) userName(userID int) string {
+	userNameList := h.userNameList
+	if userID < 0 || userID >= len(userNameList) {
+		return ""
+	}
+	return userNameList[userID]
+}
+
 func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
@@ -210,9 +233,12 @@ func (h *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.S
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
-	if userName := h.userNameList[userID]; userName != "" {
+	if userName := h.userName(userID); userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound connection to ", metadata.Destination)
+		if h.tracker != nil {
+			conn = h.tracker.TrackConnection(conn, metadata)
+		}
 	} else {
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	}
@@ -232,9 +258,12 @@ func (h *Inbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "inbound packet connection from ", metadata.Source)
 	userID, _ := auth.UserFromContext[int](ctx)
-	if userName := h.userNameList[userID]; userName != "" {
+	if userName := h.userName(userID); userName != "" {
 		metadata.User = userName
 		h.logger.InfoContext(ctx, "[", userName, "] inbound packet connection to ", metadata.Destination)
+		if h.tracker != nil {
+			conn = h.tracker.TrackPacketConnection(conn, metadata)
+		}
 	} else {
 		h.logger.InfoContext(ctx, "inbound packet connection to ", metadata.Destination)
 	}

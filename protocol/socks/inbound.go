@@ -13,6 +13,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -24,7 +25,10 @@ func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.SocksInboundOptions](registry, C.TypeSOCKS, NewInbound)
 }
 
-var _ adapter.TCPInjectableInbound = (*Inbound)(nil)
+var (
+	_ adapter.TCPInjectableInbound = (*Inbound)(nil)
+	_ adapter.ManagedSSMServer     = (*Inbound)(nil)
+)
 
 type Inbound struct {
 	inbound.Adapter
@@ -32,6 +36,7 @@ type Inbound struct {
 	logger        logger.ContextLogger
 	listener      *listener.Listener
 	authenticator *auth.Authenticator
+	tracker       adapter.SSMTracker
 	udpTimeout    time.Duration
 }
 
@@ -70,6 +75,20 @@ func (h *Inbound) Close() error {
 	return h.listener.Close()
 }
 
+func (h *Inbound) SetTracker(tracker adapter.SSMTracker) {
+	h.tracker = tracker
+}
+
+func (h *Inbound) UpdateUsers(users []string, uPSKs []string) error {
+	h.authenticator = auth.NewAuthenticator(common.MapIndexed(users, func(index int, user string) auth.User {
+		return auth.User{
+			Username: user,
+			Password: uPSKs[index],
+		}
+	}))
+	return nil
+}
+
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	err := socks.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
@@ -93,6 +112,9 @@ func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata
 	}
 	metadata.User = user
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
+	if h.tracker != nil {
+		conn = h.tracker.TrackConnection(conn, metadata)
+	}
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
@@ -114,6 +136,9 @@ func (h *Inbound) streamUserPacketConnection(ctx context.Context, conn N.PacketC
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection")
 	} else {
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	}
+	if h.tracker != nil {
+		conn = h.tracker.TrackPacketConnection(conn, metadata)
 	}
 	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }

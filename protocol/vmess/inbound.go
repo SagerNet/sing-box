@@ -32,7 +32,10 @@ func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.VMessInboundOptions](registry, C.TypeVMess, NewInbound)
 }
 
-var _ adapter.TCPInjectableInbound = (*Inbound)(nil)
+var (
+	_ adapter.TCPInjectableInbound = (*Inbound)(nil)
+	_ adapter.ManagedSSMServer     = (*Inbound)(nil)
+)
 
 type Inbound struct {
 	inbound.Adapter
@@ -42,6 +45,7 @@ type Inbound struct {
 	listener  *listener.Listener
 	service   *vmess.Service[int]
 	users     []option.VMessUser
+	tracker   adapter.SSMTracker
 	tlsConfig tls.ServerConfig
 	transport adapter.V2RayServerTransport
 }
@@ -153,6 +157,33 @@ func (h *Inbound) Close() error {
 	)
 }
 
+func (h *Inbound) SetTracker(tracker adapter.SSMTracker) {
+	h.tracker = tracker
+}
+
+func (h *Inbound) UpdateUsers(users []string, uPSKs []string) error {
+	err := h.service.UpdateUsers(common.MapIndexed(users, func(index int, _ string) int {
+		return index
+	}), uPSKs, make([]int, len(users)))
+	if err != nil {
+		return err
+	}
+	h.users = common.Map(users, func(user string) option.VMessUser {
+		return option.VMessUser{
+			Name: user,
+		}
+	})
+	return nil
+}
+
+func (h *Inbound) userName(userIndex int) string {
+	users := h.users
+	if userIndex < 0 || userIndex >= len(users) {
+		return ""
+	}
+	return users[userIndex].Name
+}
+
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	if h.tlsConfig != nil && h.transport == nil {
 		tlsConn, err := tls.ServerHandshake(ctx, conn, h.tlsConfig)
@@ -178,13 +209,16 @@ func (h *Inbound) newConnectionEx(ctx context.Context, conn net.Conn, metadata a
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	user := h.userName(userIndex)
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
 		metadata.User = user
 	}
 	h.logger.InfoContext(ctx, "[", user, "] inbound connection to ", metadata.Destination)
+	if h.tracker != nil {
+		conn = h.tracker.TrackConnection(conn, metadata)
+	}
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
 }
 
@@ -196,7 +230,7 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		N.CloseOnHandshakeFailure(conn, onClose, os.ErrInvalid)
 		return
 	}
-	user := h.users[userIndex].Name
+	user := h.userName(userIndex)
 	if user == "" {
 		user = F.ToString(userIndex)
 	} else {
@@ -208,6 +242,9 @@ func (h *Inbound) newPacketConnectionEx(ctx context.Context, conn N.PacketConn, 
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet addr connection")
 	} else {
 		h.logger.InfoContext(ctx, "[", user, "] inbound packet connection to ", metadata.Destination)
+	}
+	if h.tracker != nil {
+		conn = h.tracker.TrackPacketConnection(conn, metadata)
 	}
 	h.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
