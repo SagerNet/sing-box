@@ -144,7 +144,7 @@ func (h *icmpRouterHandler) RouteICMPFlow(source netip.Addr, destination netip.A
 		Network:     N.NetworkICMP,
 		Source:      M.SocksaddrFrom(source, 0),
 		Destination: M.SocksaddrFrom(destination, 0),
-	})
+	}, nil)
 	switch result.Action {
 	case adapter.PreMatchFlow:
 		flowOutbound, isFlowOutbound := result.Outbound.(adapter.FlowOutbound)
