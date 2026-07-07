@@ -2,6 +2,20 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.40
+
+* Add bridge outbound **1**
+* Fixes and improvements
+
+**1**:
+
+The new `bridge` outbound is the L3 counterpart of `direct`: it forwards L3
+traffic (TCP, UDP and ICMP) from a TUN or other L3 endpoints directly out of a
+network interface, without going through L3 to L4 translation. It requires
+privileges and is supported on Linux, macOS, rooted Android, and jailbroken iOS.
+
+See [Bridge](/configuration/outbound/bridge/).
+
 #### 1.14.0-alpha.39
 
 * Add L3 forwarding support **1**
