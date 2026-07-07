@@ -43,8 +43,8 @@ without going through L3 to L4 translation.
 
 Supported targets:
 
-- ICMP connections: Direct outbounds and WireGuard / Tailscale endpoints.
-- TCP and UDP connections: WireGuard and Tailscale endpoints.
+- ICMP connections: Direct and Bridge outbounds, and WireGuard / Tailscale endpoints.
+- TCP and UDP connections: Bridge outbounds, and WireGuard / Tailscale endpoints.
 
 L3 forwarding also applies when no rule matches and the default outbound is a supported
 target; for outbound groups, the currently selected outbound is used.
