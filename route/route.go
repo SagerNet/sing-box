@@ -432,6 +432,9 @@ func applyRouteOptionsOverride(metadata *adapter.InboundContext, routeOptions *R
 			Fqdn: metadata.Destination.Fqdn,
 		}
 	}
+	if routeOptions.UDPTimeout > 0 {
+		metadata.UDPTimeout = routeOptions.UDPTimeout
+	}
 }
 
 func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundContext, packetDestination M.Socksaddr, matchedRule adapter.Rule, outboundTag string) adapter.PreMatchResult {
@@ -472,6 +475,19 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 		return continueResult
 	}
 	result := adapter.PreMatchResult{Action: adapter.PreMatchFlow, Outbound: outbound}
+	if metadata.Network == N.NetworkUDP {
+		if metadata.UDPTimeout > 0 {
+			result.UDPTimeout = metadata.UDPTimeout
+		} else {
+			protocol := metadata.Protocol
+			if protocol == "" {
+				protocol = C.PortProtocols[metadata.Destination.Port]
+			}
+			if protocol != "" {
+				result.UDPTimeout = C.ProtocolTimeouts[protocol]
+			}
+		}
+	}
 	if metadata.Destination.IsDomain() {
 		if !metadata.FakeIP {
 			return continueResult
