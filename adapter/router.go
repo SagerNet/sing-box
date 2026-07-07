@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"time"
 
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
@@ -42,6 +43,7 @@ type PreMatchResult struct {
 	Action      PreMatchAction
 	Outbound    Outbound
 	Destination netip.AddrPort
+	UDPTimeout  time.Duration
 	NewTracker  func() tun.FlowTracker
 }
 
@@ -75,7 +77,7 @@ func JudgeFlow(router Router, inbound string, inboundType string, network uint8,
 		if !isPort {
 			return tun.FlowVerdict{Action: tun.ActionAccept}
 		}
-		verdict := tun.FlowVerdict{Action: tun.ActionFlow, Port: port, NewTracker: result.NewTracker}
+		verdict := tun.FlowVerdict{Action: tun.ActionFlow, Port: port, UDPTimeout: result.UDPTimeout, NewTracker: result.NewTracker}
 		if result.Destination.IsValid() {
 			destinationPort := result.Destination.Port()
 			if networkName == N.NetworkICMP {
