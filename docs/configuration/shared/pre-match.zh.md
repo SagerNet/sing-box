@@ -39,8 +39,8 @@ icon: material/new-box
 
 支持的目标：
 
-- ICMP 连接：direct 出站和 WireGuard / Tailscale 端点。
-- TCP 和 UDP 连接：WireGuard 和 Tailscale 端点。
+- ICMP 连接：direct 和 bridge 出站以及 WireGuard / Tailscale 端点。
+- TCP 和 UDP 连接：bridge 出站以及 WireGuard / Tailscale 端点。
 
 当没有规则匹配且默认出站为受支持的目标时，L3 转发同样生效；对于出站组，使用当前选中的出站。
 

@@ -285,6 +285,55 @@ func (w *platformInterfaceWrapper) TailscaleHostname() string {
 	return w.iif.TailscaleHostname()
 }
 
+func (w *platformInterfaceWrapper) UsePlatformBridge() bool {
+	return w.iif.UsePlatformBridge()
+}
+
+func (w *platformInterfaceWrapper) CreateBridge(options adapter.BridgeOptions) (adapter.BridgeSession, error) {
+	bridgeOptions := &BridgeOptions{
+		BridgeName: options.BridgeName,
+		MTU:        int32(options.MTU),
+		Interface:  options.Interface,
+		RuleIndex:  int32(options.RuleIndex),
+		RouteTable: int32(options.RouteTable),
+	}
+	if options.Inet4Port.IsValid() {
+		bridgeOptions.Inet4Port = options.Inet4Port.String()
+	}
+	if options.Inet6Port.IsValid() {
+		bridgeOptions.Inet6Port = options.Inet6Port.String()
+	}
+	session, err := w.iif.CreateBridge(bridgeOptions)
+	if err != nil {
+		return nil, err
+	}
+	return &bridgeSessionWrapper{session}, nil
+}
+
+type bridgeSessionWrapper struct {
+	session BridgeSession
+}
+
+func (w *bridgeSessionWrapper) FileDescriptor() int {
+	return int(w.session.FileDescriptor())
+}
+
+func (w *bridgeSessionWrapper) Name() string {
+	return w.session.Name()
+}
+
+func (w *bridgeSessionWrapper) Inet6Active() bool {
+	return w.session.Inet6Active()
+}
+
+func (w *bridgeSessionWrapper) SetEgress(interfaceName string) error {
+	return w.session.SetEgress(interfaceName)
+}
+
+func (w *bridgeSessionWrapper) Close() error {
+	return w.session.Close()
+}
+
 func (w *platformInterfaceWrapper) LookupUser(username string) (*adapter.PlatformUser, error) {
 	platformUser, err := w.iif.LookupUser(username)
 	if err != nil {
