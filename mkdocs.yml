@@ -167,6 +167,7 @@ nav:
       - Outbound:
           - configuration/outbound/index.md
           - Direct: configuration/outbound/direct.md
+          - Bridge: configuration/outbound/bridge.md
           - Block: configuration/outbound/block.md
           - SOCKS: configuration/outbound/socks.md
           - HTTP: configuration/outbound/http.md
