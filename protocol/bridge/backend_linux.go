@@ -20,6 +20,8 @@ import (
 const (
 	defaultBridgeRuleIndex      = 100
 	defaultBridgeTableIndexBase = 2200
+
+	bridgeTunMTU = 1500
 )
 
 type backendLinux struct {
