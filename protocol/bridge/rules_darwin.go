@@ -50,6 +50,7 @@ func buildBridgeAnchorRules(ruleLogger logger.ContextLogger, tunName string, egr
 		gateway := interfaceGateway(egressInterface.Index, true)
 		if gateway.IsValid() {
 			rules = append(rules, pfRouteToRule(tunName, egress, gateway, inet4Port))
+			rules = append(rules, pfReplyToRule(tunName, egress, inet4Port))
 		} else {
 			ruleLogger.Debug("no IPv4 gateway on ", egress, ", relying on the default route")
 		}
@@ -58,6 +59,7 @@ func buildBridgeAnchorRules(ruleLogger logger.ContextLogger, tunName string, egr
 		gateway := interfaceGateway(egressInterface.Index, false)
 		if gateway.IsValid() {
 			rules = append(rules, pfRouteToRule(tunName, egress, gateway, inet6Port))
+			rules = append(rules, pfReplyToRule(tunName, egress, inet6Port))
 		} else {
 			ruleLogger.Debug("no IPv6 gateway on ", egress, ", relying on the default route")
 		}
@@ -188,9 +190,38 @@ func pfPassInRule(tunName string, port netip.Addr, destination netip.Prefix) pfA
 func pfRouteToRule(tunName string, egress string, gateway netip.Addr, port netip.Addr) pfAnchorRule {
 	anchorRule := pfPassInRule(tunName, port, netip.Prefix{})
 	anchorRule.Rule.RouteAction = pfRouteActionRouteTo
+	copy(anchorRule.Rule.TagName[:], bridgeTagName(tunName))
 	anchorRule.Pool = pfPoolAddr{Addr: pfHostAddress(gateway)}
 	copy(anchorRule.Pool.IfName[:], egress)
 	return anchorRule
+}
+
+// NECP's drop-all enforcement for includeAllNetworks runs in ip_output, which
+// forwarded replies traverse (ip_forward -> ip_output toward the bridge tun)
+// while route-to'd packets do not (pf_route emits via ifnet_output directly).
+// A reply-to state built from the tag left by the route-to rule sends replies
+// back through pf_route on the egress in side, skipping ip_output the same way.
+func pfReplyToRule(tunName string, egress string, port netip.Addr) pfAnchorRule {
+	rule := pfRule{
+		Action:      pfActionPass,
+		Direction:   pfDirectionOut,
+		AF:          pfFamily(port.Is4()),
+		KeepState:   pfStateNormal,
+		RouteAction: pfRouteActionReplyTo,
+	}
+	copy(rule.IfName[:], egress)
+	copy(rule.MatchTagName[:], bridgeTagName(tunName))
+	anchorRule := pfAnchorRule{
+		RulesetIndex: pfRulesetFilter,
+		Rule:         rule,
+		Pool:         pfPoolAddr{Addr: pfHostAddress(port)},
+	}
+	copy(anchorRule.Pool.IfName[:], tunName)
+	return anchorRule
+}
+
+func bridgeTagName(tunName string) string {
+	return "sing-box-" + tunName
 }
 
 // Assigning the port as the utun's point-to-point destination makes the kernel
