@@ -155,8 +155,11 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return conn, nil
 }
 
-func (h *Outbound) SupportsFlow(network string) bool {
-	return network == N.NetworkICMP && h.icmpPort != nil
+func (h *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
+	if network == N.NetworkICMP && h.icmpPort != nil {
+		return adapter.PreMatchFlow
+	}
+	return adapter.PreMatchContinue
 }
 
 func (h *Outbound) PortAddresses() (netip.Addr, netip.Addr) {
