@@ -78,6 +78,12 @@ func (c *Client) dialContext(ctx context.Context, requestURL *url.URL, headers h
 	if err != nil {
 		return nil, err
 	}
+	success := false
+	defer func() {
+		if !success {
+			conn.Close()
+		}
+	}()
 	var deadlineConn net.Conn
 	if deadline.NeedAdditionalReadDeadline(conn) {
 		deadlineConn = deadline.NewConn(conn)
@@ -103,6 +109,7 @@ func (c *Client) dialContext(ctx context.Context, requestURL *url.URL, headers h
 		}
 		conn = bufio.NewCachedConn(conn, buffer)
 	}
+	success = true
 	return NewConn(conn, nil, ws.StateClientSide), nil
 }
 
