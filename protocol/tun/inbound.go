@@ -325,17 +325,26 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 	case adapter.StartStateStart:
 		if t.platformInterface == nil &&
 			((C.IsLinux && !t.tunOptions.GSO) || (C.IsDarwin && !t.tunOptions.EXP_MultiPendingPackets)) {
+			outboundManager := service.FromContext[adapter.OutboundManager](t.ctx)
 			endpointManager := service.FromContext[adapter.EndpointManager](t.ctx)
-			if endpointManager != nil {
-				for _, managedEndpoint := range endpointManager.Endpoints() {
-					if _, isFlowOutbound := managedEndpoint.(adapter.FlowOutbound); isFlowOutbound {
-						if C.IsLinux {
-							t.tunOptions.GSO = true
-						} else {
-							t.tunOptions.EXP_MultiPendingPackets = true
-						}
-						break
+			for _, outbound := range outboundManager.Outbounds() {
+				if _, isFlowOutbound := outbound.(adapter.FlowOutbound); isFlowOutbound {
+					if C.IsLinux {
+						t.tunOptions.GSO = true
+					} else {
+						t.tunOptions.EXP_MultiPendingPackets = true
 					}
+					break
+				}
+			}
+			for _, endpoint := range endpointManager.Endpoints() {
+				if _, isFlowOutbound := endpoint.(adapter.FlowOutbound); isFlowOutbound {
+					if C.IsLinux {
+						t.tunOptions.GSO = true
+					} else {
+						t.tunOptions.EXP_MultiPendingPackets = true
+					}
+					break
 				}
 			}
 		}
