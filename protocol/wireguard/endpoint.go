@@ -136,13 +136,8 @@ func (w *Endpoint) Close() error {
 	return w.endpoint.Close()
 }
 
-func (w *Endpoint) SupportsFlow(network string) bool {
-	switch network {
-	case N.NetworkTCP, N.NetworkUDP, N.NetworkICMP:
-		return true
-	default:
-		return false
-	}
+func (w *Endpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
+	return adapter.PreMatchFlow
 }
 
 func (w *Endpoint) PortAddresses() (netip.Addr, netip.Addr) {
@@ -276,11 +271,11 @@ func (w *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 	return packetConn, nil
 }
 
-func (w *Endpoint) PreferredDomain(domain string) bool {
+func (w *Endpoint) PreferredDomain(metadata *adapter.InboundContext, domain string) bool {
 	return false
 }
 
-func (w *Endpoint) PreferredAddress(address netip.Addr) bool {
+func (w *Endpoint) PreferredAddress(metadata *adapter.InboundContext, address netip.Addr) bool {
 	if !w.started.Load() {
 		return false
 	}

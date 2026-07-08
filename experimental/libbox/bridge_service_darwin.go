@@ -3,12 +3,8 @@
 package libbox
 
 import (
-	"context"
 	"net/netip"
-	"os"
-	"time"
 
-	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/protocol/bridge"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -35,8 +31,6 @@ func NewBridgeService(options *BridgeOptions) (BridgeSession, error) {
 		}
 		serviceOptions.Inet6Port = inet6Port
 	}
-	logFactory := log.NewDefaultFactory(context.Background(), log.Formatter{BaseTime: time.Now()}, os.Stderr, "", nil, false)
-	serviceOptions.Logger = logFactory.Logger()
 	service, err := bridge.NewService(serviceOptions)
 	if err != nil {
 		return nil, err

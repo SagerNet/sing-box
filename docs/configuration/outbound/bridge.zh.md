@@ -16,6 +16,11 @@ icon: material/new-box
 通过[预匹配](/zh/configuration/shared/pre-match/)中的 `route` 动作，将 L3 流量从 TUN
 或其他 L3 endpoints 路由到它；L4 连接将被拒绝。
 
+到本机本地地址（loopback 或分配给本机网络接口的地址）的流量将被拒绝。
+
+建议使用 [`preferred_by`](/zh/configuration/route/rule/#preferred_by) 作为 `route`
+规则的门禁：它仅在[预匹配](/zh/configuration/shared/pre-match/)中匹配，且排除了无法路由的本地地址。
+
 ### 结构
 
 ```json
