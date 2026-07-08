@@ -816,7 +816,7 @@ func (t *Endpoint) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 	t.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
-func (t *Endpoint) PreferredDomain(domain string) bool {
+func (t *Endpoint) PreferredDomain(metadata *adapter.InboundContext, domain string) bool {
 	routeDomains := t.routeDomains.Load()
 	if routeDomains == nil {
 		return false
@@ -833,7 +833,7 @@ func (t *Endpoint) PreferredDomain(domain string) bool {
 	return !strings.Contains(domain, ".") && t.searchDomains.Load()
 }
 
-func (t *Endpoint) PreferredAddress(address netip.Addr) bool {
+func (t *Endpoint) PreferredAddress(metadata *adapter.InboundContext, address netip.Addr) bool {
 	routePrefixes := t.routePrefixes.Load()
 	if routePrefixes == nil {
 		return false
