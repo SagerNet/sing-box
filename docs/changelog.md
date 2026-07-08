@@ -2,6 +2,25 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.41
+
+* Add windows bridge **1**
+* Add `preferred_by` support for bridge **2**
+* Fixes and improvements
+
+**1**:
+
+The [`bridge`](/configuration/outbound/bridge/) outbound is now supported on
+Windows, implemented via WinDivert and requiring Administrator privileges.
+
+**2**:
+
+The [`bridge`](/configuration/outbound/bridge/) outbound now works with the
+[`preferred_by`](/configuration/route/rule/#preferred_by) route rule item.
+It is recommended to use `preferred_by` as a gate in the `route` rule: it only
+matches in [pre-match](/configuration/shared/pre-match/) and excludes local
+addresses that cannot be routed.
+
 #### 1.14.0-alpha.40
 
 * Add bridge outbound **1**
