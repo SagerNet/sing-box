@@ -20,7 +20,6 @@ import (
 const (
 	defaultBridgeRuleIndex      = 100
 	defaultBridgeTableIndexBase = 2200
-	bridgeWriteBatchSize        = 32
 )
 
 type backendLinux struct {
@@ -83,12 +82,12 @@ func (b *backendLinux) start() error {
 	b.tunName = tun.CalculateInterfaceName(b.bridgeName)
 	b.nftTableName = "sing-box-" + b.tunName
 	tunInterface, err := tun.New(tun.Options{
-		Name:             b.tunName,
-		MTU:              bridgeTunMTU,
-		GSO:              true,
-		AutoRoute:        false,
-		InterfaceMonitor: b.networkManager.InterfaceMonitor(),
-		Logger:           b.logger,
+		Name:                      b.tunName,
+		MTU:                       bridgeTunMTU,
+		GSO:                       true,
+		InterfaceMonitor:          b.networkManager.InterfaceMonitor(),
+		Logger:                    b.logger,
+		EXP_ExternalConfiguration: true,
 	})
 	if err != nil {
 		return E.Cause(err, "create bridge tun")
@@ -184,6 +183,7 @@ func (b *backendLinux) startPlatform() error {
 	tunInterface, err := tun.New(tun.Options{
 		Name:           b.tunName,
 		MTU:            bridgeTunMTU,
+		GSO:            true,
 		FileDescriptor: session.FileDescriptor(),
 		Logger:         b.logger,
 	})
@@ -195,9 +195,22 @@ func (b *backendLinux) startPlatform() error {
 	if err != nil {
 		return E.Cause(err, "start bridge tun")
 	}
+	linuxTUN := tunInterface.(tun.LinuxTUN)
+	if linuxTUN.BatchSize() > 1 {
+		b.batchTUN = linuxTUN
+		b.writeHeadroom = linuxTUN.FrontHeadroom()
+		b.writeBuffers = make([][]byte, bridgeWriteBatchSize)
+		for i := range b.writeBuffers {
+			b.writeBuffers[i] = make([]byte, b.writeHeadroom+maxPacketLength)
+		}
+	}
 	b.closed = make(chan struct{})
 	b.readDone = make(chan struct{})
-	go b.readLoop()
+	if b.batchTUN != nil {
+		go b.batchReadLoop()
+	} else {
+		go b.readLoop()
+	}
 	monitor := b.networkManager.InterfaceMonitor()
 	if monitor != nil {
 		element := monitor.RegisterCallback(func(_ *control.Interface, _ int) { b.syncSessionEgress() })

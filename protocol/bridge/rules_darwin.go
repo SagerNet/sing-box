@@ -63,24 +63,14 @@ func buildBridgeAnchorRules(ruleLogger logger.ContextLogger, tunName string, egr
 		}
 	}
 	// pf rules are last-match: the pass rules below override the route-to pin
-	// for destinations in connected subnets and for addresses owned by the host
-	// itself, so they reach local delivery on their own interface.
+	// for destinations in connected subnets, so the routing table delivers them
+	// on their own interface.
 	for _, prefix := range localPrefixes {
 		port := inet4Port
 		if !prefix.Addr().Is4() {
 			port = inet6Port
 		}
 		rules = append(rules, pfPassInRule(tunName, port, prefix))
-	}
-	for _, address := range hostAddresses() {
-		port := inet4Port
-		if !address.Is4() {
-			port = inet6Port
-		}
-		if !port.IsValid() {
-			continue
-		}
-		rules = append(rules, pfPassInRule(tunName, port, netip.PrefixFrom(address, address.BitLen())))
 	}
 	return rules
 }
@@ -151,31 +141,6 @@ func collectLocalSegments(egress string, boundInterface string, inet4Active bool
 		}
 	}
 	return
-}
-
-// hostAddresses stands in for pfctl's `self`, which expands to every address
-// assigned to any interface at ruleset load time.
-func hostAddresses() []netip.Addr {
-	interfaceAddrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return nil
-	}
-	var addresses []netip.Addr
-	for _, interfaceAddr := range interfaceAddrs {
-		ipNet, isIPNet := interfaceAddr.(*net.IPNet)
-		if !isIPNet {
-			continue
-		}
-		address, valid := netip.AddrFromSlice(ipNet.IP)
-		if !valid {
-			continue
-		}
-		address = address.Unmap()
-		if !slices.Contains(addresses, address) {
-			addresses = append(addresses, address)
-		}
-	}
-	return addresses
 }
 
 func pfScrubRule(egress string, port netip.Addr, maxMSS uint16) pfAnchorRule {

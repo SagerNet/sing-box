@@ -50,14 +50,14 @@ func (r *PreferredByItem) Match(metadata *adapter.InboundContext) bool {
 	}
 	if domainHost != "" {
 		for _, outbound := range r.outbounds {
-			if outbound.PreferredDomain(domainHost) {
+			if outbound.PreferredDomain(metadata, domainHost) {
 				return true
 			}
 		}
 	}
 	if metadata.Destination.IsIP() {
 		for _, outbound := range r.outbounds {
-			if outbound.PreferredAddress(metadata.Destination.Addr) {
+			if outbound.PreferredAddress(metadata, metadata.Destination.Addr) {
 				return true
 			}
 		}
@@ -65,7 +65,7 @@ func (r *PreferredByItem) Match(metadata *adapter.InboundContext) bool {
 	if len(metadata.DestinationAddresses) > 0 {
 		for _, address := range metadata.DestinationAddresses {
 			for _, outbound := range r.outbounds {
-				if outbound.PreferredAddress(address) {
+				if outbound.PreferredAddress(metadata, address) {
 					return true
 				}
 			}
