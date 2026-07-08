@@ -260,8 +260,6 @@ func (b *backendLinux) Close() error {
 	return nil
 }
 
-// Zero tells the dispatcher not to clamp the TCP MSS or fragment; the host kernel
-// does both on the forwarding path instead (see setupBridgeClampRules).
 func (b *backendLinux) PortMTU() uint32 {
 	return 0
 }
