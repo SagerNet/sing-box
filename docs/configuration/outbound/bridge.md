@@ -8,7 +8,7 @@ icon: material/new-box
 
 !!! quote ""
 
-    Requires privileges. Supported on Linux, macOS, rooted Android, and jailbroken iOS.
+    Requires privileges. Supported on Linux, macOS, Windows, rooted Android, and jailbroken iOS.
 
     For graphical clients: on macOS, only available in the standalone version and requires the
     Root Helper; on Android, requires root permission; on iOS, requires jailbreak.

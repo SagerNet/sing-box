@@ -1,4 +1,4 @@
-//go:build !linux && !darwin
+//go:build !linux && !darwin && !(windows && (amd64 || 386))
 
 package bridge
 
@@ -12,5 +12,5 @@ import (
 )
 
 func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager adapter.NetworkManager, tag string, options option.BridgeOutboundOptions) (Backend, error) {
-	return nil, E.New("bridge outbound is only supported on Linux, macOS, Android with ROOT and jailbroken iOS")
+	return nil, E.New("bridge outbound is only supported on Linux, macOS, Windows (x86 and x64), rooted Android and jailbroken iOS")
 }
