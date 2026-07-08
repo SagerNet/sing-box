@@ -11,7 +11,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-tun/gtcpip/header"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -22,6 +21,16 @@ var (
 	bridgeInet4LocalBase = netip.MustParseAddr("198.51.100.1")
 	bridgeInet6LocalBase = netip.MustParseAddr("2001:db8:1::1")
 )
+
+// macOS 26.5 (xnu-12377) kernel-panics ("Bounds safety trap") when pf
+// route-to hands an unfragmented packet larger than one skywalk buflet to a
+// skywalk-native interface: nx_netif_mbuf_to_kpkt() sizes the allocation
+// against the TX pool, but nx_netif.c selects the copy routine from the RX
+// pool's pp_max_frags, so pkt_copy_from_mbuf() writes past the 2048-byte
+// buflet. utun_ctl_send() accepts writes of any size regardless of the
+// interface MTU, so the limit must hold before packets are written; utun
+// reserves UTUN_IF_HEADROOM_SIZE (32) bytes of the buflet, hence 2048-32.
+const bridgeTunMTUDarwin = 2048 - 32
 
 type backendDarwin struct {
 	backendBase
@@ -83,13 +92,12 @@ func (b *backendDarwin) start() error {
 	b.anchorName = "com.apple/sing-box-" + b.tunName
 	tunInterface, err := tun.New(tun.Options{
 		Name:                      b.tunName,
-		MTU:                       bridgeTunMTU,
+		MTU:                       bridgeTunMTUDarwin,
 		AutoRoute:                 false,
 		InterfaceMonitor:          b.networkManager.InterfaceMonitor(),
 		Logger:                    b.logger,
 		EXP_ExternalConfiguration: true,
 		EXP_MultiPendingPackets:   true,
-		EXP_SendMsgX:              true,
 	})
 	if err != nil {
 		return E.Cause(err, "create bridge tun")
@@ -126,7 +134,7 @@ func (b *backendDarwin) start() error {
 func (b *backendDarwin) startPlatform() error {
 	session, err := b.platform.CreateBridge(adapter.BridgeOptions{
 		BridgeName: b.bridgeName,
-		MTU:        bridgeTunMTU,
+		MTU:        bridgeTunMTUDarwin,
 		Inet4Port:  b.inet4Port,
 		Inet6Port:  b.inet6Port,
 		Interface:  b.boundInterface,
@@ -141,7 +149,7 @@ func (b *backendDarwin) startPlatform() error {
 	}
 	tunInterface, err := tun.New(tun.Options{
 		Name:                      b.tunName,
-		MTU:                       bridgeTunMTU,
+		MTU:                       bridgeTunMTUDarwin,
 		FileDescriptor:            session.FileDescriptor(),
 		Logger:                    b.logger,
 		EXP_ExternalConfiguration: true,
@@ -207,10 +215,8 @@ func (b *backendDarwin) Close() error {
 	return nil
 }
 
-// Zero tells the dispatcher not to clamp the TCP MSS or fragment; pf and the
-// host kernel do both on the forwarding path instead (see buildBridgeAnchorRules).
 func (b *backendDarwin) PortMTU() uint32 {
-	return 0
+	return bridgeTunMTUDarwin
 }
 
 func (b *backendDarwin) WritePackets(packets [][]byte) error {
@@ -224,17 +230,7 @@ func (b *backendDarwin) WritePackets(packets [][]byte) error {
 		packets = packets[len(chunk):]
 		batch := b.writeBatch[:0]
 		for _, packet := range chunk {
-			if len(packet) == 0 || len(packet) > maxPacketLength {
-				continue
-			}
-			ipVersion := header.IPVersion(packet)
-			if ipVersion != header.IPv4Version && ipVersion != header.IPv6Version {
-				continue
-			}
 			batch = append(batch, buf.As(packet))
-		}
-		if len(batch) == 0 {
-			continue
 		}
 		err := b.batchTUN.BatchWrite(batch)
 		if err != nil {
