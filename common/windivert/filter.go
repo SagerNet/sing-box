@@ -21,27 +21,39 @@ const (
 	filterMaxInsts  = 256
 
 	fieldZero        = 0
+	fieldInbound     = 1
 	fieldOutbound    = 2
 	fieldIP          = 5
 	fieldIPv6        = 6
+	fieldICMP        = 7
 	fieldTCP         = 8
+	fieldUDP         = 9
+	fieldICMPv6      = 10
 	fieldIPSrcAddr   = 21
 	fieldIPDstAddr   = 22
 	fieldIPv6SrcAddr = 28
 	fieldIPv6DstAddr = 29
+	fieldICMPType    = 30
+	fieldICMPv6Type  = 34
 	fieldTCPSrcPort  = 38
 	fieldTCPDstPort  = 39
+	fieldUDPSrcPort  = 53
+	fieldUDPDstPort  = 54
 
-	testEQ = 0
+	testEQ  = 0
+	testLEQ = 3
+	testGEQ = 5
 
 	resultAccept uint16 = 0x7FFE
 	resultReject uint16 = 0x7FFF
 )
 
 // Filter flags passed to IOCTL_WINDIVERT_STARTUP alongside the compiled
-// filter. These tell the driver what *kinds* of packets the filter might
-// match, used as a kernel-side fast-reject.
+// filter. The driver installs WFP callouts only for the directions and
+// address families named here (windivert_install_callouts), so a filter
+// missing its direction flag never sees a packet.
 const (
+	filterFlagInbound  uint64 = 0x0010
 	filterFlagOutbound uint64 = 0x0020
 	filterFlagIP       uint64 = 0x0040
 	filterFlagIPv6     uint64 = 0x0080
@@ -101,6 +113,80 @@ func OutboundTCP(src, dst netip.AddrPort) (*Filter, error) {
 	}
 	f.add(fieldTCPSrcPort, testEQ, argUint32(uint32(src.Port())))
 	f.add(fieldTCPDstPort, testEQ, argUint32(uint32(dst.Port())))
+	return f, nil
+}
+
+func inboundTo(destination netip.Addr) (*Filter, error) {
+	if !destination.IsValid() {
+		return nil, E.New("windivert: filter: invalid address")
+	}
+	f := &Filter{
+		flags: filterFlagInbound,
+	}
+	f.add(fieldInbound, testEQ, argUint32(1))
+	if destination.Is4() {
+		f.flags |= filterFlagIP
+		f.add(fieldIP, testEQ, argUint32(1))
+		f.add(fieldIPDstAddr, testEQ, argIPv4(destination))
+	} else {
+		f.flags |= filterFlagIPv6
+		f.add(fieldIPv6, testEQ, argUint32(1))
+		f.add(fieldIPv6DstAddr, testEQ, argIPv6(destination))
+	}
+	return f, nil
+}
+
+func InboundTCPPortRange(destination netip.Addr, portLow, portHigh uint16) (*Filter, error) {
+	f, err := inboundTo(destination)
+	if err != nil {
+		return nil, err
+	}
+	f.add(fieldTCP, testEQ, argUint32(1))
+	f.add(fieldTCPDstPort, testGEQ, argUint32(uint32(portLow)))
+	f.add(fieldTCPDstPort, testLEQ, argUint32(uint32(portHigh)))
+	return f, nil
+}
+
+func InboundUDPPortRange(destination netip.Addr, portLow, portHigh uint16) (*Filter, error) {
+	f, err := inboundTo(destination)
+	if err != nil {
+		return nil, err
+	}
+	f.add(fieldUDP, testEQ, argUint32(1))
+	f.add(fieldUDPDstPort, testGEQ, argUint32(uint32(portLow)))
+	f.add(fieldUDPDstPort, testLEQ, argUint32(uint32(portHigh)))
+	return f, nil
+}
+
+func InboundICMPEchoReply(destination netip.Addr) (*Filter, error) {
+	f, err := inboundTo(destination)
+	if err != nil {
+		return nil, err
+	}
+	if destination.Is4() {
+		f.add(fieldICMP, testEQ, argUint32(1))
+		f.add(fieldICMPType, testEQ, argUint32(0))
+	} else {
+		f.add(fieldICMPv6, testEQ, argUint32(1))
+		f.add(fieldICMPv6Type, testEQ, argUint32(129))
+	}
+	return f, nil
+}
+
+func InboundICMPError(destination netip.Addr) (*Filter, error) {
+	f, err := inboundTo(destination)
+	if err != nil {
+		return nil, err
+	}
+	if destination.Is4() {
+		f.add(fieldICMP, testEQ, argUint32(1))
+		f.add(fieldICMPType, testGEQ, argUint32(3))
+		f.add(fieldICMPType, testLEQ, argUint32(12))
+	} else {
+		f.add(fieldICMPv6, testEQ, argUint32(1))
+		f.add(fieldICMPv6Type, testGEQ, argUint32(1))
+		f.add(fieldICMPv6Type, testLEQ, argUint32(4))
+	}
 	return f, nil
 }
 
