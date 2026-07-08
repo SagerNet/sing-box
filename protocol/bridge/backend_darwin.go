@@ -2,15 +2,17 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"net/netip"
 	"slices"
 	"sync"
+	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
-	"github.com/sagernet/sing/common/control"
+	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/service"
@@ -31,8 +33,10 @@ type backendDarwin struct {
 	inet4Local netip.Addr
 	inet6Local netip.Addr
 
+	batchTUN tun.DarwinTUN
+
 	writeAccess sync.Mutex
-	writeBuffer []byte
+	writeBatch  []*buf.Buffer
 
 	pfDevice *pfDevice
 	pfToken  uint64
@@ -44,7 +48,7 @@ type backendDarwin struct {
 
 func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager adapter.NetworkManager, tag string, options option.BridgeOutboundOptions) (Backend, error) {
 	instance := &backendDarwin{
-		writeBuffer: make([]byte, tun.PacketOffset+maxPacketLength),
+		writeBatch: make([]*buf.Buffer, 0, bridgeWriteBatchSize),
 	}
 	err := instance.init(ctx, logger, networkManager, tag, options)
 	if err != nil {
@@ -78,11 +82,13 @@ func (b *backendDarwin) start() error {
 	b.tunName = tun.CalculateInterfaceName(b.bridgeName)
 	b.anchorName = "com.apple/sing-box-" + b.tunName
 	tunInterface, err := tun.New(tun.Options{
-		Name:             b.tunName,
-		MTU:              bridgeTunMTU,
-		AutoRoute:        false,
-		InterfaceMonitor: b.networkManager.InterfaceMonitor(),
-		Logger:           b.logger,
+		Name:                      b.tunName,
+		MTU:                       bridgeTunMTU,
+		AutoRoute:                 false,
+		InterfaceMonitor:          b.networkManager.InterfaceMonitor(),
+		Logger:                    b.logger,
+		EXP_ExternalConfiguration: true,
+		EXP_MultiPendingPackets:   true,
 	})
 	if err != nil {
 		return E.Cause(err, "create bridge tun")
@@ -106,11 +112,12 @@ func (b *backendDarwin) start() error {
 	if err != nil {
 		return E.Cause(err, "enable pf")
 	}
+	b.batchTUN = tunInterface.(tun.DarwinTUN)
 	b.closed = make(chan struct{})
 	b.readDone = make(chan struct{})
 	b.registerMonitors(b.syncEgress)
 	b.syncEgress()
-	go b.readLoop()
+	go b.batchReadLoop()
 	b.logger.Info("bridge started at ", b.tunName, " (masquerade, egress ", b.egressLabel(), ")")
 	return nil
 }
@@ -137,6 +144,7 @@ func (b *backendDarwin) startPlatform() error {
 		FileDescriptor:            session.FileDescriptor(),
 		Logger:                    b.logger,
 		EXP_ExternalConfiguration: true,
+		EXP_MultiPendingPackets:   true,
 	})
 	if err != nil {
 		return E.Cause(err, "create bridge tun")
@@ -146,38 +154,14 @@ func (b *backendDarwin) startPlatform() error {
 	if err != nil {
 		return E.Cause(err, "start bridge tun")
 	}
+	b.batchTUN = tunInterface.(tun.DarwinTUN)
 	b.closed = make(chan struct{})
 	b.readDone = make(chan struct{})
 	b.registerMonitors(b.syncSessionEgress)
 	b.syncSessionEgress()
-	go b.readLoop()
+	go b.batchReadLoop()
 	b.logger.Info("bridge started at ", b.tunName, " (platform, egress ", b.egressLabel(), ")")
 	return nil
-}
-
-func (b *backendDarwin) registerMonitors(syncFunc func()) {
-	var unregisterFuncs []func()
-	networkMonitor := b.networkManager.NetworkMonitor()
-	if networkMonitor != nil {
-		networkElement := networkMonitor.RegisterCallback(syncFunc)
-		unregisterFuncs = append(unregisterFuncs, func() { networkMonitor.UnregisterCallback(networkElement) })
-	} else if b.boundInterface != "" {
-		b.logger.Debug("network monitor unavailable, pinned egress will not track interface changes")
-	}
-	if b.boundInterface == "" {
-		interfaceMonitor := b.networkManager.InterfaceMonitor()
-		if interfaceMonitor != nil {
-			interfaceElement := interfaceMonitor.RegisterCallback(func(_ *control.Interface, _ int) { syncFunc() })
-			unregisterFuncs = append(unregisterFuncs, func() { interfaceMonitor.UnregisterCallback(interfaceElement) })
-		}
-	}
-	if len(unregisterFuncs) > 0 {
-		b.unregister = func() {
-			for _, unregisterFunc := range unregisterFuncs {
-				unregisterFunc()
-			}
-		}
-	}
 }
 
 func (b *backendDarwin) egressLabel() string {
@@ -231,23 +215,107 @@ func (b *backendDarwin) PortMTU() uint32 {
 func (b *backendDarwin) WritePackets(packets [][]byte) error {
 	b.writeAccess.Lock()
 	defer b.writeAccess.Unlock()
-	for _, packet := range packets {
-		if len(packet) == 0 || len(packet) > maxPacketLength {
+	for len(packets) > 0 {
+		chunk := packets
+		if len(chunk) > bridgeWriteBatchSize {
+			chunk = chunk[:bridgeWriteBatchSize]
+		}
+		packets = packets[len(chunk):]
+		batch := b.writeBatch[:0]
+		for _, packet := range chunk {
+			if len(packet) == 0 || len(packet) > maxPacketLength {
+				continue
+			}
+			ipVersion := header.IPVersion(packet)
+			if ipVersion != header.IPv4Version && ipVersion != header.IPv6Version {
+				continue
+			}
+			batch = append(batch, buf.As(packet))
+		}
+		if len(batch) == 0 {
 			continue
 		}
-		ipVersion := header.IPVersion(packet)
-		if ipVersion != header.IPv4Version && ipVersion != header.IPv6Version {
-			continue
-		}
-		buffer := b.writeBuffer[:tun.PacketOffset+len(packet)]
-		tun.PacketFillHeader(buffer, ipVersion)
-		copy(buffer[tun.PacketOffset:], packet)
-		_, err := b.tunInterface.Write(buffer)
+		err := b.batchTUN.BatchWrite(batch)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (b *backendDarwin) batchReadLoop() {
+	defer close(b.readDone)
+	headroom := -1
+	var buffers [][]byte
+	var batch [][]byte
+	for {
+		packets, err := b.batchTUN.BatchRead()
+		if err != nil {
+			select {
+			case <-b.closed:
+				return
+			default:
+			}
+			if E.IsClosed(err) || errors.Is(err, syscall.EBADF) {
+				return
+			}
+			b.logger.Debug(E.Cause(err, "bridge tun read"))
+			continue
+		}
+		if len(packets) == 0 {
+			continue
+		}
+		b.returnAccess.Lock()
+		returnPaths := b.returnPaths
+		b.returnAccess.Unlock()
+		if len(returnPaths) == 0 {
+			buf.ReleaseMulti(packets)
+			continue
+		}
+		pathHeadroom := returnPaths[0].ReturnHeadroom()
+		if pathHeadroom != headroom {
+			headroom = pathHeadroom
+			buffers = buffers[:0]
+		}
+		for len(buffers) < len(packets) {
+			buffers = append(buffers, make([]byte, headroom+bridgeTunMTU))
+		}
+		batch = batch[:0]
+		for _, packet := range packets {
+			payload := packet.Bytes()
+			if len(payload) == 0 {
+				continue
+			}
+			fixReturnChecksum(payload)
+			buffer := buffers[len(batch)][:headroom+len(payload)]
+			copy(buffer[headroom:], payload)
+			batch = append(batch, buffer)
+		}
+		buf.ReleaseMulti(packets)
+		if len(batch) == 0 {
+			continue
+		}
+		unconsumed := batch
+		currentHeadroom := headroom
+		for _, returnPath := range returnPaths {
+			if len(unconsumed) == 0 {
+				break
+			}
+			nextHeadroom := returnPath.ReturnHeadroom()
+			if nextHeadroom != currentHeadroom {
+				rebuffered := make([][]byte, 0, len(unconsumed))
+				for _, packet := range unconsumed {
+					payload := packet[currentHeadroom:]
+					buffer := make([]byte, nextHeadroom+len(payload))
+					copy(buffer[nextHeadroom:], payload)
+					rebuffered = append(rebuffered, buffer)
+				}
+				unconsumed = rebuffered
+				currentHeadroom = nextHeadroom
+			}
+			unconsumed = returnPath.ReturnPackets(unconsumed)
+		}
+	}
 }
 
 func (b *backendDarwin) syncEgress() {
