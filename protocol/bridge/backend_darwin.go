@@ -23,6 +23,12 @@ var (
 	bridgeInet6LocalBase = netip.MustParseAddr("2001:db8:1::1")
 )
 
+// The darwin forwarding path silently drops frames larger than the outgoing
+// interface MTU (no ICMP, no counter), and virtualized ingress interfaces
+// (vmnet LRO) deliver TCP frames coalesced far beyond their own 1500 MTU, so
+// the bridge tun must accept full-size IP packets.
+const bridgeTunMTU = 0xffff
+
 type backendDarwin struct {
 	backendBase
 
@@ -89,6 +95,7 @@ func (b *backendDarwin) start() error {
 		Logger:                    b.logger,
 		EXP_ExternalConfiguration: true,
 		EXP_MultiPendingPackets:   true,
+		EXP_SendMsgX:              true,
 	})
 	if err != nil {
 		return E.Cause(err, "create bridge tun")
