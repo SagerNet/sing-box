@@ -17,9 +17,18 @@ func buildBridgeAnchorRules(ruleLogger logger.ContextLogger, tunName string, egr
 	if err != nil {
 		return nil
 	}
+	// The flowswitch aggregates forwarded TCP into packets larger than the tun
+	// MTU, and pf_route() only fragments when they exceed the egress MTU: a
+	// large-MTU utun target feeds them whole into the overflow described at
+	// bridgeTunMTUDarwin.
+	if egressInterface.Flags&net.FlagBroadcast == 0 || egressInterface.Flags&net.FlagLoopback != 0 ||
+		egressInterface.Flags&net.FlagPointToPoint != 0 {
+		ruleLogger.Error("bridge egress ", egress, " is not a physical interface, dropping forwarded traffic")
+		return nil
+	}
 	mtu := egressInterface.MTU
-	if mtu < 576 || mtu > bridgeTunMTU {
-		mtu = bridgeTunMTU
+	if mtu < 576 || mtu > bridgeTunMTUDarwin {
+		mtu = bridgeTunMTUDarwin
 	}
 	localPrefixes, inet4Interfaces, inet6Interfaces := collectLocalSegments(egress, boundInterface, inet4Port.IsValid(), inet6Port.IsValid())
 	var rules []pfAnchorRule
