@@ -9,19 +9,13 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
 	E "github.com/sagernet/sing/common/exceptions"
-	N "github.com/sagernet/sing/common/network"
 	tsTUN "github.com/sagernet/tailscale/net/tstun"
 	"github.com/sagernet/tailscale/types/ipproto"
 	"github.com/sagernet/tailscale/wgengine/filter"
 )
 
-func (t *Endpoint) SupportsFlow(network string) bool {
-	switch network {
-	case N.NetworkTCP, N.NetworkUDP, N.NetworkICMP:
-		return true
-	default:
-		return false
-	}
+func (t *Endpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
+	return adapter.PreMatchFlow
 }
 
 func (t *Endpoint) PortAddresses() (netip.Addr, netip.Addr) {

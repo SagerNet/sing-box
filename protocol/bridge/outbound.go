@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"slices"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -22,9 +23,10 @@ func RegisterOutbound(registry *outbound.Registry) {
 }
 
 var (
-	_ adapter.Outbound     = (*Outbound)(nil)
-	_ adapter.FlowOutbound = (*Outbound)(nil)
-	_ adapter.Lifecycle    = (*Outbound)(nil)
+	_ adapter.Outbound                    = (*Outbound)(nil)
+	_ adapter.FlowOutbound                = (*Outbound)(nil)
+	_ adapter.OutboundWithPreferredRoutes = (*Outbound)(nil)
+	_ adapter.Lifecycle                   = (*Outbound)(nil)
 )
 
 type Backend interface {
@@ -34,7 +36,10 @@ type Backend interface {
 
 type Outbound struct {
 	outbound.Adapter
-	backend Backend
+	logger            log.ContextLogger
+	networkManager    adapter.NetworkManager
+	platformInterface adapter.PlatformInterface
+	backend           Backend
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.BridgeOutboundOptions) (adapter.Outbound, error) {
@@ -44,8 +49,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	return &Outbound{
-		Adapter: outbound.NewAdapter(C.TypeBridge, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
-		backend: outboundBackend,
+		Adapter:           outbound.NewAdapter(C.TypeBridge, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
+		logger:            logger,
+		networkManager:    networkManager,
+		platformInterface: service.FromContext[adapter.PlatformInterface](ctx),
+		backend:           outboundBackend,
 	}, nil
 }
 
@@ -57,8 +65,41 @@ func (o *Outbound) Close() error {
 	return o.backend.Close()
 }
 
-func (o *Outbound) SupportsFlow(network string) bool {
-	return true
+func (o *Outbound) PreferredDomain(metadata *adapter.InboundContext, domain string) bool {
+	return false
+}
+
+func (o *Outbound) PreferredAddress(metadata *adapter.InboundContext, address netip.Addr) bool {
+	return metadata.PreMatch && !o.isLocalDestination(address)
+}
+
+func (o *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
+	if o.isLocalDestination(destination) {
+		o.logger.Warn("rejected connection to local destination ", destination, ": traffic to local addresses is not supported by bridge, exclude them in route rules")
+		return adapter.PreMatchReject
+	}
+	return adapter.PreMatchFlow
+}
+
+func (o *Outbound) isLocalDestination(destination netip.Addr) bool {
+	if !destination.IsValid() {
+		return false
+	}
+	destination = destination.Unmap()
+	if destination.IsLoopback() || destination.IsUnspecified() {
+		return true
+	}
+	if o.platformInterface != nil && slices.Contains(o.platformInterface.MyInterfaceAddress(), destination) {
+		return true
+	}
+	for _, netInterface := range o.networkManager.InterfaceFinder().Interfaces() {
+		for _, prefix := range netInterface.Addresses {
+			if prefix.Addr() == destination {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (o *Outbound) PortAddresses() (netip.Addr, netip.Addr) {
@@ -82,9 +123,9 @@ func (o *Outbound) WritePackets(packets [][]byte) error {
 }
 
 func (o *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	return nil, E.New("Only L3 traffic is supported by bridge")
+	return nil, E.New("only L3 traffic is supported by bridge")
 }
 
 func (o *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return nil, E.New("Only L3 traffic is supported by bridge")
+	return nil, E.New("only L3 traffic is supported by bridge")
 }
