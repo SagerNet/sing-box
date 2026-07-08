@@ -1,5 +1,6 @@
 //go:build linux || darwin || (windows && (amd64 || 386))
 
+//nolint:unused
 package bridge
 
 import (
