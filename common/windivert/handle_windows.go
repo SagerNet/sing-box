@@ -310,13 +310,16 @@ const versionStructSize = 64
 
 // doIoctl performs a single synchronous (blocking) overlapped
 // DeviceIoControl. The handle is opened with FILE_FLAG_OVERLAPPED so
-// DeviceIoControl returns ERROR_IO_PENDING; we then wait for completion
-// via GetOverlappedResult. Event is passed in so callers can reuse it
-// across calls on the same handle (avoids per-call CreateEvent).
+// DeviceIoControl may return ERROR_IO_PENDING; we then wait for
+// completion via GetOverlappedResult. Event is passed in so callers can
+// reuse it across calls on the same handle (avoids per-call CreateEvent).
+// No explicit ResetEvent is needed: NtDeviceIoControlFile clears the
+// event to nonsignaled before queuing each request, and on synchronous
+// completion (DeviceIoControl returns success) lpBytesReturned is
+// already filled, so GetOverlappedResult is skipped entirely.
 func doIoctl(handle windows.Handle, code uint32, in []byte, out []byte, event windows.Handle) (uint32, error) {
 	var overlapped windows.Overlapped
 	overlapped.HEvent = event
-	_ = windows.ResetEvent(event)
 
 	var inPtr *byte
 	var inLen uint32
@@ -332,7 +335,10 @@ func doIoctl(handle windows.Handle, code uint32, in []byte, out []byte, event wi
 	}
 	var returned uint32
 	err := windows.DeviceIoControl(handle, code, inPtr, inLen, outPtr, outLen, &returned, &overlapped)
-	if err != nil && !errors.Is(err, windows.ERROR_IO_PENDING) {
+	if err == nil {
+		return returned, nil
+	}
+	if !errors.Is(err, windows.ERROR_IO_PENDING) {
 		return 0, err
 	}
 	err = windows.GetOverlappedResult(handle, &overlapped, &returned, true)
