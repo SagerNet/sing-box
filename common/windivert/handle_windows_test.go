@@ -72,7 +72,7 @@ func TestBuildIoctlRecvEmbedsAddressPointer(t *testing.T) {
 func TestBuildIoctlSendEmbedsAddressPointerAndSize(t *testing.T) {
 	t.Parallel()
 	addr := &Address{}
-	buf := buildIoctlSend(addr)
+	buf := buildIoctlSend(addr, addressSize)
 	require.Equal(t, uint64(uintptr(unsafe.Pointer(addr))),
 		binary.LittleEndian.Uint64(buf[0:8]))
 	require.Equal(t, uint64(unsafe.Sizeof(Address{})),
