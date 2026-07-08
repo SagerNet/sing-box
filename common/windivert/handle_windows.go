@@ -26,11 +26,14 @@ import (
 // because Go's escape analysis does not see the pointer through the
 // unsafe.Pointer → uintptr → bytes conversion.
 type Handle struct {
-	device   windows.Handle
-	event    windows.Handle
-	closing  sync.Once
-	closeErr error
-	addr     Address
+	device       windows.Handle
+	event        windows.Handle
+	closing      sync.Once
+	closeErr     error
+	addr         Address
+	recvAddrs    []Address
+	recvAddrsLen uint32
+	sendAddrs    []Address
 }
 
 // Filter may be nil for "reject all", suitable for send-only handles.
@@ -169,10 +172,60 @@ func (h *Handle) Recv(buf []byte) (int, Address, error) {
 	return int(n), h.addr, nil
 }
 
+// BatchMax is WINDIVERT_BATCH_MAX: the driver caps both directions at 255
+// packets per ioctl.
+const BatchMax = 255
+
+const addressSize = uint32(unsafe.Sizeof(Address{}))
+
+// RecvBatch receives up to BatchMax packets in one ioctl. The driver packs
+// packets back-to-back into buf with no padding and copies exactly each
+// packet's IP total length, so boundaries are recovered by walking the IP
+// length fields. It returns as soon as at least one packet is available;
+// it never waits to fill the batch. The returned Address slice is owned by
+// the Handle and is overwritten by the next RecvBatch.
+func (h *Handle) RecvBatch(buf []byte) (int, []Address, error) {
+	if len(buf) < MTUMax {
+		return 0, nil, E.New("windivert: recv batch: buffer smaller than MTUMax")
+	}
+	if h.recvAddrs == nil {
+		h.recvAddrs = make([]Address, BatchMax)
+	}
+	h.recvAddrsLen = uint32(len(h.recvAddrs)) * addressSize
+	in := buildIoctlRecvBatch(&h.recvAddrs[0], &h.recvAddrsLen)
+	n, err := doIoctl(h.device, ioctlRecv, in[:], buf, h.event)
+	runtime.KeepAlive(h)
+	if err != nil {
+		return 0, nil, err
+	}
+	return int(n), h.recvAddrs[:h.recvAddrsLen/addressSize], nil
+}
+
+// SendBatch injects the packets packed back-to-back in buf, one Address per
+// packet. The driver recovers packet boundaries from the IP total-length
+// fields and rejects the whole batch if they do not add up to len(buf).
+func (h *Handle) SendBatch(buf []byte, addrs []Address) (int, error) {
+	if len(addrs) == 0 || len(addrs) > BatchMax {
+		return 0, E.New("windivert: send batch: invalid packet count ", len(addrs))
+	}
+	if len(buf) == 0 {
+		return 0, E.New("windivert: send batch: empty buffer")
+	}
+	if h.sendAddrs == nil {
+		h.sendAddrs = make([]Address, BatchMax)
+	}
+	copy(h.sendAddrs, addrs)
+	in := buildIoctlSend(&h.sendAddrs[0], uint32(len(addrs))*addressSize)
+	n, err := doIoctl(h.device, ioctlSend, in[:], buf, h.event)
+	runtime.KeepAlive(h)
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
+}
+
 // The address's Outbound flag controls whether the packet is sent toward
 // the wire (outbound=true) or delivered up the stack (outbound=false).
-// IfIdx and SubIfIdx can stay zero — the driver uses the routing table
-// when IfIdx=0.
 func (h *Handle) Send(packet []byte, addr *Address) (int, error) {
 	if len(packet) == 0 {
 		return 0, E.New("windivert: send: empty packet")
@@ -181,7 +234,7 @@ func (h *Handle) Send(packet []byte, addr *Address) (int, error) {
 		return 0, E.New("windivert: send: nil address")
 	}
 	h.addr = *addr
-	in := buildIoctlSend(&h.addr)
+	in := buildIoctlSend(&h.addr, addressSize)
 	n, err := doIoctl(h.device, ioctlSend, in[:], packet, h.event)
 	runtime.KeepAlive(h)
 	if err != nil {
@@ -316,9 +369,20 @@ func buildIoctlRecv(addr *Address) [ioctlSize]byte {
 	return buf
 }
 
-func buildIoctlSend(addr *Address) [ioctlSize]byte {
+// buildIoctlRecvBatch additionally passes addr_len_ptr, a pointer to the
+// Address array capacity in bytes; the driver overwrites it with the bytes
+// actually written (packet count × 80). Caller must keep both pointees
+// alive via runtime.KeepAlive.
+func buildIoctlRecvBatch(addrs *Address, addrsLen *uint32) [ioctlSize]byte {
 	var buf [ioctlSize]byte
-	binary.LittleEndian.PutUint64(buf[0:8], uint64(uintptr(unsafe.Pointer(addr))))
-	binary.LittleEndian.PutUint64(buf[8:16], uint64(unsafe.Sizeof(Address{})))
+	binary.LittleEndian.PutUint64(buf[0:8], uint64(uintptr(unsafe.Pointer(addrs))))
+	binary.LittleEndian.PutUint64(buf[8:16], uint64(uintptr(unsafe.Pointer(addrsLen))))
+	return buf
+}
+
+func buildIoctlSend(addrs *Address, addrsLen uint32) [ioctlSize]byte {
+	var buf [ioctlSize]byte
+	binary.LittleEndian.PutUint64(buf[0:8], uint64(uintptr(unsafe.Pointer(addrs))))
+	binary.LittleEndian.PutUint64(buf[8:16], uint64(addrsLen))
 	return buf
 }

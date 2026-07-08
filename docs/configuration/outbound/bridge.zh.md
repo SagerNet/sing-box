@@ -8,7 +8,7 @@ icon: material/new-box
 
 !!! quote ""
 
-    需要特权。支持 Linux、macOS、rooted Android 和越狱 iOS。
+    需要特权。支持 Linux、macOS、Windows、rooted Android 和越狱 iOS。
 
     对于图形客户端：macOS 仅独立版本可用，且需要 Root Helper；Android 需要 root 权限；iOS 需要越狱。
 
