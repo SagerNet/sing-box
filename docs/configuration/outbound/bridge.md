@@ -18,6 +18,14 @@ icon: material/new-box
 or other L3 endpoints via the `route` action in
 [Pre-match](/configuration/shared/pre-match/); L4 connections will be rejected.
 
+Traffic to local addresses of the machine (loopback, or addresses assigned to its
+network interfaces) will be rejected.
+
+It is recommended to use [`preferred_by`](/configuration/route/rule/#preferred_by)
+as a gate in the `route` rule: it only matches in
+[pre-match](/configuration/shared/pre-match/) and excludes local addresses that
+cannot be routed.
+
 ### Structure
 
 ```json
