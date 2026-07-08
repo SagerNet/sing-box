@@ -3,6 +3,7 @@ package bridge
 import (
 	"net"
 	"net/netip"
+	_ "unsafe"
 
 	"github.com/sagernet/netlink"
 	"github.com/sagernet/sing-tun"
@@ -65,9 +66,17 @@ func NewService(options ServiceOptions) (*Service, error) {
 func (s *Service) start(bridgeName string) error {
 	s.tunName = tun.CalculateInterfaceName(bridgeName)
 	s.nftTableName = "sing-box-" + s.tunName
-	tunFileDescriptor, err := openBridgeTun(s.tunName)
+	tunFileDescriptor, err := openTUN(s.tunName, true)
 	if err != nil {
 		return E.Cause(err, "create bridge tun")
+	}
+	err = setTCPOffload(tunFileDescriptor)
+	if err != nil {
+		s.logger.Warn(E.Cause(err, "set TCP offload"))
+	}
+	err = setUDPOffload(tunFileDescriptor)
+	if err != nil {
+		s.logger.Warn(E.Cause(err, "set UDP offload"))
 	}
 	s.tunFileDescriptor = tunFileDescriptor
 	tunLink, err := netlink.LinkByName(s.tunName)
@@ -223,29 +232,11 @@ func isDefaultDestination(destination *net.IPNet) bool {
 	return ones == 0
 }
 
-func openBridgeTun(name string) (int, error) {
-	tunFileDescriptor, err := unix.Open("/dev/net/tun", unix.O_RDWR, 0)
-	if err != nil {
-		tunFileDescriptor, err = unix.Open("/dev/tun", unix.O_RDWR, 0)
-	}
-	if err != nil {
-		return -1, E.Cause(err, "open tun control device")
-	}
-	ifreq, err := unix.NewIfreq(name)
-	if err != nil {
-		unix.Close(tunFileDescriptor)
-		return -1, err
-	}
-	ifreq.SetUint16(unix.IFF_TUN | unix.IFF_NO_PI)
-	err = unix.IoctlIfreq(tunFileDescriptor, unix.TUNSETIFF, ifreq)
-	if err != nil {
-		unix.Close(tunFileDescriptor)
-		return -1, E.Cause(err, "TUNSETIFF")
-	}
-	err = unix.SetNonblock(tunFileDescriptor, true)
-	if err != nil {
-		unix.Close(tunFileDescriptor)
-		return -1, E.Cause(err, "set nonblock")
-	}
-	return tunFileDescriptor, nil
-}
+//go:linkname openTUN github.com/sagernet/sing-tun.open
+func openTUN(name string, vnetHdr bool) (int, error)
+
+//go:linkname setTCPOffload github.com/sagernet/sing-tun.setTCPOffload
+func setTCPOffload(fd int) error
+
+//go:linkname setUDPOffload github.com/sagernet/sing-tun.setUDPOffload
+func setUDPOffload(fd int) error

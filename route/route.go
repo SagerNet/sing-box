@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/sniff"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -308,6 +307,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 
 func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) adapter.PreMatchResult {
 	ctx := log.ContextWithNewID(r.ctx)
+	metadata.PreMatch = true
 	continueResult := adapter.PreMatchResult{Action: adapter.PreMatchContinue}
 	packetDestination := metadata.Destination
 	if metadata.Destination.Addr.IsValid() && r.dnsTransport.FakeIP() != nil && r.dnsTransport.FakeIP().Store().Contains(metadata.Destination.Addr) {
@@ -464,15 +464,12 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 		return continueResult
 	}
 	flowOutbound, isFlowOutbound := outbound.(adapter.FlowOutbound)
-	if !isFlowOutbound || !flowOutbound.SupportsFlow(metadata.Network) {
-		if outbound.Type() == C.TypeDirect {
-			directDialer, isDirectDialer := outbound.(dialer.DirectDialer)
-			if isDirectDialer && directDialer.IsEmpty() && !metadata.Destination.IsDomain() && metadata.Destination == packetDestination {
-				r.logger.DebugContext(ctx, "pre-match bypass ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString())
-				return adapter.PreMatchResult{Action: adapter.PreMatchBypass, Outbound: outbound}
-			}
-		}
+	if !isFlowOutbound {
 		return continueResult
+	}
+	flowAction := flowOutbound.PreMatchFlow(metadata.Network, metadata.Destination.Addr)
+	if flowAction != adapter.PreMatchFlow {
+		return adapter.PreMatchResult{Action: flowAction, Outbound: outbound}
 	}
 	result := adapter.PreMatchResult{Action: adapter.PreMatchFlow, Outbound: outbound}
 	if metadata.Network == N.NetworkUDP {
@@ -506,6 +503,10 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 				r.logger.DebugContext(ctx, "pre-match: reject ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to fake destination ", metadata.Destination.Fqdn, ": no resolved address for this address family")
 			}
 			return adapter.PreMatchResult{Action: adapter.PreMatchReject}
+		}
+		flowAction = flowOutbound.PreMatchFlow(metadata.Network, newDestination)
+		if flowAction != adapter.PreMatchFlow {
+			return adapter.PreMatchResult{Action: flowAction, Outbound: outbound}
 		}
 		result.Destination = netip.AddrPortFrom(newDestination, metadata.Destination.Port)
 	} else if metadata.Destination != packetDestination {

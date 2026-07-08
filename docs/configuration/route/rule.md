@@ -465,10 +465,11 @@ See [Wi-Fi State](/configuration/shared/wifi-state/) for details.
 
 Match specified outbounds' preferred routes.
 
-| Type        | Match                                         |
-|-------------|-----------------------------------------------|
-| `tailscale` | Match MagicDNS domains and peers' allowed IPs |
-| `wireguard` | Match peers's allowed IPs                     |
+| Type        | Match                                              |
+|-------------|----------------------------------------------------|
+| `tailscale` | Match MagicDNS domains and peers' allowed IPs      |
+| `wireguard` | Match peers's allowed IPs                          |
+| `bridge`    | Match all addresses except local addresses of the machine, only in [pre-match](/configuration/shared/pre-match/) |
 
 #### source_mac_address
 
