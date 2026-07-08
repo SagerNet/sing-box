@@ -310,22 +310,9 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 	metadata.PreMatch = true
 	continueResult := adapter.PreMatchResult{Action: adapter.PreMatchContinue}
 	packetDestination := metadata.Destination
-	if metadata.Destination.Addr.IsValid() && r.dnsTransport.FakeIP() != nil && r.dnsTransport.FakeIP().Store().Contains(metadata.Destination.Addr) {
-		domain, loaded := r.dnsTransport.FakeIP().Store().Lookup(metadata.Destination.Addr)
-		if !loaded || domain == "" {
-			return continueResult
-		}
-		metadata.OriginDestination = metadata.Destination
-		metadata.Destination = M.Socksaddr{
-			Fqdn: domain,
-			Port: metadata.Destination.Port,
-		}
-		metadata.FakeIP = true
-	}
-	if metadata.Destination.IsIPv4() {
-		metadata.IPVersion = 4
-	} else if metadata.Destination.IsIPv6() {
-		metadata.IPVersion = 6
+	err := r.prepareMatchMetadata(ctx, &metadata)
+	if err != nil {
+		return continueResult
 	}
 	for currentRuleIndex, currentRule := range r.rules {
 		metadata.ResetRuleCache()
@@ -531,13 +518,7 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 	return result
 }
 
-func (r *Router) matchRule(
-	ctx context.Context, metadata *adapter.InboundContext,
-	inputConn net.Conn, inputPacketConn N.PacketConn,
-) (
-	selectedRule adapter.Rule, selectedRuleIndex int,
-	buffers []*buf.Buffer, packetBuffers []*N.PacketBuffer, fatalErr error,
-) {
+func (r *Router) prepareMatchMetadata(ctx context.Context, metadata *adapter.InboundContext) error {
 	r.searchProcessInfo(ctx, metadata)
 	if r.neighborResolver != nil && metadata.SourceMACAddress == nil && metadata.Source.Addr.IsValid() {
 		mac, macFound := r.neighborResolver.LookupMAC(metadata.Source.Addr)
@@ -559,8 +540,7 @@ func (r *Router) matchRule(
 	if metadata.Destination.Addr.IsValid() && r.dnsTransport.FakeIP() != nil && r.dnsTransport.FakeIP().Store().Contains(metadata.Destination.Addr) {
 		domain, loaded := r.dnsTransport.FakeIP().Store().Lookup(metadata.Destination.Addr)
 		if !loaded {
-			fatalErr = E.New("missing fakeip record, try enable `experimental.cache_file`")
-			return
+			return E.New("missing fakeip record, try enable `experimental.cache_file`")
 		}
 		if domain != "" {
 			metadata.OriginDestination = metadata.Destination
@@ -582,6 +562,20 @@ func (r *Router) matchRule(
 		metadata.IPVersion = 4
 	} else if metadata.Destination.IsIPv6() {
 		metadata.IPVersion = 6
+	}
+	return nil
+}
+
+func (r *Router) matchRule(
+	ctx context.Context, metadata *adapter.InboundContext,
+	inputConn net.Conn, inputPacketConn N.PacketConn,
+) (
+	selectedRule adapter.Rule, selectedRuleIndex int,
+	buffers []*buf.Buffer, packetBuffers []*N.PacketBuffer, fatalErr error,
+) {
+	fatalErr = r.prepareMatchMetadata(ctx, metadata)
+	if fatalErr != nil {
+		return
 	}
 
 match:
