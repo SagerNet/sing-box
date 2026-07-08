@@ -22,12 +22,16 @@ const (
 	pfActionScrub = 2
 	pfActionNat   = 4
 
-	pfDirectionIn = 1
+	pfDirectionIn  = 1
+	pfDirectionOut = 2
 
 	pfAddrTypeAddressMask      = 0
 	pfAddrTypeDynamicInterface = 2
 
+	// xnu orders the route enum PF_NOPFROUTE, PF_FASTROUTE, PF_ROUTETO,
+	// PF_DUPTO, PF_REPLYTO; reply-to is 4, unlike OpenBSD where it is 3.
 	pfRouteActionRouteTo = 2
+	pfRouteActionReplyTo = 4
 
 	pfStateNormal = 1
 
