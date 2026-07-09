@@ -125,6 +125,15 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	}
 	var realmOptions *realm.Options
 	if options.Realm != nil {
+		if options.Realm.IPVersion != 0 && options.ListenOptions.Listen != nil {
+			listenAddr := netip.Addr(*options.ListenOptions.Listen).Unmap()
+			if options.Realm.IPVersion == 6 && listenAddr.Is4() {
+				return nil, E.New("realm.ip_version 6 conflicts with listen address ", listenAddr)
+			}
+			if options.Realm.IPVersion == 4 && listenAddr.Is6() && !listenAddr.IsUnspecified() {
+				return nil, E.New("realm.ip_version 4 conflicts with listen address ", listenAddr)
+			}
+		}
 		queryOptions, err := adapter.DNSQueryOptionsFrom(ctx, options.Realm.STUNDomainResolver)
 		if err != nil {
 			return nil, err
@@ -150,7 +159,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 				}
 				return dnsRouter.Lookup(ctx, host, dnsOptions)
 			},
-			Logger: logger,
+			Logger:    logger,
+			IPVersion: options.Realm.IPVersion,
+		}
+		if options.Realm.PortMapping != nil && options.Realm.PortMapping.Enabled {
+			realmOptions.PortMapping = &realm.PortMappingOptions{
+				Timeout:  time.Duration(options.Realm.PortMapping.Timeout),
+				Lifetime: time.Duration(options.Realm.PortMapping.Lifetime),
+			}
 		}
 	}
 	hysteriaService, err := hysteria2.NewService[int](hysteria2.ServiceOptions{
