@@ -43,6 +43,12 @@
     "token": "",
     "realm_id": "",
     "stun_servers": [],
+    "ip_version": 0,
+    "port_mapping": {
+      "enabled": false,
+      "timeout": "",
+      "lifetime": ""
+    },
     "http_client": {}
   },
 
@@ -207,6 +213,36 @@ Realm 的 Bearer 令牌，需与 realm 上配置的 `users[].token` 之一匹配
 用于发现本客户端公网地址的 STUN 服务器列表（`host` 或 `host:port`）。
 
 域名通过 [拨号字段](/zh/configuration/shared/dial/) 中的 [`domain_resolver`](/zh/configuration/shared/dial/#domain_resolver) 解析。
+
+#### realm.ip_version
+
+将 realm 连接（STUN、打洞与最终的 QUIC 路径）限制为单一 IP 版本。
+
+`4` 或 `6`。默认使用两者。
+
+#### realm.port_mapping
+
+通过 UPnP 或 NAT-PMP 在本地网关上维护 UDP 端口映射。
+
+映射在 STUN 发现之前建立，可在支持的网关后提升打洞成功率；失败不影响正常流程。
+
+需要 IPv4：与 `"ip_version": 6` 冲突。
+
+#### realm.port_mapping.enabled
+
+启用端口映射。
+
+#### realm.port_mapping.timeout
+
+网关发现与映射操作的超时。
+
+默认使用 `10s`。
+
+#### realm.port_mapping.lifetime
+
+映射的租约时长；每过一半时长续期一次。
+
+默认使用 `10m`。
 
 #### realm.http_client
 

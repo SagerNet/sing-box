@@ -30,7 +30,15 @@ type Hysteria2Realm struct {
 	Token       string                     `json:"token,omitempty"`
 	RealmID     string                     `json:"realm_id"`
 	STUNServers badoption.Listable[string] `json:"stun_servers"`
+	IPVersion   int                        `json:"ip_version,omitempty"`
+	PortMapping *Hysteria2RealmPortMapping `json:"port_mapping,omitempty"`
 	HTTPClient  *HTTPClientOptions         `json:"http_client,omitempty"`
+}
+
+type Hysteria2RealmPortMapping struct {
+	Enabled  bool               `json:"enabled,omitempty"`
+	Timeout  badoption.Duration `json:"timeout,omitempty"`
+	Lifetime badoption.Duration `json:"lifetime,omitempty"`
 }
 
 type Hysteria2InboundRealm struct {

@@ -111,7 +111,14 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 				}
 				return dnsRouter.Lookup(ctx, host, dnsOptions)
 			},
-			Logger: logger,
+			Logger:    logger,
+			IPVersion: options.Realm.IPVersion,
+		}
+		if options.Realm.PortMapping != nil && options.Realm.PortMapping.Enabled {
+			realmOptions.PortMapping = &realm.PortMappingOptions{
+				Timeout:  time.Duration(options.Realm.PortMapping.Timeout),
+				Lifetime: time.Duration(options.Realm.PortMapping.Lifetime),
+			}
 		}
 	}
 	networkList := options.Network.Build()
