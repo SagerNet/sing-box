@@ -48,6 +48,12 @@ icon: material/alert-decagram
     "realm_id": "",
     "stun_servers": [],
     "stun_domain_resolver": "", // or {}
+    "ip_version": 0,
+    "port_mapping": {
+      "enabled": false,
+      "timeout": "",
+      "lifetime": ""
+    },
     "http_client": {}
   }
 }
@@ -236,6 +242,38 @@ This option uses the same format as the [route DNS rule action](/configuration/d
 Setting this option directly to a string is equivalent to setting `server` of this options.
 
 If empty, the default domain resolver is used.
+
+#### realm.ip_version
+
+Restrict realm connections (STUN, hole punching, and the resulting QUIC path) to a single IP version.
+
+`4` or `6`. Both are used if empty.
+
+The `listen` address must be compatible with the selected version.
+
+#### realm.port_mapping
+
+Maintain a UDP port mapping on the local gateway via UPnP or NAT-PMP.
+
+The mapping is established before STUN discovery and improves hole-punching reliability behind gateways that support it; failures are non-fatal.
+
+Requires IPv4: conflicts with `"ip_version": 6`.
+
+#### realm.port_mapping.enabled
+
+Enable port mapping.
+
+#### realm.port_mapping.timeout
+
+Timeout for gateway discovery and mapping operations.
+
+`10s` is used by default.
+
+#### realm.port_mapping.lifetime
+
+Lease lifetime of the mapping; it is renewed at half the lifetime.
+
+`10m` is used by default.
 
 #### realm.http_client
 
