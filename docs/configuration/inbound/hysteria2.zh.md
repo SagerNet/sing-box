@@ -48,6 +48,12 @@ icon: material/alert-decagram
     "realm_id": "",
     "stun_servers": [],
     "stun_domain_resolver": "", // 或 {}
+    "ip_version": 0,
+    "port_mapping": {
+      "enabled": false,
+      "timeout": "",
+      "lifetime": ""
+    },
     "http_client": {}
   }
 }
@@ -233,6 +239,38 @@ Realm 上的槽位标识符。
 若直接将此选项设置为字符串，则等同于设置该选项的 `server` 字段。
 
 如果为空，则使用默认域名解析器。
+
+#### realm.ip_version
+
+将 realm 连接（STUN、打洞与最终的 QUIC 路径）限制为单一 IP 版本。
+
+`4` 或 `6`。默认使用两者。
+
+`listen` 地址必须与所选版本兼容。
+
+#### realm.port_mapping
+
+通过 UPnP 或 NAT-PMP 在本地网关上维护 UDP 端口映射。
+
+映射在 STUN 发现之前建立，可在支持的网关后提升打洞成功率；失败不影响正常流程。
+
+需要 IPv4：与 `"ip_version": 6` 冲突。
+
+#### realm.port_mapping.enabled
+
+启用端口映射。
+
+#### realm.port_mapping.timeout
+
+网关发现与映射操作的超时。
+
+默认使用 `10s`。
+
+#### realm.port_mapping.lifetime
+
+映射的租约时长；每过一半时长续期一次。
+
+默认使用 `10m`。
 
 #### realm.http_client
 
