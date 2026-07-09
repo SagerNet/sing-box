@@ -4,17 +4,21 @@ package libbox
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/sagernet/sing-box/common/trafficcontrol"
 	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/oomprofile"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing/common/byteformats"
+	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/memory"
 )
 
@@ -174,8 +178,124 @@ func (r *oomReporter) writeSnapshot(destPath string, memoryUsage uint64) error {
 	writeReportMetadata(destPath, metadata)
 	copyConfigSnapshot(destPath)
 	writeOOMLog(destPath, r.startedService.SavedLog())
+	r.writeOOMConnections(destPath)
 
 	return nil
+}
+
+type oomConnectionsInfo struct {
+	UploadTotal       string              `json:"uploadTotal,omitempty"`
+	DownloadTotal     string              `json:"downloadTotal,omitempty"`
+	Connections       []oomConnectionInfo `json:"connections"`
+	ClosedConnections []oomConnectionInfo `json:"closedConnections,omitempty"`
+}
+
+type oomConnectionInfo struct {
+	ID           string   `json:"id"`
+	CreatedAt    string   `json:"createdAt"`
+	ClosedAt     string   `json:"closedAt,omitempty"`
+	Inbound      string   `json:"inbound,omitempty"`
+	Network      string   `json:"network,omitempty"`
+	Source       string   `json:"source,omitempty"`
+	Destination  string   `json:"destination,omitempty"`
+	Host         string   `json:"host,omitempty"`
+	User         string   `json:"user,omitempty"`
+	Process      string   `json:"process,omitempty"`
+	Rule         string   `json:"rule,omitempty"`
+	Chain        []string `json:"chain,omitempty"`
+	Outbound     string   `json:"outbound,omitempty"`
+	OutboundType string   `json:"outboundType,omitempty"`
+	Upload       string   `json:"upload,omitempty"`
+	Download     string   `json:"download,omitempty"`
+}
+
+func (r *oomReporter) writeOOMConnections(destPath string) {
+	instance := r.startedService.Instance()
+	if instance == nil {
+		return
+	}
+	trafficManager := instance.TrafficManager()
+	if trafficManager == nil {
+		return
+	}
+	connections := trafficManager.Connections()
+	sort.Slice(connections, func(i, j int) bool {
+		return connections[i].CreatedAt.Before(connections[j].CreatedAt)
+	})
+	uploadTotal, downloadTotal := trafficManager.Total()
+	info := oomConnectionsInfo{
+		UploadTotal:       byteformats.FormatBytes(uint64(uploadTotal)),
+		DownloadTotal:     byteformats.FormatBytes(uint64(downloadTotal)),
+		Connections:       buildOOMConnections(connections),
+		ClosedConnections: buildOOMConnections(trafficManager.ClosedConnections()),
+	}
+	data, err := json.MarshalIndent(info, "", "  ")
+	if err != nil {
+		return
+	}
+	writeReportFile(destPath, "connections.json", data)
+}
+
+func buildOOMConnections(connections []*trafficcontrol.TrackerMetadata) []oomConnectionInfo {
+	result := make([]oomConnectionInfo, 0, len(connections))
+	for _, connection := range connections {
+		result = append(result, buildOOMConnection(connection))
+	}
+	return result
+}
+
+func buildOOMConnection(connection *trafficcontrol.TrackerMetadata) oomConnectionInfo {
+	metadata := connection.Metadata
+	var inbound string
+	if metadata.Inbound != "" {
+		inbound = metadata.InboundType + "/" + metadata.Inbound
+	} else {
+		inbound = metadata.InboundType
+	}
+	var process string
+	if processInfo := metadata.ProcessInfo; processInfo != nil {
+		if processInfo.ProcessPath != "" {
+			process = processInfo.ProcessPath
+		} else if len(processInfo.AndroidPackageNames) > 0 {
+			process = processInfo.AndroidPackageNames[0]
+		}
+		if process == "" {
+			if processInfo.UserId != -1 {
+				process = F.ToString(processInfo.UserId)
+			}
+		} else if processInfo.UserName != "" {
+			process = F.ToString(process, " (", processInfo.UserName, ")")
+		} else if processInfo.UserId != -1 {
+			process = F.ToString(process, " (", processInfo.UserId, ")")
+		}
+	}
+	var rule string
+	if connection.Rule != nil {
+		rule = F.ToString(connection.Rule, " => ", connection.Rule.Action())
+	} else {
+		rule = "final"
+	}
+	info := oomConnectionInfo{
+		ID:           connection.ID.String(),
+		CreatedAt:    connection.CreatedAt.UTC().Format(time.RFC3339),
+		Inbound:      inbound,
+		Network:      metadata.Network,
+		Source:       metadata.Source.String(),
+		Destination:  metadata.Destination.String(),
+		Host:         metadata.Domain,
+		User:         metadata.User,
+		Process:      process,
+		Rule:         rule,
+		Chain:        connection.Chain,
+		Outbound:     connection.Outbound,
+		OutboundType: connection.OutboundType,
+		Upload:       byteformats.FormatBytes(uint64(connection.Upload.Load())),
+		Download:     byteformats.FormatBytes(uint64(connection.Download.Load())),
+	}
+	if !connection.ClosedAt.IsZero() {
+		info.ClosedAt = connection.ClosedAt.UTC().Format(time.RFC3339)
+	}
+	return info
 }
 
 func writeOOMLog(destPath string, entries []*log.Entry) {
