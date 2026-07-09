@@ -167,6 +167,10 @@ func (i *Instance) PauseManager() pause.Manager {
 	return i.pauseManager
 }
 
+func (i *Instance) TrafficManager() *trafficcontrol.Manager {
+	return i.trafficManager
+}
+
 func parseConfig(ctx context.Context, configContent string) (option.Options, error) {
 	options, err := json.UnmarshalExtendedContext[option.Options](ctx, []byte(configContent))
 	if err != nil {
