@@ -139,6 +139,10 @@ nav:
           - TCP Brutal: configuration/shared/tcp-brutal.md
           - Wi-Fi State: configuration/shared/wifi-state.md
           - Neighbor Resolution: configuration/shared/neighbor.md
+      - Network Namespace:
+          - configuration/network-namespace/index.md
+          - Default: configuration/network-namespace/default.md
+          - Unshare: configuration/network-namespace/unshare.md
       - Endpoint:
           - configuration/endpoint/index.md
           - WireGuard: configuration/endpoint/wireguard.md
@@ -296,6 +300,7 @@ plugins:
             V2Ray Transport: V2Ray 传输层
             Wi-Fi State: Wi-Fi 状态
 
+            Network Namespace: 网络命名空间
             Endpoint: 端点
             Inbound: 入站
             Outbound: 出站
