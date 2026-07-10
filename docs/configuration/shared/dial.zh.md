@@ -4,7 +4,8 @@ icon: material/new-box
 
 !!! quote "sing-box 1.14.0 中的更改"
 
-    :material-alert: [domain_resolver](#domain_resolver)
+    :material-alert: [domain_resolver](#domain_resolver)  
+    :material-alert: [netns](#netns)
 
 !!! quote "sing-box 1.13.0 中的更改"
 
@@ -117,6 +118,9 @@ icon: material/new-box
     仅支持 Linux。
 
 设置网络命名空间，名称或路径。
+
+自 sing-box 1.14.0 起，也可以使用[网络命名空间](/zh/configuration/network-namespace/)的标签。
+应避免引用 `unshare` 类型的网络命名空间，因为其唯一出口是由 sing-box 自身管理的 tun 接口。
 
 #### connect_timeout
 
