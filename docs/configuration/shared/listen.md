@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-alert: [netns](#netns)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)  
@@ -96,6 +100,8 @@ Reuse listener address.
     Only supported on Linux.
 
 Set network namespace, name or path.
+
+Since sing-box 1.14.0, the tag of a [network namespace](/configuration/network-namespace/) can also be used.
 
 #### tcp_fast_open
 
