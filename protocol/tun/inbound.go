@@ -98,6 +98,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	})
 
 	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
+	if options.NetNs != "" && !C.IsLinux {
+		return nil, E.New("`netns` is only supported on Linux")
+	}
 	tunMTU := options.MTU
 	if tunMTU == 0 {
 		if platformInterface != nil && platformInterface.UnderNetworkExtension() {
@@ -190,6 +193,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		logger:         logger,
 		tunOptions: tun.Options{
 			Name:                                  options.InterfaceName,
+			NetNs:                                 options.NetNs,
 			MTU:                                   tunMTU,
 			GSO:                                   enableGSO,
 			Inet4Address:                          inet4Address,
@@ -266,9 +270,11 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 		if !C.IsAndroid {
 			inbound.tunOptions.AutoRedirectMarkMode = true
-			err = networkManager.RegisterAutoRedirectOutputMark(inbound.tunOptions.AutoRedirectOutputMark)
-			if err != nil {
-				return nil, err
+			if options.NetNs == "" {
+				err = networkManager.RegisterAutoRedirectOutputMark(inbound.tunOptions.AutoRedirectOutputMark)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -354,6 +360,12 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		}
 		if t.tunOptions.Name == "" {
 			t.tunOptions.Name = tun.CalculateInterfaceName("")
+		}
+		if t.tunOptions.NetNs != "" {
+			manager := service.FromContext[adapter.NetworkNamespaceManager](t.ctx)
+			if manager != nil {
+				t.tunOptions.NetNs = manager.ResolvePath(t.tunOptions.NetNs)
+			}
 		}
 		if t.platformInterface == nil {
 			t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
