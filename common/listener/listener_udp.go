@@ -49,7 +49,7 @@ func (l *Listener) ListenUDP() (net.PacketConn, error) {
 			})
 		})
 	}
-	udpConn, err := ListenNetworkNamespace[net.PacketConn](l.listenOptions.NetNs, func() (net.PacketConn, error) {
+	udpConn, err := ListenNetworkNamespace[net.PacketConn](l.ctx, l.listenOptions.NetNs, func() (net.PacketConn, error) {
 		return listenConfig.ListenPacket(l.ctx, M.NetworkFromNetAddr(N.NetworkUDP, bindAddr.Addr), bindAddr.String())
 	})
 	if err != nil {
@@ -62,7 +62,7 @@ func (l *Listener) ListenUDP() (net.PacketConn, error) {
 }
 
 func (l *Listener) DialContext(dialer net.Dialer, ctx context.Context, network string, address string) (net.Conn, error) {
-	return ListenNetworkNamespace[net.Conn](l.listenOptions.NetNs, func() (net.Conn, error) {
+	return ListenNetworkNamespace[net.Conn](l.ctx, l.listenOptions.NetNs, func() (net.Conn, error) {
 		if l.listenOptions.BindInterface != "" {
 			dialer.Control = control.Append(dialer.Control, control.BindToInterface(service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder(), l.listenOptions.BindInterface, -1))
 		}
@@ -77,7 +77,7 @@ func (l *Listener) DialContext(dialer net.Dialer, ctx context.Context, network s
 }
 
 func (l *Listener) ListenPacket(listenConfig net.ListenConfig, ctx context.Context, network string, address string) (net.PacketConn, error) {
-	return ListenNetworkNamespace[net.PacketConn](l.listenOptions.NetNs, func() (net.PacketConn, error) {
+	return ListenNetworkNamespace[net.PacketConn](l.ctx, l.listenOptions.NetNs, func() (net.PacketConn, error) {
 		if l.listenOptions.BindInterface != "" {
 			listenConfig.Control = control.Append(listenConfig.Control, control.BindToInterface(service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder(), l.listenOptions.BindInterface, -1))
 		}
