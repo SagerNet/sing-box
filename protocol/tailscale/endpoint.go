@@ -74,7 +74,7 @@ var (
 )
 
 func init() {
-	version.SetVersion(tailscaleroot.VersionDotTxt + " (sing-box " + C.Version + ")")
+	version.SetVersion(strings.TrimSpace(tailscaleroot.VersionDotTxt) + "-0-(sing-box " + C.Version + ")")
 }
 
 func RegisterEndpoint(registry *endpoint.Registry) {
