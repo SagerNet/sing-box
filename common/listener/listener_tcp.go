@@ -65,7 +65,7 @@ func (l *Listener) ListenTCP() (net.Listener, error) {
 			})
 		})
 	}
-	tcpListener, err := ListenNetworkNamespace[net.Listener](l.listenOptions.NetNs, func() (net.Listener, error) {
+	tcpListener, err := ListenNetworkNamespace[net.Listener](l.ctx, l.listenOptions.NetNs, func() (net.Listener, error) {
 		if l.listenOptions.TCPFastOpen {
 			var tfoConfig tfo.ListenConfig
 			tfoConfig.ListenConfig = listenConfig

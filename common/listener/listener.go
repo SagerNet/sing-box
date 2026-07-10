@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 
 	"github.com/vishvananda/netns"
 )
@@ -143,30 +144,45 @@ func (l *Listener) ListenOptions() option.ListenOptions {
 	return l.listenOptions
 }
 
-func ListenNetworkNamespace[T any](nameOrPath string, block func() (T, error)) (T, error) {
-	if nameOrPath != "" {
+func ListenNetworkNamespace[T any](ctx context.Context, nameOrPath string, block func() (T, error)) (T, error) {
+	if nameOrPath == "" {
+		return block()
+	}
+	manager := service.FromContext[adapter.NetworkNamespaceManager](ctx)
+	if manager != nil {
+		nameOrPath = manager.ResolvePath(nameOrPath)
+	}
+	type blockResult struct {
+		value T
+		err   error
+	}
+	resultChannel := make(chan blockResult, 1)
+	go func() {
 		runtime.LockOSThread()
-		defer runtime.UnlockOSThread()
-		currentNs, err := netns.Get()
-		if err != nil {
-			return common.DefaultValue[T](), E.Cause(err, "get current netns")
-		}
-		defer currentNs.Close()
-		defer netns.Set(currentNs)
-		var targetNs netns.NsHandle
-		if strings.HasPrefix(nameOrPath, "/") {
-			targetNs, err = netns.GetFromPath(nameOrPath)
-		} else {
-			targetNs, err = netns.GetFromName(nameOrPath)
-		}
-		if err != nil {
-			return common.DefaultValue[T](), E.Cause(err, "get netns ", nameOrPath)
-		}
-		defer targetNs.Close()
-		err = netns.Set(targetNs)
-		if err != nil {
-			return common.DefaultValue[T](), E.Cause(err, "set netns to ", nameOrPath)
-		}
+		value, err := listenNetworkNamespaceThread(nameOrPath, block)
+		resultChannel <- blockResult{value, err}
+	}()
+	result := <-resultChannel
+	return result.value, result.err
+}
+
+func listenNetworkNamespaceThread[T any](nameOrPath string, block func() (T, error)) (T, error) {
+	var (
+		targetNs netns.NsHandle
+		err      error
+	)
+	if strings.HasPrefix(nameOrPath, "/") {
+		targetNs, err = netns.GetFromPath(nameOrPath)
+	} else {
+		targetNs, err = netns.GetFromName(nameOrPath)
+	}
+	if err != nil {
+		return common.DefaultValue[T](), E.Cause(err, "get netns ", nameOrPath)
+	}
+	defer targetNs.Close()
+	err = netns.Set(targetNs)
+	if err != nil {
+		return common.DefaultValue[T](), E.Cause(err, "set netns to ", nameOrPath)
 	}
 	return block()
 }
