@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing-box/common/certificate"
 	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/httpclient"
+	"github.com/sagernet/sing-box/common/netns"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/common/trafficcontrol"
@@ -61,8 +62,9 @@ type Box struct {
 
 type Options struct {
 	option.Options
-	Context           context.Context
-	PlatformLogWriter log.PlatformWriter
+	Context                    context.Context
+	PlatformLogWriter          log.PlatformWriter
+	NetworkNamespaceHolderArgs []string
 }
 
 func Context(
@@ -194,6 +196,12 @@ func New(options Options) (*Box, error) {
 		service.MustRegister[adapter.CertificateStore](ctx, certificateStore)
 		internalServices = append(internalServices, certificateStore)
 	}
+	netnsManager, err := netns.NewManager(logFactory.NewLogger("netns"), options.NetworkNamespaces, options.NetworkNamespaceHolderArgs)
+	if err != nil {
+		return nil, err
+	}
+	service.MustRegister[adapter.NetworkNamespaceManager](ctx, netnsManager)
+	internalServices = append(internalServices, netnsManager)
 	dnsOptions := common.PtrValueOrDefault(options.DNS)
 	endpointManager := endpoint.NewManager(logFactory.NewLogger("endpoint"), endpointRegistry)
 	inboundManager := inbound.NewManager(logFactory.NewLogger("inbound"), inboundRegistry, endpointManager)

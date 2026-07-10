@@ -19,6 +19,7 @@ type _Options struct {
 	Certificate          *CertificateOptions   `json:"certificate,omitempty"`
 	CertificateProviders []CertificateProvider `json:"certificate_providers,omitempty"`
 	HTTPClients          []HTTPClient          `json:"http_clients,omitempty"`
+	NetworkNamespaces    []NetworkNamespace    `json:"network_namespaces,omitempty"`
 	Endpoints            []Endpoint            `json:"endpoints,omitempty"`
 	Inbounds             []Inbound             `json:"inbounds,omitempty"`
 	Outbounds            []Outbound            `json:"outbounds,omitempty"`
