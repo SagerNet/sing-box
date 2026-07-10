@@ -12,6 +12,7 @@ import (
 
 type TunInboundOptions struct {
 	InterfaceName                 string                           `json:"interface_name,omitempty"`
+	NetNs                         string                           `json:"netns,omitempty"`
 	MTU                           uint32                           `json:"mtu,omitempty"`
 	Address                       badoption.Listable[netip.Prefix] `json:"address,omitempty"`
 	DNSMode                       string                           `json:"dns_mode,omitempty"`
