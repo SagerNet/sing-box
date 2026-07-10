@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-alert: [netns](#netns)
+
 !!! quote "sing-box 1.13.0 中的更改"
 
     :material-plus: [disable_tcp_keep_alive](#disable_tcp_keep_alive)  
@@ -96,6 +100,8 @@ icon: material/new-box
     仅支持 Linux。
 
 设置网络命名空间，名称或路径。
+
+自 sing-box 1.14.0 起，也可以使用[网络命名空间](/zh/configuration/network-namespace/)的标签。
 
 #### tcp_fast_open
 

@@ -7,7 +7,8 @@ icon: material/new-box
     :material-plus: [include_mac_address](#include_mac_address)  
     :material-plus: [exclude_mac_address](#exclude_mac_address)  
     :material-plus: [dns_mode](#dns_mode)  
-    :material-plus: [dns_address](#dns_address)
+    :material-plus: [dns_address](#dns_address)  
+    :material-plus: [netns](#netns)
 
 !!! quote "sing-box 1.13.3 中的更改"
 
@@ -198,6 +199,20 @@ icon: material/new-box
 #### interface_name
 
 虚拟设备名称，默认自动选择。
+
+#### netns
+
+!!! question "自 sing-box 1.14.0 起"
+
+!!! quote ""
+
+    仅支持 Linux。
+
+在指定的网络命名空间中创建 tun 接口，可以是名称、路径，或[网络命名空间](/zh/configuration/network-namespace/)的标签。
+
+设置后，`auto_route` 和 `auto_redirect` 在该命名空间内生效；若命名空间归当前用户所有，则无需 root 权限。
+
+与 `platform` 冲突。
 
 #### address
 

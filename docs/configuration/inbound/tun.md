@@ -7,7 +7,8 @@ icon: material/new-box
     :material-plus: [include_mac_address](#include_mac_address)  
     :material-plus: [exclude_mac_address](#exclude_mac_address)  
     :material-plus: [dns_mode](#dns_mode)  
-    :material-plus: [dns_address](#dns_address)
+    :material-plus: [dns_address](#dns_address)  
+    :material-plus: [netns](#netns)
 
 !!! quote "Changes in sing-box 1.13.3"
 
@@ -196,6 +197,22 @@ icon: material/new-box
 #### interface_name
 
 Virtual device name, automatically selected if empty.
+
+#### netns
+
+!!! question "Since sing-box 1.14.0"
+
+!!! quote ""
+
+    Only supported on Linux.
+
+Create the tun interface in the specified network namespace, name, path, or the tag of a
+[network namespace](/configuration/network-namespace/).
+
+When set, `auto_route` and `auto_redirect` operate inside the namespace, and no root privilege is
+required if the namespace is owned by the current user.
+
+Conflict with `platform`.
 
 #### address
 

@@ -4,7 +4,8 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
-    :material-alert: [domain_resolver](#domain_resolver)
+    :material-alert: [domain_resolver](#domain_resolver)  
+    :material-alert: [netns](#netns)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -117,6 +118,9 @@ Reuse listener address.
     Only supported on Linux.
 
 Set network namespace, name or path.
+
+Since sing-box 1.14.0, the tag of a [network namespace](/configuration/network-namespace/) can also be used.
+Referencing an `unshare` network namespace should be avoided, since its only route out is the tun interface managed by sing-box itself.
 
 #### connect_timeout
 
