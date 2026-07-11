@@ -1,8 +1,9 @@
 // Package windivert provides a pure-Go binding to the WinDivert kernel
 // driver on Windows (amd64 and 386). User-mode WinDivert calls are
 // reimplemented in Go; only the signed kernel driver is embedded as an
-// asset, since SCM-installed drivers must live on disk and their
-// Authenticode signature forbids modification.
+// asset, since SCM-installed drivers must live on disk. The on-disk copy
+// is verified byte-for-byte against the embedded asset on every install
+// and held open deny-write while the kernel loads it.
 //
 // Administrator is required for the first Open in a process so SCM can
 // load the driver. Upstream: https://github.com/basil00/WinDivert v2.2.2,
