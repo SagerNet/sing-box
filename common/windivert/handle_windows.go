@@ -63,7 +63,7 @@ func Open(filter *Filter, layer Layer, priority int16, flags Flag) (*Handle, err
 		// Device node missing: kernel driver not loaded. Install + retry.
 		// Matches WinDivertOpen's lazy-install path; avoids racing StartService
 		// against a still-loaded driver whose SCM record is marked for deletion.
-		err = ensureDriver()
+		err = installDriver()
 		if err != nil {
 			return nil, err
 		}
