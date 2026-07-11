@@ -9,12 +9,22 @@ import (
 	"syscall"
 
 	"github.com/sagernet/netlink"
+	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 
 	vnetns "github.com/vishvananda/netns"
 )
+
+type Manager struct {
+	logger     logger.ContextLogger
+	namespaces []option.NetworkNamespace
+	holderArgs []string
+	paths      map[string]string
+	holders    []*holder
+}
 
 type holder struct {
 	command    *exec.Cmd
@@ -22,7 +32,42 @@ type holder struct {
 	pidFile    string
 }
 
-func (m *Manager) start() error {
+func NewManager(logger logger.ContextLogger, namespaces []option.NetworkNamespace, holderArgs []string) (*Manager, error) {
+	paths := make(map[string]string)
+	for _, namespace := range namespaces {
+		if namespace.Tag == "" {
+			return nil, E.New("network namespace: missing tag")
+		}
+		_, duplicated := paths[namespace.Tag]
+		if duplicated {
+			return nil, E.New("network namespace: duplicated tag: ", namespace.Tag)
+		}
+		switch namespace.Type {
+		case C.NetNsTypeDefault:
+			if namespace.DefaultOptions.Path == "" {
+				return nil, E.New("network namespace[", namespace.Tag, "]: missing path")
+			}
+			paths[namespace.Tag] = namespace.DefaultOptions.Path
+		case C.NetNsTypeUnshare:
+			paths[namespace.Tag] = ""
+		}
+	}
+	return &Manager{
+		logger:     logger,
+		namespaces: namespaces,
+		holderArgs: holderArgs,
+		paths:      paths,
+	}, nil
+}
+
+func (m *Manager) Name() string {
+	return "netns"
+}
+
+func (m *Manager) Start(stage adapter.StartStage) error {
+	if stage != adapter.StartStateInitialize {
+		return nil
+	}
 	for _, namespace := range m.namespaces {
 		switch namespace.Type {
 		case C.NetNsTypeDefault:
@@ -70,7 +115,7 @@ func (m *Manager) startNamespace(namespace option.NetworkNamespace) error {
 	return nil
 }
 
-func (m *Manager) close() error {
+func (m *Manager) Close() error {
 	for _, created := range m.holders {
 		created.pipeWriter.Close()
 		if created.pidFile != "" {
@@ -79,6 +124,14 @@ func (m *Manager) close() error {
 	}
 	m.holders = nil
 	return nil
+}
+
+func (m *Manager) ResolvePath(nameOrPath string) string {
+	path, loaded := m.paths[nameOrPath]
+	if loaded && path != "" {
+		return path
+	}
+	return nameOrPath
 }
 
 func netnsPath(pid int) string {
