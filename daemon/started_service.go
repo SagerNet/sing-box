@@ -110,6 +110,14 @@ func NewStartedService(options ServiceOptions) *StartedService {
 	return s
 }
 
+func (s *StartedService) SetOOMKillerOptions(enabled bool, killerDisabled bool, memoryLimit uint64) {
+	s.serviceAccess.Lock()
+	defer s.serviceAccess.Unlock()
+	s.oomKillerEnabled = enabled
+	s.oomKillerDisabled = killerDisabled
+	s.oomMemoryLimit = memoryLimit
+}
+
 func (s *StartedService) GetVersion(ctx context.Context, empty *emptypb.Empty) (*Version, error) {
 	return &Version{
 		Version:    C.Version,
@@ -1113,6 +1121,60 @@ func resolveTailscaleEndpoint(instance *Instance, tag string) (adapter.Endpoint,
 	return endpoint, nil
 }
 
+func NewNetworkQualityTestProgress(progress networkquality.Progress) *NetworkQualityTestProgress {
+	return &NetworkQualityTestProgress{
+		Phase:                    int32(progress.Phase),
+		DownloadCapacity:         progress.DownloadCapacity,
+		UploadCapacity:           progress.UploadCapacity,
+		DownloadRPM:              progress.DownloadRPM,
+		UploadRPM:                progress.UploadRPM,
+		IdleLatencyMs:            progress.IdleLatencyMs,
+		ElapsedMs:                progress.ElapsedMs,
+		DownloadCapacityAccuracy: int32(progress.DownloadCapacityAccuracy),
+		UploadCapacityAccuracy:   int32(progress.UploadCapacityAccuracy),
+		DownloadRPMAccuracy:      int32(progress.DownloadRPMAccuracy),
+		UploadRPMAccuracy:        int32(progress.UploadRPMAccuracy),
+	}
+}
+
+func NewNetworkQualityTestResult(result *networkquality.Result) *NetworkQualityTestProgress {
+	return &NetworkQualityTestProgress{
+		Phase:                    int32(networkquality.PhaseDone),
+		DownloadCapacity:         result.DownloadCapacity,
+		UploadCapacity:           result.UploadCapacity,
+		DownloadRPM:              result.DownloadRPM,
+		UploadRPM:                result.UploadRPM,
+		IdleLatencyMs:            result.IdleLatencyMs,
+		IsFinal:                  true,
+		DownloadCapacityAccuracy: int32(result.DownloadCapacityAccuracy),
+		UploadCapacityAccuracy:   int32(result.UploadCapacityAccuracy),
+		DownloadRPMAccuracy:      int32(result.DownloadRPMAccuracy),
+		UploadRPMAccuracy:        int32(result.UploadRPMAccuracy),
+	}
+}
+
+func NewSTUNTestProgress(progress stun.Progress) *STUNTestProgress {
+	return &STUNTestProgress{
+		Phase:        int32(progress.Phase),
+		ExternalAddr: progress.ExternalAddr,
+		LatencyMs:    progress.LatencyMs,
+		NatMapping:   int32(progress.NATMapping),
+		NatFiltering: int32(progress.NATFiltering),
+	}
+}
+
+func NewSTUNTestResult(result *stun.Result) *STUNTestProgress {
+	return &STUNTestProgress{
+		Phase:            int32(stun.PhaseDone),
+		ExternalAddr:     result.ExternalAddr,
+		LatencyMs:        result.LatencyMs,
+		NatMapping:       int32(result.NATMapping),
+		NatFiltering:     int32(result.NATFiltering),
+		IsFinal:          true,
+		NatTypeSupported: result.NATTypeSupported,
+	}
+}
+
 func (s *StartedService) StartNetworkQualityTest(
 	request *NetworkQualityTestRequest,
 	server grpc.ServerStreamingServer[NetworkQualityTestProgress],
@@ -1147,19 +1209,7 @@ func (s *StartedService) StartNetworkQualityTest(
 		MaxRuntime:           time.Duration(request.MaxRuntimeSeconds) * time.Second,
 		Context:              server.Context(),
 		OnProgress: func(p networkquality.Progress) {
-			_ = server.Send(&NetworkQualityTestProgress{
-				Phase:                    int32(p.Phase),
-				DownloadCapacity:         p.DownloadCapacity,
-				UploadCapacity:           p.UploadCapacity,
-				DownloadRPM:              p.DownloadRPM,
-				UploadRPM:                p.UploadRPM,
-				IdleLatencyMs:            p.IdleLatencyMs,
-				ElapsedMs:                p.ElapsedMs,
-				DownloadCapacityAccuracy: int32(p.DownloadCapacityAccuracy),
-				UploadCapacityAccuracy:   int32(p.UploadCapacityAccuracy),
-				DownloadRPMAccuracy:      int32(p.DownloadRPMAccuracy),
-				UploadRPMAccuracy:        int32(p.UploadRPMAccuracy),
-			})
+			_ = server.Send(NewNetworkQualityTestProgress(p))
 		},
 	})
 	if nqErr != nil {
@@ -1168,19 +1218,7 @@ func (s *StartedService) StartNetworkQualityTest(
 			Error:   nqErr.Error(),
 		})
 	}
-	return server.Send(&NetworkQualityTestProgress{
-		Phase:                    int32(networkquality.PhaseDone),
-		DownloadCapacity:         result.DownloadCapacity,
-		UploadCapacity:           result.UploadCapacity,
-		DownloadRPM:              result.DownloadRPM,
-		UploadRPM:                result.UploadRPM,
-		IdleLatencyMs:            result.IdleLatencyMs,
-		IsFinal:                  true,
-		DownloadCapacityAccuracy: int32(result.DownloadCapacityAccuracy),
-		UploadCapacityAccuracy:   int32(result.UploadCapacityAccuracy),
-		DownloadRPMAccuracy:      int32(result.DownloadRPMAccuracy),
-		UploadRPMAccuracy:        int32(result.UploadRPMAccuracy),
-	})
+	return server.Send(NewNetworkQualityTestResult(result))
 }
 
 func (s *StartedService) StartSTUNTest(
@@ -1207,13 +1245,7 @@ func (s *StartedService) StartSTUNTest(
 		Dialer:  resolvedDialer,
 		Context: server.Context(),
 		OnProgress: func(p stun.Progress) {
-			_ = server.Send(&STUNTestProgress{
-				Phase:        int32(p.Phase),
-				ExternalAddr: p.ExternalAddr,
-				LatencyMs:    p.LatencyMs,
-				NatMapping:   int32(p.NATMapping),
-				NatFiltering: int32(p.NATFiltering),
-			})
+			_ = server.Send(NewSTUNTestProgress(p))
 		},
 	})
 	if stunErr != nil {
@@ -1222,15 +1254,7 @@ func (s *StartedService) StartSTUNTest(
 			Error:   stunErr.Error(),
 		})
 	}
-	return server.Send(&STUNTestProgress{
-		Phase:            int32(stun.PhaseDone),
-		ExternalAddr:     result.ExternalAddr,
-		LatencyMs:        result.LatencyMs,
-		NatMapping:       int32(result.NATMapping),
-		NatFiltering:     int32(result.NATFiltering),
-		IsFinal:          true,
-		NatTypeSupported: result.NATTypeSupported,
-	})
+	return server.Send(NewSTUNTestResult(result))
 }
 
 func (s *StartedService) SubscribeTailscaleStatus(

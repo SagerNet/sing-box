@@ -68,6 +68,10 @@ type oomReporter struct {
 
 var _ oomkiller.OOMReporter = (*oomReporter)(nil)
 
+func NewOOMReporter(startedService *daemon.StartedService) oomkiller.OOMReporter {
+	return &oomReporter{startedService: startedService}
+}
+
 func (r *oomReporter) WriteReport(memoryUsage uint64) error {
 	draftPath := filepath.Join(sWorkingPath, "oom_draft")
 	draftInfo, err := os.Stat(draftPath)
