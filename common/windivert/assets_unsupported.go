@@ -2,6 +2,6 @@
 
 package windivert
 
-func assetFiles() []assetFile { return nil }
+var sysBytes []byte
 
 func driverSysName() string { return "" }
