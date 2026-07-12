@@ -26,6 +26,63 @@ const (
 // so Open can try CreateFile first and only install on FILE_NOT_FOUND.
 var driverDevName, _ = windows.UTF16PtrFromString(driverDeviceName)
 
+// acquireDevice opens the kernel device, installing the driver when it is
+// absent. The driver is marked for deletion at install time (see
+// installDriver), so it unloads once its last handle closes; the next Open
+// must reinstall it. When that Open races the still-in-progress unload,
+// CreateFile does not report a clean ERROR_FILE_NOT_FOUND — the
+// \\.\WinDivert symlink still resolves while the device object behind it is
+// torn down, so the open fails with ERROR_NO_SUCH_DEVICE. Treat every
+// "device not currently openable" code as a reinstall trigger and retry a
+// bounded number of times so the teardown of a prior instance settles.
+func acquireDevice() (windows.Handle, error) {
+	const maxRetries = 20
+	for retry := 0; ; retry++ {
+		device, err := openDevice()
+		if err == nil {
+			return device, nil
+		}
+		fatal := driverOpenFatal(err)
+		if fatal != nil {
+			return 0, fatal
+		}
+		err = installDriver()
+		if err != nil {
+			return 0, err
+		}
+		device, err = openDevice()
+		if err == nil {
+			return device, nil
+		}
+		fatal = driverOpenFatal(err)
+		if fatal != nil {
+			return 0, fatal
+		}
+		// Still absent right after a successful install: a prior instance's
+		// lingering device object shadows the freshly loaded one. Back off
+		// and retry the whole install/open.
+		if retry >= maxRetries {
+			return 0, E.Cause(err, "windivert: open device")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// driverOpenFatal maps an openDevice failure to the error the caller should
+// surface, or nil when the failure means the driver is absent and a
+// (re)install should be attempted.
+func driverOpenFatal(err error) error {
+	if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
+		return E.Cause(err, "windivert: open device (administrator required)")
+	}
+	if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) ||
+		errors.Is(err, windows.ERROR_PATH_NOT_FOUND) ||
+		errors.Is(err, windows.ERROR_NO_SUCH_DEVICE) {
+		return nil
+	}
+	return E.Cause(err, "windivert: open device")
+}
+
 // Requires SeLoadDriverPrivilege (Administrator). Running the 386 build
 // under WOW64 on a 64-bit kernel is rejected — use the amd64 build.
 func installDriver() error {
@@ -81,7 +138,8 @@ func installDriver() error {
 			return nil
 		}
 		retryable := errors.Is(err, windows.ERROR_SERVICE_MARKED_FOR_DELETE) ||
-			errors.Is(err, windows.ERROR_SERVICE_DISABLED)
+			errors.Is(err, windows.ERROR_SERVICE_DISABLED) ||
+			errors.Is(err, windows.ERROR_OBJECT_ALREADY_EXISTS)
 		if !retryable || attempt >= 20 {
 			return err
 		}
