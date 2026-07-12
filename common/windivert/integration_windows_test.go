@@ -8,7 +8,6 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 	"time"
 
@@ -91,55 +90,64 @@ func stopDriver(t *testing.T) {
 	serviceNameW, err := windows.UTF16PtrFromString(driverServiceName)
 	require.NoError(t, err)
 	service, err := windows.OpenService(manager, serviceNameW, windows.SERVICE_STOP|windows.SERVICE_QUERY_STATUS)
-	if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
-		return
+	if err == nil {
+		defer windows.CloseServiceHandle(service)
+		var status windows.SERVICE_STATUS
+		err = windows.ControlService(service, windows.SERVICE_CONTROL_STOP, &status)
+		if err != nil &&
+			!errors.Is(err, windows.ERROR_SERVICE_NOT_ACTIVE) &&
+			!errors.Is(err, windows.ERROR_SERVICE_CANNOT_ACCEPT_CTRL) {
+			require.NoError(t, err)
+		}
+		require.Eventually(t, func() bool {
+			queryErr := windows.QueryServiceStatus(service, &status)
+			return queryErr == nil && status.CurrentState == windows.SERVICE_STOPPED
+		}, 60*time.Second, 200*time.Millisecond, "driver did not reach SERVICE_STOPPED")
+	} else {
+		require.True(t, errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST), "open driver service: %v", err)
 	}
-	require.NoError(t, err)
-	defer windows.CloseServiceHandle(service)
-	var status windows.SERVICE_STATUS
-	err = windows.ControlService(service, windows.SERVICE_CONTROL_STOP, &status)
-	if err != nil &&
-		!errors.Is(err, windows.ERROR_SERVICE_NOT_ACTIVE) &&
-		!errors.Is(err, windows.ERROR_SERVICE_CANNOT_ACCEPT_CTRL) {
-		require.NoError(t, err)
-	}
+	// SCM can report SERVICE_STOPPED before the driver finishes deleting its
+	// device object. Wait for the absence acquireDevice uses to trigger install.
 	require.Eventually(t, func() bool {
-		queryErr := windows.QueryServiceStatus(service, &status)
-		return queryErr == nil && status.CurrentState == windows.SERVICE_STOPPED
-	}, 60*time.Second, 200*time.Millisecond, "driver did not reach SERVICE_STOPPED")
+		device, openErr := openDevice()
+		if openErr == nil {
+			_ = windows.CloseHandle(device)
+			return false
+		}
+		return errors.Is(openErr, windows.ERROR_FILE_NOT_FOUND) ||
+			errors.Is(openErr, windows.ERROR_PATH_NOT_FOUND) ||
+			errors.Is(openErr, windows.ERROR_NO_SUCH_DEVICE)
+	}, 60*time.Second, 200*time.Millisecond, "driver device remained openable after stop")
 }
 
 // The image lock on the cached .sys can outlive SERVICE_STOPPED by tens of
-// seconds (observed on GitHub-hosted runners), but it only blocks writes
-// and deletes — rename is permitted. Move the locked file aside instead of
-// waiting for the release.
-func plantTamperedDriver(t *testing.T, target string, planted []byte) {
+// seconds (observed on GitHub-hosted runners), and on current runner images
+// it blocks renames as well as writes and deletes. Tests that need to tamper
+// with the cache therefore redirect it to a directory the kernel has never
+// loaded a driver from. Not t.TempDir: once StartService maps a .sys from
+// the directory, the image lock makes the cleanup RemoveAll fail the test.
+func setTempDriverCache(t *testing.T) {
 	t.Helper()
-	require.NoError(t, os.MkdirAll(filepath.Dir(target), 0o755))
-	err := os.WriteFile(target, planted, 0o644)
-	if err == nil {
-		return
-	}
-	moved := target + ".locked-" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	require.NoError(t, os.Rename(target, moved))
-	t.Cleanup(func() { os.Remove(moved) })
-	require.NoError(t, os.WriteFile(target, planted, 0o644))
+	dir, err := os.MkdirTemp("", "sing-box-windivert-test-")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Setenv("LocalAppData", dir)
 }
 
 // A foreign .sys planted in the user-writable cache must never reach
 // StartService: the install path has to detect the mismatch against the
 // embedded asset and repair the file before handing it to SCM.
 func TestIntegrationTamperedCacheRepaired(t *testing.T) {
-	// Open/close once so a working install is the baseline, then stop the
-	// driver so the cached file is writable for tampering.
-	h := openHandle(t, nil, FlagSendOnly)
-	require.NoError(t, h.Close())
+	setTempDriverCache(t)
+	// The driver left running by earlier tests would satisfy Open without
+	// touching the cache; stop it so the install path runs.
 	stopDriver(t)
 
 	target := cachedDriverPath(t)
-	plantTamperedDriver(t, target, []byte("planted payload, not the WinDivert driver"))
+	require.NoError(t, os.MkdirAll(filepath.Dir(target), 0o755))
+	require.NoError(t, os.WriteFile(target, []byte("planted payload, not the WinDivert driver"), 0o644))
 
-	h = openHandle(t, nil, FlagSendOnly)
+	h := openHandle(t, nil, FlagSendOnly)
 	require.NoError(t, h.Close())
 
 	content, err := os.ReadFile(target)
@@ -151,11 +159,10 @@ func TestIntegrationTamperedCacheRepaired(t *testing.T) {
 // install completes; without this, the file could be swapped between
 // verification and the kernel mapping it.
 func TestIntegrationDriverFileLockedWhileHeld(t *testing.T) {
-	target := cachedDriverPath(t)
-	// Stop the driver so the kernel image lock is gone and the failures
-	// asserted below can only come from the handle extractVerified holds.
-	stopDriver(t)
-	plantTamperedDriver(t, target, sysBytes)
+	// A fresh cache directory guarantees the failures asserted below can
+	// only come from the handle extractVerified holds, not a kernel image
+	// lock left by earlier tests.
+	setTempDriverCache(t)
 
 	sysPath, sysFile, err := extractVerified()
 	require.NoError(t, err)
