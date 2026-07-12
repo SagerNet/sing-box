@@ -51,29 +51,9 @@ func Open(filter *Filter, layer Layer, priority int16, flags Flag) (*Handle, err
 	if err != nil {
 		return nil, err
 	}
-	device, err := openDevice()
+	device, err := acquireDevice()
 	if err != nil {
-		if !errors.Is(err, windows.ERROR_FILE_NOT_FOUND) &&
-			!errors.Is(err, windows.ERROR_PATH_NOT_FOUND) {
-			if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
-				return nil, E.Cause(err, "windivert: open device (administrator required)")
-			}
-			return nil, E.Cause(err, "windivert: open device")
-		}
-		// Device node missing: kernel driver not loaded. Install + retry.
-		// Matches WinDivertOpen's lazy-install path; avoids racing StartService
-		// against a still-loaded driver whose SCM record is marked for deletion.
-		err = installDriver()
-		if err != nil {
-			return nil, err
-		}
-		device, err = openDevice()
-		if err != nil {
-			if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
-				return nil, E.Cause(err, "windivert: open device (administrator required)")
-			}
-			return nil, E.Cause(err, "windivert: open device")
-		}
+		return nil, err
 	}
 	event, err := windows.CreateEvent(nil, 1, 0, nil) // manual reset, unsignaled
 	if err != nil {
