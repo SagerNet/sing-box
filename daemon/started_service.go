@@ -440,13 +440,19 @@ func (s *StartedService) SubscribeGroups(empty *emptypb.Empty, server grpc.Serve
 		return err
 	}
 	defer s.urlTestObserver.UnSubscribe(subscription)
+	statusSubscription, statusDone, err := s.serviceStatusObserver.Subscribe()
+	if err != nil {
+		return err
+	}
+	defer s.serviceStatusObserver.UnSubscribe(statusSubscription)
 	for {
 		s.serviceAccess.RLock()
-		if s.serviceStatus.Status != ServiceStatus_STARTED {
-			s.serviceAccess.RUnlock()
-			return os.ErrInvalid
+		var groups *Groups
+		if s.serviceStatus.Status == ServiceStatus_STARTED {
+			groups = s.readGroups()
+		} else {
+			groups = &Groups{}
 		}
-		groups := s.readGroups()
 		s.serviceAccess.RUnlock()
 		err = server.Send(groups)
 		if err != nil {
@@ -454,11 +460,14 @@ func (s *StartedService) SubscribeGroups(empty *emptypb.Empty, server grpc.Serve
 		}
 		select {
 		case <-subscription:
+		case <-statusSubscription:
 		case <-s.ctx.Done():
 			return s.ctx.Err()
 		case <-server.Context().Done():
 			return server.Context().Err()
 		case <-done:
+			return nil
+		case <-statusDone:
 			return nil
 		}
 	}
@@ -537,18 +546,24 @@ func (s *StartedService) SubscribeClashMode(empty *emptypb.Empty, server grpc.Se
 		return err
 	}
 	defer s.clashModeObserver.UnSubscribe(subscription)
+	statusSubscription, statusDone, err := s.serviceStatusObserver.Subscribe()
+	if err != nil {
+		return err
+	}
+	defer s.serviceStatusObserver.UnSubscribe(statusSubscription)
 	for {
 		s.serviceAccess.RLock()
-		if s.serviceStatus.Status != ServiceStatus_STARTED {
-			s.serviceAccess.RUnlock()
-			return os.ErrInvalid
+		var message *ClashMode
+		if s.serviceStatus.Status == ServiceStatus_STARTED {
+			clashServer := s.instance.clashServer
+			if clashServer == nil {
+				s.serviceAccess.RUnlock()
+				return status.Error(codes.NotFound, "clash mode not available")
+			}
+			message = &ClashMode{Mode: clashServer.Mode()}
+		} else {
+			message = &ClashMode{}
 		}
-		clashServer := s.instance.clashServer
-		if clashServer == nil {
-			s.serviceAccess.RUnlock()
-			return status.Error(codes.NotFound, "clash mode not available")
-		}
-		message := &ClashMode{Mode: clashServer.Mode()}
 		s.serviceAccess.RUnlock()
 		err = server.Send(message)
 		if err != nil {
@@ -556,11 +571,14 @@ func (s *StartedService) SubscribeClashMode(empty *emptypb.Empty, server grpc.Se
 		}
 		select {
 		case <-subscription:
+		case <-statusSubscription:
 		case <-s.ctx.Done():
 			return s.ctx.Err()
 		case <-server.Context().Done():
 			return server.Context().Err()
 		case <-done:
+			return nil
+		case <-statusDone:
 			return nil
 		}
 	}
@@ -1050,37 +1068,41 @@ func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.Server
 		return err
 	}
 	defer s.urlTestObserver.UnSubscribe(subscription)
+	statusSubscription, statusDone, err := s.serviceStatusObserver.Subscribe()
+	if err != nil {
+		return err
+	}
+	defer s.serviceStatusObserver.UnSubscribe(statusSubscription)
 	for {
 		s.serviceAccess.RLock()
-		if s.serviceStatus.Status != ServiceStatus_STARTED {
-			s.serviceAccess.RUnlock()
-			return os.ErrInvalid
-		}
 		boxService := s.instance
+		started := s.serviceStatus.Status == ServiceStatus_STARTED
 		s.serviceAccess.RUnlock()
-		historyStorage := boxService.urlTestHistoryStorage
 		var list OutboundList
-		for _, ob := range boxService.outboundManager.Outbounds() {
-			item := &GroupItem{
-				Tag:  ob.Tag(),
-				Type: ob.Type(),
+		if started {
+			historyStorage := boxService.urlTestHistoryStorage
+			for _, ob := range boxService.outboundManager.Outbounds() {
+				item := &GroupItem{
+					Tag:  ob.Tag(),
+					Type: ob.Type(),
+				}
+				if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ob)); history != nil {
+					item.UrlTestTime = history.Time.Unix()
+					item.UrlTestDelay = int32(history.Delay)
+				}
+				list.Outbounds = append(list.Outbounds, item)
 			}
-			if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ob)); history != nil {
-				item.UrlTestTime = history.Time.Unix()
-				item.UrlTestDelay = int32(history.Delay)
+			for _, ep := range boxService.endpointManager.Endpoints() {
+				item := &GroupItem{
+					Tag:  ep.Tag(),
+					Type: ep.Type(),
+				}
+				if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ep)); history != nil {
+					item.UrlTestTime = history.Time.Unix()
+					item.UrlTestDelay = int32(history.Delay)
+				}
+				list.Outbounds = append(list.Outbounds, item)
 			}
-			list.Outbounds = append(list.Outbounds, item)
-		}
-		for _, ep := range boxService.endpointManager.Endpoints() {
-			item := &GroupItem{
-				Tag:  ep.Tag(),
-				Type: ep.Type(),
-			}
-			if history := historyStorage.LoadURLTestHistory(adapter.OutboundTag(ep)); history != nil {
-				item.UrlTestTime = history.Time.Unix()
-				item.UrlTestDelay = int32(history.Delay)
-			}
-			list.Outbounds = append(list.Outbounds, item)
 		}
 		err = server.Send(&list)
 		if err != nil {
@@ -1088,11 +1110,14 @@ func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.Server
 		}
 		select {
 		case <-subscription:
+		case <-statusSubscription:
 		case <-s.ctx.Done():
 			return s.ctx.Err()
 		case <-server.Context().Done():
 			return server.Context().Err()
 		case <-done:
+			return nil
+		case <-statusDone:
 			return nil
 		}
 	}
