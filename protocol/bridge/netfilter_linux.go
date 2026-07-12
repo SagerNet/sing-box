@@ -29,30 +29,68 @@ var (
 
 func enableBridgeForwarding(logger logger.ContextLogger, tunName string, inet4 bool, inet6 bool) []sysctlState {
 	var restore []sysctlState
-	enable := func(path string) {
+	enable := func(path string) bool {
 		content, err := os.ReadFile(path)
 		if err != nil {
 			logger.Debug(E.Cause(err, "read ", path))
-			return
+			return false
 		}
 		value := strings.TrimSpace(string(content))
 		if value == "1" {
-			return
+			return false
 		}
 		err = os.WriteFile(path, []byte("1"), 0o644)
 		if err != nil {
 			logger.Debug(E.Cause(err, "enable ", path))
-			return
+			return false
 		}
 		restore = append(restore, sysctlState{name: path, value: value})
+		return true
 	}
 	if inet4 {
 		enable("/proc/sys/net/ipv4/ip_forward")
 	}
 	if inet6 {
-		enable("/proc/sys/net/ipv6/conf/all/forwarding")
+		if enable("/proc/sys/net/ipv6/conf/all/forwarding") {
+			restore = append(restore, overruleAcceptRA(logger)...)
+		}
 	}
 	_ = os.WriteFile("/proc/sys/net/ipv4/conf/"+tunName+"/rp_filter", []byte("2"), 0o644)
+	return restore
+}
+
+// Writing conf/all/forwarding copies forwarding=1 to conf/default and to every
+// existing interface (addrconf_fixup_forwarding), and ipv6_accept_ra() then
+// requires accept_ra=2 on a forwarding interface; raise interfaces left at the
+// host default of 1 so SLAAC (e.g. on PPPoE WANs) survives forwarding.
+// conf/default is included so interfaces created afterwards inherit 2.
+func overruleAcceptRA(logger logger.ContextLogger) []sysctlState {
+	var restore []sysctlState
+	entries, err := os.ReadDir("/proc/sys/net/ipv6/conf")
+	if err != nil {
+		logger.Debug(E.Cause(err, "read /proc/sys/net/ipv6/conf"))
+		return nil
+	}
+	for _, entry := range entries {
+		if entry.Name() == "all" {
+			continue
+		}
+		path := "/proc/sys/net/ipv6/conf/" + entry.Name() + "/accept_ra"
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		value := strings.TrimSpace(string(content))
+		if value != "1" {
+			continue
+		}
+		err = os.WriteFile(path, []byte("2"), 0o644)
+		if err != nil {
+			logger.Debug(E.Cause(err, "overrule ", path))
+			continue
+		}
+		restore = append(restore, sysctlState{name: path, value: value})
+	}
 	return restore
 }
 
