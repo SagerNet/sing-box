@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
 )
 
@@ -34,6 +35,13 @@ func (g *Group) NewPacketConn(conn net.PacketConn, isExternal bool) net.PacketCo
 	defer g.access.Unlock()
 	item := g.connections.PushBack(&groupConnItem{conn, isExternal})
 	return &PacketConn{PacketConn: conn, group: g, element: item}
+}
+
+func (g *Group) NewSingPacketConn(conn N.PacketConn, isExternal bool) N.PacketConn {
+	g.access.Lock()
+	defer g.access.Unlock()
+	item := g.connections.PushBack(&groupConnItem{conn, isExternal})
+	return &SingPacketConn{PacketConn: conn, group: g, element: item}
 }
 
 func (g *Group) Interrupt(interruptExternalConnections bool) {
