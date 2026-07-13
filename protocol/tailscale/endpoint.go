@@ -259,7 +259,7 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 }
 
 func (t *Endpoint) start() error {
-	if t.platformInterface != nil {
+	if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
 		err := t.network.UpdateInterfaces()
 		if err != nil {
 			return err
@@ -335,7 +335,7 @@ func (t *Endpoint) start() error {
 			controlFunc = control.Append(controlFunc, bindFunc)
 		}
 		netns.SetControlFunc(controlFunc)
-	} else if runtime.GOOS == "android" && t.platformInterface != nil {
+	} else if runtime.GOOS == "android" && t.platformInterface != nil && t.platformInterface.UsePlatformAutoDetectInterfaceControl() {
 		netns.SetControlFunc(func(network, address string, c syscall.RawConn) error {
 			return control.Raw(c, func(fd uintptr) error {
 				return t.platformInterface.AutoDetectInterfaceControl(int(fd))
@@ -471,7 +471,7 @@ func (t *Endpoint) watchState() {
 			}
 			reportedAuthURL = authURL
 			t.logger.Info("Waiting for authentication: ", authURL)
-			if t.platformInterface != nil {
+			if t.platformInterface != nil && t.platformInterface.UsePlatformNotification() {
 				err := t.platformInterface.SendNotification(&adapter.Notification{
 					Identifier: "tailscale-authentication",
 					TypeName:   "Tailscale Authentication Notifications",
