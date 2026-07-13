@@ -52,14 +52,39 @@ func (h *managedHandler) ServiceReload() error {
 }
 
 func (h *managedHandler) SystemProxyStatus() (*daemon.SystemProxyStatus, error) {
-	return &daemon.SystemProxyStatus{}, nil
+	if h.daemon.platform == nil {
+		return &daemon.SystemProxyStatus{}, nil
+	}
+	return h.daemon.platform.SystemProxyStatus()
 }
 
 func (h *managedHandler) SetSystemProxyEnabled(enabled bool) error {
-	if !enabled {
-		return nil
+	if h.daemon.platform == nil {
+		if !enabled {
+			return nil
+		}
+		return status.Error(codes.FailedPrecondition, "the system proxy is not available")
 	}
-	return status.Error(codes.FailedPrecondition, "the system proxy is not available")
+	ownerUserID, err := loadOwner()
+	if err != nil {
+		return err
+	}
+	options, err := loadStartOptions(ownerUserID)
+	if err != nil {
+		return err
+	}
+	previousEnabled := options.systemProxyEnabled()
+	err = h.daemon.platform.SetSystemProxyEnabled(enabled)
+	if err != nil {
+		return err
+	}
+	options.SystemProxyEnabled = &enabled
+	err = saveStartOptions(ownerUserID, options)
+	if err != nil {
+		rollbackError := h.daemon.platform.SetSystemProxyEnabled(previousEnabled)
+		return E.Errors(err, rollbackError)
+	}
+	return nil
 }
 
 func (h *managedHandler) TriggerNativeCrash() error {

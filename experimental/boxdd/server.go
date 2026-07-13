@@ -9,11 +9,13 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/experimental/libbox"
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/service/oomkiller"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
 
 	"google.golang.org/grpc"
@@ -33,6 +35,7 @@ type Daemon struct {
 	closed                  bool
 	peerAccess              sync.Mutex
 	peerConnections         map[peerConnection]peerIdentity
+	platform                daemonPlatform
 }
 
 func newDaemon() (*Daemon, error) {
@@ -40,6 +43,14 @@ func newDaemon() (*Daemon, error) {
 	d := &Daemon{
 		logger:                  log.StdLogger(),
 		runtimeWorkingDirectory: workingDirectory,
+	}
+	platformInterface, err := newPlatformInterface(d)
+	if err != nil {
+		return nil, err
+	}
+	d.platform = platformInterface
+	if platformInterface != nil {
+		service.MustRegister[adapter.PlatformInterface](ctx, platformInterface)
 	}
 	d.startedService = daemon.NewStartedService(daemon.ServiceOptions{
 		Context:     ctx,
@@ -107,13 +118,14 @@ func (d *Daemon) restore() {
 	if d.closed {
 		return
 	}
-	ownerUserID, err := loadOwner()
+	ownerState, err := loadOwnerState()
 	if err != nil {
 		if !os.IsNotExist(err) {
 			d.logger.Warn("load owner: ", err)
 		}
 		return
 	}
+	ownerUserID := ownerState.UserID
 	ownerWorkingDirectory := userWorkingDirectory(ownerUserID)
 	err = d.configureWorkingDirectoryLocked(ownerWorkingDirectory)
 	if err != nil {
@@ -137,6 +149,13 @@ func (d *Daemon) restore() {
 	}
 	if !options.WasRunning {
 		return
+	}
+	if d.platform != nil {
+		d.platform.SetSystemProxyPreference(options.systemProxyEnabled())
+		err = d.platform.RestoreOwner(ownerState)
+		if err != nil {
+			d.logger.Warn("restore owner session: ", err)
+		}
 	}
 	configContent, err := loadServiceConfig(ownerUserID)
 	if err != nil {
@@ -189,13 +208,30 @@ func (d *Daemon) startServiceLocked(ownerUserID string, configContent string, op
 		OomMemoryLimit:    options.OOMMemoryLimit,
 	})
 	d.startedService.SetOOMKillerOptions(options.OOMKillerEnabled, options.OOMKillerDisabled, uint64(options.OOMMemoryLimit))
-	return d.startedService.StartOrReloadService(configContent, nil)
+	if d.platform != nil {
+		d.platform.SetSystemProxyPreference(options.systemProxyEnabled())
+		err = d.platform.ResetPlatformOptions()
+		if err != nil {
+			return err
+		}
+	}
+	err = d.startedService.StartOrReloadService(configContent, nil)
+	if err != nil && d.platform != nil {
+		return E.Errors(err, d.platform.ResetPlatformOptions())
+	}
+	return err
 }
 
 func (d *Daemon) stopServiceLocked(ownerUserID string) error {
 	options, err := loadStartOptions(ownerUserID)
 	if err != nil && !os.IsNotExist(err) {
 		return err
+	}
+	if d.platform != nil {
+		err = d.platform.ResetPlatformOptions()
+		if err != nil {
+			return err
+		}
 	}
 	if d.startedService.Instance() != nil {
 		err = d.startedService.CloseService()
@@ -222,8 +258,14 @@ func (d *Daemon) Close() {
 	d.lifecycleAccess.Unlock()
 	d.server.Stop()
 	d.lifecycleAccess.Lock()
+	if d.platform != nil {
+		_ = d.platform.ResetPlatformOptions()
+	}
 	_ = d.startedService.CloseService()
 	d.startedService.Close()
+	if d.platform != nil {
+		_ = d.platform.Close()
+	}
 	d.lifecycleAccess.Unlock()
 }
 
@@ -285,7 +327,18 @@ func (a *daemonAuthorizer) Authorize(ctx context.Context, method string) error {
 	if ownerProtectedMethod(method) {
 		a.daemon.lifecycleAccess.Lock()
 		defer a.daemon.lifecycleAccess.Unlock()
-		return a.daemon.authorizeOwnerLocked(identity.UserID)
+		err = a.daemon.authorizeOwnerLocked(identity.UserID)
+		if err != nil {
+			return err
+		}
+		err = a.daemon.preparePlatformOwnerLocked(identity)
+		if err != nil {
+			return err
+		}
+		if a.daemon.platform != nil {
+			return saveOwner(identity.UserID, identity.SessionID)
+		}
+		return nil
 	}
 	return status.Error(codes.PermissionDenied, "the service is not available")
 }
@@ -307,6 +360,16 @@ func (a *daemonAuthorizer) InvokeUnary(ctx context.Context, method string, handl
 	err = a.daemon.authorizeOwnerLocked(identity.UserID)
 	if err != nil {
 		return nil, err
+	}
+	err = a.daemon.preparePlatformOwnerLocked(identity)
+	if err != nil {
+		return nil, err
+	}
+	if a.daemon.platform != nil {
+		err = saveOwner(identity.UserID, identity.SessionID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return handler()
 }

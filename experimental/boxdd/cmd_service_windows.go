@@ -54,7 +54,7 @@ func addPlatformServiceCommands() {
 		&commandServiceFlagAllowUnsafeInstallation,
 		"allow-unsafe-installation-directory-permissions",
 		false,
-		"skip installation path ancestor permission validation",
+		"skip installation path security validation and permission hardening",
 	)
 	commandService.AddCommand(commandServiceInstall)
 	commandService.AddCommand(commandServiceUninstall)

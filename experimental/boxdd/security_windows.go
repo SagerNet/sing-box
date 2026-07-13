@@ -60,11 +60,14 @@ func secureWindowsInstallation(executablePath string, allowUnsafeInstallation bo
 	if !bytes.Equal(daemonSigner, applicationSigner) {
 		return "", E.New("installed application and daemon have different signing certificates")
 	}
+	if allowUnsafeInstallation {
+		return daemonPath, nil
+	}
 	volumeRoot, err := validateFixedNTFSVolume(installationDirectory)
 	if err != nil {
 		return "", err
 	}
-	err = validateInstallationAncestors(filepath.Dir(installationDirectory), volumeRoot, !allowUnsafeInstallation)
+	err = validateInstallationAncestors(filepath.Dir(installationDirectory), volumeRoot, true)
 	if err != nil {
 		return "", err
 	}
@@ -95,18 +98,10 @@ func installedApplicationPath(daemonPath string) (string, string, error) {
 	return installationDirectory, filepath.Join(installationDirectory, applicationExecutableName), nil
 }
 
-func secureWindowsWorkingDirectory(path string) error {
-	serviceUserID, err := windowsServiceSID()
-	if err != nil {
-		return E.Cause(err, "create daemon service SID")
-	}
+func windowsWorkingDirectorySecurityDescriptors(serviceUserID *windows.SID) (string, string, error) {
 	serviceUserIDString := serviceUserID.String()
 	if serviceUserIDString == "" {
-		return E.New("daemon service has an invalid SID")
-	}
-	err = validateTreeHasNoReparsePoints(path)
-	if err != nil {
-		return err
+		return "", "", E.New("daemon service has an invalid SID")
 	}
 	directoryDescriptor := fmt.Sprintf(
 		"O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;%s)",
@@ -116,7 +111,33 @@ func secureWindowsWorkingDirectory(path string) error {
 		"O:SYG:SYD:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;%s)",
 		serviceUserIDString,
 	)
+	return directoryDescriptor, fileDescriptor, nil
+}
+
+func secureWindowsWorkingDirectory(path string, serviceUserID *windows.SID) error {
+	directoryDescriptor, fileDescriptor, err := windowsWorkingDirectorySecurityDescriptors(serviceUserID)
+	if err != nil {
+		return err
+	}
+	err = validateTreeHasNoReparsePoints(path)
+	if err != nil {
+		return err
+	}
 	return applyProtectedTree(path, directoryDescriptor, fileDescriptor)
+}
+
+func secureWindowsWorkingDirectoryRoot(path string, serviceUserID *windows.SID) error {
+	directorySecurityDescriptor, _, err := windowsWorkingDirectorySecurityDescriptors(serviceUserID)
+	if err != nil {
+		return err
+	}
+	directoryDescriptor, err := windows.SecurityDescriptorFromString(directorySecurityDescriptor)
+	if err != nil {
+		return err
+	}
+	return winio.RunWithPrivilege(winio.SeRestorePrivilege, func() error {
+		return applyProtectedFileSecurity(path, directoryDescriptor)
+	})
 }
 
 func windowsServiceSID() (*windows.SID, error) {
@@ -137,6 +158,14 @@ func windowsServiceSID() (*windows.SID, error) {
 }
 
 func validateProtectedWindowsWorkingDirectory(path string, serviceUserID *windows.SID) error {
+	return validateWindowsWorkingDirectory(path, serviceUserID, false)
+}
+
+func validateRepairableWindowsWorkingDirectory(path string, serviceUserID *windows.SID) error {
+	return validateWindowsWorkingDirectory(path, serviceUserID, true)
+}
+
+func validateWindowsWorkingDirectory(path string, serviceUserID *windows.SID, allowAdditionalAccessControlEntries bool) error {
 	attributes, err := windowsFileAttributes(path)
 	if err != nil {
 		return err
@@ -177,7 +206,9 @@ func validateProtectedWindowsWorkingDirectory(path string, serviceUserID *window
 	if err != nil {
 		return err
 	}
-	if discretionaryAccessControlList == nil || discretionaryAccessControlList.AceCount != 3 {
+	if discretionaryAccessControlList == nil ||
+		(!allowAdditionalAccessControlEntries && discretionaryAccessControlList.AceCount != 3) ||
+		(allowAdditionalAccessControlEntries && discretionaryAccessControlList.AceCount < 3) {
 		return E.New("daemon working directory has unexpected access control entries")
 	}
 	administratorsUserID, err := windows.CreateWellKnownSid(windows.WinBuiltinAdministratorsSid)
@@ -195,15 +226,23 @@ func validateProtectedWindowsWorkingDirectory(path string, serviceUserID *window
 		if err != nil {
 			return err
 		}
-		if accessControlEntry.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE ||
-			accessControlEntry.Header.AceFlags != windows.OBJECT_INHERIT_ACE|windows.CONTAINER_INHERIT_ACE ||
-			uint32(accessControlEntry.Mask) != 0x001F01FF {
+		if accessControlEntry.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE {
 			return E.New("daemon working directory has an unsafe access control entry")
 		}
 		userID := (*windows.SID)(unsafe.Pointer(&accessControlEntry.SidStart)).String()
 		seen, exists := expectedUsers[userID]
-		if !exists || seen {
+		if !exists {
+			if allowAdditionalAccessControlEntries {
+				continue
+			}
 			return E.New("daemon working directory grants access to an unexpected principal")
+		}
+		if accessControlEntry.Header.AceFlags != windows.OBJECT_INHERIT_ACE|windows.CONTAINER_INHERIT_ACE ||
+			uint32(accessControlEntry.Mask) != 0x001F01FF {
+			return E.New("daemon working directory has an unsafe access control entry")
+		}
+		if seen {
+			return E.New("daemon working directory has a duplicate access control entry")
 		}
 		expectedUsers[userID] = true
 	}
@@ -498,18 +537,19 @@ func ensureWindowsWorkingDirectory(path string) error {
 	} else if err != nil {
 		return err
 	}
-	if created {
-		err = secureWindowsWorkingDirectory(path)
+	if !created {
+		err = validateRepairableWindowsWorkingDirectory(path, serviceUserID)
+		if err != nil {
+			return err
+		}
+		err = secureWindowsWorkingDirectoryRoot(path, serviceUserID)
 		if err != nil {
 			return err
 		}
 	}
-	err = validateProtectedWindowsWorkingDirectory(path, serviceUserID)
+	err = secureWindowsWorkingDirectory(path, serviceUserID)
 	if err != nil {
 		return err
 	}
-	if created {
-		return nil
-	}
-	return secureWindowsWorkingDirectory(path)
+	return validateProtectedWindowsWorkingDirectory(path, serviceUserID)
 }
