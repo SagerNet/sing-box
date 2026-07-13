@@ -24,7 +24,7 @@ type LinuxSystemProxy struct {
 	isEnabled       bool
 }
 
-func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool) (*LinuxSystemProxy, error) {
+func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool, bypassDomain []string) (*LinuxSystemProxy, error) {
 	hasGSettings := common.Error(exec.LookPath("gsettings")) == nil
 	kWriteConfigCmds := []string{
 		"kwriteconfig5",

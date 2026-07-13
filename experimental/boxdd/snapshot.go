@@ -18,14 +18,16 @@ const (
 )
 
 type startOptions struct {
-	WasRunning        bool  `json:"was_running"`
-	OOMKillerEnabled  bool  `json:"oom_killer_enabled"`
-	OOMKillerDisabled bool  `json:"oom_killer_disabled"`
-	OOMMemoryLimit    int64 `json:"oom_memory_limit"`
+	WasRunning         bool  `json:"was_running"`
+	OOMKillerEnabled   bool  `json:"oom_killer_enabled"`
+	OOMKillerDisabled  bool  `json:"oom_killer_disabled"`
+	OOMMemoryLimit     int64 `json:"oom_memory_limit"`
+	SystemProxyEnabled *bool `json:"system_proxy_enabled,omitempty"`
 }
 
 type ownerState struct {
-	UserID string `json:"user_id"`
+	UserID    string `json:"user_id"`
+	SessionID uint32 `json:"session_id,omitempty"`
 }
 
 func userWorkingDirectory(userID string) string {
@@ -34,23 +36,35 @@ func userWorkingDirectory(userID string) string {
 }
 
 func loadOwner() (string, error) {
-	content, err := os.ReadFile(filepath.Join(workingDirectory, ownerFileName))
-	if err != nil {
-		return "", err
-	}
-	state, err := json.UnmarshalExtended[ownerState](content)
+	state, err := loadOwnerState()
 	if err != nil {
 		return "", err
 	}
 	return state.UserID, nil
 }
 
-func saveOwner(userID string) error {
-	content, err := json.Marshal(ownerState{UserID: userID})
+func loadOwnerState() (ownerState, error) {
+	content, err := os.ReadFile(filepath.Join(workingDirectory, ownerFileName))
+	if err != nil {
+		return ownerState{}, err
+	}
+	state, err := json.UnmarshalExtended[ownerState](content)
+	if err != nil {
+		return ownerState{}, err
+	}
+	return state, nil
+}
+
+func saveOwner(userID string, sessionID uint32) error {
+	content, err := json.Marshal(ownerState{UserID: userID, SessionID: sessionID})
 	if err != nil {
 		return err
 	}
 	return atomicfile.WriteFile(filepath.Join(workingDirectory, ownerFileName), content, 0o600)
+}
+
+func (o startOptions) systemProxyEnabled() bool {
+	return o.SystemProxyEnabled == nil || *o.SystemProxyEnabled
 }
 
 func loadServiceConfig(userID string) (string, error) {
