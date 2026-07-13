@@ -107,7 +107,7 @@ func (l *Listener) Start() error {
 		} else {
 			listenAddrString = listenAddr.String()
 		}
-		systemProxy, err := settings.NewSystemProxy(l.ctx, M.ParseSocksaddrHostPort(listenAddrString, listenPort), l.systemProxySOCKS)
+		systemProxy, err := settings.NewSystemProxy(l.ctx, M.ParseSocksaddrHostPort(listenAddrString, listenPort), l.systemProxySOCKS, nil)
 		if err != nil {
 			return E.Cause(err, "initialize system proxy")
 		}
