@@ -20,7 +20,7 @@ type AndroidSystemProxy struct {
 	isEnabled    bool
 }
 
-func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool) (*AndroidSystemProxy, error) {
+func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bool, bypassDomain []string) (*AndroidSystemProxy, error) {
 	userId := os.Getuid()
 	var (
 		useRish  bool
