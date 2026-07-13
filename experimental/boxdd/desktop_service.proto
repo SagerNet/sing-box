@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package desktop;
+option go_package = "github.com/sagernet/sing-box/experimental/boxdd;main";
+
+import "google/protobuf/empty.proto";
+import "daemon/started_service.proto";
+
+service DesktopService {
+  rpc GetDaemonInfo(google.protobuf.Empty) returns (DaemonInfo) {}
+  rpc ClaimService(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc TakeOverService(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc StartService(StartServiceRequest) returns (google.protobuf.Empty) {}
+  rpc GetWorkingDirectory(google.protobuf.Empty) returns (WorkingDirectoryInfo) {}
+  rpc DestroyWorkingDirectory(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc ListCrashReports(google.protobuf.Empty) returns (CrashReportList) {}
+  rpc ReadCrashReport(CrashReportRequest) returns (CrashReportContent) {}
+  rpc MarkCrashReportRead(CrashReportRequest) returns (google.protobuf.Empty) {}
+  rpc ExportCrashReport(CrashReportExportRequest) returns (CrashReportArchive) {}
+  rpc DeleteCrashReport(CrashReportRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteAllCrashReports(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc ListOOMReports(google.protobuf.Empty) returns (OOMReportList) {}
+  rpc ReadOOMReport(OOMReportRequest) returns (OOMReportContent) {}
+  rpc MarkOOMReportRead(OOMReportRequest) returns (google.protobuf.Empty) {}
+  rpc ExportOOMReport(OOMReportExportRequest) returns (CrashReportArchive) {}
+  rpc DeleteOOMReport(OOMReportRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteAllOOMReports(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+}
+
+service ApplicationService {
+  rpc CheckConfig(ConfigContent) returns (google.protobuf.Empty) {}
+  rpc FormatConfig(ConfigContent) returns (ConfigContent) {}
+  rpc EncodeProfile(ProfileContent) returns (ProfileData) {}
+  rpc DecodeProfile(ProfileData) returns (ProfileContent) {}
+  rpc ArchiveReport(ArchiveReportRequest) returns (google.protobuf.Empty) {}
+  rpc StartStandaloneNetworkQualityTest(StandaloneNetworkQualityTestRequest) returns (stream daemon.NetworkQualityTestProgress) {}
+  rpc StartStandaloneSTUNTest(StandaloneSTUNTestRequest) returns (stream daemon.STUNTestProgress) {}
+}
+
+message ArchiveReportRequest {
+  string source_path = 1;
+  string destination_path = 2;
+  bool encrypt = 3;
+}
+
+message StandaloneNetworkQualityTestRequest {
+  string config_url = 1;
+  bool serial = 2;
+  int32 max_runtime_seconds = 3;
+  bool http3 = 4;
+}
+
+message StandaloneSTUNTestRequest {
+  string server = 1;
+}
+
+message DaemonInfo {
+  string version = 1;
+  DaemonOwnership ownership = 2;
+}
+
+enum DaemonOwnership {
+  DAEMON_OWNERSHIP_UNSPECIFIED = 0;
+  DAEMON_OWNERSHIP_AVAILABLE = 1;
+  DAEMON_OWNERSHIP_CALLER = 2;
+  DAEMON_OWNERSHIP_OTHER = 3;
+}
+
+message StartServiceRequest {
+  string config_content = 1;
+  StartOptions options = 2;
+}
+
+message StartOptions {
+  bool oom_killer_enabled = 1;
+  bool oom_killer_disabled = 2;
+  int64 oom_memory_limit = 3;
+}
+
+message ConfigContent {
+  string content = 1;
+}
+
+message ProfileContent {
+  enum Type {
+    LOCAL = 0;
+    ICLOUD = 1;
+    REMOTE = 2;
+  }
+
+  Type type = 1;
+  string name = 2;
+  string config = 3;
+  string remote_path = 4;
+  bool auto_update = 5;
+  int32 auto_update_interval = 6;
+  int64 last_updated = 7;
+}
+
+message ProfileData {
+  bytes data = 1;
+}
+
+message WorkingDirectoryInfo {
+  string path = 1;
+  int64 size = 2;
+}
+
+message CrashReportList {
+  repeated CrashReportEntry reports = 1;
+}
+
+message CrashReportEntry {
+  string name = 1;
+  int64 crashed_at = 2;
+  bool is_read = 3;
+}
+
+message CrashReportRequest {
+  string name = 1;
+}
+
+message CrashReportExportRequest {
+  string name = 1;
+  bool with_configuration = 2;
+  bool with_log = 3;
+  bool encrypt = 4;
+}
+
+message CrashReportContent {
+  repeated CrashReportFile files = 1;
+}
+
+message CrashReportFile {
+  string name = 1;
+  string content = 2;
+}
+
+message CrashReportArchive {
+  string file_name = 1;
+  bytes data = 2;
+}
+
+message OOMReportList {
+  repeated OOMReportEntry reports = 1;
+}
+
+message OOMReportEntry {
+  string name = 1;
+  int64 recorded_at = 2;
+  bool is_read = 3;
+}
+
+message OOMReportRequest {
+  string name = 1;
+}
+
+message OOMReportExportRequest {
+  string name = 1;
+  bool with_configuration = 2;
+  bool with_log = 3;
+  bool encrypt = 4;
+}
+
+message OOMReportContent {
+  repeated OOMReportFile files = 1;
+}
+
+message OOMReportFile {
+  string name = 1;
+  bytes content = 2;
+  bool is_profile = 3;
+}
