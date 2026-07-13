@@ -85,6 +85,9 @@ release_install:
 update_android_version:
 	go run ./cmd/internal/update_android_version
 
+update_desktop_version:
+	go run ./cmd/internal/update_desktop_version
+
 build_android:
 	cd ../sing-box-for-android && ./gradlew :app:clean :app:assembleOtherRelease :app:assembleOtherLegacyRelease && ./gradlew --stop
 
