@@ -92,22 +92,26 @@ func tagUnownedReports(reportsDirectory string, userID string) error {
 	return nil
 }
 
-func (d *Daemon) reportCaller(ctx context.Context, reportsDirectory string) (string, error) {
+func (d *Daemon) reportCaller(ctx context.Context, reportsDirectoryName string) (string, string, error) {
 	identity, err := peerIdentityFromContext(ctx)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	d.lifecycleAccess.Lock()
 	defer d.lifecycleAccess.Unlock()
-	options, err := loadStartOptions()
-	if err != nil && !os.IsNotExist(err) {
-		return "", err
-	}
-	err = tagUnownedReports(reportsDirectory, options.OwnerUserID)
+	ownerUserID, err := loadOwner()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return identity.UserID, nil
+	if ownerUserID != identity.UserID {
+		return "", "", status.Error(codes.PermissionDenied, "the service is owned by another user")
+	}
+	reportsDirectory := filepath.Join(userWorkingDirectory(identity.UserID), reportsDirectoryName)
+	err = tagUnownedReports(reportsDirectory, identity.UserID)
+	if err != nil {
+		return "", "", err
+	}
+	return reportsDirectory, identity.UserID, nil
 }
 
 func deleteReportsForUser(reportsDirectory string, userID string) error {
@@ -165,7 +169,7 @@ func exportReportArchive(reportsDirectory string, name string, userID string, wi
 	if err != nil {
 		return nil, err
 	}
-	tempRoot := filepath.Join(workingDirectory, "temp")
+	tempRoot := filepath.Join(filepath.Dir(reportsDirectory), "temp")
 	err = os.MkdirAll(tempRoot, 0o700)
 	if err != nil {
 		return nil, err
