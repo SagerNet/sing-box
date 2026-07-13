@@ -20,31 +20,35 @@ func (h *managedHandler) ServiceStop() error {
 	if h.daemon.closed {
 		return os.ErrClosed
 	}
-	options, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
 	if err != nil {
 		return err
 	}
-	return h.daemon.stopServiceLocked(options.OwnerUserID)
+	return h.daemon.stopServiceLocked(ownerUserID)
 }
 
 func (h *managedHandler) ServiceReload() error {
 	if h.daemon.closed {
 		return os.ErrClosed
 	}
-	configContent, err := loadServiceConfig()
+	ownerUserID, err := loadOwner()
 	if err != nil {
 		return err
 	}
-	options, err := loadStartOptions()
+	configContent, err := loadServiceConfig(ownerUserID)
 	if err != nil {
 		return err
 	}
-	err = h.daemon.startService(configContent, options)
+	options, err := loadStartOptions(ownerUserID)
+	if err != nil {
+		return err
+	}
+	err = h.daemon.startServiceLocked(ownerUserID, configContent, options)
 	if err != nil {
 		return err
 	}
 	options.WasRunning = true
-	return saveStartOptions(options)
+	return saveStartOptions(ownerUserID, options)
 }
 
 func (h *managedHandler) SystemProxyStatus() (*daemon.SystemProxyStatus, error) {
