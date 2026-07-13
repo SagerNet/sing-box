@@ -29,6 +29,7 @@ type ClashAPIOptions struct {
 	ModeList                         []string                   `json:"-"`
 	AccessControlAllowOrigin         badoption.Listable[string] `json:"access_control_allow_origin,omitempty"`
 	AccessControlAllowPrivateNetwork bool                       `json:"access_control_allow_private_network,omitempty"`
+	EnableMetrics                    bool                       `json:"enable_metrics,omitempty"`
 
 	// Deprecated: migrated to global cache file
 	CacheFile string `json:"cache_file,omitempty"`

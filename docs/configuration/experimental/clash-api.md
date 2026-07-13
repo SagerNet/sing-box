@@ -1,3 +1,7 @@
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [enable_metrics](#enable_metrics)
+
 !!! quote "Changes in sing-box 1.10.0"
 
     :material-plus: [access_control_allow_origin](#access_control_allow_origin)  
@@ -25,6 +29,7 @@
       "default_mode": "",
       "access_control_allow_origin": [],
       "access_control_allow_private_network": false,
+      "enable_metrics": false,
       
       // Deprecated
       
@@ -118,6 +123,27 @@ To access the Clash API on a private network from a public website, you must exp
 Allow access from private network.
 
 To access the Clash API on a private network from a public website, `access_control_allow_private_network` must be enabled.
+
+#### enable_metrics
+
+!!! question "Since sing-box 1.14.0"
+
+Enable the Prometheus metrics endpoint.
+
+When enabled, sing-box exposes metrics in the Prometheus text format at
+`http://{{external-controller}}/metrics`, sharing the same authentication as the
+rest of the Clash API (send `Authorization: Bearer ${secret}` when `secret` is set).
+
+The following metrics are exported, in addition to the standard Go runtime and
+process collectors:
+
+| Metric                                    | Type    | Labels     | Description                                              |
+|-------------------------------------------|---------|------------|----------------------------------------------------------|
+| `singbox_uplink_bytes_total`              | counter |            | Total number of bytes uploaded through all connections.  |
+| `singbox_downlink_bytes_total`            | counter |            | Total number of bytes downloaded through all connections.|
+| `singbox_active_connections`              | gauge   |            | Number of currently active connections.                  |
+| `singbox_active_connections_by_outbound`  | gauge   | `outbound` | Active connections grouped by outbound tag.              |
+| `singbox_outbound_delay_milliseconds`     | gauge   | `outbound` | Latest URL test delay of an outbound, in milliseconds.   |
 
 #### store_mode
 

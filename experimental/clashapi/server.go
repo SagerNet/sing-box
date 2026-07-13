@@ -136,6 +136,10 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		r.Mount("/cache", cacheRouter(ctx))
 		r.Mount("/dns", dnsRouter(s.dnsRouter))
 
+		if options.EnableMetrics {
+			r.Handle("/metrics", newMetricsHandler(trafficManager, urlTestHistory, s.outbound))
+		}
+
 		s.setupMetaAPI(r)
 	})
 	if options.ExternalUI != "" {
