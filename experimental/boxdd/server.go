@@ -24,23 +24,22 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const daemonCrashOutputFileName = "CrashReport-Daemon.log"
-
 type Daemon struct {
-	logger          log.ContextLogger
-	startedService  *daemon.StartedService
-	server          *grpc.Server
-	listenerPath    string
-	lifecycleAccess sync.Mutex
-	closed          bool
-	peerAccess      sync.Mutex
-	peerConnections map[peerConnection]peerIdentity
+	logger                  log.ContextLogger
+	startedService          *daemon.StartedService
+	server                  *grpc.Server
+	runtimeWorkingDirectory string
+	lifecycleAccess         sync.Mutex
+	closed                  bool
+	peerAccess              sync.Mutex
+	peerConnections         map[peerConnection]peerIdentity
 }
 
 func newDaemon() (*Daemon, error) {
 	ctx := include.Context(context.Background())
 	d := &Daemon{
-		logger: log.StdLogger(),
+		logger:                  log.StdLogger(),
+		runtimeWorkingDirectory: workingDirectory,
 	}
 	d.startedService = daemon.NewStartedService(daemon.ServiceOptions{
 		Context:     ctx,
@@ -91,13 +90,6 @@ func (d *Daemon) Start() error {
 	if err != nil {
 		return err
 	}
-	if listener.Addr().Network() == "unix" {
-		d.listenerPath, err = filepath.Abs(listener.Addr().String())
-		if err != nil {
-			listener.Close()
-			return err
-		}
-	}
 	d.logger.Info("daemon listening at ", listener.Addr())
 	go func() {
 		serveError := d.server.Serve(listener)
@@ -115,38 +107,82 @@ func (d *Daemon) restore() {
 	if d.closed {
 		return
 	}
-	options, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
+	if err != nil {
+		if !os.IsNotExist(err) {
+			d.logger.Warn("load owner: ", err)
+		}
+		return
+	}
+	ownerWorkingDirectory := userWorkingDirectory(ownerUserID)
+	err = d.configureWorkingDirectoryLocked(ownerWorkingDirectory)
+	if err != nil {
+		d.logger.Warn("configure working directory: ", err)
+		return
+	}
+	options, err := loadStartOptions(ownerUserID)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			d.logger.Warn("load start options: ", err)
 		}
 		return
 	}
-	err = tagUnownedReports(filepath.Join(workingDirectory, crashReportsDirectoryName), options.OwnerUserID)
+	err = tagUnownedReports(filepath.Join(ownerWorkingDirectory, crashReportsDirectoryName), ownerUserID)
 	if err != nil {
 		d.logger.Warn("tag crash reports: ", err)
 	}
-	err = tagUnownedReports(filepath.Join(workingDirectory, oomReportsDirectoryName), options.OwnerUserID)
+	err = tagUnownedReports(filepath.Join(ownerWorkingDirectory, oomReportsDirectoryName), ownerUserID)
 	if err != nil {
 		d.logger.Warn("tag OOM reports: ", err)
 	}
 	if !options.WasRunning {
 		return
 	}
-	configContent, err := loadServiceConfig()
+	configContent, err := loadServiceConfig(ownerUserID)
 	if err != nil {
 		d.logger.Error("restore service: ", err)
 		return
 	}
 	d.logger.Info("restoring service")
-	err = d.startService(configContent, options)
+	err = d.startServiceLocked(ownerUserID, configContent, options)
 	if err != nil {
 		d.logger.Error("restore service: ", err)
 	}
 }
 
-func (d *Daemon) startService(configContent string, options startOptions) error {
-	_ = os.WriteFile(filepath.Join(workingDirectory, configSnapshotFileName), []byte(configContent), 0o600)
+func (d *Daemon) configureWorkingDirectoryLocked(directory string) error {
+	if d.runtimeWorkingDirectory == directory {
+		return nil
+	}
+	err := os.MkdirAll(directory, 0o700)
+	if err != nil {
+		return err
+	}
+	err = os.Chdir(directory)
+	if err != nil {
+		return err
+	}
+	err = libbox.Setup(&libbox.SetupOptions{
+		BasePath:          directory,
+		WorkingPath:       directory,
+		TempPath:          directory,
+		CrashReportSource: "Daemon",
+	})
+	if err != nil {
+		return err
+	}
+	libbox.PromoteOOMDraft()
+	d.runtimeWorkingDirectory = directory
+	return nil
+}
+
+func (d *Daemon) startServiceLocked(ownerUserID string, configContent string, options startOptions) error {
+	directory := userWorkingDirectory(ownerUserID)
+	err := d.configureWorkingDirectoryLocked(directory)
+	if err != nil {
+		return err
+	}
+	_ = os.WriteFile(filepath.Join(directory, configSnapshotFileName), []byte(configContent), 0o600)
 	libbox.ReloadSetupOptions(&libbox.SetupOptions{
 		OomKillerEnabled:  options.OOMKillerEnabled,
 		OomKillerDisabled: options.OOMKillerDisabled,
@@ -156,39 +192,8 @@ func (d *Daemon) startService(configContent string, options startOptions) error 
 	return d.startedService.StartOrReloadService(configContent, nil)
 }
 
-func (d *Daemon) clearRuntimeData() error {
-	entries, err := os.ReadDir(workingDirectory)
-	if err != nil {
-		return err
-	}
-	for _, entry := range entries {
-		if entry.Name() == crashReportsDirectoryName ||
-			entry.Name() == oomReportsDirectoryName ||
-			entry.Name() == daemonCrashOutputFileName {
-			continue
-		}
-		entryPath := filepath.Join(workingDirectory, entry.Name())
-		if d.listenerPath != "" && entryPath == d.listenerPath {
-			continue
-		}
-		err = os.RemoveAll(entryPath)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (d *Daemon) resetRuntimeOwnerLocked(ownerUserID string) error {
-	err := d.clearRuntimeData()
-	if err != nil {
-		return err
-	}
-	return saveStartOptions(startOptions{OwnerUserID: ownerUserID})
-}
-
-func (d *Daemon) stopServiceLocked(nextOwnerUserID string) error {
-	options, err := loadStartOptions()
+func (d *Daemon) stopServiceLocked(ownerUserID string) error {
+	options, err := loadStartOptions(ownerUserID)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -198,15 +203,17 @@ func (d *Daemon) stopServiceLocked(nextOwnerUserID string) error {
 			return err
 		}
 	}
-	crashReportError := tagUnownedReports(filepath.Join(workingDirectory, crashReportsDirectoryName), options.OwnerUserID)
+	directory := userWorkingDirectory(ownerUserID)
+	crashReportError := tagUnownedReports(filepath.Join(directory, crashReportsDirectoryName), ownerUserID)
 	if crashReportError != nil {
 		return crashReportError
 	}
-	oomReportError := tagUnownedReports(filepath.Join(workingDirectory, oomReportsDirectoryName), options.OwnerUserID)
+	oomReportError := tagUnownedReports(filepath.Join(directory, oomReportsDirectoryName), ownerUserID)
 	if oomReportError != nil {
 		return oomReportError
 	}
-	return d.resetRuntimeOwnerLocked(nextOwnerUserID)
+	options.WasRunning = false
+	return saveStartOptions(ownerUserID, options)
 }
 
 func (d *Daemon) Close() {
@@ -311,14 +318,14 @@ func ownerProtectedMethod(method string) bool {
 }
 
 func (d *Daemon) authorizeOwnerLocked(userID string) error {
-	options, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
 	if err != nil {
 		if os.IsNotExist(err) {
 			return status.Error(codes.PermissionDenied, "the service has no owner")
 		}
 		return err
 	}
-	if options.OwnerUserID == "" || options.OwnerUserID != userID {
+	if ownerUserID == "" || ownerUserID != userID {
 		return status.Error(codes.PermissionDenied, "the service is owned by another user")
 	}
 	return nil
