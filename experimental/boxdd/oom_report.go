@@ -19,8 +19,7 @@ const oomReportsDirectoryName = "oom_reports"
 var oomReportLeadingFileOrder = []string{metadataFileName, configSnapshotFileName, goLogFileName}
 
 func (s *desktopService) ListOOMReports(ctx context.Context, empty *emptypb.Empty) (*OOMReportList, error) {
-	reportsDirectory := filepath.Join(workingDirectory, oomReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, oomReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +52,7 @@ func (s *desktopService) ListOOMReports(ctx context.Context, empty *emptypb.Empt
 }
 
 func (s *desktopService) ReadOOMReport(ctx context.Context, request *OOMReportRequest) (*OOMReportContent, error) {
-	reportsDirectory := filepath.Join(workingDirectory, oomReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, oomReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +100,7 @@ func (s *desktopService) ReadOOMReport(ctx context.Context, request *OOMReportRe
 }
 
 func (s *desktopService) MarkOOMReportRead(ctx context.Context, request *OOMReportRequest) (*emptypb.Empty, error) {
-	reportsDirectory := filepath.Join(workingDirectory, oomReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, oomReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +116,7 @@ func (s *desktopService) MarkOOMReportRead(ctx context.Context, request *OOMRepo
 }
 
 func (s *desktopService) ExportOOMReport(ctx context.Context, request *OOMReportExportRequest) (*CrashReportArchive, error) {
-	reportsDirectory := filepath.Join(workingDirectory, oomReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, oomReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +124,7 @@ func (s *desktopService) ExportOOMReport(ctx context.Context, request *OOMReport
 }
 
 func (s *desktopService) DeleteOOMReport(ctx context.Context, request *OOMReportRequest) (*emptypb.Empty, error) {
-	reportsDirectory := filepath.Join(workingDirectory, oomReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, oomReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -145,8 +140,7 @@ func (s *desktopService) DeleteOOMReport(ctx context.Context, request *OOMReport
 }
 
 func (s *desktopService) DeleteAllOOMReports(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
-	reportsDirectory := filepath.Join(workingDirectory, oomReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, oomReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
