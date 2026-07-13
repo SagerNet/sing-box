@@ -14,8 +14,7 @@ const crashReportsDirectoryName = "crash_reports"
 var crashReportFileOrder = []string{metadataFileName, nativeLogFileName, goLogFileName, configSnapshotFileName}
 
 func (s *desktopService) ListCrashReports(ctx context.Context, empty *emptypb.Empty) (*CrashReportList, error) {
-	reportsDirectory := filepath.Join(workingDirectory, crashReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, crashReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +47,7 @@ func (s *desktopService) ListCrashReports(ctx context.Context, empty *emptypb.Em
 }
 
 func (s *desktopService) ReadCrashReport(ctx context.Context, request *CrashReportRequest) (*CrashReportContent, error) {
-	reportsDirectory := filepath.Join(workingDirectory, crashReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, crashReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -75,8 +73,7 @@ func (s *desktopService) ReadCrashReport(ctx context.Context, request *CrashRepo
 }
 
 func (s *desktopService) MarkCrashReportRead(ctx context.Context, request *CrashReportRequest) (*emptypb.Empty, error) {
-	reportsDirectory := filepath.Join(workingDirectory, crashReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, crashReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -92,8 +89,7 @@ func (s *desktopService) MarkCrashReportRead(ctx context.Context, request *Crash
 }
 
 func (s *desktopService) ExportCrashReport(ctx context.Context, request *CrashReportExportRequest) (*CrashReportArchive, error) {
-	reportsDirectory := filepath.Join(workingDirectory, crashReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, crashReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +97,7 @@ func (s *desktopService) ExportCrashReport(ctx context.Context, request *CrashRe
 }
 
 func (s *desktopService) DeleteCrashReport(ctx context.Context, request *CrashReportRequest) (*emptypb.Empty, error) {
-	reportsDirectory := filepath.Join(workingDirectory, crashReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, crashReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
@@ -118,8 +113,7 @@ func (s *desktopService) DeleteCrashReport(ctx context.Context, request *CrashRe
 }
 
 func (s *desktopService) DeleteAllCrashReports(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
-	reportsDirectory := filepath.Join(workingDirectory, crashReportsDirectoryName)
-	userID, err := s.daemon.reportCaller(ctx, reportsDirectory)
+	reportsDirectory, userID, err := s.daemon.reportCaller(ctx, crashReportsDirectoryName)
 	if err != nil {
 		return nil, err
 	}
