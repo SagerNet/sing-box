@@ -84,6 +84,10 @@ func (w *platformInterfaceWrapper) OpenInterface(options *tun.Options, platformO
 	return tun.New(*options)
 }
 
+func (w *platformInterfaceWrapper) ProcessPlatformOptions(options option.TunPlatformOptions) error {
+	return nil
+}
+
 func myTunAddress(options *tun.Options) []netip.Addr {
 	addresses := make([]netip.Addr, 0, len(options.Inet4Address)+len(options.Inet6Address))
 	for _, prefix := range options.Inet4Address {
