@@ -1,37 +1,81 @@
-<svg width="1027" height="1109" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" overflow="hidden">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="148 90 728 820">
   <defs>
-    <filter id="fx0" x="-10%" y="-10%" width="120%" height="120%" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse">
-      <feComponentTransfer color-interpolation-filters="sRGB">
-        <feFuncR type="discrete" tableValues="0 0" />
-          <feFuncG type="discrete" tableValues="0 0" />
-          <feFuncB type="discrete" tableValues="0 0" />
-          <feFuncA type="linear" slope="0.4" intercept="0" />
-      </feComponentTransfer>
-        <feGaussianBlur stdDeviation="4.58333 4.58333" />
+    <linearGradient id="bg25" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#242F37"/>
+      <stop offset="1" stop-color="#0D1317"/>
+    </linearGradient>
+    <radialGradient id="spot25" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#46565F" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#46565F" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft25" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="18"/>
     </filter>
-      <clipPath id="clip1">
-      <rect x="692" y="855" width="1027" height="1109" />
-    </clipPath>
-      <clipPath id="clip2">
-      <rect x="-2" y="-2" width="541" height="786" />
-    </clipPath>
-      <clipPath id="clip3">
-      <rect x="0" y="0" width="535" height="782" />
-    </clipPath>
+    <linearGradient id="top25" gradientUnits="userSpaceOnUse" x1="330" y1="320" x2="700" y2="490">
+      <stop offset="0" stop-color="#445863"/>
+      <stop offset="1" stop-color="#394C57"/>
+    </linearGradient>
+    <linearGradient id="left25" gradientUnits="userSpaceOnUse" x1="269.5" y1="480" x2="512" y2="720">
+      <stop offset="0" stop-color="#26323A"/>
+      <stop offset="1" stop-color="#1F2A31"/>
+    </linearGradient>
+    <linearGradient id="right25" gradientUnits="userSpaceOnUse" x1="512" y1="650" x2="754.5" y2="500">
+      <stop offset="0" stop-color="#30404A"/>
+      <stop offset="1" stop-color="#374854"/>
+    </linearGradient>
+    <filter id="grain25" x="0" y="0" width="280" height="280" filterUnits="userSpaceOnUse">
+      <feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="4" seed="17" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.45 0 0 0 -0.1"/>
+    </filter>
+    <filter id="grainD25" x="0" y="0" width="280" height="280" filterUnits="userSpaceOnUse">
+      <feTurbulence type="fractalNoise" baseFrequency="0.28" numOctaves="4" seed="41" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0.02  0 0 0 0 0.05  0 0 0 0 0.07  0.45 0 0 0 -0.1"/>
+    </filter>
+    <clipPath id="clipTopD"><path d="M512 262 754.5 402 512 542 269.5 402Z"/></clipPath>
+    <clipPath id="clipLeftD"><path d="M269.5 402 512 542 512 812 269.5 672Z"/></clipPath>
+    <clipPath id="clipRightD"><path d="M512 542 754.5 402 754.5 672 512 812Z"/></clipPath>
   </defs>
-    <g clip-path="url(#clip1)" transform="translate(-692 -855)">
-    <path d="M692 1191 692 1575.69C692 1640.41 731.499 1651.19 731.499 1651.19L1148.03 1931.62C1212.66 1974.77 1194.71 1881.29 1194.71 1881.29L1194.71 1528.96 692 1191Z" fill="#37474F" fill-rule="evenodd" />
-        <g clip-path="url(#clip2)" filter="url(#fx0)" transform="translate(1184 1182)">
-      <g clip-path="url(#clip3)">
-        <path d="M520.482 15.4819 520.482 400.176C520.482 464.89 480.983 475.676 480.983 475.676 480.983 475.676 129.086 712.963 64.4523 756.106-0.181814 799.25 17.7721 705.773 17.7721 705.773L17.7721 353.437 520.482 15.4819Z" fill="#455A64" fill-rule="evenodd" />
-      </g>
-    </g>
-        <path d="M1698 1191 1698 1575.69C1698 1640.41 1658.5 1651.19 1658.5 1651.19 1658.5 1651.19 1306.6 1888.48 1241.97 1931.62 1177.34 1974.77 1195.29 1881.29 1195.29 1881.29L1195.29 1528.96 1698 1191Z" fill="#455A64" fill-rule="evenodd" />
-        <path d="M1241.71 868.473C1212.96 850.509 1169.85 850.509 1144.7 868.473L713.557 1163.07C684.814 1181.04 684.814 1213.37 713.557 1231.33L1144.7 1529.53C1173.44 1547.49 1216.56 1547.49 1241.71 1529.53L1676.44 1227.74C1705.19 1209.78 1705.19 1177.44 1676.44 1159.48L1241.71 868.473Z" fill="#546E7A" fill-rule="evenodd" />
-        <path d="M1195 1949C1173.4 1949 1159 1935.19 1159 1917.92L1159 1531.08C1159 1513.82 1173.4 1500 1195 1500 1216.6 1500 1231 1513.82 1231 1531.08L1231 1914.46C1231 1935.19 1216.6 1949 1195 1949Z" fill="#546E7A" fill-rule="evenodd" />
-        <path d="M1553.92 1435.92C1553.92 1471.89 1557.5 1486.27 1518.03 1511.45L1428.32 1568.99C1388.85 1594.17 1374.5 1572.59 1374.5 1540.22L1374.5 1446.71C1374.5 1439.52 1374.5 1435.92 1363.73 1428.73 1270.43 1363.99 911.591 1115.84 847 1069.09L1012.07 954C1058.72 982.772 1399.61 1209.35 1539.56 1306.45 1546.74 1310.05 1550.33 1317.24 1550.33 1320.84L1550.33 1435.92Z" fill="#99AAB5" fill-rule="evenodd" />
-        <path d="M1543.41 1310.21C1399.82 1213.17 1058.79 986.752 1015.72 958L951.103 997.534 847 1069.41C911.615 1116.14 1270.59 1360.53 1363.92 1425.22 1371.1 1428.81 1371.1 1432.41 1371.1 1436L1547 1313.8C1547 1313.8 1547 1310.21 1543.41 1310.21Z" fill="#CCD6DD" fill-rule="evenodd" />
-        <path d="M1554.9 1435.48 1554.9 1324.19C1554.9 1317.01 1551.3 1313.42 1544.11 1309.83 1400.28 1212.89 1058.67 986.721 1015.51 958L940 1008.26C1062.26 1090.83 1389.49 1306.24 1475.79 1367.27 1486.58 1374.45 1486.58 1381.63 1486.58 1385.22L1486.58 1536 1522.54 1510.87C1558.5 1485.74 1554.9 1467.79 1554.9 1435.48Z" fill="#CCD6DD" fill-rule="evenodd" />
-        <path d="M1543.23 1309.95C1399.6 1212.98 1058.49 986.731 1015.4 958L940 1008.28C1062.08 1090.88 1388.83 1306.36 1475.01 1367.41 1475.01 1367.41 1478.6 1371 1478.6 1371L1554 1317.13C1546.82 1313.54 1546.82 1309.95 1543.23 1309.95Z" fill="#E1E8ED" fill-rule="evenodd" />
+  <g transform="translate(-225.28 -273.28) scale(1.44)">
+<!-- deep cardboard faces -->
+  <path d="M512 262 754.5 402 512 542 269.5 402Z" fill="url(#top25)"/>
+  <path d="M269.5 402 512 542 512 812 269.5 672Z" fill="url(#left25)"/>
+  <path d="M512 542 754.5 402 754.5 672 512 812Z" fill="url(#right25)"/>
+
+  <!-- paper grain, foreshortened per face -->
+  <g clip-path="url(#clipTopD)"><g transform="matrix(0.866 0.5 0.866 -0.5 269.5 402)">
+    <rect width="280" height="280" filter="url(#grain25)" opacity="0.30"/>
+    <rect width="280" height="280" filter="url(#grainD25)" opacity="0.38"/>
+  </g></g>
+  <g clip-path="url(#clipLeftD)"><g transform="matrix(0.866 0.5 0 0.96428 269.5 402)">
+    <rect width="280" height="280" filter="url(#grain25)" opacity="0.20"/>
+    <rect width="280" height="280" filter="url(#grainD25)" opacity="0.34"/>
+  </g></g>
+  <g clip-path="url(#clipRightD)"><g transform="matrix(0.866 -0.5 0 0.96428 512 542)">
+    <rect width="280" height="280" filter="url(#grain25)" opacity="0.25"/>
+    <rect width="280" height="280" filter="url(#grainD25)" opacity="0.34"/>
+  </g></g>
+
+  <!-- lid flap seam: two lid halves, paper-edge catchlight -->
+  <path d="M390.75 472 633.25 332" stroke="#141E24" stroke-width="4" fill="none" opacity="0.9"/>
+  <path d="M390.75 472 633.25 332" stroke="#6E8794" stroke-width="2" fill="none" opacity="0.7" transform="translate(0 -3)"/>
+
+  <!-- soft ambient occlusion at junctions -->
+  <path d="M269.5 402 512 542" stroke="#0B141A" stroke-width="10" opacity="0.28" filter="url(#soft25)" fill="none"/>
+  <path d="M512 542 754.5 402" stroke="#0B141A" stroke-width="10" opacity="0.22" filter="url(#soft25)" fill="none"/>
+  <path d="M512 542 512 812" stroke="#060D11" stroke-width="9" opacity="0.30" filter="url(#soft25)" fill="none"/>
+
+  <!-- paper-edge highlights on the top edges -->
+  <path d="M512 262 754.5 402" stroke="#66808D" stroke-width="2.5" fill="none"/>
+  <path d="M512 262 269.5 402" stroke="#5A737F" stroke-width="2.5" fill="none"/>
+  <path d="M269.5 402 512 542 754.5 402" stroke="#4E6773" stroke-width="2" fill="none" opacity="0.9"/>
+  <path d="M512 542 512 812" stroke="#445963" stroke-width="2" fill="none" opacity="0.9"/>
+
+  <!-- original two-tone tape, aligned tails -->
+  <path d="M356.8 351.6 390.75 332 633.25 472 599.3 491.6Z" fill="#99AAB5"/>
+  <path d="M390.75 332 424.7 312.4 667.2 452.4 633.25 472Z" fill="#E1E8ED"/>
+  <path d="M599.3 491.6 633.25 472 633.25 592 599.3 611.6Z" fill="#8296A1"/>
+  <path d="M633.25 472 667.2 452.4 667.2 572.4 633.25 592Z" fill="#CCD6DD"/>
+  <!-- tape soft shadow onto the paper -->
+  <path d="M360 358 602.5 498" stroke="#000000" opacity="0.25" stroke-width="7" filter="url(#soft25)" fill="none"/>
   </g>
 </svg>
