@@ -16,6 +16,7 @@ type PlatformInterface interface {
 
 	UsePlatformInterface() bool
 	OpenInterface(options *tun.Options, platformOptions option.TunPlatformOptions) (tun.Tun, error)
+	ProcessPlatformOptions(options option.TunPlatformOptions) error
 
 	UsePlatformDefaultInterfaceMonitor() bool
 	CreateDefaultInterfaceMonitor(logger logger.Logger) tun.DefaultInterfaceMonitor

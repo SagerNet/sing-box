@@ -367,7 +367,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				t.tunOptions.NetNs = manager.ResolvePath(t.tunOptions.NetNs)
 			}
 		}
-		if t.platformInterface == nil {
+		if t.platformInterface == nil || C.IsWindows {
 			t.routeAddressSet = common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
@@ -432,12 +432,16 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		}
 		t.logger.Trace("creating stack")
 		t.tunIf = tunInterface
-		var (
-			forwarderBindInterface bool
-			includeAllNetworks     bool
-		)
 		if t.platformInterface != nil {
-			forwarderBindInterface = true
+			err = t.platformInterface.ProcessPlatformOptions(t.platformOptions)
+			if err != nil {
+				closeError := t.tunIf.Close()
+				t.tunIf = nil
+				return E.Errors(E.Cause(err, "process platform options"), closeError)
+			}
+		}
+		var includeAllNetworks bool
+		if t.platformInterface != nil && t.platformInterface.UnderNetworkExtension() {
 			includeAllNetworks = t.platformInterface.NetworkExtensionIncludeAllNetworks()
 		}
 		tunStack, err := tun.NewStack(t.stack, tun.StackOptions{
@@ -448,7 +452,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 			ICMPTimeout:            C.ICMPTimeout,
 			Handler:                t,
 			Logger:                 t.logger,
-			ForwarderBindInterface: forwarderBindInterface,
+			ForwarderBindInterface: C.IsDarwin,
 			InterfaceFinder:        t.networkManager.InterfaceFinder(),
 			IncludeAllNetworks:     includeAllNetworks,
 		})

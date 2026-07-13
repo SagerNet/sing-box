@@ -60,11 +60,13 @@ func (s *desktopService) StartService(ctx context.Context, request *StartService
 	if ownerUserID != "" && ownerUserID != identity.UserID {
 		return nil, status.Error(codes.PermissionDenied, "the service is owned by another user")
 	}
-	if ownerUserID == "" {
-		err = saveOwner(identity.UserID)
-		if err != nil {
-			return nil, err
-		}
+	err = s.daemon.preparePlatformOwnerLocked(identity)
+	if err != nil {
+		return nil, err
+	}
+	err = saveOwner(identity.UserID, identity.SessionID)
+	if err != nil {
+		return nil, err
 	}
 	currentOptions, err := loadStartOptions(identity.UserID)
 	if err != nil && !os.IsNotExist(err) {
@@ -105,6 +107,14 @@ func (s *desktopService) ClaimService(ctx context.Context, empty *emptypb.Empty)
 		return nil, err
 	}
 	if ownerUserID == identity.UserID {
+		err = s.daemon.preparePlatformOwnerLocked(identity)
+		if err != nil {
+			return nil, err
+		}
+		err = saveOwner(identity.UserID, identity.SessionID)
+		if err != nil {
+			return nil, err
+		}
 		return &emptypb.Empty{}, nil
 	}
 	if ownerUserID != "" {
@@ -114,7 +124,11 @@ func (s *desktopService) ClaimService(ctx context.Context, empty *emptypb.Empty)
 	if err != nil {
 		return nil, err
 	}
-	err = saveOwner(identity.UserID)
+	err = s.daemon.preparePlatformOwnerLocked(identity)
+	if err != nil {
+		return nil, err
+	}
+	err = saveOwner(identity.UserID, identity.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +150,14 @@ func (s *desktopService) TakeOverService(ctx context.Context, empty *emptypb.Emp
 		return nil, err
 	}
 	if ownerUserID == identity.UserID {
+		err = s.daemon.preparePlatformOwnerLocked(identity)
+		if err != nil {
+			return nil, err
+		}
+		err = saveOwner(identity.UserID, identity.SessionID)
+		if err != nil {
+			return nil, err
+		}
 		return &emptypb.Empty{}, nil
 	}
 	if ownerUserID != "" {
@@ -143,12 +165,22 @@ func (s *desktopService) TakeOverService(ctx context.Context, empty *emptypb.Emp
 		if err != nil {
 			return nil, err
 		}
+		if s.daemon.platform != nil {
+			err = s.daemon.platform.ReleaseOwner()
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	err = s.daemon.configureWorkingDirectoryLocked(userWorkingDirectory(identity.UserID))
 	if err != nil {
 		return nil, err
 	}
-	err = saveOwner(identity.UserID)
+	err = s.daemon.preparePlatformOwnerLocked(identity)
+	if err != nil {
+		return nil, err
+	}
+	err = saveOwner(identity.UserID, identity.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -157,13 +189,17 @@ func (s *desktopService) TakeOverService(ctx context.Context, empty *emptypb.Emp
 }
 
 func (d *Daemon) cleanFailedStartLocked(ownerUserID string, options startOptions, startError error) error {
+	var platformError error
+	if d.platform != nil {
+		platformError = d.platform.ResetPlatformOptions()
+	}
 	closeError := d.startedService.CloseService()
 	directory := userWorkingDirectory(ownerUserID)
 	crashReportError := tagUnownedReports(filepath.Join(directory, crashReportsDirectoryName), ownerUserID)
 	oomReportError := tagUnownedReports(filepath.Join(directory, oomReportsDirectoryName), ownerUserID)
 	options.WasRunning = false
 	snapshotError := saveStartOptions(ownerUserID, options)
-	return E.Errors(startError, closeError, crashReportError, oomReportError, snapshotError)
+	return E.Errors(startError, platformError, closeError, crashReportError, oomReportError, snapshotError)
 }
 
 func (s *desktopService) GetWorkingDirectory(ctx context.Context, empty *emptypb.Empty) (*WorkingDirectoryInfo, error) {
