@@ -520,6 +520,32 @@ func (c *windowsAuthenticatedConnection) peerConnectionIdentity() peerIdentity {
 	return c.identity
 }
 
+func (c *windowsAuthenticatedConnection) duplicateImpersonationToken() (windows.Token, error) {
+	var processToken windows.Token
+	err := windows.OpenProcessToken(c.parentProcess, windows.TOKEN_QUERY|windows.TOKEN_DUPLICATE, &processToken)
+	if err != nil {
+		return 0, E.Cause(err, "open application token")
+	}
+	defer processToken.Close()
+	return duplicateImpersonationToken(processToken)
+}
+
+func (d *Daemon) duplicatePeerImpersonationToken(identity peerIdentity) (windows.Token, error) {
+	d.peerAccess.Lock()
+	defer d.peerAccess.Unlock()
+	for connection, connectionIdentity := range d.peerConnections {
+		if connectionIdentity != identity {
+			continue
+		}
+		windowsConnection, loaded := connection.(*windowsAuthenticatedConnection)
+		if !loaded {
+			continue
+		}
+		return windowsConnection.duplicateImpersonationToken()
+	}
+	return 0, E.New("authenticated application connection is no longer available")
+}
+
 func (d *Daemon) registerPeerConnection(connection peerConnection) {
 	d.peerAccess.Lock()
 	defer d.peerAccess.Unlock()
