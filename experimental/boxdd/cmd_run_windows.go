@@ -68,11 +68,18 @@ func (s *windowsService) Execute(arguments []string, requests <-chan svc.ChangeR
 		serviceLogError(err)
 		return
 	}
-	statuses <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown}
+	statuses <- svc.Status{State: svc.Running, Accepts: svc.AcceptStop | svc.AcceptShutdown | svc.AcceptSessionChange}
 	runtime.GC()
 	for request := range requests {
 		if request.Cmd == svc.Interrogate {
 			statuses <- request.CurrentStatus
+			continue
+		}
+		if request.Cmd == svc.SessionChange {
+			err = d.handlePlatformSessionChange(request.EventType, uint32(request.EventData))
+			if err != nil {
+				serviceLogError(E.Cause(err, "handle session change"))
+			}
 			continue
 		}
 		if request.Cmd == svc.Stop || request.Cmd == svc.Shutdown {
