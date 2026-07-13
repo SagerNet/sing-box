@@ -28,13 +28,13 @@ func (s *desktopService) GetDaemonInfo(ctx context.Context, empty *emptypb.Empty
 		return nil, err
 	}
 	ownership := DaemonOwnership_DAEMON_OWNERSHIP_AVAILABLE
-	options, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if options.OwnerUserID == identity.UserID {
+	if ownerUserID == identity.UserID {
 		ownership = DaemonOwnership_DAEMON_OWNERSHIP_CALLER
-	} else if options.OwnerUserID != "" {
+	} else if ownerUserID != "" {
 		ownership = DaemonOwnership_DAEMON_OWNERSHIP_OTHER
 	}
 	return &DaemonInfo{
@@ -53,29 +53,39 @@ func (s *desktopService) StartService(ctx context.Context, request *StartService
 	if s.daemon.closed {
 		return nil, os.ErrClosed
 	}
-	currentOptions, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if currentOptions.OwnerUserID != "" && currentOptions.OwnerUserID != identity.UserID {
+	if ownerUserID != "" && ownerUserID != identity.UserID {
 		return nil, status.Error(codes.PermissionDenied, "the service is owned by another user")
+	}
+	if ownerUserID == "" {
+		err = saveOwner(identity.UserID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	currentOptions, err := loadStartOptions(identity.UserID)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
 	}
 	mergedOptions := currentOptions
 	mergedOptions.WasRunning = true
-	mergedOptions.OwnerUserID = identity.UserID
 	if request.Options != nil {
 		mergedOptions.OOMKillerEnabled = request.Options.OomKillerEnabled
 		mergedOptions.OOMKillerDisabled = request.Options.OomKillerDisabled
 		mergedOptions.OOMMemoryLimit = request.Options.OomMemoryLimit
 	}
-	err = s.daemon.startService(request.ConfigContent, mergedOptions)
+	err = s.daemon.startServiceLocked(identity.UserID, request.ConfigContent, mergedOptions)
 	if err != nil {
-		return nil, s.daemon.cleanFailedStartLocked(identity.UserID, err)
+		return nil, s.daemon.cleanFailedStartLocked(identity.UserID, mergedOptions, err)
 	}
-	configError := atomicfile.WriteFile(filepath.Join(workingDirectory, serviceConfigFileName), []byte(request.ConfigContent), 0o600)
-	optionsError := saveStartOptions(mergedOptions)
+	directory := userWorkingDirectory(identity.UserID)
+	configError := atomicfile.WriteFile(filepath.Join(directory, serviceConfigFileName), []byte(request.ConfigContent), 0o600)
+	optionsError := saveStartOptions(identity.UserID, mergedOptions)
 	if configError != nil || optionsError != nil {
-		return nil, s.daemon.cleanFailedStartLocked(identity.UserID, E.Errors(configError, optionsError))
+		return nil, s.daemon.cleanFailedStartLocked(identity.UserID, mergedOptions, E.Errors(configError, optionsError))
 	}
 	return &emptypb.Empty{}, nil
 }
@@ -90,17 +100,21 @@ func (s *desktopService) ClaimService(ctx context.Context, empty *emptypb.Empty)
 	if s.daemon.closed {
 		return nil, os.ErrClosed
 	}
-	options, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if options.OwnerUserID == identity.UserID {
+	if ownerUserID == identity.UserID {
 		return &emptypb.Empty{}, nil
 	}
-	if options.OwnerUserID != "" {
+	if ownerUserID != "" {
 		return nil, status.Error(codes.Aborted, "the service was claimed by another user")
 	}
-	err = s.daemon.resetRuntimeOwnerLocked(identity.UserID)
+	err = s.daemon.configureWorkingDirectoryLocked(userWorkingDirectory(identity.UserID))
+	if err != nil {
+		return nil, err
+	}
+	err = saveOwner(identity.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -117,14 +131,24 @@ func (s *desktopService) TakeOverService(ctx context.Context, empty *emptypb.Emp
 	if s.daemon.closed {
 		return nil, os.ErrClosed
 	}
-	options, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
-	if options.OwnerUserID == identity.UserID {
+	if ownerUserID == identity.UserID {
 		return &emptypb.Empty{}, nil
 	}
-	err = s.daemon.stopServiceLocked(identity.UserID)
+	if ownerUserID != "" {
+		err = s.daemon.stopServiceLocked(ownerUserID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = s.daemon.configureWorkingDirectoryLocked(userWorkingDirectory(identity.UserID))
+	if err != nil {
+		return nil, err
+	}
+	err = saveOwner(identity.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,12 +156,14 @@ func (s *desktopService) TakeOverService(ctx context.Context, empty *emptypb.Emp
 	return &emptypb.Empty{}, nil
 }
 
-func (d *Daemon) cleanFailedStartLocked(ownerUserID string, startError error) error {
+func (d *Daemon) cleanFailedStartLocked(ownerUserID string, options startOptions, startError error) error {
 	closeError := d.startedService.CloseService()
-	crashReportError := tagUnownedReports(filepath.Join(workingDirectory, crashReportsDirectoryName), ownerUserID)
-	oomReportError := tagUnownedReports(filepath.Join(workingDirectory, oomReportsDirectoryName), ownerUserID)
-	resetError := d.resetRuntimeOwnerLocked(ownerUserID)
-	return E.Errors(startError, closeError, crashReportError, oomReportError, resetError)
+	directory := userWorkingDirectory(ownerUserID)
+	crashReportError := tagUnownedReports(filepath.Join(directory, crashReportsDirectoryName), ownerUserID)
+	oomReportError := tagUnownedReports(filepath.Join(directory, oomReportsDirectoryName), ownerUserID)
+	options.WasRunning = false
+	snapshotError := saveStartOptions(ownerUserID, options)
+	return E.Errors(startError, closeError, crashReportError, oomReportError, snapshotError)
 }
 
 func (s *desktopService) GetWorkingDirectory(ctx context.Context, empty *emptypb.Empty) (*WorkingDirectoryInfo, error) {
@@ -147,19 +173,20 @@ func (s *desktopService) GetWorkingDirectory(ctx context.Context, empty *emptypb
 	}
 	s.daemon.lifecycleAccess.Lock()
 	defer s.daemon.lifecycleAccess.Unlock()
-	options, err := loadStartOptions()
+	ownerUserID, err := loadOwner()
 	if err != nil {
 		return nil, err
 	}
-	if options.OwnerUserID != identity.UserID {
+	if ownerUserID != identity.UserID {
 		return nil, status.Error(codes.PermissionDenied, "the service is owned by another user")
 	}
-	size, err := directorySize(workingDirectory)
+	directory := userWorkingDirectory(identity.UserID)
+	size, err := directorySize(directory)
 	if err != nil {
 		return nil, err
 	}
 	return &WorkingDirectoryInfo{
-		Path: workingDirectory,
+		Path: directory,
 		Size: size,
 	}, nil
 }
@@ -177,22 +204,24 @@ func (s *desktopService) DestroyWorkingDirectory(ctx context.Context, empty *emp
 	if s.daemon.startedService.Instance() != nil {
 		return nil, status.Error(codes.FailedPrecondition, "the service must be stopped before destroying the working directory")
 	}
-	options, err := loadStartOptions()
-	if err != nil && !os.IsNotExist(err) {
+	ownerUserID, err := loadOwner()
+	if err != nil {
 		return nil, err
 	}
-	if options.OwnerUserID != "" && options.OwnerUserID != identity.UserID {
+	if ownerUserID != identity.UserID {
 		return nil, status.Error(codes.PermissionDenied, "the service is owned by another user")
 	}
-	err = s.daemon.resetRuntimeOwnerLocked(identity.UserID)
+	directory := userWorkingDirectory(identity.UserID)
+	err = s.daemon.configureWorkingDirectoryLocked(workingDirectory)
 	if err != nil {
 		return nil, err
 	}
-	err = deleteReportsForUser(filepath.Join(workingDirectory, crashReportsDirectoryName), identity.UserID)
+	err = os.RemoveAll(directory)
 	if err != nil {
-		return nil, err
+		restoreError := s.daemon.configureWorkingDirectoryLocked(directory)
+		return nil, E.Errors(err, restoreError)
 	}
-	err = deleteReportsForUser(filepath.Join(workingDirectory, oomReportsDirectoryName), identity.UserID)
+	err = s.daemon.configureWorkingDirectoryLocked(directory)
 	if err != nil {
 		return nil, err
 	}
