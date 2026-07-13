@@ -97,7 +97,7 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 			dialer.Control = control.Append(dialer.Control, bindFunc)
 			listener.Control = control.Append(listener.Control, bindFunc)
 		} else if networkManager.AutoDetectInterface() && !disableDefaultBind {
-			if platformInterface != nil {
+			if platformInterface != nil && platformInterface.UsePlatformNetworkInterfaces() {
 				networkStrategy = (*C.NetworkStrategy)(options.NetworkStrategy)
 				networkType = common.Map(options.NetworkType, option.InterfaceType.Build)
 				fallbackNetworkType = common.Map(options.FallbackNetworkType, option.InterfaceType.Build)
