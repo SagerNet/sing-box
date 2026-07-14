@@ -3,74 +3,54 @@
 package windivert
 
 import (
-	"bytes"
 	"errors"
-	"io"
-	"os"
-	"path/filepath"
 	"runtime"
-	"strconv"
 	"time"
 
+	"github.com/sagernet/sing-box/internal/winmutex"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"golang.org/x/sys/windows"
 )
 
 const (
-	driverServiceName = "WinDivert"
-	driverDeviceName  = `\\.\WinDivert`
+	driverServiceName          = "WinDivert"
+	driverDeviceName           = `\\.\WinDivert`
+	driverInstallMutexName     = "WinDivertDriverInstallMutex"
+	driverInstallMutexTimeout  = 90 * time.Second
+	driverReadyTimeout         = 60 * time.Second
+	driverStateRefreshInterval = 50 * time.Millisecond
 )
 
-// driverDevName is ASCII-safe and must be available before installDriver
-// so Open can try CreateFile first and only install on FILE_NOT_FOUND.
 var driverDevName, _ = windows.UTF16PtrFromString(driverDeviceName)
 
-// acquireDevice opens the kernel device, installing the driver when it is
-// absent. The driver is marked for deletion at install time (see
-// installDriver), so it unloads once its last handle closes; the next Open
-// must reinstall it. When that Open races the still-in-progress unload,
-// CreateFile does not report a clean ERROR_FILE_NOT_FOUND — the
-// \\.\WinDivert symlink still resolves while the device object behind it is
-// torn down, so the open fails with ERROR_NO_SUCH_DEVICE. Treat every
-// "device not currently openable" code as a reinstall trigger and retry a
-// bounded number of times so the teardown of a prior instance settles.
 func acquireDevice() (windows.Handle, error) {
-	const maxRetries = 20
-	for retry := 0; ; retry++ {
-		device, err := openDevice()
-		if err == nil {
-			return device, nil
-		}
-		fatal := driverOpenFatal(err)
-		if fatal != nil {
-			return 0, fatal
-		}
-		err = installDriver()
-		if err != nil {
-			return 0, err
-		}
-		device, err = openDevice()
-		if err == nil {
-			return device, nil
-		}
-		fatal = driverOpenFatal(err)
-		if fatal != nil {
-			return 0, fatal
-		}
-		// Still absent right after a successful install: a prior instance's
-		// lingering device object shadows the freshly loaded one. Back off
-		// and retry the whole install/open.
-		if retry >= maxRetries {
-			return 0, E.Cause(err, "windivert: open device")
-		}
-		time.Sleep(50 * time.Millisecond)
+	device, err := openDevice()
+	if err == nil {
+		return device, nil
 	}
+	fatalErr := driverOpenFatal(err)
+	if fatalErr != nil {
+		return 0, fatalErr
+	}
+	if runtime.GOARCH == "386" {
+		var isWow64 bool
+		err = windows.IsWow64Process(windows.CurrentProcess(), &isWow64)
+		if err == nil && isWow64 {
+			return 0, E.New("windivert: 386 build detected running under WOW64 on a 64-bit kernel; use the amd64 build")
+		}
+	}
+	device, err = winmutex.WithLock(driverInstallMutexName, driverInstallMutexTimeout, installAndOpenDevice)
+	if err != nil && device != 0 {
+		closeErr := windows.CloseHandle(device)
+		if closeErr != nil {
+			closeErr = E.Cause(closeErr, "windivert: close device after install lock failure")
+		}
+		return 0, E.Errors(err, closeErr)
+	}
+	return device, err
 }
 
-// driverOpenFatal maps an openDevice failure to the error the caller should
-// surface, or nil when the failure means the driver is absent and a
-// (re)install should be attempted.
 func driverOpenFatal(err error) error {
 	if errors.Is(err, windows.ERROR_ACCESS_DENIED) {
 		return E.Cause(err, "windivert: open device (administrator required)")
@@ -83,68 +63,62 @@ func driverOpenFatal(err error) error {
 	return E.Cause(err, "windivert: open device")
 }
 
-// Requires SeLoadDriverPrivilege (Administrator). Running the 386 build
-// under WOW64 on a 64-bit kernel is rejected — use the amd64 build.
-func installDriver() error {
-	if runtime.GOARCH == "386" {
-		var isWow64 bool
-		err := windows.IsWow64Process(windows.CurrentProcess(), &isWow64)
-		if err == nil && isWow64 {
-			return E.New("windivert: 386 build detected running under WOW64 on a 64-bit kernel; use the amd64 build")
-		}
+func installAndOpenDevice() (windows.Handle, error) {
+	device, err := openDevice()
+	if err == nil {
+		return device, nil
 	}
-
-	// Serialize driver install across concurrent processes. CreateMutex
-	// hands back a valid handle together with ERROR_ALREADY_EXISTS when
-	// another install already created the mutex.
-	mutexName, _ := windows.UTF16PtrFromString("WinDivertDriverInstallMutex")
-	mutex, err := windows.CreateMutex(nil, false, mutexName)
-	if err != nil && !errors.Is(err, windows.ERROR_ALREADY_EXISTS) {
-		return E.Cause(err, "windivert: create install mutex")
+	fatalErr := driverOpenFatal(err)
+	if fatalErr != nil {
+		return 0, fatalErr
 	}
-	defer windows.CloseHandle(mutex)
-	_, err = windows.WaitForSingleObject(mutex, windows.INFINITE)
-	if err != nil {
-		return E.Cause(err, "windivert: wait install mutex")
-	}
-	defer windows.ReleaseMutex(mutex)
 
 	sysPath, sysFile, err := extractVerified()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer sysFile.Close()
 	sysPathW, err := windows.UTF16PtrFromString(sysPath)
 	if err != nil {
-		return E.Cause(err, "windivert: utf16 driver path")
+		return 0, E.Cause(err, "windivert: utf16 driver path")
 	}
 
 	manager, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_ALL_ACCESS)
 	if err != nil {
-		return E.Cause(err, "windivert: open SCM")
+		return 0, E.Cause(err, "windivert: open SCM")
 	}
 	defer windows.CloseServiceHandle(manager)
 
 	serviceNameW, _ := windows.UTF16PtrFromString(driverServiceName)
-	// A stopped service record marked for deletion lingers while any handle
-	// keeps it alive — including the one OpenService just returned to us.
-	// StartService on it reports ERROR_SERVICE_DISABLED, and
-	// ChangeServiceConfig cannot un-doom it (ERROR_SERVICE_MARKED_FOR_DELETE).
-	// The only way out is to close every handle so SCM drops the record,
-	// then create it anew.
-	for attempt := 0; ; attempt++ {
-		err = tryInstallService(manager, serviceNameW, sysPathW)
+	deadline := time.Now().Add(driverReadyTimeout)
+	for {
+		serviceErr := tryInstallService(manager, serviceNameW, sysPathW)
+		if serviceErr != nil && !driverServiceTransient(serviceErr) {
+			return 0, serviceErr
+		}
+		device, err = openDevice()
 		if err == nil {
-			return nil
+			return device, nil
 		}
-		retryable := errors.Is(err, windows.ERROR_SERVICE_MARKED_FOR_DELETE) ||
-			errors.Is(err, windows.ERROR_SERVICE_DISABLED) ||
-			errors.Is(err, windows.ERROR_OBJECT_ALREADY_EXISTS)
-		if !retryable || attempt >= 20 {
-			return err
+		fatalErr = driverOpenFatal(err)
+		if fatalErr != nil {
+			return 0, fatalErr
 		}
-		time.Sleep(50 * time.Millisecond)
+		if time.Now().After(deadline) {
+			openErr := E.Cause(err, "windivert: open device after driver readiness timeout")
+			if serviceErr != nil {
+				return 0, E.Errors(serviceErr, openErr)
+			}
+			return 0, openErr
+		}
+		time.Sleep(driverStateRefreshInterval)
 	}
+}
+
+func driverServiceTransient(err error) bool {
+	return errors.Is(err, windows.ERROR_SERVICE_MARKED_FOR_DELETE) ||
+		errors.Is(err, windows.ERROR_SERVICE_DISABLED) ||
+		errors.Is(err, windows.ERROR_OBJECT_ALREADY_EXISTS)
 }
 
 func tryInstallService(manager windows.Handle, serviceNameW, sysPathW *uint16) error {
@@ -213,96 +187,4 @@ func wrapDriverInstallError(err error) error {
 		return E.Cause(err, "windivert: installing the kernel driver requires Administrator privileges")
 	}
 	return E.Cause(err, "windivert: create service")
-}
-
-// The cache directory is user-writable, so the .sys found there is
-// untrusted: anything (e.g. a validly signed but vulnerable foreign driver)
-// could have been planted before we run elevated. The bytes are therefore
-// verified against the embedded asset through the returned handle, whose
-// share mode denies write, delete, and rename until the caller closes it —
-// the kernel maps exactly what was verified. MmLoadSystemImage opens the
-// image with read/execute desired access, which the FILE_SHARE_READ grant
-// admits, so holding the handle across StartService does not fail the load.
-func extractVerified() (string, *os.File, error) {
-	if len(sysBytes) == 0 {
-		return "", nil, E.New("windivert: unsupported architecture ", runtime.GOARCH)
-	}
-
-	base, err := os.UserCacheDir()
-	if err != nil {
-		return "", nil, E.Cause(err, "windivert: locate user cache dir")
-	}
-	dir := filepath.Join(base, "sing-box", "windivert", "v"+AssetVersion)
-	err = os.MkdirAll(dir, 0o755)
-	if err != nil {
-		return "", nil, E.Cause(err, "windivert: mkdir ", dir)
-	}
-	target := filepath.Join(dir, driverSysName())
-
-	for attempt := 0; ; attempt++ {
-		sysFile, err := openDriverFile(target)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return "", nil, E.Cause(err, "windivert: open ", target)
-			}
-			err = writeDriverFile(target)
-			if err != nil {
-				return "", nil, err
-			}
-			sysFile, err = openDriverFile(target)
-			if err != nil {
-				return "", nil, E.Cause(err, "windivert: open ", target)
-			}
-		}
-		content, err := io.ReadAll(sysFile)
-		if err != nil {
-			sysFile.Close()
-			return "", nil, E.Cause(err, "windivert: read ", target)
-		}
-		if bytes.Equal(content, sysBytes) {
-			return target, sysFile, nil
-		}
-		sysFile.Close()
-		if attempt > 0 {
-			return "", nil, E.New("windivert: driver file ", target, " is being concurrently modified")
-		}
-		err = writeDriverFile(target)
-		if err != nil {
-			return "", nil, err
-		}
-	}
-}
-
-func openDriverFile(path string) (*os.File, error) {
-	pathW, err := windows.UTF16PtrFromString(path)
-	if err != nil {
-		return nil, err
-	}
-	handle, err := windows.CreateFile(
-		pathW,
-		windows.GENERIC_READ,
-		windows.FILE_SHARE_READ,
-		nil,
-		windows.OPEN_EXISTING,
-		windows.FILE_ATTRIBUTE_NORMAL,
-		0,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return os.NewFile(uintptr(handle), path), nil
-}
-
-func writeDriverFile(target string) error {
-	tmp := target + ".tmp-" + strconv.Itoa(os.Getpid())
-	err := os.WriteFile(tmp, sysBytes, 0o644)
-	if err != nil {
-		return E.Cause(err, "windivert: write ", filepath.Base(target))
-	}
-	err = os.Rename(tmp, target)
-	if err != nil {
-		os.Remove(tmp)
-		return E.Cause(err, "windivert: rename ", filepath.Base(target))
-	}
-	return nil
 }
