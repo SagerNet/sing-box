@@ -85,7 +85,7 @@ func (s *windowsService) Execute(arguments []string, requests <-chan svc.ChangeR
 		if request.Cmd == svc.Stop || request.Cmd == svc.Shutdown {
 			break
 		}
-		serviceLogError(E.New("unexpected service command: ", request.Cmd))
+		serviceLogError(E.New("unexpected service command: ", uint32(request.Cmd)))
 	}
 	statuses <- svc.Status{State: svc.StopPending}
 	watchdog := time.AfterFunc(3*time.Second, func() {
