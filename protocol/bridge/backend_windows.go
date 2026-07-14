@@ -156,16 +156,6 @@ func (b *backendWindows) start() error {
 	b.closed = make(chan struct{})
 
 	state := b.currentEgressState()
-	if !(b.inet4Port.IsValid() && state.inet4.IsValid()) {
-		b.inet4Port = netip.Addr{}
-	}
-	if !(b.inet6Port.IsValid() && state.inet6.IsValid()) {
-		b.inet6Port = netip.Addr{}
-		b.logger.Debug("bridge IPv6 egress unavailable, disabling IPv6 forwarding")
-	}
-	if !b.inet4Port.IsValid() && !b.inet6Port.IsValid() {
-		return E.New("bridge: no usable egress address; requires an interface with a routable address and Administrator")
-	}
 	b.egress.Store(state)
 
 	err := b.acquireReservations()
@@ -189,6 +179,11 @@ func (b *backendWindows) start() error {
 	}
 
 	b.registerMonitors(b.syncEgress)
+	b.syncEgress()
+	state = b.egress.Load()
+	if !state.inet4.IsValid() && !state.inet6.IsValid() {
+		b.logger.Debug("bridge egress unavailable, dropping forwarded traffic")
+	}
 	b.logger.Info("bridge started (WinDivert, egress ", b.egressLabel(), ")")
 	return nil
 }
@@ -201,22 +196,14 @@ func (b *backendWindows) egressLabel() string {
 }
 
 func (b *backendWindows) acquireReservations() error {
-	family := windows.AF_INET
-	if !b.inet4Port.IsValid() {
-		family = windows.AF_INET6
-	}
-	reservation, err := acquirePortReservation(family, windows.SOCK_STREAM, windows.IPPROTO_TCP, bridgeReservedPortCount)
+	reservation, err := acquirePortReservation(windows.AF_INET, windows.SOCK_STREAM, windows.IPPROTO_TCP, bridgeReservedPortCount)
 	if err != nil {
 		return E.Cause(err, "bridge: reserve ports")
 	}
 	b.reservation = reservation
 	b.reservedStart = reservation.startPort
-	if b.inet4Port.IsValid() {
-		b.icmp4 = newICMPTable(bridgeICMPFlowTimeout)
-	}
-	if b.inet6Port.IsValid() {
-		b.icmp6 = newICMPTable(bridgeICMPFlowTimeout)
-	}
+	b.icmp4 = newICMPTable(bridgeICMPFlowTimeout)
+	b.icmp6 = newICMPTable(bridgeICMPFlowTimeout)
 	return nil
 }
 
@@ -225,25 +212,31 @@ func (b *backendWindows) PortSelectorRange() (uint16, uint16) {
 }
 
 func (b *backendWindows) rebuildDivertersLocked(state *egressState) error {
-	for _, existing := range b.diverters {
-		existing.handle.Close()
-		<-existing.done
-	}
-	b.diverters = nil
+	b.closeDivertersLocked()
 
 	if b.inet4Port.IsValid() && state.inet4.IsValid() {
 		err := b.openFamilyDiverters(state.divertAddresses(false), false)
 		if err != nil {
+			b.closeDivertersLocked()
 			return err
 		}
 	}
 	if b.inet6Port.IsValid() && state.inet6.IsValid() {
 		err := b.openFamilyDiverters(state.divertAddresses(true), true)
 		if err != nil {
+			b.closeDivertersLocked()
 			return err
 		}
 	}
 	return nil
+}
+
+func (b *backendWindows) closeDivertersLocked() {
+	for _, existing := range b.diverters {
+		existing.handle.Close()
+		<-existing.done
+	}
+	b.diverters = nil
 }
 
 func (b *backendWindows) openFamilyDiverters(addresses []netip.Addr, isV6 bool) error {
@@ -724,6 +717,11 @@ func (b *backendWindows) currentEgressState() *egressState {
 	if finder == nil {
 		return state
 	}
+	err := finder.Update()
+	if err != nil {
+		b.logger.Debug(E.Cause(err, "bridge update interfaces"))
+		return state
+	}
 	egressInterface, err := finder.ByName(egressName)
 	if err != nil {
 		return state
@@ -810,11 +808,7 @@ func (b *backendWindows) Close() error {
 			b.unregister()
 		}
 		b.egressAccess.Lock()
-		for _, d := range b.diverters {
-			d.handle.Close()
-			<-d.done
-		}
-		b.diverters = nil
+		b.closeDivertersLocked()
 		b.egressAccess.Unlock()
 		if b.injectHandle != nil {
 			b.injectHandle.Close()
