@@ -5,15 +5,30 @@ package windivert
 import (
 	"bytes"
 	"errors"
+	"log"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/internal/winmutex"
+	E "github.com/sagernet/sing/common/exceptions"
+
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/windows"
 )
+
+func TestMain(m *testing.M) {
+	exitCode, err := winmutex.WithLock("SingBoxWinDivertIntegrationTests", 3*time.Minute, func() (int, error) {
+		return m.Run(), nil
+	})
+	if err != nil {
+		log.Print(E.Cause(err, "run in exclusive WinDivert integration test environment"))
+		os.Exit(1)
+	}
+	os.Exit(exitCode)
+}
 
 func openHandle(t *testing.T, filter *Filter, flags Flag) *Handle {
 	t.Helper()
@@ -183,15 +198,19 @@ func TestIntegrationDriverFileLockedWhileHeld(t *testing.T) {
 // Two concurrent Open calls must both succeed: the first wins the driver
 // install race, the second reuses the already-running service.
 func TestIntegrationConcurrentOpen(t *testing.T) {
+	stopDriver(t)
+	start := make(chan struct{})
 	errCh := make(chan error, 2)
 	handles := make(chan *Handle, 2)
 	for range 2 {
 		go func() {
+			<-start
 			h, err := Open(nil, LayerNetwork, 0, FlagSendOnly)
 			handles <- h
 			errCh <- err
 		}()
 	}
+	close(start)
 	for range 2 {
 		err := <-errCh
 		h := <-handles
