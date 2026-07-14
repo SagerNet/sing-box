@@ -43,6 +43,14 @@ func (s *desktopService) GetDaemonInfo(ctx context.Context, empty *emptypb.Empty
 	}, nil
 }
 
+func (s *desktopService) InstallUpdate(ctx context.Context, request *InstallUpdateRequest) (*InstallUpdateResponse, error) {
+	identity, err := peerIdentityFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.daemon.installUpdate(identity, request.InstallerPath)
+}
+
 func (s *desktopService) StartService(ctx context.Context, request *StartServiceRequest) (*emptypb.Empty, error) {
 	identity, err := peerIdentityFromContext(ctx)
 	if err != nil {
