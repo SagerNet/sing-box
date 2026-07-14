@@ -60,6 +60,7 @@ func platformServerOptions(daemon *Daemon) ([]grpc.ServerOption, error) {
 	if err != nil {
 		return nil, err
 	}
+	daemon.platform.(*windowsPlatformInterface).daemonSigner = transportCredentials.daemonSigner
 	return []grpc.ServerOption{grpc.Creds(transportCredentials)}, nil
 }
 
