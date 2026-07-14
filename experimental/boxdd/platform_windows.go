@@ -28,6 +28,9 @@ var regDisablePredefinedCacheEx = windows.NewLazySystemDLL("advapi32.dll").NewPr
 type windowsPlatformInterface struct {
 	daemon             *Daemon
 	access             sync.Mutex
+	updateAccess       sync.Mutex
+	updateInProgress   bool
+	daemonSigner       []byte
 	ownerUserID        string
 	sessionID          uint32
 	token              windows.Token
