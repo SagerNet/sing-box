@@ -271,7 +271,7 @@ func stopServiceAndWait(service *mgr.Service) error {
 }
 
 func waitServiceState(service *mgr.Service, state svc.State) error {
-	timeout := time.Now().Add(10 * time.Second)
+	timeout := time.Now().Add(30 * time.Second)
 	var currentStatus svc.Status
 	for time.Now().Before(timeout) {
 		status, err := service.Query()
@@ -291,8 +291,8 @@ func waitServiceState(service *mgr.Service, state svc.State) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 	return E.New(
-		"timeout waiting for service state ", state,
-		", current state ", currentStatus.State,
+		"timeout waiting for service state ", uint32(state),
+		", current state ", uint32(currentStatus.State),
 		", process ID ", currentStatus.ProcessId,
 		", Windows exit code ", currentStatus.Win32ExitCode,
 		", service exit code ", currentStatus.ServiceSpecificExitCode,
