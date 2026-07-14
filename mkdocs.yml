@@ -62,6 +62,9 @@ nav:
       - Apple platforms:
           - clients/apple/index.md
           - Features: clients/apple/features.md
+      - Desktop:
+          - clients/desktop/index.md
+          - Features: clients/desktop/features.md
       - General: clients/general.md
       - Privacy policy: clients/privacy.md
   - Manual:
