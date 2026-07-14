@@ -4,3 +4,6 @@
 [submodule "clients/android"]
 	path = clients/android
 	url = https://github.com/SagerNet/sing-box-for-android.git
+[submodule "clients/desktop"]
+	path = clients/desktop
+	url = https://github.com/SagerNet/sing-box-for-desktop.git
