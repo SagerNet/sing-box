@@ -679,14 +679,11 @@ func (s *StartedService) SelectOutbound(ctx context.Context, request *SelectOutb
 
 func (s *StartedService) SetGroupExpand(ctx context.Context, request *SetGroupExpandRequest) (*emptypb.Empty, error) {
 	s.serviceAccess.RLock()
-	switch s.serviceStatus.Status {
-	case ServiceStatus_STARTING, ServiceStatus_STARTED:
-	default:
-		s.serviceAccess.RUnlock()
+	defer s.serviceAccess.RUnlock()
+	if s.serviceStatus.Status != ServiceStatus_STARTED {
 		return nil, os.ErrInvalid
 	}
 	boxService := s.instance
-	s.serviceAccess.RUnlock()
 	if boxService.cacheFile != nil {
 		err := boxService.cacheFile.StoreGroupExpand(request.GroupTag, request.IsExpand)
 		if err != nil {
