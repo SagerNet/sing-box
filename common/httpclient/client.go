@@ -35,11 +35,11 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 	var cheapRebuild bool
 	switch options.Engine {
 	case C.TLSEngineApple:
-		inner, transportErr := newAppleTransport(ctx, logger, rawDialer, options)
-		if transportErr != nil {
-			return nil, transportErr
+		err = validateAppleTransport(ctx, options)
+		if err != nil {
+			return nil, err
 		}
-		managedTransport := &ManagedTransport{
+		return &ManagedTransport{
 			dialer:  rawDialer,
 			headers: headers,
 			host:    host,
@@ -47,9 +47,7 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 			factory: func() (innerTransport, error) {
 				return newAppleTransport(ctx, logger, rawDialer, options)
 			},
-		}
-		managedTransport.epoch.Store(&transportEpoch{transport: inner})
-		return managedTransport, nil
+		}, nil
 	case "", C.TLSEngineGo:
 		cheapRebuild = true
 	default:

@@ -35,6 +35,7 @@ type Outbound struct {
 	outbound.Adapter
 	ctx         context.Context
 	logger      logger.ContextLogger
+	dialer      N.Dialer
 	proxy       *proxybridge.Bridge
 	startConf   *tor.StartConf
 	options     map[string]string
@@ -51,10 +52,6 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	startConf.TempDataDirBase = filemanager.TempPath(ctx)
 	if startConf.DataDir != "" {
-		err := filemanager.MkdirAll(ctx, startConf.DataDir, 0o755)
-		if err != nil {
-			return nil, err
-		}
 		dataDirAbs, _ := filepath.Abs(startConf.DataDir)
 		geoIPPath := filepath.Join(dataDirAbs, "geoip")
 		geoIPInfo, err := filemanager.Stat(ctx, geoIPPath)
@@ -68,14 +65,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		}
 		torrcFile := filepath.Join(startConf.DataDir, "torrc")
 		torrcInfo, err := filemanager.Stat(ctx, torrcFile)
-		if os.IsNotExist(err) {
-			err = filemanager.WriteFile(ctx, torrcFile, []byte(""), 0o600)
-			if err != nil {
-				return nil, err
-			}
-		} else if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return nil, err
-		} else if torrcInfo.IsDir() {
+		} else if err == nil && torrcInfo.IsDir() {
 			return nil, E.New("Tor configuration path is a directory: ", torrcFile)
 		}
 		startConf.TorrcFile = torrcFile
@@ -94,26 +86,54 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
-	proxy, err := proxybridge.New(ctx, logger, "proxy", outboundDialer)
-	if err != nil {
-		return nil, err
-	}
 	return &Outbound{
 		Adapter:   outbound.NewAdapterWithDialerOptions(C.TypeTor, tag, []string{N.NetworkTCP}, options.DialerOptions),
 		ctx:       ctx,
 		logger:    logger,
-		proxy:     proxy,
+		dialer:    outboundDialer,
 		startConf: &startConf,
 		options:   options.Options,
 	}, nil
 }
 
-func (t *Outbound) Start() error {
-	err := t.start()
-	if err != nil {
-		t.Close()
+func (t *Outbound) Start(stage adapter.StartStage) error {
+	switch stage {
+	case adapter.StartStateInitialize:
+		if t.startConf.DataDir == "" {
+			return nil
+		}
+		err := filemanager.MkdirAll(t.ctx, t.startConf.DataDir, 0o755)
+		if err != nil {
+			return err
+		}
+		torrcInfo, err := filemanager.Stat(t.ctx, t.startConf.TorrcFile)
+		if os.IsNotExist(err) {
+			err = filemanager.WriteFile(t.ctx, t.startConf.TorrcFile, []byte(""), 0o600)
+			if err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		} else if torrcInfo.IsDir() {
+			return E.New("Tor configuration path is a directory: ", t.startConf.TorrcFile)
+		}
+	case adapter.StartStateStart:
+		proxy, err := proxybridge.New(t.ctx, t.logger, "proxy", t.dialer)
+		if err != nil {
+			return err
+		}
+		t.proxy = proxy
+		err = proxy.Start()
+		if err != nil {
+			return err
+		}
+		err = t.start()
+		if err != nil {
+			t.Close()
+			return err
+		}
 	}
-	return err
+	return nil
 }
 
 var torLogEvents = []control.EventCode{

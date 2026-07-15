@@ -48,11 +48,13 @@ var (
 
 type Service struct {
 	certificate.Adapter
-	ctx        context.Context
-	config     *certmagic.Config
-	cache      *certmagic.Cache
-	domain     []string
-	nextProtos []string
+	ctx           context.Context
+	config        *certmagic.Config
+	cache         *certmagic.Cache
+	zapLogger     *zap.Logger
+	dataDirectory string
+	domain        []string
+	nextProtos    []string
 }
 
 func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag string, options option.ACMECertificateProviderOptions) (adapter.CertificateProviderService, error) {
@@ -78,13 +80,12 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		return nil, E.New("email is required to use the ZeroSSL ACME endpoint without external_account or account_key")
 	}
 
-	var storage certmagic.Storage
+	var (
+		storage       certmagic.Storage
+		dataDirectory string
+	)
 	if options.DataDirectory != "" {
-		dataDirectory := filemanager.BasePath(ctx, os.ExpandEnv(options.DataDirectory))
-		err := filemanager.MkdirAll(ctx, dataDirectory, 0o700)
-		if err != nil {
-			return nil, E.Cause(err, "create ACME data directory")
-		}
+		dataDirectory = filemanager.BasePath(ctx, os.ExpandEnv(options.DataDirectory))
 		storage = &certmagic.FileStorage{Path: dataDirectory}
 	} else {
 		storage = certmagic.Default.Storage
@@ -169,33 +170,45 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	}
 	reflect.NewAt(httpClientField.Type(), unsafe.Pointer(httpClientField.UnsafeAddr())).Elem().Set(reflect.ValueOf(acmeHTTPClient))
 	config.Issuers = []certmagic.Issuer{certmagicIssuer}
-	cache := certmagic.NewCache(certmagic.CacheOptions{
-		GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
-			return config, nil
-		},
-		Logger: zapLogger,
-	})
-	config = certmagic.New(cache, *config)
 
 	var nextProtos []string
 	if !acmeIssuer.DisableTLSALPNChallenge && acmeIssuer.DNS01Solver == nil {
 		nextProtos = []string{C.ACMETLS1Protocol}
 	}
 	return &Service{
-		Adapter:    certificate.NewAdapter(C.TypeACME, tag),
-		ctx:        ctx,
-		config:     config,
-		cache:      cache,
-		domain:     options.Domain,
-		nextProtos: nextProtos,
+		Adapter:       certificate.NewAdapter(C.TypeACME, tag),
+		ctx:           ctx,
+		config:        config,
+		zapLogger:     zapLogger,
+		dataDirectory: dataDirectory,
+		domain:        options.Domain,
+		nextProtos:    nextProtos,
 	}, nil
 }
 
 func (s *Service) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
-		return nil
+	switch stage {
+	case adapter.StartStateInitialize:
+		if s.dataDirectory != "" {
+			err := filemanager.MkdirAll(s.ctx, s.dataDirectory, 0o700)
+			if err != nil {
+				return E.Cause(err, "create ACME data directory")
+			}
+		}
+		config := s.config
+		cache := certmagic.NewCache(certmagic.CacheOptions{
+			GetConfigForCert: func(certificate certmagic.Certificate) (*certmagic.Config, error) {
+				return config, nil
+			},
+			Logger: s.zapLogger,
+		})
+		config = certmagic.New(cache, *config)
+		s.config = config
+		s.cache = cache
+	case adapter.StartStateStart:
+		return s.config.ManageAsync(s.ctx, s.domain)
 	}
-	return s.config.ManageAsync(s.ctx, s.domain)
+	return nil
 }
 
 func (s *Service) Close() error {
