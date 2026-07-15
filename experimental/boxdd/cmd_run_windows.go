@@ -2,9 +2,7 @@ package main
 
 import (
 	"os"
-	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
@@ -29,10 +27,12 @@ func preparePlatformWorkingDirectory() error {
 	if listenAddress != "" {
 		return os.MkdirAll(workingDirectory, 0o700)
 	}
-	if !strings.EqualFold(filepath.Clean(workingDirectory), filepath.Clean(defaultServiceWorkingDirectory)) {
-		return E.New("the Windows service working directory must be ", defaultServiceWorkingDirectory)
+	serviceWorkingDirectory, err := resolveWindowsServiceWorkingDirectory(workingDirectory)
+	if err != nil {
+		return err
 	}
-	return ensureWindowsWorkingDirectory(workingDirectory)
+	workingDirectory = serviceWorkingDirectory
+	return ensureWindowsWorkingDirectory(serviceWorkingDirectory)
 }
 
 type windowsService struct{}
