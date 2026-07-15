@@ -151,10 +151,6 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	stateDirectory = filemanager.BasePath(ctx, os.ExpandEnv(stateDirectory))
 	stateDirectory, _ = filepath.Abs(stateDirectory)
-	mkdirErr := filemanager.MkdirAll(ctx, stateDirectory, 0o700)
-	if mkdirErr != nil {
-		return nil, E.Cause(mkdirErr, "create state directory")
-	}
 	if options.SSHServer != nil && options.SSHServer.Enabled {
 		err := adapter.CheckSecurityFeature(ctx, "Tailscale `ssh_server`")
 		if err != nil {
@@ -259,6 +255,10 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 func (t *Endpoint) Start(stage adapter.StartStage) error {
 	switch stage {
 	case adapter.StartStateInitialize:
+		mkdirErr := filemanager.MkdirAll(t.ctx, t.server.Dir, 0o700)
+		if mkdirErr != nil {
+			return E.Cause(mkdirErr, "create state directory")
+		}
 		t.server.PeerDNSQueryHandler = (*peerDNSQueryHandler)(t)
 	case adapter.StartStateStart:
 		return t.start()

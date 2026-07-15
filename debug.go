@@ -7,8 +7,14 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func applyDebugOptions(options option.DebugOptions) error {
-	applyDebugListenOption(options)
+func checkDebugOptions(options option.DebugOptions) error {
+	if options.OOMKiller != nil {
+		return E.New("legacy oom_killer in debug options is removed, use oom-killer service instead")
+	}
+	return nil
+}
+
+func applyDebugOptions(options option.DebugOptions) {
 	if options.GCPercent != nil {
 		debug.SetGCPercent(*options.GCPercent)
 	}
@@ -27,8 +33,4 @@ func applyDebugOptions(options option.DebugOptions) error {
 	if options.MemoryLimit.Value() != 0 {
 		debug.SetMemoryLimit(int64(float64(options.MemoryLimit.Value()) / 1.5))
 	}
-	if options.OOMKiller != nil {
-		return E.New("legacy oom_killer in debug options is removed, use oom-killer service instead")
-	}
-	return nil
 }
