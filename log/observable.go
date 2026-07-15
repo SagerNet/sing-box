@@ -56,9 +56,6 @@ func NewDefaultFactory(
 	/*if platformWriter != nil {
 		factory.platformFormatter.DisableColors = platformWriter.DisableColors()
 	}*/
-	if needObservable {
-		factory.observer = observable.NewObserver[Entry](factory.subscriber, 64)
-	}
 	return factory
 }
 
@@ -70,6 +67,9 @@ func (f *defaultFactory) Start() error {
 		}
 		f.writer = logFile
 		f.file = logFile
+	}
+	if f.needObservable {
+		f.observer = observable.NewObserver[Entry](f.subscriber, 64)
 	}
 	return nil
 }
