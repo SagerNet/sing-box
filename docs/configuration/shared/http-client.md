@@ -14,6 +14,7 @@ When object:
 
 ```json
 {
+  "tag": "",
   "engine": "",
   "version": 0,
   "disable_version_fallback": false,
@@ -28,6 +29,10 @@ When object:
 ```
 
 ### Fields
+
+#### tag
+
+tag to use.
 
 #### engine
 
