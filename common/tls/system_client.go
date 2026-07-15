@@ -3,7 +3,6 @@ package tls
 import (
 	"context"
 	"crypto/x509"
-	"os"
 	"strings"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 type SystemTLSValidated struct {
@@ -89,7 +89,7 @@ func resolveSystemAnchors(ctx context.Context, options option.OutboundTLSOptions
 		return []byte(strings.Join(options.Certificate, "\n")), true, nil, nil
 	}
 	if options.CertificatePath != "" {
-		content, err := os.ReadFile(options.CertificatePath)
+		content, err := filemanager.ReadFile(ctx, options.CertificatePath)
 		if err != nil {
 			return nil, false, nil, E.Cause(err, "read certificate")
 		}
