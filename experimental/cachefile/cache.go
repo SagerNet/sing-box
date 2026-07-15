@@ -163,11 +163,13 @@ func (c *CacheFile) startCacheCleanup() {
 
 func (c *CacheFile) start() error {
 	const fileMode = 0o666
+	cacheFile, err := filemanager.OpenFile(c.ctx, c.path, os.O_RDWR|os.O_CREATE, fileMode)
+	if err != nil {
+		return err
+	}
+	cacheFile.Close()
 	options := bbolt.Options{Timeout: time.Second}
-	var (
-		db  *bbolt.DB
-		err error
-	)
+	var db *bbolt.DB
 	for range 10 {
 		db, err = bbolt.Open(c.path, fileMode, &options)
 		if err == nil {
@@ -177,7 +179,7 @@ func (c *CacheFile) start() error {
 			continue
 		}
 		if E.IsMulti(err, bboltErrors.ErrInvalid, bboltErrors.ErrChecksum, bboltErrors.ErrVersionMismatch) {
-			rmErr := os.Remove(c.path)
+			rmErr := filemanager.Remove(c.ctx, c.path)
 			if rmErr != nil {
 				return err
 			}
@@ -260,7 +262,7 @@ func (c *CacheFile) resetDB() {
 	c.resetAccess.Lock()
 	defer c.resetAccess.Unlock()
 	c.DB.Close()
-	os.Remove(c.path)
+	filemanager.Remove(c.ctx, c.path)
 	db, err := bbolt.Open(c.path, 0o666, &bbolt.Options{Timeout: time.Second})
 	if err == nil {
 		_ = filemanager.Chown(c.ctx, c.path)

@@ -196,18 +196,69 @@ func (s *desktopService) TakeOverService(ctx context.Context, empty *emptypb.Emp
 	return &emptypb.Empty{}, nil
 }
 
+func (s *desktopService) GetSecuritySettings(ctx context.Context, empty *emptypb.Empty) (*SecuritySettings, error) {
+	_, err := peerIdentityFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !insecureModeAvailable() {
+		return &SecuritySettings{}, nil
+	}
+	return &SecuritySettings{
+		Available:           true,
+		InsecureModeEnabled: s.daemon.insecureModeEnabled(),
+	}, nil
+}
+
+func (s *desktopService) SetInsecureModeEnabled(ctx context.Context, request *SetInsecureModeEnabledRequest) (*emptypb.Empty, error) {
+	_, err := peerIdentityFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !insecureModeAvailable() {
+		return nil, status.Error(codes.FailedPrecondition, "insecure mode is not available on this platform")
+	}
+	if request.Enabled {
+		return nil, status.Error(codes.PermissionDenied, "enabling insecure mode requires an elevated service command")
+	}
+	s.daemon.lifecycleAccess.Lock()
+	defer s.daemon.lifecycleAccess.Unlock()
+	if s.daemon.closed {
+		return nil, os.ErrClosed
+	}
+	wasEnabled := s.daemon.insecureModeEnabled()
+	err = saveSecuritySettings(workingDirectory, securitySettings{InsecureModeEnabled: false})
+	if err != nil {
+		return nil, err
+	}
+	if wasEnabled && s.daemon.startedService.Instance() != nil {
+		var ownerUserID string
+		ownerUserID, err = loadOwner()
+		if err != nil {
+			return nil, err
+		}
+		err = s.daemon.stopServiceLocked(ownerUserID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &emptypb.Empty{}, nil
+}
+
 func (d *Daemon) cleanFailedStartLocked(ownerUserID string, options startOptions, startError error) error {
 	var platformError error
 	if d.platform != nil {
 		platformError = d.platform.ResetPlatformOptions()
 	}
-	closeError := d.startedService.CloseService()
+	if d.startedService.Instance() != nil {
+		_ = d.startedService.CloseService()
+	}
 	directory := userWorkingDirectory(ownerUserID)
 	crashReportError := tagUnownedReports(filepath.Join(directory, crashReportsDirectoryName), ownerUserID)
 	oomReportError := tagUnownedReports(filepath.Join(directory, oomReportsDirectoryName), ownerUserID)
 	options.WasRunning = false
 	snapshotError := saveStartOptions(ownerUserID, options)
-	return E.Errors(startError, platformError, closeError, crashReportError, oomReportError, snapshotError)
+	return E.Errors(startError, platformError, crashReportError, oomReportError, snapshotError)
 }
 
 func (s *desktopService) GetWorkingDirectory(ctx context.Context, empty *emptypb.Empty) (*WorkingDirectoryInfo, error) {
