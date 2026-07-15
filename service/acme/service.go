@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/caddyserver/zerossl"
@@ -78,7 +80,12 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 
 	var storage certmagic.Storage
 	if options.DataDirectory != "" {
-		storage = &certmagic.FileStorage{Path: options.DataDirectory}
+		dataDirectory := filemanager.BasePath(ctx, os.ExpandEnv(options.DataDirectory))
+		err := filemanager.MkdirAll(ctx, dataDirectory, 0o700)
+		if err != nil {
+			return nil, E.Cause(err, "create ACME data directory")
+		}
+		storage = &certmagic.FileStorage{Path: dataDirectory}
 	} else {
 		storage = certmagic.Default.Storage
 	}
