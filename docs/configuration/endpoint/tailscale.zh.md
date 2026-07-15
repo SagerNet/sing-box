@@ -165,7 +165,7 @@ UDP NAT 过期时间。
 访问控制由 Tailscale 管理控制台中的 SSH ACL 决定，它将每个连接映射到一个本地用户。该用户如何解析、以及允许哪些用户，取决于平台：
 
 - **Linux** 和 **macOS**：从系统用户数据库解析用户。要切换到 sing-box 运行身份以外的用户需要以 root 运行；非 root 时，会话仅限于当前用户。
-- **Windows**：会话以 sing-box 进程的身份运行；映射的用户不会被模拟，因此映射到其他本地账户的会话将被拒绝。
+- **Windows**：在命令行客户端中，会话以 sing-box 进程的身份运行；映射的用户不会被模拟，因此映射到其他本地账户的会话将被拒绝。在图形客户端中没有此限制。
 - **Android**：用户由应用解析，而非系统用户数据库。`root` 即超级用户（UID 0），`shell` 为 ADB shell 用户（UID 2000）；其他名称均作为已安装应用的包名解析，以该应用的 UID 运行，并使用其数据目录作为主目录，因此目标应用必须已安装。`termux` 是 `com.termux` 的快捷方式，`sing-box` 是应用自身包名的快捷方式；当 Termux 已安装时，`root` 和 `termux` 用户将加载 Termux 环境。以 sing-box 应用自身身份运行无需 root，其他用户则需要已授予的 root 权限；非 root 时，会话仅限于 sing-box 用户。
 - **macOS**：SSH 服务器仅在独立版本中可用，且需要 Root Helper；App Store 版本不支持。
 - **iOS**：SSH 服务器仅在越狱版本中可用；App Store 和 TestFlight 版本不支持。

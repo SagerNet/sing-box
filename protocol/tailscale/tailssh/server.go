@@ -556,7 +556,7 @@ func (s *Server) handleSession(session gliderssh.Session) {
 		session.Exit(1)
 		return
 	}
-	err = verifyShellIdentity(localUser)
+	err = verifyShellIdentity(s.platformInterface, localUser)
 	if err != nil {
 		s.logger.Warn("shell rejected for ", localUser.Username, ": ", err)
 		fmt.Fprintf(session.Stderr(), "%s\r\n", err)
@@ -565,17 +565,13 @@ func (s *Server) handleSession(session gliderssh.Session) {
 	}
 	var agentSocketPath string
 	if connInfo.action.AllowAgentForwarding && !s.disableForwarding && gliderssh.AgentRequested(session) {
-		agentListener, listenErr := gliderssh.NewAgentListener()
-		if listenErr == nil {
+		agentListener, err := newAgentListener(localUser)
+		if err == nil {
 			defer agentListener.Close()
 			agentSocketPath = agentListener.Addr().String()
-			// The agent socket is created as the server identity; hand it to the
-			// target user so SSH_AUTH_SOCK is reachable after privileges drop.
-			prepareErr := prepareAgentSocket(agentSocketPath, localUser.Uid, localUser.Gid)
-			if prepareErr != nil {
-				s.logger.Warn("prepare agent socket: ", prepareErr)
-			}
 			go gliderssh.ForwardAgentConnections(agentListener, session)
+		} else {
+			s.logger.Warn("create agent listener: ", err)
 		}
 	}
 	env := s.buildEnvironment(session, connInfo, localUser)
@@ -748,7 +744,7 @@ func (s *Server) handleSFTP(ctx context.Context, session gliderssh.Session, conn
 		s.serveBuiltinSFTP(ctx, session, localUser)
 		return
 	}
-	err = verifyShellIdentity(localUser)
+	err = verifyShellIdentity(s.platformInterface, localUser)
 	if err != nil {
 		s.logger.Warn("sftp rejected for ", localUser.Username, ": ", err)
 		fmt.Fprintf(session.Stderr(), "%s\r\n", err)
@@ -758,7 +754,7 @@ func (s *Server) handleSFTP(ctx context.Context, session gliderssh.Session, conn
 	env := s.buildEnvironment(session, connInfo, localUser)
 	sftpSession, err := s.backend.OpenSession(shellRequest{
 		User:    localUser,
-		Command: sftpCommand(sftpPath),
+		Command: sftpCommand(sftpPath, localUser.Shell),
 		Env:     env,
 	})
 	if err != nil {
@@ -811,8 +807,11 @@ func (s *Server) buildEnvironment(session gliderssh.Session, connInfo *sshConnIn
 		"USER="+localUser.Username,
 		"HOME="+localUser.HomeDir,
 		"SHELL="+localUser.Shell,
-		"PATH="+defaultPathEnv(),
 	)
+	defaultPath := defaultPathEnv(s.platformInterface)
+	if defaultPath != "" {
+		env = append(env, "PATH="+defaultPath)
+	}
 	env = append(env, platformEnvironment(localUser)...)
 	remoteAddr := session.RemoteAddr()
 	localAddr := session.LocalAddr()
