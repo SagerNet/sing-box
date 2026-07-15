@@ -52,6 +52,7 @@ func newDaemon() (*Daemon, error) {
 	if platformInterface != nil {
 		service.MustRegister[adapter.PlatformInterface](ctx, platformInterface)
 	}
+	registerSecurityPolicy(ctx, d)
 	d.startedService = daemon.NewStartedService(daemon.ServiceOptions{
 		Context:     ctx,
 		LogMaxLines: 3000,
@@ -65,8 +66,8 @@ func newDaemon() (*Daemon, error) {
 	})
 	authorizer := newAuthorizer(d)
 	serverOptions := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(newUnaryAuthorizeInterceptor(authorizer), daemon.UnaryErrorInterceptor),
-		grpc.ChainStreamInterceptor(newStreamAuthorizeInterceptor(authorizer), daemon.StreamErrorInterceptor),
+		grpc.ChainUnaryInterceptor(newUnaryAuthorizeInterceptor(authorizer), unaryLocaleInterceptor),
+		grpc.ChainStreamInterceptor(newStreamAuthorizeInterceptor(authorizer), streamLocaleInterceptor),
 	}
 	platformOptions, err := platformServerOptions(d)
 	if err != nil {

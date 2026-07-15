@@ -5,6 +5,7 @@ package tls
 import (
 	"context"
 	"crypto/tls"
+	"os"
 	"slices"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/service/filemanager"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/libdns/acmedns"
@@ -54,8 +56,13 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 	}
 	var storage certmagic.Storage
 	if options.DataDirectory != "" {
+		dataDirectory := filemanager.BasePath(ctx, os.ExpandEnv(options.DataDirectory))
+		err := filemanager.MkdirAll(ctx, dataDirectory, 0o700)
+		if err != nil {
+			return nil, nil, E.Cause(err, "create ACME data directory")
+		}
 		storage = &certmagic.FileStorage{
-			Path: options.DataDirectory,
+			Path: dataDirectory,
 		}
 	} else {
 		storage = certmagic.Default.Storage
