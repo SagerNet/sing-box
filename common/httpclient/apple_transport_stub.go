@@ -11,6 +11,10 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
+func validateAppleTransport(ctx context.Context, options option.HTTPClientOptions) error {
+	return E.New("Apple HTTP engine is not available on non-Apple platforms")
+}
+
 func newAppleTransport(ctx context.Context, logger logger.ContextLogger, rawDialer N.Dialer, options option.HTTPClientOptions) (innerTransport, error) {
 	return nil, E.New("Apple HTTP engine is not available on non-Apple platforms")
 }

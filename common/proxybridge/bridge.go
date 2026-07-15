@@ -34,23 +34,26 @@ type Bridge struct {
 func New(ctx context.Context, logger logger.ContextLogger, tag string, dialer N.Dialer) (*Bridge, error) {
 	username := randomHex(16)
 	password := randomHex(16)
-	tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
-	if err != nil {
-		return nil, err
-	}
-	bridge := &Bridge{
+	return &Bridge{
 		ctx:           ctx,
 		logger:        logger,
 		tag:           tag,
 		dialer:        dialer,
 		connection:    service.FromContext[adapter.ConnectionManager](ctx),
-		tcpListener:   tcpListener,
 		username:      username,
 		password:      password,
 		authenticator: auth.NewAuthenticator([]auth.User{{Username: username, Password: password}}),
+	}, nil
+}
+
+func (b *Bridge) Start() error {
+	tcpListener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		return err
 	}
-	go bridge.acceptLoop()
-	return bridge, nil
+	b.tcpListener = tcpListener
+	go b.acceptLoop()
+	return nil
 }
 
 func randomHex(size int) string {
@@ -72,7 +75,7 @@ func (b *Bridge) Password() string {
 }
 
 func (b *Bridge) Close() error {
-	return common.Close(b.tcpListener)
+	return common.Close(common.PtrOrNil(b.tcpListener))
 }
 
 func (b *Bridge) acceptLoop() {
