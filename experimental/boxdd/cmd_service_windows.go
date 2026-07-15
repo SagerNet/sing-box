@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -65,19 +64,24 @@ func serviceInstall() error {
 	if err != nil {
 		return E.Cause(err, "get executable path")
 	}
-	if !strings.EqualFold(filepath.Clean(commandServiceFlagWorkingDirectory), filepath.Clean(defaultServiceWorkingDirectory)) {
-		return E.New("the Windows service working directory must be ", defaultServiceWorkingDirectory)
+	serviceWorkingDirectory, err := resolveWindowsServiceWorkingDirectory(commandServiceFlagWorkingDirectory)
+	if err != nil {
+		return E.Cause(err, "validate working directory")
 	}
 	executablePath, err = secureWindowsInstallation(executablePath, commandServiceFlagAllowUnsafeInstallation)
 	if err != nil {
 		return E.Cause(err, "secure installation")
+	}
+	err = ensureWindowsWorkingDirectory(serviceWorkingDirectory)
+	if err != nil {
+		return E.Cause(err, "secure working directory")
 	}
 	manager, err := mgr.Connect()
 	if err != nil {
 		return E.Cause(err, "connect to service manager")
 	}
 	defer manager.Disconnect()
-	arguments := []string{"run", "--working-directory", defaultServiceWorkingDirectory}
+	arguments := []string{"run", "--working-directory", serviceWorkingDirectory}
 	config := mgr.Config{
 		DisplayName:  serviceDisplayName,
 		Description:  serviceDescriptionText,
@@ -131,11 +135,6 @@ func serviceInstall() error {
 	if err != nil {
 		rollback()
 		return E.Cause(err, "secure service")
-	}
-	err = ensureWindowsWorkingDirectory(defaultServiceWorkingDirectory)
-	if err != nil {
-		rollback()
-		return E.Cause(err, "secure working directory")
 	}
 	err = eventlog.InstallAsEventCreate(serviceName, eventlog.Error|eventlog.Warning|eventlog.Info)
 	if err != nil && !strings.Contains(err.Error(), "already exists") {
