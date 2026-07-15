@@ -3,6 +3,9 @@
 package tailssh
 
 import (
+	"crypto/rand"
+	"fmt"
+	"net"
 	"os"
 	"os/user"
 	"strings"
@@ -12,6 +15,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/tailscale/util/winutil"
 
+	winio "github.com/tailscale/go-winio"
 	"golang.org/x/sys/windows"
 )
 
@@ -19,10 +23,6 @@ func isPrivilegedUser() bool {
 	return winutil.IsCurrentProcessElevated()
 }
 
-// requestedUserMatchesProcess reports whether the ACL-mapped user is the same Windows
-// account the sing-box process runs as. Windows has no impersonation wired up, so a
-// session always runs with the process identity; this is the only case where the
-// identity it runs as equals the requested one.
 func requestedUserMatchesProcess(localUser *adapter.PlatformUser) (bool, error) {
 	tokenUser, err := windows.GetCurrentProcessToken().GetTokenUser()
 	if err != nil {
@@ -36,9 +36,13 @@ func requestedUserMatchesProcess(localUser *adapter.PlatformUser) (bool, error) 
 	return strings.EqualFold(tokenUser.User.Sid.String(), requested.Uid), nil
 }
 
-// verifyShellIdentity refuses a spawned shell/SFTP session whose ACL-mapped user differs
-// from the process identity it would actually run as, since Windows has no impersonation.
-func verifyShellIdentity(localUser *adapter.PlatformUser) error {
+func verifyShellIdentity(platformInterface adapter.PlatformInterface, localUser *adapter.PlatformUser) error {
+	if platformInterface != nil && platformInterface.UsePlatformShell() {
+		_, loaded := platformInterface.(windowsUserTokenProvider)
+		if loaded {
+			return nil
+		}
+	}
 	match, err := requestedUserMatchesProcess(localUser)
 	if err != nil {
 		return err
@@ -53,7 +57,10 @@ func systemHostKeyPath() string {
 	return ""
 }
 
-func defaultPathEnv() string {
+func defaultPathEnv(platformInterface adapter.PlatformInterface) string {
+	if platformInterface != nil && platformInterface.UsePlatformShell() {
+		return ""
+	}
 	systemRoot := os.Getenv("SystemRoot")
 	return systemRoot + `\system32;` + systemRoot + `;` + systemRoot + `\System32\Wbem`
 }
@@ -62,10 +69,22 @@ func userSocketDirectories(localUser *adapter.PlatformUser) []string {
 	return []string{localUser.HomeDir, os.TempDir()}
 }
 
-// prepareAgentSocket is a no-op on Windows: shells run as the server identity, so
-// the agent socket needs no ownership change.
-func prepareAgentSocket(_ string, _, _ int) error {
-	return nil
+func newAgentListener(localUser *adapter.PlatformUser) (net.Listener, error) {
+	requestedUser, err := user.Lookup(localUser.Username)
+	if err != nil {
+		return nil, E.Cause(err, "lookup requested user")
+	}
+	pipePath := `\\.\pipe\sing-box-tailssh-agent-` + rand.Text()
+	securityDescriptor := fmt.Sprintf(`D:P(A;;GA;;;SY)(A;;GRGW;;;%s)`, requestedUser.Uid)
+	listener, err := winio.ListenPipe(pipePath, &winio.PipeConfig{
+		SecurityDescriptor: securityDescriptor,
+		InputBufferSize:    64 * 1024,
+		OutputBufferSize:   64 * 1024,
+	})
+	if err != nil {
+		return nil, E.Cause(err, "listen on agent pipe")
+	}
+	return listener, nil
 }
 
 func platformEnvironment(localUser *adapter.PlatformUser) []string {
@@ -80,8 +99,11 @@ func platformEnvironment(localUser *adapter.PlatformUser) []string {
 	return env
 }
 
-func sftpCommand(sftpPath string) string {
-	return sftpPath
+func sftpCommand(sftpPath, shell string) string {
+	if isPowerShell(shell) {
+		return `& "` + sftpPath + `"`
+	}
+	return `"` + sftpPath + `"`
 }
 
 func sshSignalToSyscall(sig gliderssh.Signal) int {
