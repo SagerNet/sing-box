@@ -810,6 +810,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ~1.25.11
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          targets: i686-pc-windows-msvc,aarch64-pc-windows-msvc
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
