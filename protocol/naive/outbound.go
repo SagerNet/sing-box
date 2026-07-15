@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/pem"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/sagernet/cronet-go"
@@ -25,6 +24,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/uot"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -109,7 +109,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if len(options.TLS.Certificate) > 0 {
 		trustedRootCertificates = strings.Join(options.TLS.Certificate, "\n")
 	} else if options.TLS.CertificatePath != "" {
-		content, err := os.ReadFile(options.TLS.CertificatePath)
+		content, err := filemanager.ReadFile(ctx, options.TLS.CertificatePath)
 		if err != nil {
 			return nil, E.Cause(err, "read certificate")
 		}
@@ -146,7 +146,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		if len(options.TLS.ECH.Config) > 0 {
 			echConfig = []byte(strings.Join(options.TLS.ECH.Config, "\n"))
 		} else if options.TLS.ECH.ConfigPath != "" {
-			content, err := os.ReadFile(options.TLS.ECH.ConfigPath)
+			content, err := filemanager.ReadFile(ctx, options.TLS.ECH.ConfigPath)
 			if err != nil {
 				return nil, E.Cause(err, "read ECH config")
 			}

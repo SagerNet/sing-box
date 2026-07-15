@@ -26,6 +26,8 @@ service DesktopService {
   rpc DeleteOOMReport(OOMReportRequest) returns (google.protobuf.Empty) {}
   rpc DeleteAllOOMReports(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc InstallUpdate(InstallUpdateRequest) returns (InstallUpdateResponse) {}
+  rpc GetSecuritySettings(google.protobuf.Empty) returns (SecuritySettings) {}
+  rpc SetInsecureModeEnabled(SetInsecureModeEnabledRequest) returns (google.protobuf.Empty) {}
 }
 
 service ApplicationService {
@@ -171,6 +173,15 @@ message OOMReportFile {
   string name = 1;
   bytes content = 2;
   bool is_profile = 3;
+}
+
+message SecuritySettings {
+  bool available = 1;
+  bool insecure_mode_enabled = 2;
+}
+
+message SetInsecureModeEnabledRequest {
+  bool enabled = 1;
 }
 
 message InstallUpdateRequest {

@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/common/networkquality"
@@ -102,12 +101,9 @@ func Setup(options *SetupOptions) error {
 	return redirectStderr(filepath.Join(sWorkingPath, "CrashReport-"+sCrashReportSource+".log"))
 }
 
-func SetLocale(localeId string) error {
-	if strings.Contains(localeId, "@") {
-		localeId = strings.Split(localeId, "@")[0]
-	}
-	if !locale.Set(localeId) {
-		return E.New("unsupported locale: ", localeId)
+func SetLocale(localeID string) error {
+	if !locale.Set(localeID) {
+		return E.New("unsupported locale: ", localeID)
 	}
 	return nil
 }

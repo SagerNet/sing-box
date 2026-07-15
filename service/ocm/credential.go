@@ -2,6 +2,7 @@ package ocm
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service/filemanager"
 )
 
 const (
@@ -42,8 +44,8 @@ func getDefaultCredentialsPath() (string, error) {
 	return filepath.Join(userInfo.HomeDir, ".codex", "auth.json"), nil
 }
 
-func readCredentialsFromFile(path string) (*oauthCredentials, error) {
-	data, err := os.ReadFile(path)
+func readCredentialsFromFile(ctx context.Context, path string) (*oauthCredentials, error) {
+	data, err := filemanager.ReadFile(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -55,12 +57,12 @@ func readCredentialsFromFile(path string) (*oauthCredentials, error) {
 	return &credentials, nil
 }
 
-func writeCredentialsToFile(credentials *oauthCredentials, path string) error {
+func writeCredentialsToFile(ctx context.Context, credentials *oauthCredentials, path string) error {
 	data, err := json.MarshalIndent(credentials, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o600)
+	return filemanager.WriteFile(ctx, path, data, 0o600)
 }
 
 type oauthCredentials struct {
