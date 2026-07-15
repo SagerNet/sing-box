@@ -3,6 +3,7 @@
 package tailssh
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -22,7 +23,7 @@ func requestedUserMatchesProcess(localUser *adapter.PlatformUser) (bool, error) 
 
 // verifyShellIdentity is a no-op on Unix: spawned shells and sftp-server drop to the
 // requested user via setCredential, so the child already runs as that user.
-func verifyShellIdentity(_ *adapter.PlatformUser) error {
+func verifyShellIdentity(_ adapter.PlatformInterface, _ *adapter.PlatformUser) error {
 	return nil
 }
 
@@ -30,7 +31,7 @@ func systemHostKeyPath() string {
 	return "/etc/ssh/ssh_host_ed25519_key"
 }
 
-func defaultPathEnv() string {
+func defaultPathEnv(_ adapter.PlatformInterface) string {
 	return "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 }
 
@@ -38,31 +39,40 @@ func userSocketDirectories(localUser *adapter.PlatformUser) []string {
 	return gliderssh.UserSocketDirectories(localUser.HomeDir, strconv.Itoa(localUser.Uid))
 }
 
-// prepareAgentSocket hands the agent-forwarding socket to the target user so
-// SSH_AUTH_SOCK stays reachable after the shell drops privileges. No-op when the
-// shell runs as the server identity.
-func prepareAgentSocket(socketPath string, uid, gid int) error {
-	if uid < 0 || uid == os.Getuid() {
-		return nil
-	}
-	err := os.Chown(socketPath, uid, gid)
+func newAgentListener(localUser *adapter.PlatformUser) (net.Listener, error) {
+	listener, err := gliderssh.NewAgentListener()
 	if err != nil {
-		return err
+		return nil, err
+	}
+	socketPath := listener.Addr().String()
+	if localUser.Uid < 0 || localUser.Uid == os.Getuid() {
+		return listener, nil
+	}
+	err = os.Chown(socketPath, localUser.Uid, localUser.Gid)
+	if err != nil {
+		listener.Close()
+		return nil, err
 	}
 	err = os.Chmod(socketPath, 0o600)
 	if err != nil {
-		return err
+		listener.Close()
+		return nil, err
 	}
 	// Make the MkdirTemp parent traversable so the dropped-privilege child can
 	// reach the socket.
-	return os.Chmod(filepath.Dir(socketPath), 0o755)
+	err = os.Chmod(filepath.Dir(socketPath), 0o755)
+	if err != nil {
+		listener.Close()
+		return nil, err
+	}
+	return listener, nil
 }
 
 func platformEnvironment(_ *adapter.PlatformUser) []string {
 	return nil
 }
 
-func sftpCommand(sftpPath string) string {
+func sftpCommand(sftpPath, _ string) string {
 	return sftpPath + " 2>/dev/null"
 }
 

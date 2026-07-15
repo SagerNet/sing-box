@@ -16,18 +16,45 @@ import (
 	"github.com/sagernet/tailscale/util/winutil"
 	"github.com/sagernet/tailscale/util/winutil/conpty"
 
+	"github.com/tailscale/go-winio"
 	"golang.org/x/sys/windows"
 )
 
-func selectShellBackend(_ adapter.PlatformInterface) shellBackend {
-	return &windowsShellBackend{}
+const (
+	seAssignPrimaryToken = "SeAssignPrimaryTokenPrivilege"
+	seIncreaseQuota      = "SeIncreaseQuotaPrivilege"
+)
+
+type windowsUserTokenProvider interface {
+	AcquireWindowsUserToken(user *adapter.PlatformUser) (windows.Token, io.Closer, error)
 }
 
-func CheckServerSupport(_ adapter.PlatformInterface) (string, error) {
+func selectShellBackend(platformInterface adapter.PlatformInterface) shellBackend {
+	backend := &windowsShellBackend{}
+	if platformInterface != nil && platformInterface.UsePlatformShell() {
+		backend.userTokenProvider, _ = platformInterface.(windowsUserTokenProvider)
+	}
+	return backend
+}
+
+func CheckServerSupport(platformInterface adapter.PlatformInterface) (string, error) {
+	if platformInterface != nil && platformInterface.UsePlatformShell() {
+		_, loaded := platformInterface.(windowsUserTokenProvider)
+		if !loaded {
+			return "", E.New("platform shell does not provide Windows user tokens")
+		}
+		err := platformInterface.CheckPlatformShell()
+		if err != nil {
+			return "", err
+		}
+	}
 	return "", nil
 }
 
-func lookupSFTPServer(_ adapter.PlatformInterface) (string, error) {
+func lookupSFTPServer(platformInterface adapter.PlatformInterface) (string, error) {
+	if platformInterface != nil && platformInterface.UsePlatformShell() {
+		return platformInterface.LookupSFTPServer()
+	}
 	sftpPath, err := exec.LookPath("sftp-server")
 	if err != nil {
 		return "", E.New("sftp-server not found")
@@ -35,20 +62,48 @@ func lookupSFTPServer(_ adapter.PlatformInterface) (string, error) {
 	return sftpPath, nil
 }
 
-type windowsShellBackend struct{}
+type windowsShellBackend struct {
+	userTokenProvider windowsUserTokenProvider
+}
 
-func (b *windowsShellBackend) OpenSession(request shellRequest) (shellSession, error) {
+func (b *windowsShellBackend) OpenSession(request shellRequest) (session shellSession, err error) {
+	var (
+		userToken    windows.Token
+		userResource io.Closer
+	)
+	if b.userTokenProvider != nil {
+		userToken, userResource, err = b.userTokenProvider.AcquireWindowsUserToken(request.User)
+		if err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err != nil {
+				err = E.Errors(err, userResource.Close())
+			}
+		}()
+		userEnvironment, err := userToken.Environ(false)
+		if err != nil {
+			return nil, E.Cause(err, "query user environment")
+		}
+		request.Env = mergeWindowsEnvironment(userEnvironment, request.Env)
+	}
 	shell := request.User.Shell
 	if request.Term != "" {
-		session, err := openConPTYSession(request, shell)
-		if err == nil {
-			return session, nil
-		}
-		if !errors.Is(err, conpty.ErrUnsupported) {
+		session, err = openConPTYSession(request, shell, userToken)
+		if err != nil && !errors.Is(err, conpty.ErrUnsupported) {
 			return nil, err
 		}
 	}
-	return openPipeSession(request, shell)
+	if request.Term == "" || err != nil {
+		session, err = openPipeSession(request, shell, userToken)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if userResource != nil {
+		session = &windowsUserShellSession{shellSession: session, resource: userResource}
+	}
+	return session, nil
 }
 
 func (b *windowsShellBackend) Close() error {
@@ -59,15 +114,51 @@ func buildCommandLine(shell, command string) string {
 	if command == "" {
 		return `"` + shell + `"`
 	}
-	base := strings.ToLower(filepath.Base(shell))
-	switch base {
-	case "pwsh.exe", "powershell.exe":
+	if isPowerShell(shell) {
 		// -NoProfile/-NonInteractive keep the invoking user's PowerShell profile from
 		// writing into the (binary) SFTP/stdout stream and corrupting it.
 		return `"` + shell + `" -NoLogo -NoProfile -NonInteractive -Command ` + command
-	default:
-		return `"` + shell + `" /c ` + command
 	}
+	return `"` + shell + `" /c ` + command
+}
+
+func isPowerShell(shell string) bool {
+	switch strings.ToLower(filepath.Base(shell)) {
+	case "pwsh", "pwsh.exe", "powershell", "powershell.exe":
+		return true
+	default:
+		return false
+	}
+}
+
+func mergeWindowsEnvironment(baseEnvironment, overrideEnvironment []string) []string {
+	environment := make([]string, 0, len(baseEnvironment)+len(overrideEnvironment))
+	variableIndex := make(map[string]int, len(baseEnvironment)+len(overrideEnvironment))
+	for _, variables := range [][]string{baseEnvironment, overrideEnvironment} {
+		for _, variable := range variables {
+			name := windowsEnvironmentName(variable)
+			index, loaded := variableIndex[name]
+			if loaded {
+				environment[index] = variable
+			} else {
+				variableIndex[name] = len(environment)
+				environment = append(environment, variable)
+			}
+		}
+	}
+	return environment
+}
+
+func windowsEnvironmentName(variable string) string {
+	start := 0
+	if strings.HasPrefix(variable, "=") {
+		start = 1
+	}
+	separator := strings.IndexByte(variable[start:], '=')
+	if separator == -1 {
+		return strings.ToLower(variable)
+	}
+	return strings.ToLower(variable[:start+separator])
 }
 
 // clampConsoleDimension keeps a client-supplied window dimension within the
@@ -83,7 +174,7 @@ func clampConsoleDimension(value uint16) int16 {
 	return int16(value)
 }
 
-func createShellProcess(shell string, request shellRequest, startupInfo *windows.StartupInfo, inheritHandles bool, createProcessFlags uint32) (windows.Handle, error) {
+func createShellProcess(shell string, request shellRequest, startupInfo *windows.StartupInfo, inheritHandles bool, createProcessFlags uint32, userToken windows.Token) (windows.Handle, error) {
 	cmdLine := buildCommandLine(shell, request.Command)
 	cmdLine16, err := windows.UTF16PtrFromString(cmdLine)
 	if err != nil {
@@ -105,33 +196,54 @@ func createShellProcess(shell string, request shellRequest, startupInfo *windows
 	// NewEnvBlock requires the variables sorted case-insensitively by name.
 	envCopy := slices.Clone(request.Env)
 	slices.SortFunc(envCopy, func(a, b string) int {
-		aName, _, _ := strings.Cut(a, "=")
-		bName, _, _ := strings.Cut(b, "=")
-		return strings.Compare(strings.ToLower(aName), strings.ToLower(bName))
+		return strings.Compare(windowsEnvironmentName(a), windowsEnvironmentName(b))
 	})
 	envBlock := winutil.NewEnvBlock(envCopy)
 	var processInfo windows.ProcessInformation
-	// request.User only sets HomeDir and Env here; the child inherits the sing-box
-	// process identity because Windows impersonation is not implemented. Sessions
-	// whose requested user differs from the process identity are refused before
-	// reaching this point (verifyShellIdentity in handleSession/handleSFTP).
-	err = windows.CreateProcess(
-		exe16,
-		cmdLine16,
-		nil,
-		nil,
-		inheritHandles,
-		createProcessFlags|windows.CREATE_NEW_PROCESS_GROUP,
-		envBlock,
-		dir16,
-		startupInfo,
-		&processInfo,
-	)
+	if userToken == 0 {
+		err = windows.CreateProcess(
+			exe16,
+			cmdLine16,
+			nil,
+			nil,
+			inheritHandles,
+			createProcessFlags|windows.CREATE_NEW_PROCESS_GROUP,
+			envBlock,
+			dir16,
+			startupInfo,
+			&processInfo,
+		)
+	} else {
+		err = winio.RunWithPrivileges([]string{seAssignPrimaryToken, seIncreaseQuota}, func() error {
+			return windows.CreateProcessAsUser(
+				userToken,
+				exe16,
+				cmdLine16,
+				nil,
+				nil,
+				inheritHandles,
+				createProcessFlags|windows.CREATE_NEW_PROCESS_GROUP,
+				envBlock,
+				dir16,
+				startupInfo,
+				&processInfo,
+			)
+		})
+	}
 	if err != nil {
 		return 0, E.Cause(err, "create process")
 	}
 	windows.CloseHandle(processInfo.Thread)
 	return processInfo.Process, nil
+}
+
+type windowsUserShellSession struct {
+	shellSession
+	resource io.Closer
+}
+
+func (s *windowsUserShellSession) Close() error {
+	return E.Errors(s.shellSession.Close(), s.resource.Close())
 }
 
 type conptyShellSession struct {
@@ -143,7 +255,7 @@ type conptyShellSession struct {
 	exitCode uint32
 }
 
-func openConPTYSession(request shellRequest, shell string) (shellSession, error) {
+func openConPTYSession(request shellRequest, shell string, userToken windows.Token) (shellSession, error) {
 	cols := request.Cols
 	rows := request.Rows
 	if cols == 0 {
@@ -171,7 +283,7 @@ func openConPTYSession(request shellRequest, shell string) (shellSession, error)
 		console.Close()
 		return nil, E.Cause(err, "resolve startup info")
 	}
-	process, err := createShellProcess(shell, request, startupInfo, inheritHandles, createProcessFlags)
+	process, err := createShellProcess(shell, request, startupInfo, inheritHandles, createProcessFlags, userToken)
 	startupInfoBuilder.Close()
 	if err != nil {
 		console.Close()
@@ -202,7 +314,11 @@ func (s *conptyShellSession) waitProcess() {
 }
 
 func (s *conptyShellSession) Read(p []byte) (int, error) {
-	return s.output.Read(p)
+	n, err := s.output.Read(p)
+	if errors.Is(err, os.ErrClosed) {
+		return n, io.EOF
+	}
+	return n, err
 }
 
 func (s *conptyShellSession) Write(p []byte) (int, error) {
@@ -261,7 +377,7 @@ type pipeShellSession struct {
 	exitCode uint32
 }
 
-func openPipeSession(request shellRequest, shell string) (shellSession, error) {
+func openPipeSession(request shellRequest, shell string, userToken windows.Token) (shellSession, error) {
 	var stdinR, stdinW windows.Handle
 	err := windows.CreatePipe(&stdinR, &stdinW, nil, 0)
 	if err != nil {
@@ -304,7 +420,7 @@ func openPipeSession(request shellRequest, shell string) (shellSession, error) {
 		windows.CloseHandle(stdoutR)
 		return nil, E.Cause(err, "resolve startup info")
 	}
-	process, err := createShellProcess(shell, request, startupInfo, inheritHandles, createProcessFlags)
+	process, err := createShellProcess(shell, request, startupInfo, inheritHandles, createProcessFlags, userToken)
 	startupInfoBuilder.Close()
 	if err != nil {
 		windows.CloseHandle(stdinW)
