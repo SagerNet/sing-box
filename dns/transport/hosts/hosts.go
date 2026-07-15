@@ -43,7 +43,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		files = append(files, defaultFile)
 	} else {
 		for _, path := range options.Path {
-			files = append(files, NewFile(filemanager.BasePath(ctx, os.ExpandEnv(path))))
+			files = append(files, NewFile(ctx, filemanager.BasePath(ctx, os.ExpandEnv(path))))
 		}
 	}
 	if options.Predefined != nil {

@@ -29,7 +29,7 @@ func (s *StartedService) ProvideUSBDevices(server grpc.BidiStreamingServer[USBPr
 	instance := s.instance
 	s.serviceAccess.RUnlock()
 	if instance == nil {
-		return E.New("service not started")
+		return nil
 	}
 	serviceManager := service.FromContext[adapter.ServiceManager](instance.ctx)
 	if serviceManager == nil {
@@ -122,7 +122,7 @@ func (s *StartedService) SubscribeUSBIPServerStatus(
 	instance := s.instance
 	s.serviceAccess.RUnlock()
 	if instance == nil {
-		return E.New("service not started")
+		return nil
 	}
 	serviceManager := service.FromContext[adapter.ServiceManager](instance.ctx)
 	if serviceManager == nil {
