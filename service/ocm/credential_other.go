@@ -2,7 +2,9 @@
 
 package ocm
 
-func platformReadCredentials(customPath string) (*oauthCredentials, error) {
+import "context"
+
+func platformReadCredentials(ctx context.Context, customPath string) (*oauthCredentials, error) {
 	if customPath == "" {
 		var err error
 		customPath, err = getDefaultCredentialsPath()
@@ -10,10 +12,10 @@ func platformReadCredentials(customPath string) (*oauthCredentials, error) {
 			return nil, err
 		}
 	}
-	return readCredentialsFromFile(customPath)
+	return readCredentialsFromFile(ctx, customPath)
 }
 
-func platformWriteCredentials(credentials *oauthCredentials, customPath string) error {
+func platformWriteCredentials(ctx context.Context, credentials *oauthCredentials, customPath string) error {
 	if customPath == "" {
 		var err error
 		customPath, err = getDefaultCredentialsPath()
@@ -21,5 +23,5 @@ func platformWriteCredentials(credentials *oauthCredentials, customPath string) 
 			return err
 		}
 	}
-	return writeCredentialsToFile(credentials, customPath)
+	return writeCredentialsToFile(ctx, credentials, customPath)
 }

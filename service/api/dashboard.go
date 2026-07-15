@@ -74,6 +74,10 @@ func newDashboard(ctx context.Context, logger log.ContextLogger, options option.
 }
 
 func (d *dashboard) start() error {
+	_, err := filemanager.ReadDir(d.ctx, d.path)
+	if err != nil && !os.IsNotExist(err) {
+		return E.Cause(err, "read dashboard directory")
+	}
 	transport, err := d.resolveTransport()
 	if err != nil {
 		return E.Cause(err, "create dashboard http client")
@@ -147,7 +151,7 @@ func (d *dashboard) loopUpdate() {
 }
 
 func (d *dashboard) loadState() dashboardStatus {
-	entries, err := os.ReadDir(d.path)
+	entries, err := filemanager.ReadDir(d.ctx, d.path)
 	if err != nil {
 		return dashboardEmpty
 	}
@@ -155,12 +159,12 @@ func (d *dashboard) loadState() dashboardStatus {
 		return dashboardEmpty
 	}
 	etagPath := filepath.Join(d.path, dashboardEtagFileName)
-	etagBytes, err := os.ReadFile(etagPath)
+	etagBytes, err := filemanager.ReadFile(d.ctx, etagPath)
 	if err != nil {
 		return dashboardUserProvided
 	}
 	d.lastEtag = strings.TrimSpace(string(etagBytes))
-	info, err := os.Stat(etagPath)
+	info, err := filemanager.Stat(d.ctx, etagPath)
 	if err == nil {
 		d.lastUpdated = info.ModTime()
 	}
@@ -212,7 +216,7 @@ func (d *dashboard) extract(body io.Reader, etag string) error {
 		return err
 	}
 	tempZipPath := tempFile.Name()
-	defer os.Remove(tempZipPath)
+	defer filemanager.Remove(d.ctx, tempZipPath)
 	_, err = io.Copy(tempFile, body)
 	tempFile.Close()
 	if err != nil {
@@ -271,7 +275,7 @@ func (d *dashboard) extract(body io.Reader, etag string) error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(tempDir, d.path)
+	return filemanager.Rename(d.ctx, tempDir, d.path)
 }
 
 func extractZipEntry(ctx context.Context, file *zip.File, savePath string) error {

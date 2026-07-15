@@ -83,7 +83,7 @@ func NewHTTPClient() HTTPClient {
 	client.transport.TLSClientConfig = &client.tls
 	client.transport.DisableKeepAlives = true
 	if C.IsAndroid {
-		store, err := certificate.NewStore(logger.NOP(), option.CertificateOptions{})
+		store, err := certificate.NewStore(context.Background(), logger.NOP(), option.CertificateOptions{})
 		if err != nil {
 			panic(E.Cause(err, "initialize certificate store"))
 		}
