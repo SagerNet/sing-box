@@ -1,6 +1,7 @@
 package hosts
 
 import (
+	"context"
 	"net/netip"
 	"os"
 	"runtime"
@@ -13,7 +14,7 @@ import (
 
 func TestHosts(t *testing.T) {
 	t.Parallel()
-	require.Equal(t, []netip.Addr{netip.AddrFrom4([4]byte{127, 0, 0, 1}), netip.IPv6Loopback()}, NewFile("testdata/hosts").Lookup("localhost"))
+	require.Equal(t, []netip.Addr{netip.AddrFrom4([4]byte{127, 0, 0, 1}), netip.IPv6Loopback()}, NewFile(context.Background(), "testdata/hosts").Lookup("localhost"))
 	if runtime.GOOS != "windows" {
 		defaultPathResolved, err := defaultPath()
 		if err != nil {
@@ -21,7 +22,7 @@ func TestHosts(t *testing.T) {
 		}
 		content, readErr := os.ReadFile(defaultPathResolved)
 		require.NoError(t, readErr)
-		hFile := NewFile(defaultPathResolved)
+		hFile := NewFile(context.Background(), defaultPathResolved)
 		if len(hFile.Lookup("localhost")) == 0 {
 			t.Fatal("failed to resolve localhost: ", defaultPathResolved, ": \n", string(content))
 		}

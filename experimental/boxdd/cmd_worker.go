@@ -63,8 +63,8 @@ func runWorker() error {
 	}
 	defer listener.Close()
 	server := grpc.NewServer(
-		grpc.ChainUnaryInterceptor(daemon.UnaryErrorInterceptor),
-		grpc.ChainStreamInterceptor(daemon.StreamErrorInterceptor),
+		grpc.ChainUnaryInterceptor(unaryLocaleInterceptor),
+		grpc.ChainStreamInterceptor(streamLocaleInterceptor),
 	)
 	RegisterApplicationServiceServer(server, &applicationService{
 		startedService: daemon.NewStartedService(daemon.ServiceOptions{Context: include.Context(context.Background())}),
