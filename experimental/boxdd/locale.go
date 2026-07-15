@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"slices"
 
 	"github.com/sagernet/sing-box/experimental/locale"
 
@@ -14,11 +15,7 @@ func setLocaleFromContext(ctx context.Context) {
 	if !loaded {
 		return
 	}
-	for _, localeID := range requestMetadata.Get("accept-language") {
-		if locale.Set(localeID) {
-			return
-		}
-	}
+	slices.ContainsFunc(requestMetadata.Get("accept-language"), locale.Set)
 }
 
 func unaryLocaleInterceptor(ctx context.Context, request any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
