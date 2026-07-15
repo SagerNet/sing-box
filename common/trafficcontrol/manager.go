@@ -50,13 +50,10 @@ type Manager struct {
 }
 
 func NewManager(outbound adapter.OutboundManager) *Manager {
-	manager := &Manager{
+	return &Manager{
 		outbound:        outbound,
 		eventSubscriber: observable.NewSubscriber[ConnectionEvent](256),
 	}
-	manager.eventObserver = observable.NewObserver(manager.eventSubscriber, 64)
-	manager.cleaner = cleanup.Add(manager.Clear)
-	return manager
 }
 
 func (m *Manager) Name() string {
@@ -64,12 +61,21 @@ func (m *Manager) Name() string {
 }
 
 func (m *Manager) Start(stage adapter.StartStage) error {
+	if stage == adapter.StartStateInitialize {
+		m.eventObserver = observable.NewObserver(m.eventSubscriber, 64)
+		m.cleaner = cleanup.Add(m.Clear)
+	}
 	return nil
 }
 
 func (m *Manager) Close() error {
-	m.cleaner.Close()
-	return m.eventObserver.Close()
+	if m.cleaner != nil {
+		m.cleaner.Close()
+	}
+	if m.eventObserver != nil {
+		return m.eventObserver.Close()
+	}
+	return nil
 }
 
 func (m *Manager) SubscribeEvents() (observable.Subscription[ConnectionEvent], <-chan struct{}, error) {

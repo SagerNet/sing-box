@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"runtime/debug"
 	"time"
@@ -43,6 +44,8 @@ var _ adapter.SimpleLifecycle = (*Box)(nil)
 
 type Box struct {
 	createdAt           time.Time
+	debugOptions        option.DebugOptions
+	debugHTTPServer     *http.Server
 	logFactory          log.Factory
 	logger              log.ContextLogger
 	network             *route.NetworkManager
@@ -142,7 +145,8 @@ func New(options Options) (*Box, error) {
 
 	ctx = pause.WithDefaultManager(ctx)
 	experimentalOptions := common.PtrValueOrDefault(options.Experimental)
-	err := applyDebugOptions(common.PtrValueOrDefault(experimentalOptions.Debug))
+	debugOptions := common.PtrValueOrDefault(experimentalOptions.Debug)
+	err := checkDebugOptions(debugOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -470,6 +474,7 @@ func New(options Options) (*Box, error) {
 		router:              router,
 		httpClientService:   httpClientService,
 		createdAt:           createdAt,
+		debugOptions:        debugOptions,
 		logFactory:          logFactory,
 		logger:              logFactory.Logger(),
 		internalService:     internalServices,
@@ -522,6 +527,11 @@ func (s *Box) preStart() error {
 	monitor.Finish()
 	if err != nil {
 		return E.Cause(err, "start logger")
+	}
+	applyDebugOptions(s.debugOptions)
+	s.debugHTTPServer, err = startDebugHTTPServer(s.debugOptions)
+	if err != nil {
+		return err
 	}
 	err = adapter.StartNamed(s.logger, adapter.StartStateInitialize, s.internalService) // cache-file clash-api v2ray-api
 	if err != nil {
@@ -594,6 +604,12 @@ func (s *Box) Close() error {
 		close(s.done)
 	}
 	var err error
+	if s.debugHTTPServer != nil {
+		err = E.Append(err, s.debugHTTPServer.Close(), func(err error) error {
+			return E.Cause(err, "close debug HTTP server")
+		})
+		s.debugHTTPServer = nil
+	}
 	for _, closeItem := range []struct {
 		name    string
 		service adapter.Lifecycle

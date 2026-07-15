@@ -65,6 +65,7 @@ type Service struct {
 	timeFunc          func() time.Time
 	httpClient        *http.Client
 	storage           certmagic.Storage
+	dataDirectory     string
 	storageIssuerKey  string
 	storageNamesKey   string
 	storageLockKey    string
@@ -109,14 +110,12 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		cancel()
 		return nil, err
 	}
-	var storage certmagic.Storage
+	var (
+		storage       certmagic.Storage
+		dataDirectory string
+	)
 	if options.DataDirectory != "" {
-		dataDirectory := filemanager.BasePath(ctx, os.ExpandEnv(options.DataDirectory))
-		mkdirErr := filemanager.MkdirAll(ctx, dataDirectory, 0o700)
-		if mkdirErr != nil {
-			cancel()
-			return nil, E.Cause(mkdirErr, "create data directory")
-		}
+		dataDirectory = filemanager.BasePath(ctx, os.ExpandEnv(options.DataDirectory))
 		storage = &certmagic.FileStorage{Path: dataDirectory}
 	} else {
 		storage = certmagic.Default.Storage
@@ -140,6 +139,7 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		timeFunc:          timeFunc,
 		httpClient:        httpClient,
 		storage:           storage,
+		dataDirectory:     dataDirectory,
 		storageIssuerKey:  storageIssuerKey,
 		storageNamesKey:   storageNamesKey,
 		storageLockKey:    storageLockKey,
@@ -162,7 +162,16 @@ func originCAHTTPClient(ctx context.Context, logger log.ContextLogger, options o
 }
 
 func (s *Service) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
+	if stage == adapter.StartStateInitialize {
+		if s.dataDirectory == "" {
+			return nil
+		}
+		err := filemanager.MkdirAll(s.ctx, s.dataDirectory, 0o700)
+		if err != nil {
+			return E.Cause(err, "create data directory")
+		}
+		return nil
+	} else if stage != adapter.StartStateStart {
 		return nil
 	}
 	cachedCertificate, cachedLeaf, err := s.loadCachedCertificate()
