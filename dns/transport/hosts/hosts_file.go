@@ -2,15 +2,16 @@ package hosts
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io"
 	"net/netip"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/service/filemanager"
 
 	"github.com/miekg/dns"
 )
@@ -18,6 +19,7 @@ import (
 const cacheMaxAge = 5 * time.Second
 
 type File struct {
+	ctx     context.Context
 	path    string
 	access  sync.Mutex
 	byName  map[string][]netip.Addr
@@ -26,8 +28,9 @@ type File struct {
 	size    int64
 }
 
-func NewFile(path string) *File {
+func NewFile(ctx context.Context, path string) *File {
 	return &File{
+		ctx:  ctx,
 		path: path,
 	}
 }
@@ -37,7 +40,7 @@ func NewDefault() (*File, error) {
 	if err != nil {
 		return nil, E.Cause(err, "resolve default hosts path")
 	}
-	return NewFile(defaultPathResolved), nil
+	return NewFile(context.Background(), defaultPathResolved), nil
 }
 
 func (f *File) Lookup(name string) []netip.Addr {
@@ -52,7 +55,7 @@ func (f *File) update() {
 	if now.Before(f.expire) && len(f.byName) > 0 {
 		return
 	}
-	stat, err := os.Stat(f.path)
+	stat, err := filemanager.Stat(f.ctx, f.path)
 	if err != nil {
 		return
 	}
@@ -61,7 +64,7 @@ func (f *File) update() {
 		return
 	}
 	byName := make(map[string][]netip.Addr)
-	file, err := os.Open(f.path)
+	file, err := filemanager.Open(f.ctx, f.path)
 	if err != nil {
 		return
 	}
