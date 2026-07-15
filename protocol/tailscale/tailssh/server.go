@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -28,6 +27,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/service/filemanager"
 	tsDNS "github.com/sagernet/tailscale/net/dns"
 	"github.com/sagernet/tailscale/tailcfg"
 	"github.com/sagernet/tailscale/tsnet"
@@ -93,7 +93,7 @@ type activeSession struct {
 	cancel context.CancelFunc
 }
 
-func New(tsnetServer *tsnet.Server, platformInterface adapter.PlatformInterface, options *option.TailscaleSSHServerOptions, logger logger.ContextLogger) (*Server, error) {
+func New(ctx context.Context, tsnetServer *tsnet.Server, platformInterface adapter.PlatformInterface, options *option.TailscaleSSHServerOptions, logger logger.ContextLogger) (*Server, error) {
 	s := &Server{
 		tsnetServer:       tsnetServer,
 		platformInterface: platformInterface,
@@ -104,7 +104,7 @@ func New(tsnetServer *tsnet.Server, platformInterface adapter.PlatformInterface,
 		done:              make(chan struct{}),
 		activeConns:       make(map[*activeSession]struct{}),
 	}
-	s.serverCtx, s.serverCancel = context.WithCancel(context.Background())
+	s.serverCtx, s.serverCancel = context.WithCancel(ctx)
 	hostSigner, err := s.loadOrGenerateHostKey()
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (s *Server) loadOrGenerateHostKey() (gossh.Signer, error) {
 	if isPrivilegedUser() {
 		systemKey := systemHostKeyPath()
 		if systemKey != "" {
-			keyData, err := os.ReadFile(systemKey)
+			keyData, err := filemanager.ReadFile(s.serverCtx, systemKey)
 			if err == nil {
 				signer, parseErr := gossh.ParsePrivateKey(keyData)
 				if parseErr == nil {
@@ -144,7 +144,7 @@ func (s *Server) loadOrGenerateHostKey() (gossh.Signer, error) {
 		}
 	}
 	keyPath := filepath.Join(s.tsnetServer.Dir, "ssh_host_ed25519_key")
-	keyData, err := os.ReadFile(keyPath)
+	keyData, err := filemanager.ReadFile(s.serverCtx, keyPath)
 	if err == nil {
 		signer, parseErr := gossh.ParsePrivateKey(keyData)
 		if parseErr == nil {
@@ -163,11 +163,11 @@ func (s *Server) loadOrGenerateHostKey() (gossh.Signer, error) {
 	}
 	pemData := pem.EncodeToMemory(keyBytes)
 	dir := filepath.Dir(keyPath)
-	err = os.MkdirAll(dir, 0o700)
+	err = filemanager.MkdirAll(s.serverCtx, dir, 0o700)
 	if err != nil {
 		return nil, err
 	}
-	err = os.WriteFile(keyPath, pemData, 0o600)
+	err = filemanager.WriteFile(s.serverCtx, keyPath, pemData, 0o600)
 	if err != nil {
 		return nil, err
 	}
