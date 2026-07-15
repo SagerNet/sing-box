@@ -196,6 +196,7 @@ func (s *StartedService) StartOrReloadService(profileContent string, options *Ov
 	}
 	oldInstance := s.instance
 	if oldInstance != nil {
+		s.instance = nil
 		s.updateStatus(ServiceStatus_STOPPING)
 		s.serviceAccess.Unlock()
 		_ = oldInstance.Close()
@@ -221,6 +222,8 @@ func (s *StartedService) StartOrReloadService(profileContent string, options *Ov
 		return nil
 	}
 	if err != nil {
+		s.instance = nil
+		_ = instance.Close()
 		return s.updateStatusError(err)
 	}
 	s.startedAt = time.Now()
@@ -243,16 +246,13 @@ func (s *StartedService) CloseService() error {
 	case ServiceStatus_STARTING, ServiceStatus_STARTED:
 	default:
 		s.serviceAccess.Unlock()
-		return os.ErrInvalid
+		return nil
 	}
 	s.updateStatus(ServiceStatus_STOPPING)
 	instance := s.instance
 	s.instance = nil
 	if instance != nil {
-		err := instance.Close()
-		if err != nil {
-			return s.updateStatusError(err)
-		}
+		_ = instance.Close()
 	}
 	s.startedAt = time.Time{}
 	s.updateStatus(ServiceStatus_IDLE)

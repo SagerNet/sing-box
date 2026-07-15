@@ -18,6 +18,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/ntp"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 
 	"github.com/caddyserver/certmagic"
 )
@@ -109,7 +111,13 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	}
 	var storage certmagic.Storage
 	if options.DataDirectory != "" {
-		storage = &certmagic.FileStorage{Path: options.DataDirectory}
+		dataDirectory := filemanager.BasePath(ctx, os.ExpandEnv(options.DataDirectory))
+		mkdirErr := filemanager.MkdirAll(ctx, dataDirectory, 0o700)
+		if mkdirErr != nil {
+			cancel()
+			return nil, E.Cause(mkdirErr, "create data directory")
+		}
+		storage = &certmagic.FileStorage{Path: dataDirectory}
 	} else {
 		storage = certmagic.Default.Storage
 	}

@@ -140,6 +140,10 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 	})
 	if options.ExternalUI != "" {
 		s.externalUI = filemanager.BasePath(ctx, os.ExpandEnv(options.ExternalUI))
+		_, err := filemanager.ReadDir(ctx, s.externalUI)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, E.Cause(err, "read external UI directory")
+		}
 		chiRouter.Group(func(r chi.Router) {
 			r.Get("/ui", http.RedirectHandler("/ui/", http.StatusMovedPermanently).ServeHTTP)
 			r.Handle("/ui/*", http.StripPrefix("/ui/", http.FileServer(Dir(s.externalUI))))

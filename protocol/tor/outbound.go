@@ -20,8 +20,8 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/rw"
 	"github.com/sagernet/sing/protocol/socks"
+	"github.com/sagernet/sing/service/filemanager"
 
 	"github.com/cretz/bine/control"
 	"github.com/cretz/bine/tor"
@@ -46,35 +46,49 @@ type Outbound struct {
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TorOutboundOptions) (adapter.Outbound, error) {
 	var startConf tor.StartConf
 	startConf.DataDir = os.ExpandEnv(options.DataDirectory)
-	startConf.TempDataDirBase = os.TempDir()
-	startConf.ExtraArgs = options.ExtraArgs
-	if options.DataDirectory != "" {
-		dataDirAbs, _ := filepath.Abs(startConf.DataDir)
-		if geoIPPath := filepath.Join(dataDirAbs, "geoip"); rw.IsFile(geoIPPath) && !common.Contains(options.ExtraArgs, "--GeoIPFile") {
-			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPFile", geoIPPath)
-		}
-		if geoIP6Path := filepath.Join(dataDirAbs, "geoip6"); rw.IsFile(geoIP6Path) && !common.Contains(options.ExtraArgs, "--GeoIPv6File") {
-			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPv6File", geoIP6Path)
-		}
-	}
-	if options.ExecutablePath != "" {
-		startConf.ExePath = options.ExecutablePath
-		startConf.ProcessCreator = nil
-		startConf.UseEmbeddedControlConn = false
-	}
 	if startConf.DataDir != "" {
-		torrcFile := filepath.Join(startConf.DataDir, "torrc")
-		err := rw.MkdirParent(torrcFile)
+		startConf.DataDir = filemanager.BasePath(ctx, startConf.DataDir)
+	}
+	startConf.TempDataDirBase = filemanager.TempPath(ctx)
+	if startConf.DataDir != "" {
+		err := filemanager.MkdirAll(ctx, startConf.DataDir, 0o755)
 		if err != nil {
 			return nil, err
 		}
-		if !rw.IsFile(torrcFile) {
-			err := os.WriteFile(torrcFile, []byte(""), 0o600)
+		dataDirAbs, _ := filepath.Abs(startConf.DataDir)
+		geoIPPath := filepath.Join(dataDirAbs, "geoip")
+		geoIPInfo, err := filemanager.Stat(ctx, geoIPPath)
+		if err == nil && !geoIPInfo.IsDir() && !common.Contains(options.ExtraArgs, "--GeoIPFile") {
+			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPFile", geoIPPath)
+		}
+		geoIP6Path := filepath.Join(dataDirAbs, "geoip6")
+		geoIP6Info, err := filemanager.Stat(ctx, geoIP6Path)
+		if err == nil && !geoIP6Info.IsDir() && !common.Contains(options.ExtraArgs, "--GeoIPv6File") {
+			options.ExtraArgs = append(options.ExtraArgs, "--GeoIPv6File", geoIP6Path)
+		}
+		torrcFile := filepath.Join(startConf.DataDir, "torrc")
+		torrcInfo, err := filemanager.Stat(ctx, torrcFile)
+		if os.IsNotExist(err) {
+			err = filemanager.WriteFile(ctx, torrcFile, []byte(""), 0o600)
 			if err != nil {
 				return nil, err
 			}
+		} else if err != nil {
+			return nil, err
+		} else if torrcInfo.IsDir() {
+			return nil, E.New("Tor configuration path is a directory: ", torrcFile)
 		}
 		startConf.TorrcFile = torrcFile
+	}
+	startConf.ExtraArgs = options.ExtraArgs
+	if options.ExecutablePath != "" {
+		err := adapter.CheckSecurityFeature(ctx, "Tor `executable_path`")
+		if err != nil {
+			return nil, err
+		}
+		startConf.ExePath = options.ExecutablePath
+		startConf.ProcessCreator = nil
+		startConf.UseEmbeddedControlConn = false
 	}
 	outboundDialer, err := dialer.New(ctx, options.DialerOptions, false)
 	if err != nil {

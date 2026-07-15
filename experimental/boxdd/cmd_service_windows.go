@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,6 +49,18 @@ var commandServiceUninstall = &cobra.Command{
 	},
 }
 
+var commandServiceSetInsecureMode = &cobra.Command{
+	Use:   "set-insecure-mode <enabled>",
+	Short: "Set whether configurations may use privileges unrelated to networking",
+	Args:  cobra.ExactArgs(1),
+	Run: func(command *cobra.Command, args []string) {
+		err := serviceSetInsecureMode(args[0])
+		if err != nil {
+			log.Fatal(E.Cause(err, "set insecure mode"))
+		}
+	},
+}
+
 func addPlatformServiceCommands() {
 	commandServiceInstall.Flags().BoolVar(
 		&commandServiceFlagAllowUnsafeInstallation,
@@ -57,6 +70,57 @@ func addPlatformServiceCommands() {
 	)
 	commandService.AddCommand(commandServiceInstall)
 	commandService.AddCommand(commandServiceUninstall)
+	commandService.AddCommand(commandServiceSetInsecureMode)
+}
+
+func serviceSetInsecureMode(value string) error {
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		return E.Cause(err, "parse value")
+	}
+	if !windows.GetCurrentProcessToken().IsElevated() {
+		return E.New("setting insecure mode requires an elevated process")
+	}
+	directory, err := installedServiceWorkingDirectory()
+	if err != nil {
+		return err
+	}
+	serviceUserID, err := windowsServiceSID()
+	if err != nil {
+		return E.Cause(err, "create daemon service SID")
+	}
+	err = validateProtectedWindowsWorkingDirectory(directory, serviceUserID)
+	if err != nil {
+		return E.Cause(err, "validate working directory")
+	}
+	return saveSecuritySettings(directory, securitySettings{InsecureModeEnabled: enabled})
+}
+
+func installedServiceWorkingDirectory() (string, error) {
+	manager, err := mgr.Connect()
+	if err != nil {
+		return "", E.Cause(err, "connect to service manager")
+	}
+	defer manager.Disconnect()
+	service, err := manager.OpenService(serviceName)
+	if err != nil {
+		return "", E.Cause(err, "open service")
+	}
+	defer service.Close()
+	config, err := service.Config()
+	if err != nil {
+		return "", E.Cause(err, "query service config")
+	}
+	arguments, err := windows.DecomposeCommandLine(config.BinaryPathName)
+	if err != nil {
+		return "", E.Cause(err, "parse service command line")
+	}
+	for index, argument := range arguments {
+		if argument == "--working-directory" && index+1 < len(arguments) {
+			return arguments[index+1], nil
+		}
+	}
+	return "", E.New("missing working directory in the service configuration")
 }
 
 func serviceInstall() error {
