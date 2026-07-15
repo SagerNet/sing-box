@@ -151,6 +151,16 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	stateDirectory = filemanager.BasePath(ctx, os.ExpandEnv(stateDirectory))
 	stateDirectory, _ = filepath.Abs(stateDirectory)
+	mkdirErr := filemanager.MkdirAll(ctx, stateDirectory, 0o700)
+	if mkdirErr != nil {
+		return nil, E.Cause(mkdirErr, "create state directory")
+	}
+	if options.SSHServer != nil && options.SSHServer.Enabled {
+		err := adapter.CheckSecurityFeature(ctx, "Tailscale `ssh_server`")
+		if err != nil {
+			return nil, err
+		}
+	}
 	for _, advertiseRoute := range options.AdvertiseRoutes {
 		if advertiseRoute.Addr().IsUnspecified() && advertiseRoute.Bits() == 0 {
 			return nil, E.New("`advertise_routes` cannot be default, use `advertise_exit_node` instead.")
@@ -435,7 +445,7 @@ func (t *Endpoint) postStart() error {
 	}
 	t.filter = localBackend.ExportFilter()
 	if sshEnabled {
-		sshServer, err := tailssh.New(t.server, t.platformInterface, t.sshServerOptions, t.logger)
+		sshServer, err := tailssh.New(t.ctx, t.server, t.platformInterface, t.sshServerOptions, t.logger)
 		if err != nil {
 			return E.Cause(err, "create SSH server")
 		}
