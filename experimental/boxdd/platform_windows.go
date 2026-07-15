@@ -4,8 +4,11 @@ package main
 
 import (
 	"context"
+	"io"
 	"net/netip"
 	"os"
+	"os/user"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
@@ -20,6 +23,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 
+	"github.com/tailscale/go-winio"
 	"golang.org/x/sys/windows"
 )
 
@@ -172,11 +176,11 @@ func (p *windowsPlatformInterface) CloseNeighborMonitor(listener adapter.Neighbo
 }
 
 func (p *windowsPlatformInterface) UsePlatformShell() bool {
-	return false
+	return listenAddress == ""
 }
 
 func (p *windowsPlatformInterface) CheckPlatformShell() error {
-	return os.ErrInvalid
+	return nil
 }
 
 func (p *windowsPlatformInterface) OpenShellSession(user *adapter.PlatformUser, command string, environ []string, term string, rows int32, cols int32) (adapter.ShellSession, error) {
@@ -184,11 +188,29 @@ func (p *windowsPlatformInterface) OpenShellSession(user *adapter.PlatformUser, 
 }
 
 func (p *windowsPlatformInterface) LookupUser(username string) (*adapter.PlatformUser, error) {
-	return nil, os.ErrInvalid
+	requestedUser, err := user.Lookup(username)
+	if err != nil {
+		return nil, E.Cause(err, "lookup Windows user")
+	}
+	return &adapter.PlatformUser{
+		Username: requestedUser.Username,
+		Uid:      os.Getuid(),
+		Gid:      os.Getgid(),
+		HomeDir:  requestedUser.HomeDir,
+	}, nil
 }
 
 func (p *windowsPlatformInterface) LookupSFTPServer() (string, error) {
-	return "", os.ErrInvalid
+	for _, sftpPath := range []string{
+		filepath.Join(os.Getenv("SystemRoot"), "System32", "OpenSSH", "sftp-server.exe"),
+		filepath.Join(os.Getenv("ProgramFiles"), "OpenSSH", "sftp-server.exe"),
+	} {
+		_, err := os.Stat(sftpPath)
+		if err == nil {
+			return sftpPath, nil
+		}
+	}
+	return "", E.New("sftp-server not found")
 }
 
 func (p *windowsPlatformInterface) ReadSystemSSHHostKey() ([]byte, error) {
@@ -197,6 +219,14 @@ func (p *windowsPlatformInterface) ReadSystemSSHHostKey() ([]byte, error) {
 
 func (p *windowsPlatformInterface) TailscaleHostname() string {
 	return ""
+}
+
+func (p *windowsPlatformInterface) AcquireWindowsUserToken(localUser *adapter.PlatformUser) (windows.Token, io.Closer, error) {
+	requestedUser, err := user.Lookup(localUser.Username)
+	if err != nil {
+		return 0, nil, E.Cause(err, "lookup Windows user")
+	}
+	return acquireWindowsUserSession(requestedUser)
 }
 
 func (p *windowsPlatformInterface) UsePlatformBridge() bool {
@@ -471,7 +501,9 @@ func runImpersonated(token windows.Token, operation func() error) error {
 
 func querySessionImpersonationToken(sessionID uint32) (windows.Token, error) {
 	var primaryToken windows.Token
-	err := windows.WTSQueryUserToken(sessionID, &primaryToken)
+	err := winio.RunWithPrivileges([]string{seTcbPrivilege}, func() error {
+		return windows.WTSQueryUserToken(sessionID, &primaryToken)
+	})
 	if err != nil {
 		return 0, E.Cause(err, "query session user token")
 	}
