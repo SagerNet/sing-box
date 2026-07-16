@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
@@ -18,12 +19,12 @@ import (
 )
 
 type _RuleSet struct {
-	Type          string        `json:"type,omitempty"`
-	Tag           string        `json:"tag"`
-	Format        string        `json:"format,omitempty"`
-	InlineOptions PlainRuleSet  `json:"-"`
-	LocalOptions  LocalRuleSet  `json:"-"`
-	RemoteOptions RemoteRuleSet `json:"-"`
+	Type          string                     `json:"type,omitempty"`
+	Tag           badoption.Listable[string] `json:"tag"`
+	Format        string                     `json:"format,omitempty"`
+	InlineOptions PlainRuleSet               `json:"-"`
+	LocalOptions  LocalRuleSet               `json:"-"`
+	RemoteOptions RemoteRuleSet              `json:"-"`
 }
 
 type RuleSet _RuleSet
@@ -61,7 +62,7 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 	if err != nil {
 		return err
 	}
-	if r.Tag == "" {
+	if len(r.Tag) == 0 || common.Any(r.Tag, func(tag string) bool { return tag == "" }) {
 		return E.New("missing tag")
 	}
 	var v any
@@ -98,6 +99,20 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 		}
 	} else {
 		r.Format = ""
+	}
+	if len(r.Tag) > 1 {
+		switch r.Type {
+		case C.RuleSetTypeInline:
+			return E.New("inline rule-set does not support multiple tags")
+		case C.RuleSetTypeLocal:
+			if !strings.Contains(r.LocalOptions.Path, C.RuleSetTagPlaceholder) {
+				return E.New("missing ", C.RuleSetTagPlaceholder, " placeholder in path")
+			}
+		case C.RuleSetTypeRemote:
+			if !strings.Contains(r.RemoteOptions.URL, C.RuleSetTagPlaceholder) {
+				return E.New("missing ", C.RuleSetTagPlaceholder, " placeholder in url")
+			}
+		}
 	}
 	return nil
 }
