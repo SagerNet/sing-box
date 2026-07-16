@@ -42,6 +42,7 @@ type stackDevice struct {
 	inet4Address   netip.Addr
 	inet6Address   netip.Addr
 	icmpForwarder  *tun.ICMPForwarder
+	udpForwarder   *tun.UDPForwarder
 }
 
 func newStackDevice(options DeviceOptions) (*stackDevice, error) {
@@ -79,7 +80,16 @@ func newStackDevice(options DeviceOptions) (*stackDevice, error) {
 	tunDevice.stack = ipStack
 	if options.Handler != nil {
 		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
-		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
+		udpForwarder := tun.NewUDPForwarder(options.Context, ipStack, options.Handler, tun.UDPNatOptions{
+			Timeout:         options.UDPTimeout,
+			Shared:          true,
+			Mapping:         options.UDPMapping,
+			Filtering:       options.UDPFiltering,
+			MaxSize:         options.UDPNATMax,
+			InterfaceFinder: options.InterfaceFinder,
+		})
+		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, udpForwarder.HandlePacket)
+		tunDevice.udpForwarder = udpForwarder
 		icmpForwarder := tun.NewICMPForwarder(ipStack, options.Handler, options.Logger)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
@@ -166,6 +176,12 @@ func (w *stackDevice) SetDevice(device *device.Device) {
 }
 
 func (w *stackDevice) Start() error {
+	if w.udpForwarder != nil {
+		err := w.udpForwarder.Start()
+		if err != nil {
+			return err
+		}
+	}
 	w.events <- wgTun.EventUp
 	return nil
 }
@@ -244,6 +260,9 @@ func (w *stackDevice) Close() error {
 		close(w.events)
 		if w.icmpForwarder != nil {
 			w.icmpForwarder.Close()
+		}
+		if w.udpForwarder != nil {
+			_ = w.udpForwarder.Close()
 		}
 		w.stack.Close()
 		for _, endpoint := range w.stack.CleanupEndpoints() {
