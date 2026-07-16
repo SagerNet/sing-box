@@ -28,7 +28,7 @@ type serviceBase struct {
 	access      sync.Mutex
 	egressName  string
 	closed      bool
-	applyEgress func()
+	applyEgress func() error
 }
 
 func (s *serviceBase) FileDescriptor() int {
@@ -50,8 +50,7 @@ func (s *serviceBase) SetEgress(interfaceName string) error {
 		return os.ErrClosed
 	}
 	s.egressName = interfaceName
-	s.applyEgress()
-	return nil
+	return s.applyEgress()
 }
 
 func (s *serviceBase) syncEgress() {
@@ -60,7 +59,10 @@ func (s *serviceBase) syncEgress() {
 	if s.closed {
 		return
 	}
-	s.applyEgress()
+	err := s.applyEgress()
+	if err != nil {
+		s.logger.Debug(E.Cause(err, "update bridge egress"))
+	}
 }
 
 func (s *serviceBase) startNetworkMonitor() {
