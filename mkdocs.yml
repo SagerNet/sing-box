@@ -139,6 +139,7 @@ nav:
           - Multiplex: configuration/shared/multiplex.md
           - V2Ray Transport: configuration/shared/v2ray-transport.md
           - UDP over TCP: configuration/shared/udp-over-tcp.md
+          - UDP NAT Fields: configuration/shared/udp-nat.md
           - TCP Brutal: configuration/shared/tcp-brutal.md
           - Wi-Fi State: configuration/shared/wifi-state.md
           - Neighbor Resolution: configuration/shared/neighbor.md
@@ -302,6 +303,7 @@ plugins:
             Multiplex: 多路复用
             V2Ray Transport: V2Ray 传输层
             Wi-Fi State: Wi-Fi 状态
+            UDP NAT Fields: UDP NAT 字段
 
             Network Namespace: 网络命名空间
             Endpoint: 端点
