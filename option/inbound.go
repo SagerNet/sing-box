@@ -87,6 +87,48 @@ type ListenOptions struct {
 	InboundOptions
 }
 
+type UDPNATBehavior uint8
+
+const (
+	UDPNATBehaviorEndpointIndependent UDPNATBehavior = iota
+	UDPNATBehaviorAddressDependent
+	UDPNATBehaviorAddressAndPortDependent
+)
+
+func (b UDPNATBehavior) MarshalJSON() ([]byte, error) {
+	var value string
+	switch b {
+	case UDPNATBehaviorEndpointIndependent:
+		value = "endpoint_independent"
+	case UDPNATBehaviorAddressDependent:
+		value = "address_dependent"
+	case UDPNATBehaviorAddressAndPortDependent:
+		value = "address_and_port_dependent"
+	default:
+		return nil, E.New("unknown UDP NAT behavior: ", uint8(b))
+	}
+	return json.Marshal(value)
+}
+
+func (b *UDPNATBehavior) UnmarshalJSON(data []byte) error {
+	var value string
+	err := json.Unmarshal(data, &value)
+	if err != nil {
+		return err
+	}
+	switch value {
+	case "", "endpoint_independent":
+		*b = UDPNATBehaviorEndpointIndependent
+	case "address_dependent":
+		*b = UDPNATBehaviorAddressDependent
+	case "address_and_port_dependent":
+		*b = UDPNATBehaviorAddressAndPortDependent
+	default:
+		return E.New("unknown UDP NAT behavior: ", value)
+	}
+	return nil
+}
+
 type UDPTimeoutCompat badoption.Duration
 
 func (c UDPTimeoutCompat) MarshalJSON() ([]byte, error) {
