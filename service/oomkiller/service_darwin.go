@@ -54,7 +54,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		return nil
 	}
 	if s.timerConfig.policyMode == policyModeNetworkExtension {
-		s.createTimer()
+		s.adaptiveTimer = newAdaptiveTimer(s.logger, s.network, s.timerConfig, nil)
 		globalAccess.Lock()
 		isFirst := len(globalServices) == 0
 		globalServices = append(globalServices, s)
@@ -67,12 +67,15 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	if !s.timerConfig.policyMode.hasTimerMode() {
 		return E.New("memory pressure monitoring is not available on this platform without memory_limit")
 	}
-	s.startTimer()
+	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.network, s.timerConfig, s.writeOOMReport)
+	s.adaptiveTimer.start()
 	return nil
 }
 
 func (s *Service) Close() error {
-	s.stopTimer()
+	if s.adaptiveTimer != nil {
+		s.adaptiveTimer.stop()
+	}
 	if s.timerConfig.policyMode == policyModeNetworkExtension {
 		globalAccess.Lock()
 		for i, svc := range globalServices {
