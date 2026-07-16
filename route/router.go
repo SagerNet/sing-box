@@ -42,7 +42,7 @@ type Router struct {
 	ruleSetMap        map[string]adapter.RuleSet
 	ruleSetUpdater    *R.RuleSetUpdater
 	processSearcher   process.Searcher
-	processCache      freelru.Cache[processCacheKey, processCacheEntry]
+	processCache      *freelru.Cache[processCacheKey, processCacheEntry]
 	neighborResolver  adapter.NeighborResolver
 	pauseManager      pause.Manager
 	trackers          []adapter.ConnectionTracker
@@ -192,7 +192,7 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			}
 		}
 		if r.processSearcher != nil {
-			processCache := common.Must1(freelru.NewSharded[processCacheKey, processCacheEntry](256, maphash.NewHasher[processCacheKey]().Hash32))
+			processCache := common.Must1(freelru.New[processCacheKey, processCacheEntry](256, maphash.NewHasher[processCacheKey]().Hash32, true))
 			processCache.SetLifetime(200 * time.Millisecond)
 			r.processCache = processCache
 		}

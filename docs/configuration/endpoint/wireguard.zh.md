@@ -1,3 +1,9 @@
+!!! quote "sing-box 1.14.0 中的更改"
+
+    :material-plus: [udp_mapping](/zh/configuration/shared/udp-nat/#udp_mapping)  
+    :material-plus: [udp_filtering](/zh/configuration/shared/udp-nat/#udp_filtering)  
+    :material-plus: [udp_nat_max](/zh/configuration/shared/udp-nat/#udp_nat_max)
+
 !!! question "自 sing-box 1.11.0 起"
 
 ### 结构
@@ -24,7 +30,9 @@
       "reserved": [0, 0, 0]
     }
   ],
-  "udp_timeout": "",
+
+  ... // UDP NAT 字段
+
   "workers": 0,
 
   ... // 拨号字段
@@ -114,17 +122,15 @@ WireGuard 对等方的列表。
 
 对等方的保留字段字节。
 
-#### udp_timeout
-
-UDP NAT 过期时间。
-
-默认使用 `5m`。
-
 #### workers
 
 WireGuard worker 数量。
 
 默认使用 CPU 数量。
+
+### UDP NAT 字段
+
+参阅 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)。
 
 ### 拨号字段
 
