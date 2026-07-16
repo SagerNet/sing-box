@@ -19,6 +19,7 @@ const (
 	pfRulesetNat    = 2
 
 	pfActionPass  = 0
+	pfActionDrop  = 1
 	pfActionScrub = 2
 	pfActionNat   = 4
 
