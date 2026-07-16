@@ -105,7 +105,6 @@ type adaptiveTimer struct {
 	limitThresholds pressureThresholds
 
 	access                  sync.Mutex
-	cleanupTriggered        bool
 	timer                   *time.Timer
 	state                   pressureState
 	currentInterval         time.Duration
@@ -162,12 +161,6 @@ func (t *adaptiveTimer) poll() {
 		t.access.Unlock()
 		return
 	}
-	if t.timerConfig.policyMode == policyModeNetworkExtension {
-		if t.cleanupTriggered {
-			runtimeDebug.FreeOSMemory()
-			t.cleanupTriggered = true
-		}
-	}
 	if t.pendingPressureBaseline {
 		t.pressureBaseline = sample
 		t.pressureBaselineTime = time.Now()
@@ -190,8 +183,8 @@ func (t *adaptiveTimer) poll() {
 			growth := sample.usage - t.pressureBaseline.usage
 			ratePerSecond := float64(growth) / elapsed.Seconds()
 			headroom := t.memoryLimit - sample.usage
-			timeToLimit := time.Duration(float64(headroom)/ratePerSecond) * time.Second
-			if timeToLimit < t.minInterval {
+			secondsUntilLimit := float64(headroom) / ratePerSecond
+			if secondsUntilLimit < t.minInterval.Seconds() {
 				triggered = true
 				rateTriggered = true
 				t.state = pressureStateTriggered
@@ -202,8 +195,9 @@ func (t *adaptiveTimer) poll() {
 	if !triggered {
 		return
 	}
-	t.cleanupTriggered = false
-	t.onTriggered(sample.usage)
+	if t.onTriggered != nil {
+		t.onTriggered(sample.usage)
+	}
 	if rateTriggered {
 		if t.killerDisabled {
 			t.logger.Warn("memory growth rate critical (report only), usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample))
