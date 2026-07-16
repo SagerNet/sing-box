@@ -121,6 +121,12 @@ func (b *backendDarwin) start() error {
 	if err != nil {
 		return E.Cause(err, "enable pf")
 	}
+	dropRules := bridgeDropRules(b.tunName, b.inet4Port, b.inet6Port)
+	err = b.pfDevice.LoadAnchor(b.anchorName, dropRules)
+	if err != nil {
+		return E.Cause(err, "initialize bridge pf rules")
+	}
+	b.currentRules = dropRules
 	b.batchTUN = tunInterface.(tun.DarwinTUN)
 	b.closed = make(chan struct{})
 	b.readDone = make(chan struct{})
@@ -324,11 +330,15 @@ func (b *backendDarwin) syncEgress() {
 	default:
 	}
 	egress := b.resolveEgress()
-	var rules []pfAnchorRule
+	rules := bridgeDropRules(b.tunName, b.inet4Port, b.inet6Port)
+	var buildErr error
 	if egress != "" {
-		rules = buildBridgeAnchorRules(b.logger, b.tunName, egress, b.boundInterface, b.inet4Port, b.inet6Port)
+		rules, buildErr = buildBridgeAnchorRules(b.tunName, egress, b.boundInterface, b.inet4Port, b.inet6Port)
 	}
 	if slices.Equal(rules, b.currentRules) {
+		if buildErr != nil {
+			b.logger.Debug(buildErr)
+		}
 		return
 	}
 	err := b.pfDevice.LoadAnchor(b.anchorName, rules)
@@ -337,10 +347,13 @@ func (b *backendDarwin) syncEgress() {
 		return
 	}
 	b.currentRules = rules
-	if len(rules) == 0 {
+	if buildErr != nil || egress == "" {
 		b.logger.Debug("bridge egress unavailable, dropping forwarded traffic")
 	} else {
 		b.logger.Debug("bridge egress ", egress)
+	}
+	if buildErr != nil {
+		b.logger.Debug(buildErr)
 	}
 }
 
