@@ -42,7 +42,7 @@ type Client struct {
 	dnsCache          adapter.DNSCacheStore
 	initDNSCacheFunc  func() adapter.DNSCacheStore
 	logger            logger.ContextLogger
-	cache             freelru.Cache[dnsCacheKey, *dns.Msg]
+	cache             *freelru.Cache[dnsCacheKey, *dns.Msg]
 	cacheLock         compatible.Map[dnsCacheKey, chan struct{}]
 	backgroundRefresh compatible.Map[dnsCacheKey, struct{}]
 }
@@ -104,7 +104,7 @@ func (c *Client) initializeMemoryCache() {
 	if c.disableCache || c.cache != nil {
 		return
 	}
-	c.cache = common.Must1(freelru.NewSharded[dnsCacheKey, *dns.Msg](c.cacheCapacity, maphash.NewHasher[dnsCacheKey]().Hash32))
+	c.cache = common.Must1(freelru.New[dnsCacheKey, *dns.Msg](c.cacheCapacity, maphash.NewHasher[dnsCacheKey]().Hash32, true))
 }
 
 func extractNegativeTTL(response *dns.Msg) (uint32, bool) {
