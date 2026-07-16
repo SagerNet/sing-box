@@ -52,21 +52,6 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	}, nil
 }
 
-func (s *Service) createTimer() {
-	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.network, s.timerConfig, s.writeOOMReport)
-}
-
-func (s *Service) startTimer() {
-	s.createTimer()
-	s.adaptiveTimer.start()
-}
-
-func (s *Service) stopTimer() {
-	if s.adaptiveTimer != nil {
-		s.adaptiveTimer.stop()
-	}
-}
-
 func (s *Service) writeOOMReport(memoryUsage uint64) {
 	now := time.Now().Unix()
 	lastReport := s.lastReportTime.Load()
