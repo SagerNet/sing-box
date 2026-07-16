@@ -38,11 +38,11 @@ type LocalRuleSet struct {
 	refs       atomic.Int32
 }
 
-func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.RuleSet) (*LocalRuleSet, error) {
+func NewLocalRuleSet(ctx context.Context, logger logger.Logger, tag string, options option.RuleSet) (*LocalRuleSet, error) {
 	ruleSet := &LocalRuleSet{
 		ctx:        ctx,
 		logger:     logger,
-		tag:        options.Tag,
+		tag:        tag,
 		fileFormat: options.Format,
 	}
 	if options.Type == C.RuleSetTypeInline {
@@ -54,7 +54,7 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.R
 			return nil, err
 		}
 	} else {
-		filePath := filemanager.BasePath(ctx, options.LocalOptions.Path)
+		filePath := filemanager.BasePath(ctx, strings.ReplaceAll(options.LocalOptions.Path, C.RuleSetTagPlaceholder, tag))
 		filePath, _ = filepath.Abs(filePath)
 		err := ruleSet.reloadFile(filePath)
 		if err != nil {
@@ -65,7 +65,7 @@ func NewLocalRuleSet(ctx context.Context, logger logger.Logger, options option.R
 			Callback: func(path string) {
 				uErr := ruleSet.reloadFile(path)
 				if uErr != nil {
-					logger.Error(E.Cause(uErr, "reload rule-set ", options.Tag))
+					logger.Error(E.Cause(uErr, "reload rule-set ", tag))
 				}
 			},
 		})
