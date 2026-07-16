@@ -27,6 +27,7 @@ type systemStackDevice struct {
 	stack         *stack.Stack
 	endpoint      *deviceEndpoint
 	icmpForwarder *tun.ICMPForwarder
+	udpForwarder  *tun.UDPForwarder
 	writeBufs     [][]byte
 	closeOnce     sync.Once
 }
@@ -69,7 +70,17 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 	}
 	if options.Handler != nil {
 		ipStack.SetTransportProtocolHandler(tcp.ProtocolNumber, tun.NewTCPForwarder(options.Context, ipStack, options.Handler).HandlePacket)
-		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, tun.NewUDPForwarder(options.Context, ipStack, options.Handler, options.UDPTimeout).HandlePacket)
+		udpForwarder := tun.NewUDPForwarder(options.Context, ipStack, options.Handler, tun.UDPNatOptions{
+			Timeout:          options.UDPTimeout,
+			Shared:           true,
+			Mapping:          options.UDPMapping,
+			Filtering:        options.UDPFiltering,
+			MaxSize:          options.UDPNATMax,
+			InterfaceFinder:  options.InterfaceFinder,
+			ExcludeInterface: []string{options.Name},
+		})
+		ipStack.SetTransportProtocolHandler(udp.ProtocolNumber, udpForwarder.HandlePacket)
+		stackDevice.udpForwarder = udpForwarder
 		icmpForwarder := tun.NewICMPForwarder(ipStack, options.Handler, options.Logger)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber4, icmpForwarder.HandlePacket)
 		ipStack.SetTransportProtocolHandler(icmp.ProtocolNumber6, icmpForwarder.HandlePacket)
@@ -80,6 +91,20 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 
 func (w *systemStackDevice) SetDevice(device *device.Device) {
 	w.endpoint.device = device
+}
+
+func (w *systemStackDevice) Start() error {
+	if w.udpForwarder != nil {
+		err := w.udpForwarder.Start()
+		if err != nil {
+			return err
+		}
+	}
+	err := w.systemDevice.Start()
+	if err != nil && w.udpForwarder != nil {
+		_ = w.udpForwarder.Close()
+	}
+	return err
 }
 
 func (w *systemStackDevice) Write(bufs [][]byte, offset int) (count int, err error) {
@@ -117,6 +142,9 @@ func (w *systemStackDevice) Close() error {
 		close(w.endpoint.done)
 		if w.icmpForwarder != nil {
 			w.icmpForwarder.Close()
+		}
+		if w.udpForwarder != nil {
+			_ = w.udpForwarder.Close()
 		}
 		w.stack.Close()
 		for _, endpoint := range w.stack.CleanupEndpoints() {
