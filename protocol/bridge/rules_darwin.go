@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -12,26 +13,28 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func buildBridgeAnchorRules(ruleLogger logger.ContextLogger, tunName string, egress string, boundInterface string, inet4Port netip.Addr, inet6Port netip.Addr) []pfAnchorRule {
+func buildBridgeAnchorRules(tunName string, egress string, boundInterface string, inet4Port netip.Addr, inet6Port netip.Addr) ([]pfAnchorRule, error) {
+	rules := bridgeDropRules(tunName, inet4Port, inet6Port)
 	egressInterface, err := net.InterfaceByName(egress)
 	if err != nil {
-		return nil
+		return rules, E.Cause(err, "find bridge egress ", egress)
 	}
+	isCellular := strings.HasPrefix(egressInterface.Name, "pdp_ip")
+	isPhysical := egressInterface.Flags&net.FlagBroadcast != 0 && egressInterface.Flags&net.FlagLoopback == 0 &&
+		egressInterface.Flags&net.FlagPointToPoint == 0
+	if boundInterface == "" && !isCellular && !isPhysical {
+		return rules, E.New("bridge egress ", egress, " is not a physical or cellular interface")
+	}
+	routeWithoutGateway := isCellular || boundInterface != "" && egressInterface.Flags&net.FlagPointToPoint != 0
 	// The flowswitch aggregates forwarded TCP into packets larger than the tun
 	// MTU, and pf_route() only fragments when they exceed the egress MTU: a
 	// large-MTU utun target feeds them whole into the overflow described at
 	// bridgeTunMTUDarwin.
-	if egressInterface.Flags&net.FlagBroadcast == 0 || egressInterface.Flags&net.FlagLoopback != 0 ||
-		egressInterface.Flags&net.FlagPointToPoint != 0 {
-		ruleLogger.Error("bridge egress ", egress, " is not a physical interface, dropping forwarded traffic")
-		return nil
-	}
 	mtu := egressInterface.MTU
 	if mtu < 576 || mtu > bridgeTunMTUDarwin {
 		mtu = bridgeTunMTUDarwin
 	}
 	localPrefixes, inet4Interfaces, inet6Interfaces := collectLocalSegments(egress, boundInterface, inet4Port.IsValid(), inet6Port.IsValid())
-	var rules []pfAnchorRule
 	if inet4Port.IsValid() {
 		rules = append(rules, pfScrubRule(egress, inet4Port, uint16(mtu-40)))
 	}
@@ -57,20 +60,16 @@ func buildBridgeAnchorRules(ruleLogger logger.ContextLogger, tunName string, egr
 	// leaves via the egress and the nat rule applies there.
 	if inet4Port.IsValid() {
 		gateway := interfaceGateway(egressInterface.Index, true)
-		if gateway.IsValid() {
+		if gateway.IsValid() || routeWithoutGateway {
 			rules = append(rules, pfRouteToRule(tunName, egress, gateway, inet4Port))
 			rules = append(rules, pfReplyToRule(tunName, egress, inet4Port))
-		} else {
-			ruleLogger.Debug("no IPv4 gateway on ", egress, ", relying on the default route")
 		}
 	}
 	if inet6Port.IsValid() {
 		gateway := interfaceGateway(egressInterface.Index, false)
-		if gateway.IsValid() {
+		if gateway.IsValid() || routeWithoutGateway {
 			rules = append(rules, pfRouteToRule(tunName, egress, gateway, inet6Port))
 			rules = append(rules, pfReplyToRule(tunName, egress, inet6Port))
-		} else {
-			ruleLogger.Debug("no IPv6 gateway on ", egress, ", relying on the default route")
 		}
 	}
 	// pf rules are last-match: the pass rules below override the route-to pin
@@ -82,6 +81,17 @@ func buildBridgeAnchorRules(ruleLogger logger.ContextLogger, tunName string, egr
 			port = inet6Port
 		}
 		rules = append(rules, pfPassInRule(tunName, port, prefix))
+	}
+	return rules, nil
+}
+
+func bridgeDropRules(tunName string, inet4Port netip.Addr, inet6Port netip.Addr) []pfAnchorRule {
+	var rules []pfAnchorRule
+	if inet4Port.IsValid() {
+		rules = append(rules, pfDropInRule(tunName, inet4Port))
+	}
+	if inet6Port.IsValid() {
+		rules = append(rules, pfDropInRule(tunName, inet6Port))
 	}
 	return rules
 }
@@ -196,11 +206,24 @@ func pfPassInRule(tunName string, port netip.Addr, destination netip.Prefix) pfA
 	return pfAnchorRule{RulesetIndex: pfRulesetFilter, Rule: rule}
 }
 
+func pfDropInRule(tunName string, port netip.Addr) pfAnchorRule {
+	rule := pfRule{
+		Action:    pfActionDrop,
+		Direction: pfDirectionIn,
+		AF:        pfFamily(port.Is4()),
+	}
+	copy(rule.IfName[:], tunName)
+	rule.Src.Addr = pfHostAddress(port)
+	return pfAnchorRule{RulesetIndex: pfRulesetFilter, Rule: rule}
+}
+
 func pfRouteToRule(tunName string, egress string, gateway netip.Addr, port netip.Addr) pfAnchorRule {
 	anchorRule := pfPassInRule(tunName, port, netip.Prefix{})
 	anchorRule.Rule.RouteAction = pfRouteActionRouteTo
 	copy(anchorRule.Rule.TagName[:], bridgeTagName(tunName))
-	anchorRule.Pool = pfPoolAddr{Addr: pfHostAddress(gateway)}
+	if gateway.IsValid() {
+		anchorRule.Pool.Addr = pfHostAddress(gateway)
+	}
 	copy(anchorRule.Pool.IfName[:], egress)
 	return anchorRule
 }
