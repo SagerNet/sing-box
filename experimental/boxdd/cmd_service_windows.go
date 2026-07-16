@@ -66,7 +66,7 @@ func addPlatformServiceCommands() {
 		&commandServiceFlagAllowUnsafeInstallation,
 		"allow-unsafe-installation-directory-permissions",
 		false,
-		"skip installation path security validation and permission hardening",
+		"allow unsafe installation path security and daemon working directory ancestor permissions",
 	)
 	commandService.AddCommand(commandServiceInstall)
 	commandService.AddCommand(commandServiceUninstall)
@@ -128,7 +128,10 @@ func serviceInstall() error {
 	if err != nil {
 		return E.Cause(err, "get executable path")
 	}
-	serviceWorkingDirectory, err := resolveWindowsServiceWorkingDirectory(commandServiceFlagWorkingDirectory)
+	serviceWorkingDirectory, err := resolveWindowsServiceWorkingDirectory(
+		commandServiceFlagWorkingDirectory,
+		commandServiceFlagAllowUnsafeInstallation,
+	)
 	if err != nil {
 		return E.Cause(err, "validate working directory")
 	}
@@ -146,6 +149,9 @@ func serviceInstall() error {
 	}
 	defer manager.Disconnect()
 	arguments := []string{"run", "--working-directory", serviceWorkingDirectory}
+	if commandServiceFlagAllowUnsafeInstallation {
+		arguments = append(arguments, "--allow-unsafe-installation-directory-permissions")
+	}
 	config := mgr.Config{
 		DisplayName:  serviceDisplayName,
 		Description:  serviceDescriptionText,
