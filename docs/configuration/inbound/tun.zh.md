@@ -8,7 +8,10 @@ icon: material/new-box
     :material-plus: [exclude_mac_address](#exclude_mac_address)  
     :material-plus: [dns_mode](#dns_mode)  
     :material-plus: [dns_address](#dns_address)  
-    :material-plus: [netns](#netns)
+    :material-plus: [netns](#netns)  
+    :material-plus: [udp_mapping](/zh/configuration/shared/udp-nat/#udp_mapping)  
+    :material-plus: [udp_filtering](/zh/configuration/shared/udp-nat/#udp_filtering)  
+    :material-plus: [udp_nat_max](/zh/configuration/shared/udp-nat/#udp_nat_max)
 
 !!! quote "sing-box 1.13.3 中的更改"
 
@@ -113,7 +116,9 @@ icon: material/new-box
     "geoip-cn"
   ],
   "endpoint_independent_nat": false,
-  "udp_timeout": "5m",
+
+  ... // UDP NAT 字段
+
   "stack": "system",
   "include_interface": [
     "lan0"
@@ -533,12 +538,6 @@ sing-box DNS 模块，等价于一条
 
 性能可能会略有下降，所以不建议在不需要的时候开启。
 
-#### udp_timeout
-
-UDP NAT 过期时间。
-
-默认使用 `5m`。
-
 #### stack
 
 !!! quote "sing-box 1.8.0 中的更改"
@@ -679,6 +678,10 @@ TCP/IP 栈。
     仅在 Apple 平台图形客户端中支持。
 
 代理的主机名列表。
+
+### UDP NAT 字段
+
+参阅 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)。
 
 ### 监听字段
 

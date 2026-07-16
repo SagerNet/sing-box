@@ -45,6 +45,9 @@ type TunInboundOptions struct {
 	IncludeMACAddress             badoption.Listable[string]       `json:"include_mac_address,omitempty"`
 	ExcludeMACAddress             badoption.Listable[string]       `json:"exclude_mac_address,omitempty"`
 	UDPTimeout                    UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
+	UDPMapping                    UDPNATBehavior                   `json:"udp_mapping,omitempty"`
+	UDPFiltering                  UDPNATBehavior                   `json:"udp_filtering,omitempty"`
+	UDPNATMax                     uint32                           `json:"udp_nat_max,omitempty"`
 	Stack                         string                           `json:"stack,omitempty"`
 	Platform                      *TunPlatformOptions              `json:"platform,omitempty"`
 	InboundOptions

@@ -38,7 +38,7 @@ type socketDiagConn struct {
 }
 
 type uidProcessPathCache struct {
-	cache freelru.Cache[uint32, *uidProcessPaths]
+	cache *freelru.Cache[uint32, *uidProcessPaths]
 }
 
 type uidProcessPaths struct {
@@ -85,7 +85,7 @@ func socketDiagSettings(network string, source netip.AddrPort) (family, protocol
 }
 
 func newUIDProcessPathCache(ttl time.Duration) *uidProcessPathCache {
-	cache := common.Must1(freelru.NewSharded[uint32, *uidProcessPaths](64, maphash.NewHasher[uint32]().Hash32))
+	cache := common.Must1(freelru.New[uint32, *uidProcessPaths](64, maphash.NewHasher[uint32]().Hash32, true))
 	cache.SetLifetime(ttl)
 	return &uidProcessPathCache{cache: cache}
 }

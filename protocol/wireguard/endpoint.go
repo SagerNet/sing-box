@@ -73,14 +73,19 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
+	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	wgEndpoint, err := wireguard.NewEndpoint(wireguard.EndpointOptions{
-		Context:     ctx,
-		Logger:      logger,
-		System:      options.System,
-		Handler:     ep,
-		UDPTimeout:  udpTimeout,
-		ICMPTimeout: C.ICMPTimeout,
-		Dialer:      outboundDialer,
+		Context:         ctx,
+		Logger:          logger,
+		System:          options.System,
+		Handler:         ep,
+		UDPTimeout:      udpTimeout,
+		ICMPTimeout:     C.ICMPTimeout,
+		UDPMapping:      tun.NATMapping(options.UDPMapping),
+		UDPFiltering:    tun.NATFiltering(options.UDPFiltering),
+		UDPNATMax:       options.UDPNATMax,
+		InterfaceFinder: networkManager.InterfaceFinder(),
+		Dialer:          outboundDialer,
 		CreateDialer: func(interfaceName string) N.Dialer {
 			return common.Must1(dialer.NewDefault(ctx, option.DialerOptions{
 				BindInterface: interfaceName,

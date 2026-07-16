@@ -1,3 +1,9 @@
+!!! quote "Changes in sing-box 1.14.0"
+
+    :material-plus: [udp_mapping](/configuration/shared/udp-nat/#udp_mapping)  
+    :material-plus: [udp_filtering](/configuration/shared/udp-nat/#udp_filtering)  
+    :material-plus: [udp_nat_max](/configuration/shared/udp-nat/#udp_nat_max)
+
 !!! question "Since sing-box 1.11.0"
 
 ### Structure
@@ -24,7 +30,9 @@
       "reserved": [0, 0, 0]
     }
   ],
-  "udp_timeout": "",
+
+  ... // UDP NAT Fields
+
   "workers": 0,
  
   ... // Dial Fields
@@ -112,17 +120,15 @@ Disabled by default.
 
 WireGuard reserved field bytes.
 
-#### udp_timeout
-
-UDP NAT expiration time.
-
-`5m` will be used by default.
-
 #### workers
 
 WireGuard worker count.
 
 CPU count is used by default.
+
+### UDP NAT Fields
+
+See [UDP NAT Fields](/configuration/shared/udp-nat/) for details.
 
 ### Dial Fields
 
