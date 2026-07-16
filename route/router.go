@@ -84,15 +84,17 @@ func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) erro
 		r.rules = append(r.rules, rule)
 	}
 	for i, options := range ruleSets {
-		if _, exists := r.ruleSetMap[options.Tag]; exists {
-			return E.New("duplicate rule-set tag: ", options.Tag)
+		for _, tag := range options.Tag {
+			if _, exists := r.ruleSetMap[tag]; exists {
+				return E.New("duplicate rule-set tag: ", tag)
+			}
+			ruleSet, err := R.NewRuleSet(r.ctx, r.logger, tag, options)
+			if err != nil {
+				return E.Cause(err, "parse rule-set[", i, "]")
+			}
+			r.ruleSets = append(r.ruleSets, ruleSet)
+			r.ruleSetMap[tag] = ruleSet
 		}
-		ruleSet, err := R.NewRuleSet(r.ctx, r.logger, options)
-		if err != nil {
-			return E.Cause(err, "parse rule-set[", i, "]")
-		}
-		r.ruleSets = append(r.ruleSets, ruleSet)
-		r.ruleSetMap[options.Tag] = ruleSet
 	}
 	return nil
 }

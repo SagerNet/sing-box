@@ -87,8 +87,8 @@ func TestRemoteRuleSetLoadBytesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 	})
 	ruleSet := &RemoteRuleSet{
 		ctx: ctx,
+		tag: "dynamic-set",
 		options: option.RuleSet{
-			Tag:    "dynamic-set",
 			Format: C.RuleSetFormatSource,
 		},
 		callbacks: list.List[adapter.RuleSetUpdateCallback]{},
