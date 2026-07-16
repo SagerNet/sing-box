@@ -18,6 +18,8 @@ const (
 	RuleSetFormatBinary = "binary"
 )
 
+const RuleSetTagPlaceholder = "{tag}"
+
 const (
 	RuleSetVersion1 = 1 + iota
 	RuleSetVersion2
