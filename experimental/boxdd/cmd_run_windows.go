@@ -12,6 +12,17 @@ import (
 	"golang.org/x/sys/windows/svc/eventlog"
 )
 
+var commandRunFlagAllowUnsafeInstallation bool
+
+func init() {
+	commandRun.Flags().BoolVar(
+		&commandRunFlagAllowUnsafeInstallation,
+		"allow-unsafe-installation-directory-permissions",
+		false,
+		"allow unsafe daemon working directory ancestor permissions",
+	)
+}
+
 func runService() (bool, error) {
 	isWindowsService, err := svc.IsWindowsService()
 	if err != nil {
@@ -27,7 +38,10 @@ func preparePlatformWorkingDirectory() error {
 	if listenAddress != "" {
 		return os.MkdirAll(workingDirectory, 0o700)
 	}
-	serviceWorkingDirectory, err := resolveWindowsServiceWorkingDirectory(workingDirectory)
+	serviceWorkingDirectory, err := resolveWindowsServiceWorkingDirectory(
+		workingDirectory,
+		commandRunFlagAllowUnsafeInstallation,
+	)
 	if err != nil {
 		return err
 	}
