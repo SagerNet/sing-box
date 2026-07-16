@@ -3,6 +3,8 @@ package libbox
 import (
 	"strings"
 
+	"github.com/sagernet/sing-box/common/badversion"
+
 	"golang.org/x/mod/semver"
 )
 
@@ -15,7 +17,7 @@ func CompareSemver(left string, right string) bool {
 	if !semver.IsValid(normalizedRight) {
 		return false
 	}
-	return semver.Compare(normalizedLeft, normalizedRight) > 0
+	return badversion.Parse(normalizedLeft).GreaterThan(badversion.Parse(normalizedRight))
 }
 
 func normalizeSemver(version string) string {
