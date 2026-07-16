@@ -101,29 +101,36 @@ func (s *Service) start() error {
 		return E.Cause(err, "enable pf")
 	}
 	s.pfToken = token
+	dropRules := bridgeDropRules(s.tunName, s.inet4Port, s.inet6Port)
+	err = s.pfDevice.LoadAnchor(s.anchorName, dropRules)
+	if err != nil {
+		return E.Cause(err, "initialize bridge pf rules")
+	}
+	s.currentRules = dropRules
 	s.startNetworkMonitor()
 	return nil
 }
 
-func (s *Service) syncEgressLocked() {
-	var rules []pfAnchorRule
+func (s *Service) syncEgressLocked() error {
+	rules := bridgeDropRules(s.tunName, s.inet4Port, s.inet6Port)
+	var buildErr error
 	if s.egressName != "" {
-		rules = buildBridgeAnchorRules(s.logger, s.tunName, s.egressName, s.boundInterface, s.inet4Port, s.inet6Port)
+		rules, buildErr = buildBridgeAnchorRules(s.tunName, s.egressName, s.boundInterface, s.inet4Port, s.inet6Port)
 	}
 	if slices.Equal(rules, s.currentRules) {
-		return
+		return buildErr
 	}
 	err := s.pfDevice.LoadAnchor(s.anchorName, rules)
 	if err != nil {
-		s.logger.Debug(E.Cause(err, "apply bridge egress ", s.egressName))
-		return
+		return E.Cause(err, "apply bridge egress ", s.egressName)
 	}
 	s.currentRules = rules
-	if len(rules) == 0 {
+	if buildErr != nil || s.egressName == "" {
 		s.logger.Debug("bridge egress unavailable, dropping forwarded traffic")
 	} else {
 		s.logger.Debug("bridge egress ", s.egressName)
 	}
+	return buildErr
 }
 
 func (s *Service) Close() error {

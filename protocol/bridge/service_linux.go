@@ -116,13 +116,13 @@ func (s *Service) start(bridgeName string) error {
 	return nil
 }
 
-func (s *Service) syncEgressLocked() {
+func (s *Service) syncEgressLocked() error {
 	flushBridgeRouteTable(s.routeTable)
 	if s.egressName == "" {
 		for _, family := range activeBridgeFamilies(s.inet6Port) {
 			blackholeBridgeDefault(s.routeTable, family)
 		}
-		return
+		return nil
 	}
 	link, err := netlink.LinkByName(s.egressName)
 	if err != nil {
@@ -130,12 +130,13 @@ func (s *Service) syncEgressLocked() {
 			blackholeBridgeDefault(s.routeTable, family)
 		}
 		s.logger.Debug("bridge egress ", s.egressName, " absent, dropping forwarded traffic")
-		return
+		return nil
 	}
 	for _, family := range activeBridgeFamilies(s.inet6Port) {
 		s.syncEgressFamilyLocked(family, link.Attrs().Index)
 	}
 	s.updateClampLocked(link.Attrs().MTU)
+	return nil
 }
 
 // Unlike the in-process backend this copies routes from every table: on Android
