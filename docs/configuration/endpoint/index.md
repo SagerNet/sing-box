@@ -19,10 +19,13 @@ An endpoint is a protocol with inbound and outbound behavior.
 
 ### Fields
 
-| Type        | Format                    |
-|-------------|---------------------------|
-| `wireguard` | [WireGuard](./wireguard/) |
-| `tailscale` | [Tailscale](./tailscale/) |
+| Type             | Format                                  |
+|------------------|-----------------------------------------|
+| `wireguard`      | [WireGuard](./wireguard/)               |
+| `tailscale`      | [Tailscale](./tailscale/)               |
+| `openconnect`    | [OpenConnect Client](./openconnect/)    |
+| `openvpn-client` | [OpenVPN Client](./openvpn-client/)     |
+| `openvpn-server` | [OpenVPN Server](./openvpn-server/)     |
 
 #### tag
 
