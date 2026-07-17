@@ -810,7 +810,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.11
+          go-version: 1.25.12
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@1.88.0
         with:
