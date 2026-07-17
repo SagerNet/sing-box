@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
+	"github.com/sagernet/sing-box/experimental/locale"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing/common"
@@ -1410,6 +1411,7 @@ func (s *StartedService) SubscribeTailscaleStatus(
 
 	var tags []string
 	statuses := make(map[string]*adapter.TailscaleEndpointStatus, len(endpoints))
+	selectedLocale := locale.FromContext(server.Context())
 	for update := range updates {
 		if _, exists := statuses[update.tag]; !exists {
 			tags = append(tags, update.tag)
@@ -1417,7 +1419,7 @@ func (s *StartedService) SubscribeTailscaleStatus(
 		statuses[update.tag] = update.status
 		protoEndpoints := make([]*TailscaleEndpointStatus, 0, len(statuses))
 		for _, tag := range tags {
-			protoEndpoints = append(protoEndpoints, tailscaleEndpointStatusToProto(tag, statuses[tag]))
+			protoEndpoints = append(protoEndpoints, tailscaleEndpointStatusToProto(tag, statuses[tag], selectedLocale))
 		}
 		sendErr := server.Send(&TailscaleStatusUpdate{
 			Endpoints: protoEndpoints,
@@ -1429,7 +1431,7 @@ func (s *StartedService) SubscribeTailscaleStatus(
 	return nil
 }
 
-func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStatus) *TailscaleEndpointStatus {
+func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStatus, selectedLocale *locale.Locale) *TailscaleEndpointStatus {
 	userGroups := make([]*TailscaleUserGroup, len(s.UserGroups))
 	for i, group := range s.UserGroups {
 		peers := make([]*TailscalePeer, len(group.Peers))
@@ -1447,6 +1449,7 @@ func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStat
 	result := &TailscaleEndpointStatus{
 		EndpointTag:    tag,
 		BackendState:   s.BackendState,
+		StateText:      selectedLocale.TailscaleStateText(s.BackendState),
 		AuthURL:        s.AuthURL,
 		NetworkName:    s.NetworkName,
 		MagicDNSSuffix: s.MagicDNSSuffix,
@@ -1599,19 +1602,21 @@ func (s *StartedService) SubscribeOpenConnectStatus(
 	s.serviceAccess.RUnlock()
 
 	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
+	selectedLocale := locale.FromContext(server.Context())
 	return subscribeEndpointStatus(server.Context(), endpointManager, C.TypeOpenConnect, "OpenConnect client", func(endpoints []adapter.OpenConnectEndpoint) error {
 		return server.Send(&OpenConnectStatusUpdate{
 			Endpoints: common.Map(endpoints, func(endpoint adapter.OpenConnectEndpoint) *OpenConnectEndpointStatus {
-				return openConnectEndpointStatusToProto(endpoint.Tag(), endpoint.OpenConnectStatus())
+				return openConnectEndpointStatusToProto(endpoint.Tag(), endpoint.OpenConnectStatus(), selectedLocale)
 			}),
 		})
 	})
 }
 
-func openConnectEndpointStatusToProto(tag string, endpointStatus adapter.OpenConnectStatus) *OpenConnectEndpointStatus {
+func openConnectEndpointStatusToProto(tag string, endpointStatus adapter.OpenConnectStatus, selectedLocale *locale.Locale) *OpenConnectEndpointStatus {
 	result := &OpenConnectEndpointStatus{
 		EndpointTag: tag,
 		State:       endpointStatus.State,
+		StateText:   selectedLocale.VPNStateText(endpointStatus.State),
 		Error:       endpointStatus.Error,
 		TunnelInfo:  openConnectTunnelInfoToProto(endpointStatus.TunnelInfo),
 	}
@@ -1696,19 +1701,21 @@ func (s *StartedService) SubscribeOpenVPNStatus(
 	s.serviceAccess.RUnlock()
 
 	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
+	selectedLocale := locale.FromContext(server.Context())
 	return subscribeEndpointStatus(server.Context(), endpointManager, C.TypeOpenVPNClient, "OpenVPN client", func(endpoints []adapter.OpenVPNEndpoint) error {
 		return server.Send(&OpenVPNStatusUpdate{
 			Endpoints: common.Map(endpoints, func(endpoint adapter.OpenVPNEndpoint) *OpenVPNEndpointStatus {
-				return openVPNEndpointStatusToProto(endpoint.Tag(), endpoint.OpenVPNStatus())
+				return openVPNEndpointStatusToProto(endpoint.Tag(), endpoint.OpenVPNStatus(), selectedLocale)
 			}),
 		})
 	})
 }
 
-func openVPNEndpointStatusToProto(tag string, endpointStatus adapter.OpenVPNStatus) *OpenVPNEndpointStatus {
+func openVPNEndpointStatusToProto(tag string, endpointStatus adapter.OpenVPNStatus, selectedLocale *locale.Locale) *OpenVPNEndpointStatus {
 	result := &OpenVPNEndpointStatus{
 		EndpointTag: tag,
 		State:       endpointStatus.State,
+		StateText:   selectedLocale.VPNStateText(endpointStatus.State),
 		Error:       endpointStatus.Error,
 		TunnelInfo:  openVPNTunnelInfoToProto(endpointStatus.TunnelInfo),
 	}
