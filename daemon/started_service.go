@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"net/netip"
 	"os"
 	"runtime"
 	runtimeDebug "runtime/debug"
@@ -32,7 +33,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const APIVersion = 2
+const APIVersion = 3
 
 var _ StartedServiceServer = (*StartedService)(nil)
 
@@ -1197,6 +1198,68 @@ func NewSTUNTestResult(result *stun.Result) *STUNTestProgress {
 	}
 }
 
+func resolveEndpoint[T adapter.Endpoint](instance *Instance, tag string, endpointType string, endpointName string) (T, error) {
+	var zero T
+	endpointManager := service.FromContext[adapter.EndpointManager](instance.ctx)
+	endpoint, loaded := endpointManager.Get(tag)
+	if !loaded {
+		return zero, status.Error(codes.NotFound, "endpoint not found: "+tag)
+	}
+	if endpoint.Type() != endpointType {
+		return zero, status.Error(codes.InvalidArgument, "endpoint is not "+endpointName+": "+tag)
+	}
+	return endpoint.(T), nil
+}
+
+type endpointStatusProvider interface {
+	adapter.Endpoint
+	StatusUpdated() <-chan struct{}
+}
+
+func subscribeEndpointStatus[T endpointStatusProvider](ctx context.Context, endpointManager adapter.EndpointManager, endpointType string, endpointName string, send func([]T) error) error {
+	var endpoints []T
+	for _, endpoint := range endpointManager.Endpoints() {
+		if endpoint.Type() == endpointType {
+			endpoints = append(endpoints, endpoint.(T))
+		}
+	}
+	if len(endpoints) == 0 {
+		return status.Error(codes.NotFound, "no "+endpointName+" endpoint found")
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	updated := make(chan struct{}, 1)
+	for _, endpoint := range endpoints {
+		go func(provider T) {
+			for {
+				statusUpdated := provider.StatusUpdated()
+				select {
+				case updated <- struct{}{}:
+				default:
+				}
+				select {
+				case <-statusUpdated:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(endpoint)
+	}
+
+	for {
+		select {
+		case <-updated:
+		case <-ctx.Done():
+			return nil
+		}
+		err := send(endpoints)
+		if err != nil {
+			return err
+		}
+	}
+}
+
 func (s *StartedService) StartNetworkQualityTest(
 	request *NetworkQualityTestRequest,
 	server grpc.ServerStreamingServer[NetworkQualityTestProgress],
@@ -1517,6 +1580,233 @@ func (s *StartedService) TailscaleLogout(ctx context.Context, request *Tailscale
 		return nil, status.Error(codes.FailedPrecondition, "endpoint does not support tailscale")
 	}
 	err = tsEndpoint.Logout(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *StartedService) SubscribeOpenConnectStatus(
+	_ *emptypb.Empty,
+	server grpc.ServerStreamingServer[OpenConnectStatusUpdate],
+) error {
+	err := s.waitForStarted(server.Context())
+	if err != nil {
+		return err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
+	return subscribeEndpointStatus(server.Context(), endpointManager, C.TypeOpenConnect, "OpenConnect client", func(endpoints []adapter.OpenConnectEndpoint) error {
+		return server.Send(&OpenConnectStatusUpdate{
+			Endpoints: common.Map(endpoints, func(endpoint adapter.OpenConnectEndpoint) *OpenConnectEndpointStatus {
+				return openConnectEndpointStatusToProto(endpoint.Tag(), endpoint.OpenConnectStatus())
+			}),
+		})
+	})
+}
+
+func openConnectEndpointStatusToProto(tag string, endpointStatus adapter.OpenConnectStatus) *OpenConnectEndpointStatus {
+	result := &OpenConnectEndpointStatus{
+		EndpointTag: tag,
+		State:       endpointStatus.State,
+		Error:       endpointStatus.Error,
+		TunnelInfo:  openConnectTunnelInfoToProto(endpointStatus.TunnelInfo),
+	}
+	if endpointStatus.AuthForm != nil {
+		fields := common.Map(endpointStatus.AuthForm.Fields, func(field adapter.OpenConnectAuthFormField) *OpenConnectAuthFormField {
+			return &OpenConnectAuthFormField{
+				SubmissionKey: field.SubmissionKey,
+				Name:          field.Name,
+				Label:         field.Label,
+				Kind:          field.Kind,
+				Value:         field.Value,
+				Options: common.Map(field.Options, func(option adapter.OpenConnectAuthFormChoice) *OpenConnectAuthFormChoice {
+					return &OpenConnectAuthFormChoice{
+						Value: option.Value,
+						Label: option.Label,
+					}
+				}),
+			}
+		})
+		result.AuthForm = &OpenConnectAuthForm{
+			Id:      endpointStatus.AuthForm.ID,
+			Banner:  endpointStatus.AuthForm.Banner,
+			Message: endpointStatus.AuthForm.Message,
+			Error:   endpointStatus.AuthForm.Error,
+			Url:     endpointStatus.AuthForm.URL,
+			Fields:  fields,
+		}
+	}
+	return result
+}
+
+func (s *StartedService) SubmitOpenConnectAuthForm(ctx context.Context, request *OpenConnectAuthFormSubmission) (*emptypb.Empty, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpoint, err := resolveEndpoint[adapter.OpenConnectEndpoint](boxService, request.EndpointTag, C.TypeOpenConnect, "OpenConnect client")
+	if err != nil {
+		return nil, err
+	}
+	err = endpoint.CompleteAuthForm(request.FormID, request.Values)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *StartedService) CancelOpenConnectAuthForm(ctx context.Context, request *OpenConnectAuthFormCancel) (*emptypb.Empty, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpoint, err := resolveEndpoint[adapter.OpenConnectEndpoint](boxService, request.EndpointTag, C.TypeOpenConnect, "OpenConnect client")
+	if err != nil {
+		return nil, err
+	}
+	err = endpoint.CancelAuthForm(request.FormID)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *StartedService) SubscribeOpenVPNStatus(
+	_ *emptypb.Empty,
+	server grpc.ServerStreamingServer[OpenVPNStatusUpdate],
+) error {
+	err := s.waitForStarted(server.Context())
+	if err != nil {
+		return err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
+	return subscribeEndpointStatus(server.Context(), endpointManager, C.TypeOpenVPNClient, "OpenVPN client", func(endpoints []adapter.OpenVPNEndpoint) error {
+		return server.Send(&OpenVPNStatusUpdate{
+			Endpoints: common.Map(endpoints, func(endpoint adapter.OpenVPNEndpoint) *OpenVPNEndpointStatus {
+				return openVPNEndpointStatusToProto(endpoint.Tag(), endpoint.OpenVPNStatus())
+			}),
+		})
+	})
+}
+
+func openVPNEndpointStatusToProto(tag string, endpointStatus adapter.OpenVPNStatus) *OpenVPNEndpointStatus {
+	result := &OpenVPNEndpointStatus{
+		EndpointTag: tag,
+		State:       endpointStatus.State,
+		Error:       endpointStatus.Error,
+		TunnelInfo:  openVPNTunnelInfoToProto(endpointStatus.TunnelInfo),
+	}
+	if endpointStatus.Challenge != nil {
+		challenge := &OpenVPNChallenge{
+			Id:            endpointStatus.Challenge.ID,
+			Kind:          endpointStatus.Challenge.Kind,
+			Username:      endpointStatus.Challenge.Username,
+			Message:       endpointStatus.Challenge.Message,
+			Url:           endpointStatus.Challenge.URL,
+			SecretMessage: endpointStatus.Challenge.SecretMessage,
+			Echo:          endpointStatus.Challenge.Echo,
+			PreviousError: endpointStatus.Challenge.PreviousError,
+		}
+		if !endpointStatus.Challenge.Deadline.IsZero() {
+			challenge.Deadline = endpointStatus.Challenge.Deadline.Unix()
+		}
+		result.Challenge = challenge
+	}
+	return result
+}
+
+func openConnectTunnelInfoToProto(tunnelInfo *adapter.OpenConnectTunnelInfo) *OpenConnectTunnelInfo {
+	if tunnelInfo == nil {
+		return nil
+	}
+	result := &OpenConnectTunnelInfo{
+		Server:    tunnelInfo.Server,
+		Flavor:    tunnelInfo.Flavor,
+		Transport: tunnelInfo.Transport,
+		Mtu:       tunnelInfo.MTU,
+	}
+	if !tunnelInfo.ConnectedSince.IsZero() {
+		result.ConnectedSince = tunnelInfo.ConnectedSince.Unix()
+	}
+	result.Ipv4 = common.Map(tunnelInfo.IPv4, netip.Prefix.String)
+	result.Ipv6 = common.Map(tunnelInfo.IPv6, netip.Prefix.String)
+	result.Dns = common.Map(tunnelInfo.DNS, netip.Addr.String)
+	return result
+}
+
+func openVPNTunnelInfoToProto(tunnelInfo *adapter.OpenVPNTunnelInfo) *OpenVPNTunnelInfo {
+	if tunnelInfo == nil {
+		return nil
+	}
+	result := &OpenVPNTunnelInfo{
+		Server:  tunnelInfo.Server,
+		Network: tunnelInfo.Network,
+		Cipher:  tunnelInfo.Cipher,
+		Mtu:     tunnelInfo.MTU,
+	}
+	if !tunnelInfo.ConnectedSince.IsZero() {
+		result.ConnectedSince = tunnelInfo.ConnectedSince.Unix()
+	}
+	result.Ipv4 = common.Map(tunnelInfo.IPv4, netip.Prefix.String)
+	result.Ipv6 = common.Map(tunnelInfo.IPv6, netip.Prefix.String)
+	result.Dns = common.Map(tunnelInfo.DNS, netip.Addr.String)
+	return result
+}
+
+func (s *StartedService) SubmitOpenVPNChallengeResponse(ctx context.Context, request *OpenVPNChallengeSubmission) (*emptypb.Empty, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpoint, err := resolveEndpoint[adapter.OpenVPNEndpoint](boxService, request.EndpointTag, C.TypeOpenVPNClient, "OpenVPN client")
+	if err != nil {
+		return nil, err
+	}
+	err = endpoint.CompleteChallenge(request.ChallengeID, adapter.OpenVPNChallengeResponse{
+		Username: request.Username,
+		Password: request.Password,
+		Secret:   request.Secret,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *StartedService) CancelOpenVPNChallenge(ctx context.Context, request *OpenVPNChallengeCancel) (*emptypb.Empty, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpoint, err := resolveEndpoint[adapter.OpenVPNEndpoint](boxService, request.EndpointTag, C.TypeOpenVPNClient, "OpenVPN client")
+	if err != nil {
+		return nil, err
+	}
+	err = endpoint.CancelChallenge(request.ChallengeID)
 	if err != nil {
 		return nil, err
 	}

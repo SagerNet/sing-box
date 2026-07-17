@@ -152,10 +152,10 @@ func (e *Endpoint) Start(resolve bool) error {
 		return nil
 	}
 	var bind conn.Bind
-	wireGuardListener, isWireGuardListener := common.Cast[dialer.WireGuardListener](e.options.Dialer)
-	if isWireGuardListener {
-		wireGuardControl, _ := wireGuardListener.WireGuardControl()
-		standardBind := conn.NewStdNetBind(wireGuardControl).(*conn.StdNetBind)
+	udpListener, isUDPListener := common.Cast[dialer.UDPListener](e.options.Dialer)
+	if isUDPListener {
+		listenerControl, _ := udpListener.UDPListenerControl()
+		standardBind := conn.NewStdNetBind(listenerControl).(*conn.StdNetBind)
 		if e.options.ListenPort == 0 && len(e.peers) == 1 && e.peers[0].endpoint.IsValid() {
 			standardBind.SetSinglePeerMode()
 		}
@@ -176,7 +176,7 @@ func (e *Endpoint) Start(resolve bool) error {
 		}
 		bind = NewClientBind(e.options.Context, e.options.Logger, e.options.Dialer, isConnect, connectAddr, reserved)
 	}
-	if isWireGuardListener || len(e.peers) > 1 {
+	if isUDPListener || len(e.peers) > 1 {
 		for _, peer := range e.peers {
 			if peer.reserved != [3]uint8{} {
 				bind.SetReservedForEndpoint(peer.endpoint, peer.reserved)
