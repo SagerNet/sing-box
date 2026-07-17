@@ -5,5 +5,5 @@ import (
 )
 
 type WireGuardListener interface {
-	WireGuardControl() control.Func
+	WireGuardControl() (control.Func, bool)
 }
