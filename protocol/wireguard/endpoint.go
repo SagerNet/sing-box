@@ -75,9 +75,9 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	var egressPool *tun.UDPEgressPool
-	wireGuardListener, isWireGuardListener := common.Cast[dialer.WireGuardListener](outboundDialer)
-	if isWireGuardListener {
-		anchorControl, egressEnabled := wireGuardListener.WireGuardControl()
+	udpListener, isUDPListener := common.Cast[dialer.UDPListener](outboundDialer)
+	if isUDPListener {
+		anchorControl, egressEnabled := udpListener.UDPListenerControl()
 		if egressEnabled {
 			egressPool = tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
 				Logger:           logger,
