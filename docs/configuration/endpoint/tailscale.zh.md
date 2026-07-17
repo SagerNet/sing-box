@@ -60,7 +60,7 @@ icon: material/new-box
 
 !!! note
 
-    认证密钥不是必需的。默认情况下，sing-box 将记录登录 URL（或在图形客户端上弹出通知）。
+    认证密钥不是必需的。默认情况下，sing-box 将记录登录 URL。
 
 用于创建节点的认证密钥。如果节点已经创建（从之前存储的状态），则不使用此字段。
 
@@ -207,3 +207,7 @@ UDP NAT 过期时间。
     Tailscale 端点中的拨号字段仅控制它如何连接到控制平面，与实际连接无关。
 
 参阅 [拨号字段](/zh/configuration/shared/dial/) 了解详情。
+
+### 交互式认证
+
+在 sing-box dashboard 或任意 sing-box 图形客户端的 `工具` > `端点` 中认证和管理 endpoint。

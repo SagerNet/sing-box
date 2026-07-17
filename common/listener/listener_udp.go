@@ -22,8 +22,11 @@ import (
 const udpOutputBatchSize = 128
 
 func (l *Listener) ListenUDP() (net.PacketConn, error) {
+	return l.ListenUDPWithConfig(net.ListenConfig{})
+}
+
+func (l *Listener) ListenUDPWithConfig(listenConfig net.ListenConfig) (net.PacketConn, error) {
 	bindAddr := M.SocksaddrFrom(l.listenOptions.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1})), l.listenOptions.ListenPort)
-	var listenConfig net.ListenConfig
 	if l.listenOptions.BindInterface != "" {
 		listenConfig.Control = control.Append(listenConfig.Control, control.BindToInterface(service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder(), l.listenOptions.BindInterface, -1))
 	}
