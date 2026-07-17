@@ -879,32 +879,26 @@ func (c *CommandClient) StartSTUNTest(server string, outboundTag string, handler
 	return session, nil
 }
 
-func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler) (*TailscaleStatusSubscription, error) {
+func subscribeStatus[T any](c *CommandClient, session *streamSession, name string, start func(context.Context, daemon.StartedServiceClient) (grpc.ServerStreamingClient[T], error), onUpdate func(*T), onError func(string)) error {
 	client, parentCtx, err := c.getClientForCall()
 	if err != nil {
-		return nil, E.Cause(err, "subscribe tailscale status")
+		return E.Cause(err, "subscribe ", name)
 	}
 
 	streamCtx, cancel := context.WithCancel(parentCtx)
-	session := &TailscaleStatusSubscription{
-		streamSession: streamSession{
-			ctx:       streamCtx,
-			cancel:    cancel,
-			closeDone: make(chan struct{}),
-		},
+	*session = streamSession{
+		ctx:       streamCtx,
+		cancel:    cancel,
+		closeDone: make(chan struct{}),
 	}
 
-	failStart := func(cause error, message string) (*TailscaleStatusSubscription, error) {
+	stream, err := start(streamCtx, client)
+	if err != nil {
 		cancel()
 		if c.standalone {
 			c.closeConnection()
 		}
-		return nil, E.Cause(cause, message)
-	}
-
-	stream, err := client.SubscribeTailscaleStatus(streamCtx, &emptypb.Empty{})
-	if err != nil {
-		return failStart(err, "subscribe tailscale status")
+		return E.Cause(err, "subscribe ", name)
 	}
 
 	standalone := c.standalone
@@ -924,69 +918,121 @@ func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler)
 				if status.Code(recvErr) == codes.NotFound || status.Code(recvErr) == codes.Unavailable {
 					return
 				}
-				handler.OnError(E.Cause(recvErr, "tailscale status recv").Error())
+				onError(E.Cause(recvErr, name, " recv").Error())
 				return
 			}
-			handler.OnStatusUpdate(tailscaleStatusUpdateFromGRPC(event))
+			onUpdate(event)
 		}
 	}()
+	return nil
+}
 
+func (c *CommandClient) SubscribeTailscaleStatus(handler TailscaleStatusHandler) (*TailscaleStatusSubscription, error) {
+	session := new(TailscaleStatusSubscription)
+	err := subscribeStatus(c, &session.streamSession, "tailscale status", func(ctx context.Context, client daemon.StartedServiceClient) (grpc.ServerStreamingClient[daemon.TailscaleStatusUpdate], error) {
+		return client.SubscribeTailscaleStatus(ctx, &emptypb.Empty{})
+	}, func(update *daemon.TailscaleStatusUpdate) {
+		handler.OnStatusUpdate(tailscaleStatusUpdateFromGRPC(update))
+	}, handler.OnError)
+	if err != nil {
+		return nil, err
+	}
 	return session, nil
 }
 
 func (c *CommandClient) SubscribeUSBIPServerStatus(handler USBIPServerStatusHandler) (*USBIPServerStatusSubscription, error) {
-	client, parentCtx, err := c.getClientForCall()
+	session := new(USBIPServerStatusSubscription)
+	err := subscribeStatus(c, &session.streamSession, "usbip server status", func(ctx context.Context, client daemon.StartedServiceClient) (grpc.ServerStreamingClient[daemon.USBIPServerStatusUpdate], error) {
+		return client.SubscribeUSBIPServerStatus(ctx, &emptypb.Empty{})
+	}, func(update *daemon.USBIPServerStatusUpdate) {
+		handler.OnStatusUpdate(usbipServerStatusUpdateFromGRPC(update))
+	}, handler.OnError)
 	if err != nil {
-		return nil, E.Cause(err, "subscribe usbip server status")
+		return nil, err
 	}
-
-	streamCtx, cancel := context.WithCancel(parentCtx)
-	session := &USBIPServerStatusSubscription{
-		streamSession: streamSession{
-			ctx:       streamCtx,
-			cancel:    cancel,
-			closeDone: make(chan struct{}),
-		},
-	}
-
-	failStart := func(cause error, message string) (*USBIPServerStatusSubscription, error) {
-		cancel()
-		if c.standalone {
-			c.closeConnection()
-		}
-		return nil, E.Cause(cause, message)
-	}
-
-	stream, err := client.SubscribeUSBIPServerStatus(streamCtx, &emptypb.Empty{})
-	if err != nil {
-		return failStart(err, "subscribe usbip server status")
-	}
-
-	standalone := c.standalone
-	go func() {
-		defer func() {
-			close(session.closeDone)
-			if standalone {
-				c.closeConnection()
-			}
-		}()
-		for {
-			event, recvErr := stream.Recv()
-			if recvErr != nil {
-				if session.ctx.Err() != nil {
-					return
-				}
-				if status.Code(recvErr) == codes.NotFound || status.Code(recvErr) == codes.Unavailable {
-					return
-				}
-				handler.OnError(E.Cause(recvErr, "usbip server status recv").Error())
-				return
-			}
-			handler.OnStatusUpdate(usbipServerStatusUpdateFromGRPC(event))
-		}
-	}()
-
 	return session, nil
+}
+
+func (c *CommandClient) SubscribeOpenConnectStatus(handler OpenConnectStatusHandler) (*OpenConnectStatusSubscription, error) {
+	session := new(OpenConnectStatusSubscription)
+	err := subscribeStatus(c, &session.streamSession, "openconnect status", func(ctx context.Context, client daemon.StartedServiceClient) (grpc.ServerStreamingClient[daemon.OpenConnectStatusUpdate], error) {
+		return client.SubscribeOpenConnectStatus(ctx, &emptypb.Empty{})
+	}, func(update *daemon.OpenConnectStatusUpdate) {
+		handler.OnStatusUpdate(openConnectStatusUpdateFromGRPC(update))
+	}, handler.OnError)
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+func (c *CommandClient) SubmitOpenConnectAuthForm(endpointTag string, formID string, values *OpenConnectFormValues) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SubmitOpenConnectAuthForm(ctx, &daemon.OpenConnectAuthFormSubmission{
+			EndpointTag: endpointTag,
+			FormID:      formID,
+			Values:      values.values,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "submit openconnect authentication form")
+	}
+	return nil
+}
+
+func (c *CommandClient) CancelOpenConnectAuthForm(endpointTag string, formID string) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.CancelOpenConnectAuthForm(ctx, &daemon.OpenConnectAuthFormCancel{
+			EndpointTag: endpointTag,
+			FormID:      formID,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "cancel openconnect authentication form")
+	}
+	return nil
+}
+
+func (c *CommandClient) SubscribeOpenVPNStatus(handler OpenVPNStatusHandler) (*OpenVPNStatusSubscription, error) {
+	session := new(OpenVPNStatusSubscription)
+	err := subscribeStatus(c, &session.streamSession, "openvpn status", func(ctx context.Context, client daemon.StartedServiceClient) (grpc.ServerStreamingClient[daemon.OpenVPNStatusUpdate], error) {
+		return client.SubscribeOpenVPNStatus(ctx, &emptypb.Empty{})
+	}, func(update *daemon.OpenVPNStatusUpdate) {
+		handler.OnStatusUpdate(openVPNStatusUpdateFromGRPC(update))
+	}, handler.OnError)
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+func (c *CommandClient) SubmitOpenVPNChallengeResponse(endpointTag string, challengeID string, response *OpenVPNChallengeResponse) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.SubmitOpenVPNChallengeResponse(ctx, &daemon.OpenVPNChallengeSubmission{
+			EndpointTag: endpointTag,
+			ChallengeID: challengeID,
+			Username:    response.Username,
+			Password:    response.Password,
+			Secret:      response.Secret,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "submit openvpn challenge response")
+	}
+	return nil
+}
+
+func (c *CommandClient) CancelOpenVPNChallenge(endpointTag string, challengeID string) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.CancelOpenVPNChallenge(ctx, &daemon.OpenVPNChallengeCancel{
+			EndpointTag: endpointTag,
+			ChallengeID: challengeID,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "cancel openvpn challenge")
+	}
+	return nil
 }
 
 func (c *CommandClient) SetTailscaleExitNode(endpointTag string, stableID string) error {
