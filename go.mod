@@ -187,4 +187,4 @@ require (
 	zombiezen.com/go/capnproto2 v2.18.2+incompatible // indirect
 )
 
-replace github.com/sagernet/sing => github.com/hugeagi/sing v0.0.0-20260628113909-7b04babd5e71
+replace github.com/sagernet/sing => github.com/hugeagi/sing v0.0.0-20260717060611-e90ad33f0423
