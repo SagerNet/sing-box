@@ -38,6 +38,12 @@ service StartedService {
   rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
   rpc ProvideUSBDevices(stream USBProviderMessage) returns (stream USBServerMessage) {}
   rpc SubscribeUSBIPServerStatus(google.protobuf.Empty) returns (stream USBIPServerStatusUpdate) {}
+  rpc SubscribeOpenConnectStatus(google.protobuf.Empty) returns (stream OpenConnectStatusUpdate) {}
+  rpc SubmitOpenConnectAuthForm(OpenConnectAuthFormSubmission) returns (google.protobuf.Empty) {}
+  rpc CancelOpenConnectAuthForm(OpenConnectAuthFormCancel) returns (google.protobuf.Empty) {}
+  rpc SubscribeOpenVPNStatus(google.protobuf.Empty) returns (stream OpenVPNStatusUpdate) {}
+  rpc SubmitOpenVPNChallengeResponse(OpenVPNChallengeSubmission) returns (google.protobuf.Empty) {}
+  rpc CancelOpenVPNChallenge(OpenVPNChallengeCancel) returns (google.protobuf.Empty) {}
 }
 
 message Version {
@@ -515,4 +521,110 @@ enum USBBackend {
   USB_BACKEND_DYNAMIC = 2;
   USB_BACKEND_DARWIN_IOKIT = 3;
   USB_BACKEND_WINDOWS_VBOXUSB = 4;
+}
+
+message OpenConnectStatusUpdate {
+  repeated OpenConnectEndpointStatus endpoints = 1;
+}
+
+message OpenConnectEndpointStatus {
+  string endpointTag = 1;
+  string state = 2;
+  OpenConnectAuthForm authForm = 3;
+  string error = 4;
+  OpenConnectTunnelInfo tunnelInfo = 5;
+}
+
+message OpenConnectTunnelInfo {
+  string server = 1;
+  string flavor = 2;
+  string transport = 3;
+  repeated string ipv4 = 4;
+  repeated string ipv6 = 5;
+  repeated string dns = 6;
+  uint32 mtu = 7;
+  int64 connectedSince = 8;
+}
+
+message OpenConnectAuthForm {
+  string id = 1;
+  string banner = 2;
+  string message = 3;
+  string error = 4;
+  string url = 5;
+  repeated OpenConnectAuthFormField fields = 6;
+}
+
+message OpenConnectAuthFormField {
+  string submissionKey = 1;
+  string name = 2;
+  string label = 3;
+  string kind = 4;
+  string value = 5;
+  repeated OpenConnectAuthFormChoice options = 6;
+}
+
+message OpenConnectAuthFormChoice {
+  string value = 1;
+  string label = 2;
+}
+
+message OpenConnectAuthFormSubmission {
+  string endpointTag = 1;
+  string formID = 2;
+  map<string, string> values = 3;
+}
+
+message OpenConnectAuthFormCancel {
+  string endpointTag = 1;
+  string formID = 2;
+}
+
+message OpenVPNStatusUpdate {
+  repeated OpenVPNEndpointStatus endpoints = 1;
+}
+
+message OpenVPNEndpointStatus {
+  string endpointTag = 1;
+  string state = 2;
+  OpenVPNChallenge challenge = 3;
+  string error = 4;
+  OpenVPNTunnelInfo tunnelInfo = 5;
+}
+
+message OpenVPNTunnelInfo {
+  string server = 1;
+  reserved 2;
+  string network = 3;
+  repeated string ipv4 = 4;
+  repeated string ipv6 = 5;
+  repeated string dns = 6;
+  uint32 mtu = 7;
+  int64 connectedSince = 8;
+  string cipher = 9;
+}
+
+message OpenVPNChallenge {
+  string id = 1;
+  string kind = 2;
+  string username = 3;
+  string message = 4;
+  string url = 5;
+  string secretMessage = 6;
+  bool echo = 7;
+  string previousError = 8;
+  int64 deadline = 9;
+}
+
+message OpenVPNChallengeSubmission {
+  string endpointTag = 1;
+  string challengeID = 2;
+  string username = 3;
+  string password = 4;
+  string secret = 5;
+}
+
+message OpenVPNChallengeCancel {
+  string endpointTag = 1;
+  string challengeID = 2;
 }
