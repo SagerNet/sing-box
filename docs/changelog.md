@@ -2,6 +2,27 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-alpha.46
+
+* Add multiple tags support to rule-sets **1**
+* Add new UDP NAT options **2**
+* Fixes and improvements
+
+**1**:
+
+The rule-set [`tag`](/configuration/rule-set/#tag) field now accepts a list of
+tags to define multiple rule-sets sharing other options at once, with the
+`{tag}` placeholder in `path` or `url` replaced by each tag.
+
+**2**:
+
+The new [UDP NAT](/configuration/shared/udp-nat/) fields
+[`udp_mapping`](/configuration/shared/udp-nat/#udp_mapping),
+[`udp_filtering`](/configuration/shared/udp-nat/#udp_filtering) and
+[`udp_nat_max`](/configuration/shared/udp-nat/#udp_nat_max) configure the NAT
+mapping and filtering behaviors and the maximum number of UDP NAT sessions for
+TUN and TProxy inbounds and the WireGuard endpoint.
+
 #### 1.14.0-alpha.45
 
 * Improve the Windows client application **1**
