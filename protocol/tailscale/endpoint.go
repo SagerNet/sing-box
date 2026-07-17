@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -339,20 +338,56 @@ func (t *Endpoint) start() error {
 		t.systemDialer = systemDialer
 		t.server.TunDevice = wgTunDevice
 	}
-	if mark := t.network.AutoRedirectOutputMark(); mark > 0 {
-		controlFunc := t.network.AutoRedirectOutputMarkFunc()
-		if bindFunc := t.network.AutoDetectInterfaceFunc(); bindFunc != nil {
-			controlFunc = control.Append(controlFunc, bindFunc)
-		}
-		netns.SetControlFunc(controlFunc)
-	} else if runtime.GOOS == "android" && t.platformInterface != nil && t.platformInterface.UsePlatformAutoDetectInterfaceControl() {
-		netns.SetControlFunc(func(network, address string, c syscall.RawConn) error {
-			return control.Raw(c, func(fd uintptr) error {
-				return t.platformInterface.AutoDetectInterfaceControl(int(fd))
+	if t.network.AutoRedirectOutputMark() != 0 {
+		netns.SetControlFunc(t.network.AutoRedirectOutputMarkFunc())
+	} else if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
+		if t.platformInterface.UsePlatformAutoDetectInterfaceControl() {
+			netns.SetControlFunc(func(network, address string, conn syscall.RawConn) error {
+				return control.Raw(conn, func(fileDescriptor uintptr) error {
+					return t.platformInterface.AutoDetectInterfaceControl(int(fileDescriptor))
+				})
 			})
-		})
+		} else {
+			// NEPacketTunnelProvider sockets are excluded from tunnel routes by
+			// NECP; the empty override only suppresses tailscale's own
+			// default-interface bind, which would select the sing-box utun.
+			netns.SetControlFunc(func(string, string, syscall.RawConn) error {
+				return nil
+			})
+		}
+	} else {
+		bindFunc := t.network.AutoDetectInterfaceFunc()
+		if bindFunc != nil {
+			netns.SetControlFunc(bindFunc)
+			netns.SetListenPacketFunc(t.listenPacket)
+		}
 	}
 	return nil
+}
+
+func (t *Endpoint) listenPacket(ctx context.Context, network string, address string) (nettype.PacketConn, error) {
+	listenConfig := net.ListenConfig{
+		Control: control.Append(t.network.AutoDetectInterfaceFunc(), control.DisableUDPNetReset()),
+	}
+	packetConn, err := listenConfig.ListenPacket(ctx, network, address)
+	if err != nil {
+		return nil, err
+	}
+	udpConn := packetConn.(*net.UDPConn)
+	egressPool := tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
+		Logger:           t.logger,
+		Network:          network,
+		InterfaceFinder:  t.network.InterfaceFinder(),
+		InterfaceMonitor: t.network.InterfaceMonitor(),
+		IsExempt: func() bool {
+			return t.network.AutoRedirectOutputMark() != 0
+		},
+	})
+	if !egressPool.SetEgressPort(udpConn.LocalAddr().(*net.UDPAddr).AddrPort().Port()) {
+		egressPool.Close()
+		return udpConn, nil
+	}
+	return tun.NewUDPEgressConn(udpConn, egressPool), nil
 }
 
 func (t *Endpoint) postStart() error {
@@ -649,6 +684,7 @@ func (t *Endpoint) Close() error {
 	}
 	netmon.RegisterInterfaceGetter(nil)
 	netns.SetControlFunc(nil)
+	netns.SetListenPacketFunc(nil)
 	if t.fallbackTCPCloser != nil {
 		t.fallbackTCPCloser()
 		t.fallbackTCPCloser = nil
