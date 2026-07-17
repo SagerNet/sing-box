@@ -24,6 +24,7 @@ type EndpointOptions struct {
 	UDPNATMax    uint32
 
 	InterfaceFinder control.InterfaceFinder
+	EgressPool      *tun.UDPEgressPool
 	Dialer          N.Dialer
 	CreateDialer    func(interfaceName string) N.Dialer
 	Name            string
