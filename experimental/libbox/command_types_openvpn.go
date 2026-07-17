@@ -21,6 +21,7 @@ type OpenVPNEndpointStatusIterator interface {
 type OpenVPNEndpointStatus struct {
 	EndpointTag string
 	State       string
+	StateText   string
 	Challenge   *OpenVPNChallenge
 	Error       string
 	TunnelInfo  *OpenVPNTunnelInfo
@@ -86,6 +87,7 @@ func openVPNEndpointStatusFromGRPC(status *daemon.OpenVPNEndpointStatus) *OpenVP
 	result := &OpenVPNEndpointStatus{
 		EndpointTag: status.EndpointTag,
 		State:       status.State,
+		StateText:   status.StateText,
 		Error:       status.Error,
 	}
 	if status.Challenge != nil {
