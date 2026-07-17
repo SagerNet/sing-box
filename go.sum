@@ -300,6 +300,8 @@ github.com/sagernet/wireguard-go v0.0.5-0.20260706130655-57baac9504a8 h1:gfukXAN
 github.com/sagernet/wireguard-go v0.0.5-0.20260706130655-57baac9504a8/go.mod h1:hEqi4y5czEg6LYtX2Bpjg+lV0b/J1n+5rA885Z66Mx0=
 github.com/sagernet/wireguard-go v0.0.5-0.20260706153856-2c27bbf4f97f h1:TzN97RL07xWb3gZtmqFhsdkud4f6G/pohiaOLiqSBj4=
 github.com/sagernet/wireguard-go v0.0.5-0.20260706153856-2c27bbf4f97f/go.mod h1:hEqi4y5czEg6LYtX2Bpjg+lV0b/J1n+5rA885Z66Mx0=
+github.com/sagernet/wireguard-go v0.0.5-0.20260717024847-6f5e8b1947ae h1:GmxlXWnRmeNfPE1tWXRZIFgKJd5BH5okoDHKZkkI5bw=
+github.com/sagernet/wireguard-go v0.0.5-0.20260717024847-6f5e8b1947ae/go.mod h1:hEqi4y5czEg6LYtX2Bpjg+lV0b/J1n+5rA885Z66Mx0=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
 github.com/spf13/cobra v1.10.2 h1:DMTTonx5m65Ic0GOoRY2c16WCbHxOOw6xxezuLaBpcU=
