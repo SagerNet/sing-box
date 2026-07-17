@@ -96,7 +96,16 @@ func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata ada
 		}
 		conn = tlsConn
 	}
-	err := http.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+	err := http.HandleConnectionExWithOptions(
+		ctx,
+		conn,
+		std_bufio.NewReader(conn),
+		h.authenticator,
+		adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection),
+		metadata.Source,
+		onClose,
+		http.HTTPServerOptions{Logger: h.logger},
+	)
 	if err != nil {
 		N.CloseOnHandshakeFailure(conn, onClose, err)
 		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
