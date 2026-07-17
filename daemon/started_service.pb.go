@@ -2222,13 +2222,14 @@ type TailscaleEndpointStatus struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	EndpointTag    string                 `protobuf:"bytes,1,opt,name=endpointTag,proto3" json:"endpointTag,omitempty"`
 	BackendState   string                 `protobuf:"bytes,2,opt,name=backendState,proto3" json:"backendState,omitempty"`
-	AuthURL        string                 `protobuf:"bytes,3,opt,name=authURL,proto3" json:"authURL,omitempty"`
-	NetworkName    string                 `protobuf:"bytes,4,opt,name=networkName,proto3" json:"networkName,omitempty"`
-	MagicDNSSuffix string                 `protobuf:"bytes,5,opt,name=magicDNSSuffix,proto3" json:"magicDNSSuffix,omitempty"`
-	Self           *TailscalePeer         `protobuf:"bytes,6,opt,name=self,proto3" json:"self,omitempty"`
-	UserGroups     []*TailscaleUserGroup  `protobuf:"bytes,7,rep,name=userGroups,proto3" json:"userGroups,omitempty"`
-	ExitNode       *TailscalePeer         `protobuf:"bytes,8,opt,name=exitNode,proto3" json:"exitNode,omitempty"`
-	KeyAuth        bool                   `protobuf:"varint,9,opt,name=keyAuth,proto3" json:"keyAuth,omitempty"`
+	StateText      string                 `protobuf:"bytes,3,opt,name=stateText,proto3" json:"stateText,omitempty"`
+	AuthURL        string                 `protobuf:"bytes,4,opt,name=authURL,proto3" json:"authURL,omitempty"`
+	NetworkName    string                 `protobuf:"bytes,5,opt,name=networkName,proto3" json:"networkName,omitempty"`
+	MagicDNSSuffix string                 `protobuf:"bytes,6,opt,name=magicDNSSuffix,proto3" json:"magicDNSSuffix,omitempty"`
+	Self           *TailscalePeer         `protobuf:"bytes,7,opt,name=self,proto3" json:"self,omitempty"`
+	UserGroups     []*TailscaleUserGroup  `protobuf:"bytes,8,rep,name=userGroups,proto3" json:"userGroups,omitempty"`
+	ExitNode       *TailscalePeer         `protobuf:"bytes,9,opt,name=exitNode,proto3" json:"exitNode,omitempty"`
+	KeyAuth        bool                   `protobuf:"varint,10,opt,name=keyAuth,proto3" json:"keyAuth,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -2273,6 +2274,13 @@ func (x *TailscaleEndpointStatus) GetEndpointTag() string {
 func (x *TailscaleEndpointStatus) GetBackendState() string {
 	if x != nil {
 		return x.BackendState
+	}
+	return ""
+}
+
+func (x *TailscaleEndpointStatus) GetStateText() string {
+	if x != nil {
+		return x.StateText
 	}
 	return ""
 }
@@ -4666,9 +4674,10 @@ type OpenConnectEndpointStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EndpointTag   string                 `protobuf:"bytes,1,opt,name=endpointTag,proto3" json:"endpointTag,omitempty"`
 	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	AuthForm      *OpenConnectAuthForm   `protobuf:"bytes,3,opt,name=authForm,proto3" json:"authForm,omitempty"`
-	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	TunnelInfo    *OpenConnectTunnelInfo `protobuf:"bytes,5,opt,name=tunnelInfo,proto3" json:"tunnelInfo,omitempty"`
+	StateText     string                 `protobuf:"bytes,3,opt,name=stateText,proto3" json:"stateText,omitempty"`
+	AuthForm      *OpenConnectAuthForm   `protobuf:"bytes,4,opt,name=authForm,proto3" json:"authForm,omitempty"`
+	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	TunnelInfo    *OpenConnectTunnelInfo `protobuf:"bytes,6,opt,name=tunnelInfo,proto3" json:"tunnelInfo,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4713,6 +4722,13 @@ func (x *OpenConnectEndpointStatus) GetEndpointTag() string {
 func (x *OpenConnectEndpointStatus) GetState() string {
 	if x != nil {
 		return x.State
+	}
+	return ""
+}
+
+func (x *OpenConnectEndpointStatus) GetStateText() string {
+	if x != nil {
+		return x.StateText
 	}
 	return ""
 }
@@ -5218,9 +5234,10 @@ type OpenVPNEndpointStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EndpointTag   string                 `protobuf:"bytes,1,opt,name=endpointTag,proto3" json:"endpointTag,omitempty"`
 	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	Challenge     *OpenVPNChallenge      `protobuf:"bytes,3,opt,name=challenge,proto3" json:"challenge,omitempty"`
-	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	TunnelInfo    *OpenVPNTunnelInfo     `protobuf:"bytes,5,opt,name=tunnelInfo,proto3" json:"tunnelInfo,omitempty"`
+	StateText     string                 `protobuf:"bytes,3,opt,name=stateText,proto3" json:"stateText,omitempty"`
+	Challenge     *OpenVPNChallenge      `protobuf:"bytes,4,opt,name=challenge,proto3" json:"challenge,omitempty"`
+	Error         string                 `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	TunnelInfo    *OpenVPNTunnelInfo     `protobuf:"bytes,6,opt,name=tunnelInfo,proto3" json:"tunnelInfo,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5265,6 +5282,13 @@ func (x *OpenVPNEndpointStatus) GetEndpointTag() string {
 func (x *OpenVPNEndpointStatus) GetState() string {
 	if x != nil {
 		return x.State
+	}
+	return ""
+}
+
+func (x *OpenVPNEndpointStatus) GetStateText() string {
+	if x != nil {
+		return x.StateText
 	}
 	return ""
 }
@@ -5844,19 +5868,21 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\x05error\x18\a \x01(\tR\x05error\x12*\n" +
 	"\x10natTypeSupported\x18\b \x01(\bR\x10natTypeSupported\"V\n" +
 	"\x15TailscaleStatusUpdate\x12=\n" +
-	"\tendpoints\x18\x01 \x03(\v2\x1f.daemon.TailscaleEndpointStatusR\tendpoints\"\xf7\x02\n" +
+	"\tendpoints\x18\x01 \x03(\v2\x1f.daemon.TailscaleEndpointStatusR\tendpoints\"\x95\x03\n" +
 	"\x17TailscaleEndpointStatus\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\"\n" +
-	"\fbackendState\x18\x02 \x01(\tR\fbackendState\x12\x18\n" +
-	"\aauthURL\x18\x03 \x01(\tR\aauthURL\x12 \n" +
-	"\vnetworkName\x18\x04 \x01(\tR\vnetworkName\x12&\n" +
-	"\x0emagicDNSSuffix\x18\x05 \x01(\tR\x0emagicDNSSuffix\x12)\n" +
-	"\x04self\x18\x06 \x01(\v2\x15.daemon.TailscalePeerR\x04self\x12:\n" +
+	"\fbackendState\x18\x02 \x01(\tR\fbackendState\x12\x1c\n" +
+	"\tstateText\x18\x03 \x01(\tR\tstateText\x12\x18\n" +
+	"\aauthURL\x18\x04 \x01(\tR\aauthURL\x12 \n" +
+	"\vnetworkName\x18\x05 \x01(\tR\vnetworkName\x12&\n" +
+	"\x0emagicDNSSuffix\x18\x06 \x01(\tR\x0emagicDNSSuffix\x12)\n" +
+	"\x04self\x18\a \x01(\v2\x15.daemon.TailscalePeerR\x04self\x12:\n" +
 	"\n" +
-	"userGroups\x18\a \x03(\v2\x1a.daemon.TailscaleUserGroupR\n" +
+	"userGroups\x18\b \x03(\v2\x1a.daemon.TailscaleUserGroupR\n" +
 	"userGroups\x121\n" +
-	"\bexitNode\x18\b \x01(\v2\x15.daemon.TailscalePeerR\bexitNode\x12\x18\n" +
-	"\akeyAuth\x18\t \x01(\bR\akeyAuth\"\xbf\x01\n" +
+	"\bexitNode\x18\t \x01(\v2\x15.daemon.TailscalePeerR\bexitNode\x12\x18\n" +
+	"\akeyAuth\x18\n" +
+	" \x01(\bR\akeyAuth\"\xbf\x01\n" +
 	"\x12TailscaleUserGroup\x12\x16\n" +
 	"\x06userID\x18\x01 \x01(\x03R\x06userID\x12\x1c\n" +
 	"\tloginName\x18\x02 \x01(\tR\tloginName\x12 \n" +
@@ -6040,14 +6066,15 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\abackend\x18\x04 \x01(\x0e2\x12.daemon.USBBackendR\abackend\x12,\n" +
 	"\x05state\x18\x05 \x01(\x0e2\x16.daemon.USBDeviceStateR\x05state\"Z\n" +
 	"\x17OpenConnectStatusUpdate\x12?\n" +
-	"\tendpoints\x18\x01 \x03(\v2!.daemon.OpenConnectEndpointStatusR\tendpoints\"\xe1\x01\n" +
+	"\tendpoints\x18\x01 \x03(\v2!.daemon.OpenConnectEndpointStatusR\tendpoints\"\xff\x01\n" +
 	"\x19OpenConnectEndpointStatus\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\x127\n" +
-	"\bauthForm\x18\x03 \x01(\v2\x1b.daemon.OpenConnectAuthFormR\bauthForm\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error\x12=\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1c\n" +
+	"\tstateText\x18\x03 \x01(\tR\tstateText\x127\n" +
+	"\bauthForm\x18\x04 \x01(\v2\x1b.daemon.OpenConnectAuthFormR\bauthForm\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12=\n" +
 	"\n" +
-	"tunnelInfo\x18\x05 \x01(\v2\x1d.daemon.OpenConnectTunnelInfoR\n" +
+	"tunnelInfo\x18\x06 \x01(\v2\x1d.daemon.OpenConnectTunnelInfoR\n" +
 	"tunnelInfo\"\xd9\x01\n" +
 	"\x15OpenConnectTunnelInfo\x12\x16\n" +
 	"\x06server\x18\x01 \x01(\tR\x06server\x12\x16\n" +
@@ -6086,14 +6113,15 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x16\n" +
 	"\x06formID\x18\x02 \x01(\tR\x06formID\"R\n" +
 	"\x13OpenVPNStatusUpdate\x12;\n" +
-	"\tendpoints\x18\x01 \x03(\v2\x1d.daemon.OpenVPNEndpointStatusR\tendpoints\"\xd8\x01\n" +
+	"\tendpoints\x18\x01 \x03(\v2\x1d.daemon.OpenVPNEndpointStatusR\tendpoints\"\xf6\x01\n" +
 	"\x15OpenVPNEndpointStatus\x12 \n" +
 	"\vendpointTag\x18\x01 \x01(\tR\vendpointTag\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\x126\n" +
-	"\tchallenge\x18\x03 \x01(\v2\x18.daemon.OpenVPNChallengeR\tchallenge\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error\x129\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1c\n" +
+	"\tstateText\x18\x03 \x01(\tR\tstateText\x126\n" +
+	"\tchallenge\x18\x04 \x01(\v2\x18.daemon.OpenVPNChallengeR\tchallenge\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x129\n" +
 	"\n" +
-	"tunnelInfo\x18\x05 \x01(\v2\x19.daemon.OpenVPNTunnelInfoR\n" +
+	"tunnelInfo\x18\x06 \x01(\v2\x19.daemon.OpenVPNTunnelInfoR\n" +
 	"tunnelInfo\"\xd7\x01\n" +
 	"\x11OpenVPNTunnelInfo\x12\x16\n" +
 	"\x06server\x18\x01 \x01(\tR\x06server\x12\x18\n" +
@@ -6284,6 +6312,7 @@ var (
 		(*emptypb.Empty)(nil),                 // 82: google.protobuf.Empty
 	}
 )
+
 var file_daemon_started_service_proto_depIdxs = []int32{
 	4,  // 0: daemon.ServiceStatus.status:type_name -> daemon.ServiceStatus.Type
 	80, // 1: daemon.Log.messages:type_name -> daemon.Log.Message
