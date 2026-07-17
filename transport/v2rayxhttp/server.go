@@ -31,13 +31,19 @@ import (
 var _ adapter.V2RayServerTransport = (*Server)(nil)
 
 type Server struct {
-	ctx        context.Context
-	logger     logger.ContextLogger
-	tlsConfig  tls.ServerConfig
-	handler    adapter.V2RayServerTransportHandler
-	config     *config
-	httpServer *http.Server
-	sessions   sync.Map
+	ctx          context.Context
+	logger       logger.ContextLogger
+	tlsConfig    tls.ServerConfig
+	handler      adapter.V2RayServerTransportHandler
+	config       *config
+	httpServer   *http.Server
+	packetServer io.Closer
+	sessions     sync.Map
+	// sessionTimeout bounds an upload-only session that never receives its
+	// paired download request. It is a field rather than a package constant so
+	// lifecycle tests can exercise cleanup without waiting for the production
+	// timeout.
+	sessionTimeout time.Duration
 }
 
 func NewServer(ctx context.Context, logger logger.ContextLogger, options option.V2RayXHTTPOptions, tlsConfig tls.ServerConfig, handler adapter.V2RayServerTransportHandler) (*Server, error) {
@@ -45,7 +51,12 @@ func NewServer(ctx context.Context, logger logger.ContextLogger, options option.
 	if err != nil {
 		return nil, err
 	}
-	server := &Server{ctx: ctx, logger: logger, tlsConfig: tlsConfig, handler: handler, config: config}
+	if isHTTP3(tlsConfig) {
+		if err = validateHTTP3(); err != nil {
+			return nil, err
+		}
+	}
+	server := &Server{ctx: ctx, logger: logger, tlsConfig: tlsConfig, handler: handler, config: config, sessionTimeout: 30 * time.Second}
 	handlerWithH2C := h2c.NewHandler(server, &http2.Server{})
 	server.httpServer = &http.Server{
 		Handler:           handlerWithH2C,
@@ -67,6 +78,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 	s.writeCORS(writer, request)
+	s.config.applyResponsePadding(writer)
 	if request.Method == http.MethodOptions {
 		writer.WriteHeader(http.StatusOK)
 		return
@@ -95,6 +107,9 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			writer.WriteHeader(http.StatusOK)
 			if flusher, ok := writer.(http.Flusher); ok {
 				flusher.Flush()
+			}
+			if s.keepStreamUpResponseAlive(writer, request) {
+				return
 			}
 			<-request.Context().Done()
 			return
@@ -163,6 +178,27 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
+func (s *Server) keepStreamUpResponseAlive(writer http.ResponseWriter, request *http.Request) bool {
+	if s.config.scStreamUp.to <= 0 || !(request.Header.Get("Referer") != "" || s.config.paddingObfs) {
+		return false
+	}
+	for {
+		if _, err := io.WriteString(writer, strings.Repeat("X", s.config.padding.random())); err != nil {
+			return true
+		}
+		if flusher, ok := writer.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		timer := time.NewTimer(time.Duration(s.config.scStreamUp.random()) * time.Second)
+		select {
+		case <-request.Context().Done():
+			timer.Stop()
+			return true
+		case <-timer.C:
+		}
+	}
+}
+
 func isUplink(request *http.Request, sequence string) bool {
 	return request.Method != http.MethodGet || sequence != ""
 }
@@ -179,7 +215,7 @@ func (s *Server) session(id string) *serverSession {
 	}
 	go func() {
 		select {
-		case <-time.After(30 * time.Second):
+		case <-time.After(s.sessionTimeout):
 			s.closeSession(id, session)
 		case <-session.connected:
 		}
@@ -208,8 +244,16 @@ func (s *Server) invalid(writer http.ResponseWriter, request *http.Request, stat
 	writer.WriteHeader(status)
 	s.logger.DebugContext(request.Context(), E.Cause(err, "process xhttp request from ", request.RemoteAddr))
 }
-func (s *Server) Network() []string { return []string{N.NetworkTCP} }
+func (s *Server) Network() []string {
+	if isHTTP3(s.tlsConfig) {
+		return []string{N.NetworkUDP}
+	}
+	return []string{N.NetworkTCP}
+}
 func (s *Server) Serve(listener net.Listener) error {
+	if isHTTP3(s.tlsConfig) {
+		return os.ErrInvalid
+	}
 	if s.tlsConfig != nil {
 		if len(s.tlsConfig.NextProtos()) == 0 {
 			s.tlsConfig.SetNextProtos([]string{http2.NextProtoTLS, "http/1.1"})
@@ -218,10 +262,9 @@ func (s *Server) Serve(listener net.Listener) error {
 	}
 	return s.httpServer.Serve(listener)
 }
-func (s *Server) ServePacket(net.PacketConn) error { return os.ErrInvalid }
 func (s *Server) Close() error {
 	s.sessions.Range(func(_, value any) bool { value.(*serverSession).close(); return true })
-	return common.Close(s.httpServer)
+	return common.Close(s.httpServer, s.packetServer)
 }
 
 type packet struct {

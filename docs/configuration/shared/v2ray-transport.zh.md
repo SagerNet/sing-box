@@ -132,10 +132,50 @@ HTTP 请求的额外标头
 XHTTP 与 Xray 的 XHTTP 传输层兼容。它将一个逻辑双向连接拆为流式下行，
 以及流式或分包式上行。`stream-one` 在一个请求中传输双向数据；`stream-up`
 使用一个下行请求和一个流式上行请求；`packet-up` 使用一个下行请求和按序上行
-分包。`auto` 当前选择 `packet-up`。
+分包。`auto` 当前选择 `packet-up`；当使用 REALITY 和 `download_settings` 时，
+会选择 `stream-up`。
 
 本版本支持 Xray 的 session/seq placement、请求 padding，以及 body/header/cookie
-上行载荷。支持 HTTP/1.1、HTTP/2 和 h2c；HTTP/3 与 `download_settings` 尚未实现。
+上行载荷。支持 HTTP/1.1、HTTP/2 和 h2c。`download_settings` 可以将下行请求
+发往独立的 XHTTP 目标，而上行请求仍使用主目标。两个目标必须到达同一个 XHTTP
+服务端会话（例如同一后端的不同 CDN 入口）；不能与 `stream-one` 一同使用。
+
+```json
+{
+  "type": "xhttp",
+  "path": "/upload",
+  "download_settings": {
+    "server": "download.example.com",
+    "server_port": 443,
+    "tls": {
+      "enabled": true,
+      "server_name": "download.example.com"
+    },
+    "path": "/download",
+    "mode": "packet-up"
+  }
+}
+```
+
+`download_settings` 内嵌另一套 XHTTP 配置，并附带其 `server`、`server_port`
+和可选的 `tls` 设置。
+
+使用 `with_quic` 构建 sing-box，并将外层入站或出站 TLS 的 ALPN 精确设为 `h3`
+时可使用 HTTP/3。该路径使用标准 TLS，暂不支持 uTLS 或 REALITY。可选的 `quic` 对象支持常用
+QUIC 参数：`idle_timeout`、`keep_alive_period`、`stream_receive_window`、
+`connection_receive_window`、`max_concurrent_streams`、`initial_packet_size`
+和 `disable_path_mtu_discovery`。
+
+```json
+{
+  "type": "xhttp",
+  "path": "/xhttp/",
+  "quic": {
+    "keep_alive_period": "15s",
+    "max_concurrent_streams": 32
+  }
+}
+```
 
 #### max_early_data
 

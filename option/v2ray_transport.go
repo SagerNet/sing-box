@@ -122,35 +122,46 @@ type V2RayXHTTPXmuxOptions struct {
 	HKeepAlivePeriod int64           `json:"h_keep_alive_period,omitempty"`
 }
 
+// V2RayXHTTPDownloadSettings defines the independent XHTTP endpoint used for
+// the download stream. Its embedded XHTTP options describe that endpoint's
+// HTTP request shape; server and tls select how to reach it.
+type V2RayXHTTPDownloadSettings struct {
+	ServerOptions
+	OutboundTLSOptionsContainer
+	V2RayXHTTPOptions
+}
+
 // V2RayXHTTPOptions intentionally follows Xray's XHTTP wire configuration.
 // Field names use sing-box's snake_case JSON convention.
 type V2RayXHTTPOptions struct {
-	Host                 string                `json:"host,omitempty"`
-	Path                 string                `json:"path,omitempty"`
-	Mode                 string                `json:"mode,omitempty"`
-	Headers              badoption.HTTPHeader  `json:"headers,omitempty"`
-	XPaddingBytes        V2RayXHTTPRange       `json:"x_padding_bytes,omitempty"`
-	XPaddingObfsMode     bool                  `json:"x_padding_obfs_mode,omitempty"`
-	XPaddingKey          string                `json:"x_padding_key,omitempty"`
-	XPaddingHeader       string                `json:"x_padding_header,omitempty"`
-	XPaddingPlacement    string                `json:"x_padding_placement,omitempty"`
-	XPaddingMethod       string                `json:"x_padding_method,omitempty"`
-	UplinkHTTPMethod     string                `json:"uplink_http_method,omitempty"`
-	SessionIDPlacement   string                `json:"session_id_placement,omitempty"`
-	SessionIDKey         string                `json:"session_id_key,omitempty"`
-	SessionIDTable       string                `json:"session_id_table,omitempty"`
-	SessionIDLength      V2RayXHTTPRange       `json:"session_id_length,omitempty"`
-	SeqPlacement         string                `json:"seq_placement,omitempty"`
-	SeqKey               string                `json:"seq_key,omitempty"`
-	UplinkDataPlacement  string                `json:"uplink_data_placement,omitempty"`
-	UplinkDataKey        string                `json:"uplink_data_key,omitempty"`
-	UplinkChunkSize      V2RayXHTTPRange       `json:"uplink_chunk_size,omitempty"`
-	NoGRPCHeader         bool                  `json:"no_grpc_header,omitempty"`
-	NoSSEHeader          bool                  `json:"no_sse_header,omitempty"`
-	SCMaxEachPostBytes   V2RayXHTTPRange       `json:"sc_max_each_post_bytes,omitempty"`
-	SCMinPostsIntervalMS V2RayXHTTPRange       `json:"sc_min_posts_interval_ms,omitempty"`
-	SCMaxBufferedPosts   int                   `json:"sc_max_buffered_posts,omitempty"`
-	SCStreamUpServerSecs V2RayXHTTPRange       `json:"sc_stream_up_server_secs,omitempty"`
-	ServerMaxHeaderBytes int                   `json:"server_max_header_bytes,omitempty"`
-	XMUX                 V2RayXHTTPXmuxOptions `json:"xmux,omitempty"`
+	Host                 string                      `json:"host,omitempty"`
+	Path                 string                      `json:"path,omitempty"`
+	Mode                 string                      `json:"mode,omitempty"`
+	Headers              badoption.HTTPHeader        `json:"headers,omitempty"`
+	XPaddingBytes        V2RayXHTTPRange             `json:"x_padding_bytes,omitempty"`
+	XPaddingObfsMode     bool                        `json:"x_padding_obfs_mode,omitempty"`
+	XPaddingKey          string                      `json:"x_padding_key,omitempty"`
+	XPaddingHeader       string                      `json:"x_padding_header,omitempty"`
+	XPaddingPlacement    string                      `json:"x_padding_placement,omitempty"`
+	XPaddingMethod       string                      `json:"x_padding_method,omitempty"`
+	UplinkHTTPMethod     string                      `json:"uplink_http_method,omitempty"`
+	SessionIDPlacement   string                      `json:"session_id_placement,omitempty"`
+	SessionIDKey         string                      `json:"session_id_key,omitempty"`
+	SessionIDTable       string                      `json:"session_id_table,omitempty"`
+	SessionIDLength      V2RayXHTTPRange             `json:"session_id_length,omitempty"`
+	SeqPlacement         string                      `json:"seq_placement,omitempty"`
+	SeqKey               string                      `json:"seq_key,omitempty"`
+	UplinkDataPlacement  string                      `json:"uplink_data_placement,omitempty"`
+	UplinkDataKey        string                      `json:"uplink_data_key,omitempty"`
+	UplinkChunkSize      V2RayXHTTPRange             `json:"uplink_chunk_size,omitempty"`
+	NoGRPCHeader         bool                        `json:"no_grpc_header,omitempty"`
+	NoSSEHeader          bool                        `json:"no_sse_header,omitempty"`
+	SCMaxEachPostBytes   V2RayXHTTPRange             `json:"sc_max_each_post_bytes,omitempty"`
+	SCMinPostsIntervalMS V2RayXHTTPRange             `json:"sc_min_posts_interval_ms,omitempty"`
+	SCMaxBufferedPosts   int                         `json:"sc_max_buffered_posts,omitempty"`
+	SCStreamUpServerSecs V2RayXHTTPRange             `json:"sc_stream_up_server_secs,omitempty"`
+	ServerMaxHeaderBytes int                         `json:"server_max_header_bytes,omitempty"`
+	QUIC                 QUICOptions                 `json:"quic,omitempty"`
+	XMUX                 V2RayXHTTPXmuxOptions       `json:"xmux,omitempty"`
+	DownloadSettings     *V2RayXHTTPDownloadSettings `json:"download_settings,omitempty"`
 }

@@ -153,9 +153,9 @@ func (c *config) fillPacketRequest(request *http.Request, sessionID string, sequ
 	request.Header = c.headers.Clone()
 	switch c.dataPlacement {
 	case placementHeader:
-		fillHeaderPayload(request.Header, c.dataKey, payload)
+		c.fillHeaderPayload(request.Header, c.dataKey, payload)
 	case placementCookie:
-		for index, chunk := range splitEncodedPayload(payload, 3000) {
+		for index, chunk := range c.splitEncodedPayload(payload) {
 			request.AddCookie(&http.Cookie{Name: fmt.Sprintf("%s_%d", c.dataKey, index), Value: chunk})
 		}
 	default:
@@ -166,26 +166,41 @@ func (c *config) fillPacketRequest(request *http.Request, sessionID string, sequ
 	c.applyMetadata(request, sessionID, strconv.FormatUint(sequence, 10))
 }
 
-func fillHeaderPayload(header http.Header, key string, payload []byte) {
-	for index, chunk := range splitEncodedPayload(payload, 3000) {
+func (c *config) fillHeaderPayload(header http.Header, key string, payload []byte) {
+	for index, chunk := range c.splitEncodedPayload(payload) {
 		header.Set(fmt.Sprintf("%s-%d", key, index), chunk)
 	}
 }
 
-func splitEncodedPayload(payload []byte, chunkSize int) []string {
+func (c *config) splitEncodedPayload(payload []byte) []string {
 	encoded := base64.RawURLEncoding.EncodeToString(payload)
 	if encoded == "" {
 		return nil
 	}
 	var chunks []string
 	for len(encoded) > 0 {
-		size := chunkSize
+		size := c.uplinkChunk.random()
 		if size > len(encoded) {
 			size = len(encoded)
 		}
 		chunks, encoded = append(chunks, encoded[:size]), encoded[size:]
 	}
 	return chunks
+}
+
+func (c *config) applyResponsePadding(writer http.ResponseWriter) {
+	length := c.padding.random()
+	if !c.paddingObfs {
+		writer.Header().Set("X-Padding", paddingValue("repeat-x", length))
+		return
+	}
+	value := paddingValue(c.paddingMethod, length)
+	switch c.paddingPlacement {
+	case placementHeader:
+		writer.Header().Set(c.paddingHeader, value)
+	case placementCookie:
+		http.SetCookie(writer, &http.Cookie{Name: c.paddingKey, Value: value, Path: "/"})
+	}
 }
 
 func (c *config) extractPacketPayload(request *http.Request) ([]byte, error) {

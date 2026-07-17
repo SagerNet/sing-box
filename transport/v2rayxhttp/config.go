@@ -57,13 +57,20 @@ type config struct {
 	uplinkMethod, sessionPlacement, sessionKey                 string
 	seqPlacement, seqKey, dataPlacement, dataKey               string
 	scMaxPost, scMinInterval, scStreamUp                       byteRange
+	uplinkChunk                                                byteRange
 	maxBufferedPosts, maxHeaderBytes                           int
+	quic                                                       option.QUICOptions
 	noGRPCHeader, noSSEHeader                                  bool
 	sessionTable                                               string
 	sessionLength                                              byteRange
+	xmux                                                       xmuxConfig
 }
 
 func newConfig(options option.V2RayXHTTPOptions) (*config, error) {
+	xmux, err := newXMuxConfig(options.XMUX)
+	if err != nil {
+		return nil, err
+	}
 	c := &config{
 		host:             options.Host,
 		mode:             options.Mode,
@@ -86,10 +93,12 @@ func newConfig(options option.V2RayXHTTPOptions) (*config, error) {
 		scStreamUp:       makeRange(options.SCStreamUpServerSecs, 20, 80),
 		maxBufferedPosts: options.SCMaxBufferedPosts,
 		maxHeaderBytes:   options.ServerMaxHeaderBytes,
+		quic:             options.QUIC,
 		noGRPCHeader:     options.NoGRPCHeader,
 		noSSEHeader:      options.NoSSEHeader,
 		sessionTable:     predefinedTable(options.SessionIDTable),
 		sessionLength:    makeRange(options.SessionIDLength, 0, 0),
+		xmux:             xmux,
 	}
 	if c.headers.Get("Host") != "" {
 		return nil, E.New("xhttp headers must not contain Host")
@@ -166,6 +175,7 @@ func newConfig(options option.V2RayXHTTPOptions) (*config, error) {
 			c.dataKey = "X-Data"
 		}
 	}
+	c.uplinkChunk = normalizedUplinkChunk(options.UplinkChunkSize, c.dataPlacement, c.scMaxPost)
 	if !c.scMaxPost.valid() || !c.scMinInterval.valid() || !c.scStreamUp.valid() {
 		return nil, E.New("invalid xhttp upload range")
 	}
@@ -179,6 +189,28 @@ func newConfig(options option.V2RayXHTTPOptions) (*config, error) {
 		c.maxHeaderBytes = 8192
 	}
 	return c, nil
+}
+
+func normalizedUplinkChunk(value option.V2RayXHTTPRange, placement string, postLimit byteRange) byteRange {
+	if value.To != 0 {
+		from := value.From
+		if from < 64 {
+			from = 64
+		}
+		to := value.To
+		if to < from {
+			to = from
+		}
+		return byteRange{from: from, to: to}
+	}
+	switch placement {
+	case placementCookie:
+		return byteRange{from: 2 * 1024, to: 3 * 1024}
+	case placementHeader:
+		return byteRange{from: 3 * 1000, to: 4 * 1000}
+	default:
+		return postLimit
+	}
 }
 
 func validMetaPlacement(value string) bool {

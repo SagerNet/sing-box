@@ -141,11 +141,53 @@ bidirectional connection as a streaming download plus either a streaming or
 packetized upload. `stream-one` uses one request for both directions;
 `stream-up` uses a download request and a streaming upload request; `packet-up`
 uses a download request and ordered upload packets. `auto` currently selects
-`packet-up`.
+`packet-up`, except that REALITY with `download_settings` selects `stream-up`.
 
 It supports Xray's session/sequence placements, request padding, and
 body/header/cookie upload placement. HTTP/1.1, HTTP/2, and h2c are available.
-HTTP/3 and `download_settings` are not available yet.
+`download_settings` may select a separate XHTTP endpoint for the download
+request while upload requests use the primary endpoint. Both endpoints must
+reach the same XHTTP server session (for example, distinct CDN front doors for
+one backend). It is unavailable with `stream-one`.
+
+```json
+{
+  "type": "xhttp",
+  "path": "/upload",
+  "download_settings": {
+    "server": "download.example.com",
+    "server_port": 443,
+    "tls": {
+      "enabled": true,
+      "server_name": "download.example.com"
+    },
+    "path": "/download",
+    "mode": "packet-up"
+  }
+}
+```
+
+`download_settings` embeds another XHTTP configuration, plus its `server`,
+`server_port`, and optional `tls` settings.
+
+HTTP/3 is available when sing-box is built with `with_quic` and the enclosing
+outbound or inbound TLS ALPN is exactly `h3`. It uses standard TLS (uTLS and
+REALITY are not supported for this path). The optional `quic` object accepts
+the usual QUIC controls:
+`idle_timeout`, `keep_alive_period`, `stream_receive_window`,
+`connection_receive_window`, `max_concurrent_streams`, `initial_packet_size`,
+and `disable_path_mtu_discovery`.
+
+```json
+{
+  "type": "xhttp",
+  "path": "/xhttp/",
+  "quic": {
+    "keep_alive_period": "15s",
+    "max_concurrent_streams": 32
+  }
+}
+```
 
 #### max_early_data
 
