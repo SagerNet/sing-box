@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sagernet/sing-box/daemon"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	"google.golang.org/grpc"
@@ -62,19 +63,24 @@ func newRemoteConnection(options *RemoteConnectionOptions) (*remoteConnection, e
 	if port == "" {
 		port = defaultPort
 	}
+	authorization := ""
+	if options.Secret != "" {
+		authorization = "Bearer " + options.Secret
+	}
 	dialOptions := []grpc.DialOption{
 		grpc.WithTransportCredentials(transportCredentials),
-	}
-	if options.Secret != "" {
-		authorization := "Bearer " + options.Secret
-		dialOptions = append(dialOptions,
-			grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-				return invoker(metadata.AppendToOutgoingContext(ctx, "authorization", authorization), method, req, reply, cc, opts...)
-			}),
-			grpc.WithStreamInterceptor(func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-				return streamer(metadata.AppendToOutgoingContext(ctx, "authorization", authorization), desc, cc, method, opts...)
-			}),
-		)
+		grpc.WithChainUnaryInterceptor(daemon.UnaryClientLocaleInterceptor, func(ctx context.Context, method string, request, reply any, connection *grpc.ClientConn, invoker grpc.UnaryInvoker, options ...grpc.CallOption) error {
+			if authorization != "" {
+				ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authorization)
+			}
+			return invoker(ctx, method, request, reply, connection, options...)
+		}),
+		grpc.WithChainStreamInterceptor(daemon.StreamClientLocaleInterceptor, func(ctx context.Context, description *grpc.StreamDesc, connection *grpc.ClientConn, method string, streamer grpc.Streamer, options ...grpc.CallOption) (grpc.ClientStream, error) {
+			if authorization != "" {
+				ctx = metadata.AppendToOutgoingContext(ctx, "authorization", authorization)
+			}
+			return streamer(ctx, description, connection, method, options...)
+		}),
 	}
 	return &remoteConnection{
 		target:      net.JoinHostPort(host, port),

@@ -161,8 +161,8 @@ func (s *CommandServer) Start() error {
 	}
 	s.listener = listener
 	serverOptions := []grpc.ServerOption{
-		grpc.UnaryInterceptor(unaryAuthInterceptor),
-		grpc.StreamInterceptor(streamAuthInterceptor),
+		grpc.ChainUnaryInterceptor(unaryAuthInterceptor, daemon.UnaryLocaleInterceptor),
+		grpc.ChainStreamInterceptor(streamAuthInterceptor, daemon.StreamLocaleInterceptor),
 	}
 	s.grpcServer = grpc.NewServer(serverOptions...)
 	daemon.RegisterStartedServiceServer(s.grpcServer, s.StartedService)
