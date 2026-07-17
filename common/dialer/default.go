@@ -382,7 +382,12 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 }
 
 func (d *DefaultDialer) UDPListenerControl() (control.Func, bool) {
-	return d.udpListener.Control, d.autoDetectBindFunc != nil && d.netns == ""
+	egressEnabled := d.autoDetectBindFunc != nil && d.netns == ""
+	listenerControl := d.udpListener.Control
+	if egressEnabled && d.networkManager.AutoRedirectOutputMark() != 0 {
+		listenerControl = control.Append(listenerControl, control.UnbindFromInterface())
+	}
+	return listenerControl, egressEnabled
 }
 
 func (d *DefaultDialer) trackConn(conn net.Conn, err error) (net.Conn, error) {
