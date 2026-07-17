@@ -274,13 +274,14 @@ message TailscaleStatusUpdate {
 message TailscaleEndpointStatus {
   string endpointTag = 1;
   string backendState = 2;
-  string authURL = 3;
-  string networkName = 4;
-  string magicDNSSuffix = 5;
-  TailscalePeer self = 6;
-  repeated TailscaleUserGroup userGroups = 7;
-  TailscalePeer exitNode = 8;
-  bool keyAuth = 9;
+  string stateText = 3;
+  string authURL = 4;
+  string networkName = 5;
+  string magicDNSSuffix = 6;
+  TailscalePeer self = 7;
+  repeated TailscaleUserGroup userGroups = 8;
+  TailscalePeer exitNode = 9;
+  bool keyAuth = 10;
 }
 
 message TailscaleUserGroup {
@@ -530,9 +531,10 @@ message OpenConnectStatusUpdate {
 message OpenConnectEndpointStatus {
   string endpointTag = 1;
   string state = 2;
-  OpenConnectAuthForm authForm = 3;
-  string error = 4;
-  OpenConnectTunnelInfo tunnelInfo = 5;
+  string stateText = 3;
+  OpenConnectAuthForm authForm = 4;
+  string error = 5;
+  OpenConnectTunnelInfo tunnelInfo = 6;
 }
 
 message OpenConnectTunnelInfo {
@@ -587,9 +589,10 @@ message OpenVPNStatusUpdate {
 message OpenVPNEndpointStatus {
   string endpointTag = 1;
   string state = 2;
-  OpenVPNChallenge challenge = 3;
-  string error = 4;
-  OpenVPNTunnelInfo tunnelInfo = 5;
+  string stateText = 3;
+  OpenVPNChallenge challenge = 4;
+  string error = 5;
+  OpenVPNTunnelInfo tunnelInfo = 6;
 }
 
 message OpenVPNTunnelInfo {

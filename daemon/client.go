@@ -61,8 +61,8 @@ func NewRemoteClient(options RemoteClientOptions) (*grpc.ClientConn, error) {
 	}
 	return grpc.NewClient(target,
 		grpc.WithTransportCredentials(transportCredentials),
-		grpc.WithUnaryInterceptor(NewClientAuthUnaryInterceptor(options.Secret)),
-		grpc.WithStreamInterceptor(NewClientAuthStreamInterceptor(options.Secret)),
+		grpc.WithChainUnaryInterceptor(UnaryClientLocaleInterceptor, NewClientAuthUnaryInterceptor(options.Secret)),
+		grpc.WithChainStreamInterceptor(StreamClientLocaleInterceptor, NewClientAuthStreamInterceptor(options.Secret)),
 	)
 }
 
