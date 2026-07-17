@@ -151,8 +151,8 @@ func networkConnectionFromFileDescriptor(fileDescriptor int32) (net.Conn, error)
 func localDialOptions(contextDialer func(context.Context, string) (net.Conn, error)) []grpc.DialOption {
 	options := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(unaryClientAuthInterceptor),
-		grpc.WithStreamInterceptor(streamClientAuthInterceptor),
+		grpc.WithChainUnaryInterceptor(daemon.UnaryClientLocaleInterceptor, unaryClientAuthInterceptor),
+		grpc.WithChainStreamInterceptor(daemon.StreamClientLocaleInterceptor, streamClientAuthInterceptor),
 	}
 	if contextDialer != nil {
 		options = append(options, grpc.WithContextDialer(contextDialer))

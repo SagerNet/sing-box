@@ -21,6 +21,7 @@ type OpenConnectEndpointStatusIterator interface {
 type OpenConnectEndpointStatus struct {
 	EndpointTag string
 	State       string
+	StateText   string
 	AuthForm    *OpenConnectAuthForm
 	Error       string
 	TunnelInfo  *OpenConnectTunnelInfo
@@ -121,6 +122,7 @@ func openConnectEndpointStatusFromGRPC(status *daemon.OpenConnectEndpointStatus)
 	result := &OpenConnectEndpointStatus{
 		EndpointTag: status.EndpointTag,
 		State:       status.State,
+		StateText:   status.StateText,
 		Error:       status.Error,
 	}
 	if status.AuthForm != nil {
