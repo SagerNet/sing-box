@@ -66,8 +66,8 @@ func newDaemon() (*Daemon, error) {
 	})
 	authorizer := newAuthorizer(d)
 	serverOptions := []grpc.ServerOption{
-		grpc.ChainUnaryInterceptor(newUnaryAuthorizeInterceptor(authorizer), unaryLocaleInterceptor),
-		grpc.ChainStreamInterceptor(newStreamAuthorizeInterceptor(authorizer), streamLocaleInterceptor),
+		grpc.ChainUnaryInterceptor(newUnaryAuthorizeInterceptor(authorizer), daemon.UnaryLocaleInterceptor),
+		grpc.ChainStreamInterceptor(newStreamAuthorizeInterceptor(authorizer), daemon.StreamLocaleInterceptor),
 	}
 	platformOptions, err := platformServerOptions(d)
 	if err != nil {
