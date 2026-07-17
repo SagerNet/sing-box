@@ -18,6 +18,7 @@ type TailscaleEndpointStatusIterator interface {
 type TailscaleEndpointStatus struct {
 	EndpointTag    string
 	BackendState   string
+	StateText      string
 	AuthURL        string
 	NetworkName    string
 	MagicDNSSuffix string
@@ -105,6 +106,7 @@ func tailscaleEndpointStatusFromGRPC(status *daemon.TailscaleEndpointStatus) *Ta
 	result := &TailscaleEndpointStatus{
 		EndpointTag:    status.EndpointTag,
 		BackendState:   status.BackendState,
+		StateText:      status.StateText,
 		AuthURL:        status.AuthURL,
 		NetworkName:    status.NetworkName,
 		MagicDNSSuffix: status.MagicDNSSuffix,
