@@ -13,6 +13,9 @@
 
   "system": false,
   "name": "",
+
+  ... // UDP NAT Fields
+
   "server": "vpn.example.com",
   "flavor": "anyconnect",
   "username": "",
@@ -377,6 +380,10 @@ Conflict with `form_entries.promote`.
 Ask for the matching authentication field interactively instead of supplying an automatic value.
 
 Conflict with `form_entries.value`.
+
+## UDP NAT Fields
+
+See [UDP NAT Fields](/configuration/shared/udp-nat/) for details.
 
 ## Dial Fields
 
