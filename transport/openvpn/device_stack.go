@@ -103,6 +103,7 @@ func (d *stackDevice) UpdateConfiguration(configuration Configuration) error {
 	defer d.stateAccess.Unlock()
 	if d.logRouteOptions && hasRouteOptions(configuration.Routes) {
 		d.options.Logger.Debug("OpenVPN route gateway and metric options are not representable by the gVisor stack device; routes are installed by prefix")
+		d.logRouteOptions = false
 	}
 	if configuration.MTU != 0 {
 		d.options.MTU = configuration.MTU
