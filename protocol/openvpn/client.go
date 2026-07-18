@@ -116,14 +116,18 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		udpTimeout = time.Duration(options.UDPTimeout)
 	}
 	device, err := ovpntransport.NewDevice(ovpntransport.DeviceOptions{
-		Context:     ctx,
-		Logger:      logger,
-		System:      options.System,
-		Handler:     clientEndpoint,
-		UDPTimeout:  udpTimeout,
-		ICMPTimeout: C.ICMPTimeout,
-		Name:        options.Name,
-		MTU:         options.MTU,
+		Context:         ctx,
+		Logger:          logger,
+		System:          options.System,
+		Handler:         clientEndpoint,
+		UDPTimeout:      udpTimeout,
+		ICMPTimeout:     C.ICMPTimeout,
+		UDPMapping:      tun.NATMapping(options.UDPMapping),
+		UDPFiltering:    tun.NATFiltering(options.UDPFiltering),
+		UDPNATMax:       options.UDPNATMax,
+		InterfaceFinder: service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
+		Name:            options.Name,
+		MTU:             options.MTU,
 		Configuration: ovpntransport.Configuration{
 			MTU:     options.MTU,
 			Address: clientOptions.Tunnel.LocalAddress,
@@ -260,11 +264,11 @@ func (c *ClientEndpoint) buildClientOptions(options option.OpenVPNClientEndpoint
 		Context: c.loopContext,
 		Mode:    ovpn.ModeTLS,
 		Transport: ovpn.ClientTransportOptions{
-			Remotes:            remotes,
-			RemoteRandom:       options.RemoteRandom,
-			Protocol:           protocol,
-			ExplicitExitNotify: options.ExplicitExitNotify,
-			DialContext:        c.transportDialContext,
+			Remotes:                     remotes,
+			RemoteRandom:                options.RemoteRandom,
+			Protocol:                    protocol,
+			ExplicitExitNotify:          options.ExplicitExitNotify,
+			DialContextWithAddressIndex: c.transportDialContextWithAddressIndex,
 		},
 		DataChannel: ovpn.ClientDataChannelOptions{
 			MTU:              options.MTU,
@@ -301,8 +305,8 @@ func (c *ClientEndpoint) buildClientOptions(options option.OpenVPNClientEndpoint
 		},
 		Timing: ovpn.ClientTimingOptions{
 			RenegotiationInterval: time.Duration(options.RenegotiateInterval),
-			PingInterval:          time.Duration(options.KeepaliveInterval),
-			PingRestart:           time.Duration(options.KeepaliveTimeout),
+			PingInterval:          time.Duration(options.PingInterval),
+			PingRestart:           time.Duration(options.PingRestart),
 		},
 		KeyDirection:          keyDirection,
 		OnTunnelConfiguration: c.handleTunnelConfiguration,
@@ -310,21 +314,21 @@ func (c *ClientEndpoint) buildClientOptions(options option.OpenVPNClientEndpoint
 	}, nil
 }
 
-func (c *ClientEndpoint) transportDialContext(ctx context.Context, network string, address string) (net.Conn, error) {
+func (c *ClientEndpoint) transportDialContextWithAddressIndex(ctx context.Context, network string, address string, addressIndex int) (net.Conn, error) {
 	destination := M.ParseSocksaddr(address)
-	var (
-		connection net.Conn
-		err        error
-	)
 	if destination.IsDomain() {
 		destinationAddresses, lookupErr := c.dnsRouter.Lookup(ctx, destination.Fqdn, c.queryOptions)
 		if lookupErr != nil {
 			return nil, lookupErr
 		}
-		connection, err = N.DialSerial(ctx, c.outboundDialer, network, destination, destinationAddresses)
-	} else {
-		connection, err = c.outboundDialer.DialContext(ctx, network, destination)
+		if addressIndex < 0 || addressIndex >= len(destinationAddresses) {
+			return nil, ovpn.ErrRemoteAddressExhausted
+		}
+		destination = M.SocksaddrFrom(destinationAddresses[addressIndex], destination.Port)
+	} else if addressIndex != 0 {
+		return nil, ovpn.ErrRemoteAddressExhausted
 	}
+	connection, err := c.outboundDialer.DialContext(ctx, network, destination)
 	if err != nil {
 		return nil, err
 	}

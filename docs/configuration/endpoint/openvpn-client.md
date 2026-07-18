@@ -69,14 +69,15 @@
   "route_metric": 0,
   "redirect_gateway": false,
   "redirect_gateway_flags": [],
-  "keepalive_interval": "",
-  "keepalive_timeout": "",
+  "ping_interval": "",
+  "ping_restart": "",
   "renegotiate_interval": "",
   "explicit_exit_notify": 0,
   "system": false,
   "name": "",
   "mtu": 1500,
-  "udp_timeout": "",
+
+  ... // UDP NAT Fields
 
   ... // Dial Fields
 }
@@ -342,7 +343,8 @@ Maximum OpenVPN UDP packet size used to clamp the MSS of TCP connections sent th
 
 This prevents TCP packets from exceeding the path MTU after OpenVPN encapsulation.
 
-Disabled when `0`.
+When empty, the upstream OpenVPN default is used: `fragment` when configured,
+otherwise `1492` for the default tunnel MTU or the configured tunnel MTU.
 
 ### fragment
 
@@ -378,9 +380,10 @@ Conflict with non-stub compression enabled by `compression` or `compression_lzo`
 
 ### route_no_pull
 
-Ignore routes, route gateways, and redirect-gateway options pushed by the server.
+Ignore routes, DNS and DHCP settings, route metrics, `redirect-gateway`,
+`redirect-private`, `block-ipv6`, and `block-outside-dns` pushed by the server.
 
-Other pushed options are still accepted, and locally configured `routes` are still used.
+Interface configuration, topology, tunnel MTU, `route-gateway`, and locally configured routes are still used.
 
 Disabled by default.
 
@@ -388,7 +391,7 @@ Disabled by default.
 
 Ordered filters for options pushed by the server.
 
-The first filter whose `text` is a case-insensitive prefix of the complete pushed option is applied. Options that match no filter are accepted.
+The first filter whose `text` is a case-sensitive prefix of the complete pushed option is applied. Options that match no filter are accepted.
 
 ### pull_filters.action
 
@@ -402,7 +405,7 @@ Filter action, one of `accept`, `ignore`, or `reject`.
 
 ==Required==
 
-Case-insensitive prefix to match against the pushed option name and value.
+Case-sensitive prefix to match against the pushed option name and value.
 
 For example, `route ` matches pushed IPv4 route options without matching `route-gateway`.
 
@@ -438,33 +441,38 @@ OpenVPN `redirect-gateway` flags.
 
 Empty by default.
 
-### keepalive_interval
+### ping_interval
 
-Interval for sending OpenVPN keepalive ping packets.
+Interval after which the client sends a data-channel ping when no packet has been sent to the server.
 
-Locally configured values take precedence over server-pushed keepalive values.
+A server-pushed OpenVPN `ping` value overrides this value.
 
-Disabled by default.
-
-### keepalive_timeout
-
-Time without receiving OpenVPN traffic before the connection is restarted.
-
-Locally configured values take precedence over server-pushed keepalive values.
+The value must use whole seconds.
 
 Disabled by default.
+
+### ping_restart
+
+Time without receiving a packet after which the client reconnects to the server.
+
+A server-pushed OpenVPN `ping-restart` value overrides this value.
+
+The value must use whole seconds.
+
+When empty, `120s` is used for UDP connections with pull enabled until the
+server pushes another value. No default receive timeout is used for TCP.
 
 ### renegotiate_interval
 
 OpenVPN TLS renegotiation interval.
 
-If empty or set to `0s`, the OpenVPN default `1h` is used.
+When empty, the OpenVPN default `1h` is used.
 
 ### explicit_exit_notify
 
 Number of OpenVPN exit notifications sent when closing a UDP connection.
 
-Disabled when `0`. At most `10` notifications are sent.
+Notifications are sent one second apart. Disabled when `0`.
 
 ### system
 
@@ -486,11 +494,9 @@ OpenVPN interface MTU.
 
 When empty, `1500` is used until a server-pushed MTU is received.
 
-### udp_timeout
+## UDP NAT Fields
 
-UDP NAT expiration time.
-
-`5m` is used by default.
+See [UDP NAT Fields](/configuration/shared/udp-nat/) for details.
 
 ## Dial Fields
 
