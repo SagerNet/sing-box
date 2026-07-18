@@ -13,6 +13,9 @@
 
   "system": false,
   "name": "",
+
+  ... // UDP NAT 字段
+
   "server": "vpn.example.com",
   "flavor": "anyconnect",
   "username": "",
@@ -377,6 +380,10 @@ MCA 证书和私钥必须同时设置或同时为空。
 交互询问匹配的认证字段，而不是自动提供值。
 
 与 `form_entries.value` 冲突。
+
+## UDP NAT 字段
+
+参阅 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)。
 
 ## 拨号字段
 

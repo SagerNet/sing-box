@@ -150,10 +150,16 @@ func runOpenVPNSelfToSelf(t *testing.T, testCase openVPNSelfCase) {
 			ClientCertificatePath: certificates.caPath,
 		},
 	}
+	serverOptions.UDPMapping = option.UDPNATBehaviorAddressDependent
+	serverOptions.UDPFiltering = option.UDPNATBehaviorAddressAndPortDependent
+	serverOptions.UDPNATMax = 128
 	clientOptions := newOpenVPNTLSClientOptions(testCase.protocol, openVPNPort, certificates.caPath, certificates.clientCertPath, certificates.clientKeyPath)
+	clientOptions.UDPMapping = option.UDPNATBehaviorAddressDependent
+	clientOptions.UDPFiltering = option.UDPNATBehaviorAddressAndPortDependent
+	clientOptions.UDPNATMax = 128
 	if testCase.tlsCrypt {
 		tlsCryptKeyPath := writeOpenVPNStaticKeyFile(t, createOpenVPNStaticKey(t))
-		serverOptions.TLS.ControlWrap = &option.OpenVPNControlWrapOptions{
+		serverOptions.TLS.ControlWrap = &option.OpenVPNInboundControlWrapOptions{
 			Type:    "tls_crypt",
 			KeyPath: tlsCryptKeyPath,
 		}
@@ -538,8 +544,12 @@ func TestOpenVPNClientReconnectSelfToSelf(t *testing.T) {
 			KeyPath:               certificates.serverKeyPath,
 			ClientCertificatePath: certificates.caPath,
 		},
-		KeepaliveInterval: badoption.Duration(time.Second),
-		KeepaliveTimeout:  badoption.Duration(2 * time.Second),
+		PingInterval: badoption.Duration(time.Second),
+		PingRestart:  badoption.Duration(4 * time.Second),
+		Push: &option.OpenVPNPushOptions{
+			PingInterval: badoption.Duration(time.Second),
+			PingRestart:  badoption.Duration(2 * time.Second),
+		},
 		Users: []auth.User{
 			{
 				Username: openVPNTLSUsername,

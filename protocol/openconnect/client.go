@@ -120,15 +120,24 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
+	udpTimeout := C.UDPTimeout
+	if options.UDPTimeout != 0 {
+		udpTimeout = time.Duration(options.UDPTimeout)
+	}
+	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	device, err := openconnecttransport.NewDevice(openconnecttransport.DeviceOptions{
-		Context:     ctx,
-		Logger:      logger,
-		System:      options.System,
-		Handler:     openConnectEndpoint,
-		UDPTimeout:  C.UDPTimeout,
-		ICMPTimeout: C.ICMPTimeout,
-		Name:        options.Name,
-		MTU:         openconnecttransport.DefaultMTU,
+		Context:         ctx,
+		Logger:          logger,
+		System:          options.System,
+		Handler:         openConnectEndpoint,
+		UDPTimeout:      udpTimeout,
+		ICMPTimeout:     C.ICMPTimeout,
+		UDPMapping:      tun.NATMapping(options.UDPMapping),
+		UDPFiltering:    tun.NATFiltering(options.UDPFiltering),
+		UDPNATMax:       options.UDPNATMax,
+		InterfaceFinder: networkManager.InterfaceFinder(),
+		Name:            options.Name,
+		MTU:             openconnecttransport.DefaultMTU,
 		Configuration: openconnecttransport.Configuration{
 			MTU: openconnecttransport.DefaultMTU,
 		},
