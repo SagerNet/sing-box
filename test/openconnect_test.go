@@ -123,7 +123,7 @@ func TestOpenConnectDockerInterop(t *testing.T) {
 		))
 		endpoint := requireOpenConnectEndpoint(subtest, instance)
 		status := waitForOpenConnectState(subtest, endpoint, adapter.OpenConnectStateConnected, 45*time.Second)
-		require.Nil(subtest, status.AuthForm)
+		require.Nil(subtest, status.AuthChallenge)
 		err := exchangeOpenConnectTCPEcho(endpoint, 256*1024, 30*time.Second)
 		require.NoError(subtest, err)
 		err = exchangeOpenConnectUDPEcho(endpoint, 1400, 30*time.Second)
@@ -167,7 +167,7 @@ func TestOpenConnectDockerInterop(t *testing.T) {
 
 		status := endpoint.OpenConnectStatus()
 		require.Equal(subtest, adapter.OpenConnectStateConnected, status.State, status.Error)
-		require.Nil(subtest, status.AuthForm)
+		require.Nil(subtest, status.AuthChallenge)
 		logs, err := openConnectDockerOutput(ctx, "logs", container.name)
 		require.NoError(subtest, err)
 		require.GreaterOrEqual(subtest, strings.Count(logs, "HTTP CONNECT /CSCOSSLC/tunnel"), 2, logs)
@@ -254,13 +254,15 @@ func driveOpenConnectInteractiveAuthentication(t *testing.T, endpoint adapter.Op
 		case adapter.OpenConnectStateError:
 			t.Fatal(status.Error)
 		case adapter.OpenConnectStateAuthPending:
-			form := status.AuthForm
-			require.NotNil(t, form)
-			require.NotEmpty(t, form.ID)
-			_, completed := completedForms[form.ID]
+			challenge := status.AuthChallenge
+			require.NotNil(t, challenge)
+			require.NotNil(t, challenge.Form)
+			require.Nil(t, challenge.Browser)
+			require.NotEmpty(t, challenge.ID)
+			_, completed := completedForms[challenge.ID]
 			if !completed {
-				values := make(map[string]string, len(form.Fields))
-				for _, field := range form.Fields {
+				values := make(map[string]string, len(challenge.Form.Fields))
+				for _, field := range challenge.Form.Fields {
 					require.NotEmpty(t, field.SubmissionKey)
 					switch field.Name {
 					case "username":
@@ -274,9 +276,11 @@ func driveOpenConnectInteractiveAuthentication(t *testing.T, endpoint adapter.Op
 					}
 				}
 				require.NotEmpty(t, values)
-				err := endpoint.CompleteAuthForm(form.ID, values)
+				err := endpoint.CompleteAuthChallenge(challenge.ID, adapter.OpenConnectAuthResponse{
+					Form: &adapter.OpenConnectAuthFormResponse{Values: values},
+				})
 				require.NoError(t, err)
-				completedForms[form.ID] = struct{}{}
+				completedForms[challenge.ID] = struct{}{}
 				continue
 			}
 		}
