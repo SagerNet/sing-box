@@ -364,7 +364,10 @@ func (e *Endpoint) readLoop() {
 		err = e.device.WriteInboundBuffers(packetBuffers)
 		buf.ReleaseMulti(packetBuffers)
 		if err != nil {
-			e.logger.Error(E.Cause(err, "write OpenConnect packet to device"))
+			err = E.Cause(err, "write packet to device")
+			e.logger.Error(err)
+			e.setTerminalError(err)
+			return
 		}
 	}
 }
