@@ -16,15 +16,15 @@ type OpenConnectEndpoint interface {
 	Endpoint
 	OpenConnectStatus() OpenConnectStatus
 	StatusUpdated() <-chan struct{}
-	CompleteAuthForm(formID string, values map[string]string) error
-	CancelAuthForm(formID string) error
+	CompleteAuthChallenge(challengeID string, response OpenConnectAuthResponse) error
+	CancelAuthChallenge(challengeID string) error
 }
 
 type OpenConnectStatus struct {
-	State      string
-	AuthForm   *OpenConnectAuthForm
-	Error      string
-	TunnelInfo *OpenConnectTunnelInfo
+	State         string
+	AuthChallenge *OpenConnectAuthChallenge
+	Error         string
+	TunnelInfo    *OpenConnectTunnelInfo
 }
 
 type OpenConnectTunnelInfo struct {
@@ -38,13 +38,49 @@ type OpenConnectTunnelInfo struct {
 	ConnectedSince time.Time
 }
 
-type OpenConnectAuthForm struct {
+type OpenConnectAuthChallenge struct {
 	ID      string
 	Banner  string
 	Message string
 	Error   string
-	URL     string
-	Fields  []OpenConnectAuthFormField
+	Form    *OpenConnectAuthForm
+	Browser *OpenConnectBrowserRequest
+}
+
+type OpenConnectAuthForm struct {
+	Fields []OpenConnectAuthFormField
+}
+
+type OpenConnectBrowserRequest struct {
+	URL         string
+	FinalURL    string
+	CookieNames []string
+	HeaderNames []string
+}
+
+type OpenConnectBrowserCookie struct {
+	Name  string
+	Value string
+}
+
+type OpenConnectBrowserHeader struct {
+	Name   string
+	Values []string
+}
+
+type OpenConnectAuthResponse struct {
+	Form    *OpenConnectAuthFormResponse
+	Browser *OpenConnectBrowserResult
+}
+
+type OpenConnectAuthFormResponse struct {
+	Values map[string]string
+}
+
+type OpenConnectBrowserResult struct {
+	FinalURL string
+	Cookies  []OpenConnectBrowserCookie
+	Headers  []OpenConnectBrowserHeader
 }
 
 type OpenConnectAuthFormField struct {
