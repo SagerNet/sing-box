@@ -91,6 +91,7 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 	}
 	serverOptions.Context = loopContext
 	serverOptions.Authentication.Authenticator = authenticatorFromUsers(options.Users)
+	serverOptions.Authentication.DuplicateCN = options.DuplicateCN
 	serverOptions.Logger = logger
 	serverEndpoint.serverOptions = serverOptions
 	udpTimeout := C.UDPTimeout
@@ -102,14 +103,18 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		deviceRoutes = append(deviceRoutes, ovpntransport.Route{Prefix: prefix.Masked()})
 	}
 	device, err := ovpntransport.NewDevice(ovpntransport.DeviceOptions{
-		Context:     ctx,
-		Logger:      logger,
-		System:      options.System,
-		Handler:     serverEndpoint,
-		UDPTimeout:  udpTimeout,
-		ICMPTimeout: C.ICMPTimeout,
-		Name:        options.Name,
-		MTU:         options.MTU,
+		Context:         ctx,
+		Logger:          logger,
+		System:          options.System,
+		Handler:         serverEndpoint,
+		UDPTimeout:      udpTimeout,
+		ICMPTimeout:     C.ICMPTimeout,
+		UDPMapping:      tun.NATMapping(options.UDPMapping),
+		UDPFiltering:    tun.NATFiltering(options.UDPFiltering),
+		UDPNATMax:       options.UDPNATMax,
+		InterfaceFinder: service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
+		Name:            options.Name,
+		MTU:             options.MTU,
 		Configuration: ovpntransport.Configuration{
 			MTU:      options.MTU,
 			Address:  options.Address,
@@ -299,6 +304,9 @@ func buildServerOptions(options option.OpenVPNServerEndpointOptions) (ovpn.Serve
 		TLS: tlsOptions,
 		Timing: ovpn.ServerTimingOptions{
 			RenegotiationInterval: time.Duration(options.RenegotiateInterval),
+			HandWindow:            time.Duration(options.HandshakeWindow),
+			PingInterval:          time.Duration(options.PingInterval),
+			PingRestart:           time.Duration(options.PingRestart),
 		},
 	}
 	applyServerPushOptions(&serverOptions, options)
@@ -331,13 +339,16 @@ func buildServerTLSOptions(options option.OpenVPNInboundTLSOptions) (ovpn.Server
 	}
 	keyDirection := -1
 	controlWrap := options.ControlWrap
-	if controlWrap != nil && (controlWrap.Type != "" || len(controlWrap.Key) > 0 || controlWrap.KeyPath != "" || controlWrap.Direction != "") {
+	if controlWrap != nil && (controlWrap.Type != "" || len(controlWrap.Key) > 0 || controlWrap.KeyPath != "" || controlWrap.Direction != "" || controlWrap.ForceCookie) {
 		wrapKey, wrapErr := requiredMaterialSource("tls.control_wrap.key", controlWrap.Key, controlWrap.KeyPath)
 		if wrapErr != nil {
 			return ovpn.ServerTLSOptions{}, 0, wrapErr
 		}
 		switch controlWrap.Type {
 		case "tls_auth":
+			if controlWrap.ForceCookie {
+				return ovpn.ServerTLSOptions{}, 0, E.New("`tls.control_wrap.force_cookie` is only supported by `tls_crypt_v2`")
+			}
 			keyDirection, err = keyDirectionValue(controlWrap.Direction)
 			if err != nil {
 				return ovpn.ServerTLSOptions{}, 0, err
@@ -348,9 +359,13 @@ func buildServerTLSOptions(options option.OpenVPNInboundTLSOptions) (ovpn.Server
 				return ovpn.ServerTLSOptions{}, 0, E.New("`tls.control_wrap.direction` is only supported by `tls_auth`")
 			}
 			if controlWrap.Type == "tls_crypt" {
+				if controlWrap.ForceCookie {
+					return ovpn.ServerTLSOptions{}, 0, E.New("`tls.control_wrap.force_cookie` is only supported by `tls_crypt_v2`")
+				}
 				tlsOptions.Crypt = wrapKey
 			} else {
 				tlsOptions.CryptV2 = wrapKey
+				tlsOptions.CryptV2ForceCookie = controlWrap.ForceCookie
 			}
 		case "":
 			return ovpn.ServerTLSOptions{}, 0, E.New("missing OpenVPN control wrap type")
@@ -382,16 +397,14 @@ func applyServerPushOptions(serverOptions *ovpn.ServerOptions, options option.Op
 		Topology:     topology,
 		LocalAddress: localAddresses,
 	}
-	serverOptions.Push = ovpn.ServerPushOptions{
-		PingInterval: time.Duration(options.KeepaliveInterval),
-		PingRestart:  time.Duration(options.KeepaliveTimeout),
-	}
 	if options.Push == nil {
 		return
 	}
 	serverOptions.Push.Routes = slices.Clone(options.Push.Routes)
 	serverOptions.Push.DNS = slices.Clone(options.Push.DNS)
 	serverOptions.Push.BlockOutsideDNS = options.Push.BlockOutsideDNS
+	serverOptions.Push.PingInterval = time.Duration(options.Push.PingInterval)
+	serverOptions.Push.PingRestart = time.Duration(options.Push.PingRestart)
 	if options.Push.RedirectGateway {
 		serverOptions.Push.RedirectGateway = true
 		if len(options.Push.RedirectGatewayFlags) > 0 {

@@ -8,9 +8,12 @@ import (
 )
 
 type OpenVPNEndpointOptions struct {
-	System bool   `json:"system,omitempty"`
-	Name   string `json:"name,omitempty"`
-	MTU    uint32 `json:"mtu,omitempty"`
+	System       bool           `json:"system,omitempty"`
+	Name         string         `json:"name,omitempty"`
+	MTU          uint32         `json:"mtu,omitempty"`
+	UDPMapping   UDPNATBehavior `json:"udp_mapping,omitempty"`
+	UDPFiltering UDPNATBehavior `json:"udp_filtering,omitempty"`
+	UDPNATMax    uint32         `json:"udp_nat_max,omitempty"`
 }
 
 type OpenVPNClientEndpointOptions struct {
@@ -41,8 +44,8 @@ type OpenVPNClientEndpointOptions struct {
 	RouteMetric          int                              `json:"route_metric,omitempty"`
 	RedirectGateway      bool                             `json:"redirect_gateway,omitempty"`
 	RedirectGatewayFlags badoption.Listable[string]       `json:"redirect_gateway_flags,omitempty"`
-	KeepaliveInterval    badoption.Duration               `json:"keepalive_interval,omitempty"`
-	KeepaliveTimeout     badoption.Duration               `json:"keepalive_timeout,omitempty"`
+	PingInterval         badoption.Duration               `json:"ping_interval,omitempty"`
+	PingRestart          badoption.Duration               `json:"ping_restart,omitempty"`
 	RenegotiateInterval  badoption.Duration               `json:"renegotiate_interval,omitempty"`
 	ExplicitExitNotify   uint32                           `json:"explicit_exit_notify,omitempty"`
 	UDPTimeout           UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
@@ -55,15 +58,17 @@ type OpenVPNServerEndpointOptions struct {
 	MaxClients          int                              `json:"max_clients,omitempty"`
 	Address             badoption.Listable[netip.Prefix] `json:"address"`
 	Topology            string                           `json:"topology,omitempty"`
+	DuplicateCN         bool                             `json:"duplicate_cn,omitempty"`
 	Users               []auth.User                      `json:"users,omitempty"`
 	TLS                 *OpenVPNInboundTLSOptions        `json:"tls,omitempty"`
 	DataCiphers         badoption.Listable[string]       `json:"data_ciphers,omitempty"`
 	DataCiphersFallback string                           `json:"data_ciphers_fallback,omitempty"`
 	Auth                string                           `json:"auth,omitempty"`
 	Push                *OpenVPNPushOptions              `json:"push,omitempty"`
-	KeepaliveInterval   badoption.Duration               `json:"keepalive_interval,omitempty"`
-	KeepaliveTimeout    badoption.Duration               `json:"keepalive_timeout,omitempty"`
+	PingInterval        badoption.Duration               `json:"ping_interval,omitempty"`
+	PingRestart         badoption.Duration               `json:"ping_restart,omitempty"`
 	RenegotiateInterval badoption.Duration               `json:"renegotiate_interval,omitempty"`
+	HandshakeWindow     badoption.Duration               `json:"handshake_window,omitempty"`
 }
 
 type OpenVPNRemoteOptions struct {
@@ -97,14 +102,14 @@ type OpenVPNOutboundTLSOptions struct {
 }
 
 type OpenVPNInboundTLSOptions struct {
-	Certificate             badoption.Listable[string] `json:"certificate,omitempty"`
-	CertificatePath         string                     `json:"certificate_path,omitempty"`
-	Key                     badoption.Listable[string] `json:"key,omitempty"`
-	KeyPath                 string                     `json:"key_path,omitempty"`
-	ClientCertificate       badoption.Listable[string] `json:"client_certificate,omitempty"`
-	ClientCertificatePath   string                     `json:"client_certificate_path,omitempty"`
-	VerifyClientCertificate string                     `json:"verify_client_certificate,omitempty"`
-	ControlWrap             *OpenVPNControlWrapOptions `json:"control_wrap,omitempty"`
+	Certificate             badoption.Listable[string]        `json:"certificate,omitempty"`
+	CertificatePath         string                            `json:"certificate_path,omitempty"`
+	Key                     badoption.Listable[string]        `json:"key,omitempty"`
+	KeyPath                 string                            `json:"key_path,omitempty"`
+	ClientCertificate       badoption.Listable[string]        `json:"client_certificate,omitempty"`
+	ClientCertificatePath   string                            `json:"client_certificate_path,omitempty"`
+	VerifyClientCertificate string                            `json:"verify_client_certificate,omitempty"`
+	ControlWrap             *OpenVPNInboundControlWrapOptions `json:"control_wrap,omitempty"`
 }
 
 type OpenVPNControlWrapOptions struct {
@@ -114,10 +119,20 @@ type OpenVPNControlWrapOptions struct {
 	Direction string                     `json:"direction,omitempty"`
 }
 
+type OpenVPNInboundControlWrapOptions struct {
+	Type        string                     `json:"type,omitempty"`
+	Key         badoption.Listable[string] `json:"key,omitempty"`
+	KeyPath     string                     `json:"key_path,omitempty"`
+	Direction   string                     `json:"direction,omitempty"`
+	ForceCookie bool                       `json:"force_cookie,omitempty"`
+}
+
 type OpenVPNPushOptions struct {
 	Routes               badoption.Listable[netip.Prefix] `json:"routes,omitempty"`
 	DNS                  badoption.Listable[netip.Addr]   `json:"dns,omitempty"`
 	RedirectGateway      bool                             `json:"redirect_gateway,omitempty"`
 	RedirectGatewayFlags badoption.Listable[string]       `json:"redirect_gateway_flags,omitempty"`
 	BlockOutsideDNS      bool                             `json:"block_outside_dns,omitempty"`
+	PingInterval         badoption.Duration               `json:"ping_interval,omitempty"`
+	PingRestart          badoption.Duration               `json:"ping_restart,omitempty"`
 }

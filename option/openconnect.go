@@ -6,6 +6,10 @@ type OpenConnectEndpointOptions struct {
 	DialerOptions
 	System              bool                          `json:"system,omitempty"`
 	Name                string                        `json:"name,omitempty"`
+	UDPTimeout          badoption.Duration            `json:"udp_timeout,omitempty"`
+	UDPMapping          UDPNATBehavior                `json:"udp_mapping,omitempty"`
+	UDPFiltering        UDPNATBehavior                `json:"udp_filtering,omitempty"`
+	UDPNATMax           uint32                        `json:"udp_nat_max,omitempty"`
 	Server              string                        `json:"server"`
 	Flavor              string                        `json:"flavor,omitempty"`
 	Username            string                        `json:"username,omitempty"`
