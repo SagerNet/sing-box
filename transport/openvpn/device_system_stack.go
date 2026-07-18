@@ -24,6 +24,8 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 	}
 	stackOptions := options
 	stackOptions.System = false
+	stackOptions.Name = system.options.Name
+	stackOptions.ExcludeInterface = []string{system.options.Name}
 	stackDevice, err := newStackDevice(stackOptions)
 	if err != nil {
 		system.Close()
@@ -39,6 +41,15 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 func (d *systemStackDevice) SetPacketWriter(writer PacketWriter) {
 	d.systemDevice.SetPacketWriter(writer)
 	d.stackDevice.SetPacketWriter(writer)
+}
+
+func (d *systemStackDevice) Start() error {
+	err := d.stackDevice.Start()
+	if err != nil {
+		return err
+	}
+	err = d.systemDevice.Start()
+	return err
 }
 
 func (d *systemStackDevice) UpdateConfiguration(configuration Configuration) error {

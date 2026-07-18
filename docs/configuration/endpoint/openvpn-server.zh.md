@@ -18,6 +18,7 @@
   "max_clients": 1024,
   "address": [],
   "topology": "subnet",
+  "duplicate_cn": false,
   "users": [
     {
       "username": "",
@@ -36,7 +37,8 @@
       "type": "tls_crypt",
       "key": [],
       "key_path": "",
-      "direction": ""
+      "direction": "",
+      "force_cookie": false
     }
   },
   "data_ciphers": [],
@@ -47,12 +49,16 @@
     "dns": [],
     "redirect_gateway": false,
     "redirect_gateway_flags": [],
-    "block_outside_dns": false
+    "block_outside_dns": false,
+    "ping_interval": "",
+    "ping_restart": ""
   },
-  "keepalive_interval": "",
-  "keepalive_timeout": "",
+  "ping_interval": "",
+  "ping_restart": "",
   "renegotiate_interval": "",
-  "udp_timeout": ""
+  "handshake_window": "1m",
+
+  ... // UDP NAT 字段
 }
 ```
 
@@ -62,7 +68,7 @@
 
 ## 监听字段
 
-参阅 [监听字段](/zh/configuration/shared/listen/)。
+参阅 [监听字段](/zh/configuration/shared/listen/)。`udp_timeout` 属于下方的 [UDP NAT 字段](#udp-nat-字段)。
 
 ## 字段
 
@@ -119,6 +125,14 @@ OpenVPN 服务器地址前缀列表。
 推送给客户端的 OpenVPN topology，`subnet`、`p2p` 或 `net30` 之一。
 
 默认使用 `subnet`。
+
+### duplicate_cn
+
+允许具有相同认证证书 common name 或用户名的多个客户端同时在线。
+
+禁用时，新认证的会话会替换具有相同身份的现有会话，并在可用时复用其 tunnel 地址。
+
+默认禁用。
 
 ### users
 
@@ -242,6 +256,14 @@ OpenVPN `tls-auth` 密钥方向，`server` 或 `client` 之一。
 
 如果为空，密钥被双向使用，与两端均省略 `key-direction` 的行为一致。
 
+### tls.control_wrap.force_cookie
+
+要求 UDP 上的 `tls-crypt-v2` 客户端支持无状态 session cookie。
+
+仅当 `tls.control_wrap.type` 为 `tls_crypt_v2` 时可用。禁用时，不支持 cookie 的客户端会按照上游 `allow-noncookie` 行为被接受。
+
+默认禁用。
+
 ### data_ciphers
 
 允许的 OpenVPN 数据信道加密方式。
@@ -294,15 +316,45 @@ IPv4 和 IPv6 前缀可以混用。
 
 向客户端推送 `block-outside-dns`，在 Windows 客户端上阻止 VPN 之外的 DNS 查询。
 
-### keepalive_interval
+### push.ping_interval
 
-推送给客户端的 OpenVPN keepalive ping 间隔。
+推送给客户端的 OpenVPN `ping` 间隔。
+
+在该间隔内未发送任何 packet 后，客户端会向服务器发送一个 data channel ping。
+
+该值必须使用整秒。
 
 默认禁用。
 
-### keepalive_timeout
+### push.ping_restart
 
-推送给客户端的 OpenVPN keepalive ping 超时。
+推送给客户端的 OpenVPN `ping-restart` 超时。
+
+在该超时时间内未收到任何 packet 后，客户端会重新连接服务器。
+
+该值必须使用整秒。
+
+默认禁用。
+
+### ping_interval
+
+服务器未向客户端发送任何 packet 时，发送 data channel ping 的间隔。
+
+该值应用于服务器。使用 `push.ping_interval` 配置客户端。
+
+该值必须使用整秒。
+
+默认禁用。
+
+### ping_restart
+
+服务器未收到任何 packet 后关闭客户端会话的时间。
+
+该值应用于服务器。使用 `push.ping_restart` 配置客户端。
+
+服务器超时应长于客户端超时，以便客户端在服务器丢弃其会话前重新连接。
+
+该值必须使用整秒。
 
 默认禁用。
 
@@ -310,10 +362,16 @@ IPv4 和 IPv6 前缀可以混用。
 
 OpenVPN TLS 重协商间隔。
 
-如果为空或设为 `0s`，使用 OpenVPN 默认值 `1h`。
+为空时使用 OpenVPN 默认值 `1h`。
 
-### udp_timeout
+### handshake_window
 
-通过 OpenVPN 接口的流量的 UDP NAT 过期时间。
+初始 TLS 握手和每次 TLS 重协商允许使用的最长时间。
 
-默认使用 `5m`。
+默认使用 `1m`。
+
+## UDP NAT 字段
+
+这些字段配置通过 OpenVPN 接口的流量的 UDP 会话。
+
+参阅 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)。

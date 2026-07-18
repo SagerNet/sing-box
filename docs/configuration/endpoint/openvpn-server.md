@@ -18,6 +18,7 @@
   "max_clients": 1024,
   "address": [],
   "topology": "subnet",
+  "duplicate_cn": false,
   "users": [
     {
       "username": "",
@@ -36,7 +37,8 @@
       "type": "tls_crypt",
       "key": [],
       "key_path": "",
-      "direction": ""
+      "direction": "",
+      "force_cookie": false
     }
   },
   "data_ciphers": [],
@@ -47,12 +49,16 @@
     "dns": [],
     "redirect_gateway": false,
     "redirect_gateway_flags": [],
-    "block_outside_dns": false
+    "block_outside_dns": false,
+    "ping_interval": "",
+    "ping_restart": ""
   },
-  "keepalive_interval": "",
-  "keepalive_timeout": "",
+  "ping_interval": "",
+  "ping_restart": "",
   "renegotiate_interval": "",
-  "udp_timeout": ""
+  "handshake_window": "1m",
+
+  ... // UDP NAT Fields
 }
 ```
 
@@ -62,7 +68,7 @@
 
 ## Listen Fields
 
-See [Listen Fields](/configuration/shared/listen/) for details.
+See [Listen Fields](/configuration/shared/listen/) for details. `udp_timeout` is part of the [UDP NAT Fields](#udp-nat-fields) below.
 
 ## Fields
 
@@ -119,6 +125,14 @@ The first IPv4 and IPv6 prefix addresses are used as the endpoint's local addres
 OpenVPN topology pushed to clients, one of `subnet`, `p2p` or `net30`.
 
 `subnet` will be used by default.
+
+### duplicate_cn
+
+Allow multiple active clients with the same authenticated certificate common name or username.
+
+When disabled, a newly authenticated session replaces the existing session with the same identity and reuses its tunnel address when available.
+
+Disabled by default.
 
 ### users
 
@@ -242,6 +256,15 @@ Only available when `tls.control_wrap.type` is `tls_auth`.
 
 If empty, the key is used bidirectionally, matching an omitted `key-direction` on both peers.
 
+### tls.control_wrap.force_cookie
+
+Require `tls-crypt-v2` clients over UDP to support stateless session cookies.
+
+Only available when `tls.control_wrap.type` is `tls_crypt_v2`. When disabled,
+clients without cookie support are accepted using the upstream `allow-noncookie` behavior.
+
+Disabled by default.
+
 ### data_ciphers
 
 Allowed OpenVPN data channel ciphers.
@@ -294,15 +317,45 @@ Only available when `push.redirect_gateway` is enabled.
 
 Push `block-outside-dns` to clients, which blocks DNS queries outside the VPN on Windows clients.
 
-### keepalive_interval
+### push.ping_interval
 
-OpenVPN keepalive ping interval to push to clients.
+OpenVPN `ping` interval pushed to clients.
+
+After the interval passes without sending a packet, the client sends a data-channel ping to the server.
+
+The value must use whole seconds.
 
 Disabled by default.
 
-### keepalive_timeout
+### push.ping_restart
 
-OpenVPN keepalive ping timeout to push to clients.
+OpenVPN `ping-restart` timeout pushed to clients.
+
+After the timeout passes without receiving a packet, the client reconnects to the server.
+
+The value must use whole seconds.
+
+Disabled by default.
+
+### ping_interval
+
+Interval after which the server sends a data-channel ping when no packet has been sent to a client.
+
+This value applies to the server. Use `push.ping_interval` to configure clients.
+
+The value must use whole seconds.
+
+Disabled by default.
+
+### ping_restart
+
+Time without receiving a packet after which the server closes the client session.
+
+This value applies to the server. Use `push.ping_restart` to configure clients.
+
+The server timeout should be longer than the client timeout so the client can reconnect before the server discards its session.
+
+The value must use whole seconds.
 
 Disabled by default.
 
@@ -310,10 +363,16 @@ Disabled by default.
 
 OpenVPN TLS renegotiation interval.
 
-If empty or set to `0s`, the OpenVPN default `1h` is used.
+When empty, the OpenVPN default `1h` is used.
 
-### udp_timeout
+### handshake_window
 
-UDP NAT expiration time for traffic through the OpenVPN interface.
+Maximum time allowed for the initial TLS handshake and each TLS renegotiation.
 
-`5m` will be used by default.
+`1m` is used by default.
+
+## UDP NAT Fields
+
+These fields configure UDP sessions for traffic through the OpenVPN interface.
+
+See [UDP NAT Fields](/configuration/shared/udp-nat/) for details.
