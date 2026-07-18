@@ -19,12 +19,12 @@ type OpenConnectEndpointStatusIterator interface {
 }
 
 type OpenConnectEndpointStatus struct {
-	EndpointTag string
-	State       string
-	StateText   string
-	AuthForm    *OpenConnectAuthForm
-	Error       string
-	TunnelInfo  *OpenConnectTunnelInfo
+	EndpointTag   string
+	State         string
+	StateText     string
+	AuthChallenge *OpenConnectAuthChallenge
+	Error         string
+	TunnelInfo    *OpenConnectTunnelInfo
 }
 
 type OpenConnectTunnelInfo struct {
@@ -50,17 +50,36 @@ func (i *OpenConnectTunnelInfo) DNS() StringIterator {
 	return newIterator(i.dns)
 }
 
-type OpenConnectAuthForm struct {
+type OpenConnectAuthChallenge struct {
 	ID      string
 	Banner  string
 	Message string
 	Error   string
-	URL     string
-	fields  []*OpenConnectAuthFormField
+	Form    *OpenConnectAuthForm
+	Browser *OpenConnectBrowserRequest
+}
+
+type OpenConnectAuthForm struct {
+	fields []*OpenConnectAuthFormField
 }
 
 func (f *OpenConnectAuthForm) Fields() OpenConnectAuthFormFieldIterator {
 	return newIterator(f.fields)
+}
+
+type OpenConnectBrowserRequest struct {
+	URL         string
+	FinalURL    string
+	cookieNames []string
+	headerNames []string
+}
+
+func (r *OpenConnectBrowserRequest) CookieNames() StringIterator {
+	return newIterator(r.cookieNames)
+}
+
+func (r *OpenConnectBrowserRequest) HeaderNames() StringIterator {
+	return newIterator(r.headerNames)
 }
 
 type OpenConnectAuthFormFieldIterator interface {
@@ -103,6 +122,53 @@ func (v *OpenConnectFormValues) Add(key string, value string) {
 	v.values[key] = value
 }
 
+type OpenConnectBrowserResult struct {
+	FinalURL string
+	cookies  []openConnectBrowserCookie
+	headers  []openConnectBrowserHeader
+}
+
+func NewOpenConnectBrowserResult(finalURL string) *OpenConnectBrowserResult {
+	return &OpenConnectBrowserResult{FinalURL: finalURL}
+}
+
+func (r *OpenConnectBrowserResult) AddCookie(name string, value string) {
+	r.cookies = append(r.cookies, openConnectBrowserCookie{Name: name, Value: value})
+}
+
+func (r *OpenConnectBrowserResult) AddHeader(name string, value string) {
+	for _, header := range r.headers {
+		if header.Name == name {
+			header.Values = append(header.Values, value)
+			return
+		}
+	}
+	r.headers = append(r.headers, openConnectBrowserHeader{Name: name, Values: []string{value}})
+}
+
+type openConnectBrowserCookie struct {
+	Name  string
+	Value string
+}
+
+type openConnectBrowserHeader struct {
+	Name   string
+	Values []string
+}
+
+type OpenConnectAuthResponse struct {
+	formValues    *OpenConnectFormValues
+	browserResult *OpenConnectBrowserResult
+}
+
+func NewOpenConnectAuthFormResponse(values *OpenConnectFormValues) *OpenConnectAuthResponse {
+	return &OpenConnectAuthResponse{formValues: values}
+}
+
+func NewOpenConnectBrowserAuthResponse(result *OpenConnectBrowserResult) *OpenConnectAuthResponse {
+	return &OpenConnectAuthResponse{browserResult: result}
+}
+
 type OpenConnectStatusHandler interface {
 	OnStatusUpdate(status *OpenConnectStatusUpdate)
 	OnError(message string)
@@ -125,30 +191,43 @@ func openConnectEndpointStatusFromGRPC(status *daemon.OpenConnectEndpointStatus)
 		StateText:   status.StateText,
 		Error:       status.Error,
 	}
-	if status.AuthForm != nil {
-		fields := common.Map(status.AuthForm.Fields, func(field *daemon.OpenConnectAuthFormField) *OpenConnectAuthFormField {
-			return &OpenConnectAuthFormField{
-				SubmissionKey: field.SubmissionKey,
-				Name:          field.Name,
-				Label:         field.Label,
-				Kind:          field.Kind,
-				Value:         field.Value,
-				options: common.Map(field.Options, func(option *daemon.OpenConnectAuthFormChoice) *OpenConnectAuthFormChoice {
-					return &OpenConnectAuthFormChoice{
-						Value: option.Value,
-						Label: option.Label,
+	if status.AuthChallenge != nil {
+		challenge := &OpenConnectAuthChallenge{
+			ID:      status.AuthChallenge.Id,
+			Banner:  status.AuthChallenge.Banner,
+			Message: status.AuthChallenge.Message,
+			Error:   status.AuthChallenge.Error,
+		}
+		form := status.AuthChallenge.GetForm()
+		if form != nil {
+			challenge.Form = &OpenConnectAuthForm{
+				fields: common.Map(form.Fields, func(field *daemon.OpenConnectAuthFormField) *OpenConnectAuthFormField {
+					return &OpenConnectAuthFormField{
+						SubmissionKey: field.SubmissionKey,
+						Name:          field.Name,
+						Label:         field.Label,
+						Kind:          field.Kind,
+						Value:         field.Value,
+						options: common.Map(field.Options, func(option *daemon.OpenConnectAuthFormChoice) *OpenConnectAuthFormChoice {
+							return &OpenConnectAuthFormChoice{
+								Value: option.Value,
+								Label: option.Label,
+							}
+						}),
 					}
 				}),
 			}
-		})
-		result.AuthForm = &OpenConnectAuthForm{
-			ID:      status.AuthForm.Id,
-			Banner:  status.AuthForm.Banner,
-			Message: status.AuthForm.Message,
-			Error:   status.AuthForm.Error,
-			URL:     status.AuthForm.Url,
-			fields:  fields,
 		}
+		browser := status.AuthChallenge.GetBrowser()
+		if browser != nil {
+			challenge.Browser = &OpenConnectBrowserRequest{
+				URL:         browser.Url,
+				FinalURL:    browser.FinalURL,
+				cookieNames: browser.CookieNames,
+				headerNames: browser.HeaderNames,
+			}
+		}
+		result.AuthChallenge = challenge
 	}
 	if status.TunnelInfo != nil {
 		result.TunnelInfo = &OpenConnectTunnelInfo{

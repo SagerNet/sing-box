@@ -966,29 +966,45 @@ func (c *CommandClient) SubscribeOpenConnectStatus(handler OpenConnectStatusHand
 	return session, nil
 }
 
-func (c *CommandClient) SubmitOpenConnectAuthForm(endpointTag string, formID string, values *OpenConnectFormValues) error {
+func (c *CommandClient) SubmitOpenConnectAuthResponse(endpointTag string, challengeID string, response *OpenConnectAuthResponse) error {
+	submission := &daemon.OpenConnectAuthResponseSubmission{
+		EndpointTag: endpointTag,
+		ChallengeID: challengeID,
+	}
+	if response.formValues != nil {
+		submission.Response = &daemon.OpenConnectAuthResponseSubmission_Form{Form: &daemon.OpenConnectAuthFormResponse{
+			Values: response.formValues.values,
+		}}
+	}
+	if response.browserResult != nil {
+		submission.Response = &daemon.OpenConnectAuthResponseSubmission_Browser{Browser: &daemon.OpenConnectBrowserResult{
+			FinalURL: response.browserResult.FinalURL,
+			Cookies: common.Map(response.browserResult.cookies, func(cookie openConnectBrowserCookie) *daemon.OpenConnectBrowserCookie {
+				return &daemon.OpenConnectBrowserCookie{Name: cookie.Name, Value: cookie.Value}
+			}),
+			Headers: common.Map(response.browserResult.headers, func(header openConnectBrowserHeader) *daemon.OpenConnectBrowserHeader {
+				return &daemon.OpenConnectBrowserHeader{Name: header.Name, Values: header.Values}
+			}),
+		}}
+	}
 	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.SubmitOpenConnectAuthForm(ctx, &daemon.OpenConnectAuthFormSubmission{
-			EndpointTag: endpointTag,
-			FormID:      formID,
-			Values:      values.values,
-		})
+		return client.SubmitOpenConnectAuthResponse(ctx, submission)
 	})
 	if err != nil {
-		return E.Cause(err, "submit openconnect authentication form")
+		return E.Cause(err, "submit openconnect authentication response")
 	}
 	return nil
 }
 
-func (c *CommandClient) CancelOpenConnectAuthForm(endpointTag string, formID string) error {
+func (c *CommandClient) CancelOpenConnectAuthChallenge(endpointTag string, challengeID string) error {
 	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
-		return client.CancelOpenConnectAuthForm(ctx, &daemon.OpenConnectAuthFormCancel{
+		return client.CancelOpenConnectAuthChallenge(ctx, &daemon.OpenConnectAuthChallengeCancel{
 			EndpointTag: endpointTag,
-			FormID:      formID,
+			ChallengeID: challengeID,
 		})
 	})
 	if err != nil {
-		return E.Cause(err, "cancel openconnect authentication form")
+		return E.Cause(err, "cancel openconnect authentication challenge")
 	}
 	return nil
 }

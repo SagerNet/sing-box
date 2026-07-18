@@ -304,10 +304,10 @@ github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3 h1:3y6
 github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3/go.mod h1:XEqEDYRCAYLaoPjZ1ifVWJg5iWAJHL2gOAXe/PM28Cg=
 github.com/sagernet/sing-mux v0.3.5 h1:RHnhVEc+SFqkrK4xMygYjDwwLhzp2Bj3lztSukONfhI=
 github.com/sagernet/sing-mux v0.3.5/go.mod h1:QvlKMyNBNrQoyX4x+gq028uPbLM2XeRpWtDsWBJbFSk=
-github.com/sagernet/sing-openconnect v0.0.0-20260717081856-cf2c71a71aba h1:S87Ej/jFssn0qhPF1ExF0YIV0USfGZF2If6kSjGLPt8=
-github.com/sagernet/sing-openconnect v0.0.0-20260717081856-cf2c71a71aba/go.mod h1:EIzh5HtImfQJxPKXFwS9lyMnmMy4aCQCx7ntQ4u41Gs=
-github.com/sagernet/sing-openvpn v0.0.0-20260718013246-3cd8a7b83247 h1:IfZqHohaWz13eqc6SAUHkmP9xhMpMBDIShl7OtgRd5Y=
-github.com/sagernet/sing-openvpn v0.0.0-20260718013246-3cd8a7b83247/go.mod h1:CmTGnS5ijVSqFQV1dTq4WvFLUoz7bk9xasBPsX8NcYo=
+github.com/sagernet/sing-openconnect v0.0.0-20260718163953-a1c7815e4f04 h1:HIb3Tu19qqH5fD5xnyyHb6zJaETIsnXamb/hWTtxil8=
+github.com/sagernet/sing-openconnect v0.0.0-20260718163953-a1c7815e4f04/go.mod h1:EIzh5HtImfQJxPKXFwS9lyMnmMy4aCQCx7ntQ4u41Gs=
+github.com/sagernet/sing-openvpn v0.0.0-20260718163953-26ecbeb6352c h1:EhwLZF3IUyDj4uZ7vkUZAI7GymXCeOCwiseuOTsFjp8=
+github.com/sagernet/sing-openvpn v0.0.0-20260718163953-26ecbeb6352c/go.mod h1:CmTGnS5ijVSqFQV1dTq4WvFLUoz7bk9xasBPsX8NcYo=
 github.com/sagernet/sing-quic v0.6.4-0.20260709034545-e23afe1172dc h1:zdc0fj4JdAdgAmQIoh7ZF+B/wPTEF2X75lYDqTmvlaw=
 github.com/sagernet/sing-quic v0.6.4-0.20260709034545-e23afe1172dc/go.mod h1:9k+dzGsWMttUGldBzq3dU792YHXzW6NgfbOGltnXq+0=
 github.com/sagernet/sing-shadowsocks v0.2.8 h1:PURj5PRoAkqeHh2ZW205RWzN9E9RtKCVCzByXruQWfE=
