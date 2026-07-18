@@ -1,6 +1,7 @@
 package openconnect
 
 import (
+	"net/http"
 	"slices"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -13,37 +14,48 @@ var _ adapter.OpenConnectEndpoint = (*Endpoint)(nil)
 func (e *Endpoint) OpenConnectStatus() adapter.OpenConnectStatus {
 	var status adapter.OpenConnectStatus
 	clientState := e.state.Load()
-	authForm := e.client.PendingAuthForm()
+	authChallenge := e.client.PendingAuthChallenge()
 	e.statusAccess.Lock()
 	status.Error = e.terminalError
 	e.statusAccess.Unlock()
-	if authForm != nil {
-		fields := common.Map(authForm.Fields, func(field openconnect.AuthFormField) adapter.OpenConnectAuthFormField {
-			return adapter.OpenConnectAuthFormField{
-				SubmissionKey: field.SubmissionKey,
-				Name:          field.Name,
-				Label:         field.Label,
-				Kind:          field.Kind,
-				Value:         field.Value,
-				Options: common.Map(field.Options, func(choice openconnect.AuthFormChoice) adapter.OpenConnectAuthFormChoice {
-					return adapter.OpenConnectAuthFormChoice{
-						Value: choice.Value,
-						Label: choice.Label,
+	if authChallenge != nil {
+		challenge := &adapter.OpenConnectAuthChallenge{
+			ID:      authChallenge.ID,
+			Banner:  authChallenge.Banner,
+			Message: authChallenge.Message,
+			Error:   authChallenge.Error,
+		}
+		if authChallenge.Form != nil {
+			challenge.Form = &adapter.OpenConnectAuthForm{
+				Fields: common.Map(authChallenge.Form.Fields, func(field openconnect.AuthFormField) adapter.OpenConnectAuthFormField {
+					return adapter.OpenConnectAuthFormField{
+						SubmissionKey: field.SubmissionKey,
+						Name:          field.Name,
+						Label:         field.Label,
+						Kind:          field.Kind,
+						Value:         field.Value,
+						Options: common.Map(field.Options, func(choice openconnect.AuthFormChoice) adapter.OpenConnectAuthFormChoice {
+							return adapter.OpenConnectAuthFormChoice{
+								Value: choice.Value,
+								Label: choice.Label,
+							}
+						}),
 					}
 				}),
 			}
-		})
-		status.AuthForm = &adapter.OpenConnectAuthForm{
-			ID:      authForm.ID,
-			Banner:  authForm.Banner,
-			Message: authForm.Message,
-			Error:   authForm.Error,
-			URL:     authForm.URL,
-			Fields:  fields,
 		}
+		if authChallenge.Browser != nil {
+			challenge.Browser = &adapter.OpenConnectBrowserRequest{
+				URL:         authChallenge.Browser.URL,
+				FinalURL:    authChallenge.Browser.FinalURL,
+				CookieNames: slices.Clone(authChallenge.Browser.CookieNames),
+				HeaderNames: slices.Clone(authChallenge.Browser.HeaderNames),
+			}
+		}
+		status.AuthChallenge = challenge
 	}
 	switch {
-	case status.AuthForm != nil:
+	case status.AuthChallenge != nil:
 		status.State = adapter.OpenConnectStateAuthPending
 	case status.Error != "":
 		status.State = adapter.OpenConnectStateError
@@ -66,12 +78,31 @@ func (e *Endpoint) StatusUpdated() <-chan struct{} {
 	return e.statusUpdated
 }
 
-func (e *Endpoint) CompleteAuthForm(formID string, values map[string]string) error {
-	return e.client.CompleteAuthForm(formID, values)
+func (e *Endpoint) CompleteAuthChallenge(challengeID string, response adapter.OpenConnectAuthResponse) error {
+	var authResponse openconnect.AuthResponse
+	if response.Form != nil {
+		authResponse.Form = &openconnect.AuthFormResponse{Values: response.Form.Values}
+	}
+	if response.Browser != nil {
+		browserResult := &openconnect.BrowserResult{
+			FinalURL: response.Browser.FinalURL,
+			Cookies: common.Map(response.Browser.Cookies, func(cookie adapter.OpenConnectBrowserCookie) openconnect.BrowserCookie {
+				return openconnect.BrowserCookie{Name: cookie.Name, Value: cookie.Value}
+			}),
+			Header: make(http.Header),
+		}
+		for _, header := range response.Browser.Headers {
+			for _, value := range header.Values {
+				browserResult.Header.Add(header.Name, value)
+			}
+		}
+		authResponse.Browser = browserResult
+	}
+	return e.client.CompleteAuthChallenge(challengeID, authResponse)
 }
 
-func (e *Endpoint) CancelAuthForm(formID string) error {
-	return e.client.CancelAuthForm(formID)
+func (e *Endpoint) CancelAuthChallenge(challengeID string) error {
+	return e.client.CancelAuthChallenge(challengeID)
 }
 
 func (e *Endpoint) notifyStatusUpdated() {
@@ -94,14 +125,14 @@ func (e *Endpoint) setTerminalError(err error) {
 
 func (e *Endpoint) watchAuthForms() {
 	defer close(e.authFormLoopDone)
-	var loggedAuthFormID string
+	var loggedAuthChallengeID string
 	for {
-		authFormUpdated := e.client.AuthFormUpdated()
-		authForm := e.client.PendingAuthForm()
-		if authForm != nil && authForm.ID != loggedAuthFormID {
-			loggedAuthFormID = authForm.ID
-			if authForm.URL != "" {
-				e.logger.Info("waiting for authentication: ", authForm.URL)
+		authChallengeUpdated := e.client.AuthChallengeUpdated()
+		authChallenge := e.client.PendingAuthChallenge()
+		if authChallenge != nil && authChallenge.ID != loggedAuthChallengeID {
+			loggedAuthChallengeID = authChallenge.ID
+			if authChallenge.Browser != nil {
+				e.logger.Info("waiting for browser authentication")
 			} else {
 				e.logger.Info("waiting for authentication")
 			}
@@ -110,7 +141,7 @@ func (e *Endpoint) watchAuthForms() {
 		select {
 		case <-e.loopContext.Done():
 			return
-		case <-authFormUpdated:
+		case <-authChallengeUpdated:
 		}
 	}
 }
