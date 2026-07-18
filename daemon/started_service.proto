@@ -39,8 +39,8 @@ service StartedService {
   rpc ProvideUSBDevices(stream USBProviderMessage) returns (stream USBServerMessage) {}
   rpc SubscribeUSBIPServerStatus(google.protobuf.Empty) returns (stream USBIPServerStatusUpdate) {}
   rpc SubscribeOpenConnectStatus(google.protobuf.Empty) returns (stream OpenConnectStatusUpdate) {}
-  rpc SubmitOpenConnectAuthForm(OpenConnectAuthFormSubmission) returns (google.protobuf.Empty) {}
-  rpc CancelOpenConnectAuthForm(OpenConnectAuthFormCancel) returns (google.protobuf.Empty) {}
+  rpc SubmitOpenConnectAuthResponse(OpenConnectAuthResponseSubmission) returns (google.protobuf.Empty) {}
+  rpc CancelOpenConnectAuthChallenge(OpenConnectAuthChallengeCancel) returns (google.protobuf.Empty) {}
   rpc SubscribeOpenVPNStatus(google.protobuf.Empty) returns (stream OpenVPNStatusUpdate) {}
   rpc SubmitOpenVPNChallengeResponse(OpenVPNChallengeSubmission) returns (google.protobuf.Empty) {}
   rpc CancelOpenVPNChallenge(OpenVPNChallengeCancel) returns (google.protobuf.Empty) {}
@@ -532,7 +532,7 @@ message OpenConnectEndpointStatus {
   string endpointTag = 1;
   string state = 2;
   string stateText = 3;
-  OpenConnectAuthForm authForm = 4;
+  OpenConnectAuthChallenge authChallenge = 4;
   string error = 5;
   OpenConnectTunnelInfo tunnelInfo = 6;
 }
@@ -548,13 +548,19 @@ message OpenConnectTunnelInfo {
   int64 connectedSince = 8;
 }
 
-message OpenConnectAuthForm {
+message OpenConnectAuthChallenge {
   string id = 1;
   string banner = 2;
   string message = 3;
   string error = 4;
-  string url = 5;
-  repeated OpenConnectAuthFormField fields = 6;
+  oneof challenge {
+    OpenConnectAuthForm form = 5;
+    OpenConnectBrowserRequest browser = 6;
+  }
+}
+
+message OpenConnectAuthForm {
+  repeated OpenConnectAuthFormField fields = 1;
 }
 
 message OpenConnectAuthFormField {
@@ -571,15 +577,45 @@ message OpenConnectAuthFormChoice {
   string label = 2;
 }
 
-message OpenConnectAuthFormSubmission {
-  string endpointTag = 1;
-  string formID = 2;
-  map<string, string> values = 3;
+message OpenConnectBrowserRequest {
+  string url = 1;
+  string finalURL = 2;
+  repeated string cookieNames = 3;
+  repeated string headerNames = 4;
 }
 
-message OpenConnectAuthFormCancel {
+message OpenConnectBrowserCookie {
+  string name = 1;
+  string value = 2;
+}
+
+message OpenConnectBrowserHeader {
+  string name = 1;
+  repeated string values = 2;
+}
+
+message OpenConnectAuthFormResponse {
+  map<string, string> values = 1;
+}
+
+message OpenConnectBrowserResult {
+  string finalURL = 1;
+  repeated OpenConnectBrowserCookie cookies = 2;
+  repeated OpenConnectBrowserHeader headers = 3;
+}
+
+message OpenConnectAuthResponseSubmission {
   string endpointTag = 1;
-  string formID = 2;
+  string challengeID = 2;
+  oneof response {
+    OpenConnectAuthFormResponse form = 3;
+    OpenConnectBrowserResult browser = 4;
+  }
+}
+
+message OpenConnectAuthChallengeCancel {
+  string endpointTag = 1;
+  string challengeID = 2;
 }
 
 message OpenVPNStatusUpdate {
