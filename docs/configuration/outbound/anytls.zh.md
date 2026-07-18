@@ -17,6 +17,7 @@ icon: material/new-box
   "idle_session_check_interval": "30s",
   "idle_session_timeout": "30s",
   "min_idle_session": 5,
+  "disable_reuse": false,
   "tls": {},
 
   ... // 拨号字段
@@ -54,6 +55,10 @@ AnyTLS 密码。
 #### min_idle_session
 
 在检查中，至少前 `n` 个空闲会话保持打开状态。默认值：`n`=0
+
+#### disable_reuse
+
+禁用 TLS 连接复用。默认值：false。
 
 #### tls
 
