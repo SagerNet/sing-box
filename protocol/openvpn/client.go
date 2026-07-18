@@ -425,7 +425,10 @@ func (c *ClientEndpoint) readLoop() {
 		err = c.device.WriteInboundBuffers(packetBuffers)
 		buf.ReleaseMulti(packetBuffers)
 		if err != nil {
-			c.logger.Error(E.Cause(err, "write OpenVPN packet to device"))
+			err = E.Cause(err, "write packet to device")
+			c.logger.Error(err)
+			c.setTerminalError(err)
+			return
 		}
 	}
 }

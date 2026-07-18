@@ -44,8 +44,8 @@ const (
 	StartedService_ProvideUSBDevices_FullMethodName              = "/daemon.StartedService/ProvideUSBDevices"
 	StartedService_SubscribeUSBIPServerStatus_FullMethodName     = "/daemon.StartedService/SubscribeUSBIPServerStatus"
 	StartedService_SubscribeOpenConnectStatus_FullMethodName     = "/daemon.StartedService/SubscribeOpenConnectStatus"
-	StartedService_SubmitOpenConnectAuthForm_FullMethodName      = "/daemon.StartedService/SubmitOpenConnectAuthForm"
-	StartedService_CancelOpenConnectAuthForm_FullMethodName      = "/daemon.StartedService/CancelOpenConnectAuthForm"
+	StartedService_SubmitOpenConnectAuthResponse_FullMethodName  = "/daemon.StartedService/SubmitOpenConnectAuthResponse"
+	StartedService_CancelOpenConnectAuthChallenge_FullMethodName = "/daemon.StartedService/CancelOpenConnectAuthChallenge"
 	StartedService_SubscribeOpenVPNStatus_FullMethodName         = "/daemon.StartedService/SubscribeOpenVPNStatus"
 	StartedService_SubmitOpenVPNChallengeResponse_FullMethodName = "/daemon.StartedService/SubmitOpenVPNChallengeResponse"
 	StartedService_CancelOpenVPNChallenge_FullMethodName         = "/daemon.StartedService/CancelOpenVPNChallenge"
@@ -84,8 +84,8 @@ type StartedServiceClient interface {
 	ProvideUSBDevices(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[USBProviderMessage, USBServerMessage], error)
 	SubscribeUSBIPServerStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[USBIPServerStatusUpdate], error)
 	SubscribeOpenConnectStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OpenConnectStatusUpdate], error)
-	SubmitOpenConnectAuthForm(ctx context.Context, in *OpenConnectAuthFormSubmission, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	CancelOpenConnectAuthForm(ctx context.Context, in *OpenConnectAuthFormCancel, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	SubmitOpenConnectAuthResponse(ctx context.Context, in *OpenConnectAuthResponseSubmission, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	CancelOpenConnectAuthChallenge(ctx context.Context, in *OpenConnectAuthChallengeCancel, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	SubscribeOpenVPNStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[OpenVPNStatusUpdate], error)
 	SubmitOpenVPNChallengeResponse(ctx context.Context, in *OpenVPNChallengeSubmission, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	CancelOpenVPNChallenge(ctx context.Context, in *OpenVPNChallengeCancel, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -512,20 +512,20 @@ func (c *startedServiceClient) SubscribeOpenConnectStatus(ctx context.Context, i
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_SubscribeOpenConnectStatusClient = grpc.ServerStreamingClient[OpenConnectStatusUpdate]
 
-func (c *startedServiceClient) SubmitOpenConnectAuthForm(ctx context.Context, in *OpenConnectAuthFormSubmission, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *startedServiceClient) SubmitOpenConnectAuthResponse(ctx context.Context, in *OpenConnectAuthResponseSubmission, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, StartedService_SubmitOpenConnectAuthForm_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, StartedService_SubmitOpenConnectAuthResponse_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *startedServiceClient) CancelOpenConnectAuthForm(ctx context.Context, in *OpenConnectAuthFormCancel, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *startedServiceClient) CancelOpenConnectAuthChallenge(ctx context.Context, in *OpenConnectAuthChallengeCancel, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, StartedService_CancelOpenConnectAuthForm_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, StartedService_CancelOpenConnectAuthChallenge_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -604,8 +604,8 @@ type StartedServiceServer interface {
 	ProvideUSBDevices(grpc.BidiStreamingServer[USBProviderMessage, USBServerMessage]) error
 	SubscribeUSBIPServerStatus(*emptypb.Empty, grpc.ServerStreamingServer[USBIPServerStatusUpdate]) error
 	SubscribeOpenConnectStatus(*emptypb.Empty, grpc.ServerStreamingServer[OpenConnectStatusUpdate]) error
-	SubmitOpenConnectAuthForm(context.Context, *OpenConnectAuthFormSubmission) (*emptypb.Empty, error)
-	CancelOpenConnectAuthForm(context.Context, *OpenConnectAuthFormCancel) (*emptypb.Empty, error)
+	SubmitOpenConnectAuthResponse(context.Context, *OpenConnectAuthResponseSubmission) (*emptypb.Empty, error)
+	CancelOpenConnectAuthChallenge(context.Context, *OpenConnectAuthChallengeCancel) (*emptypb.Empty, error)
 	SubscribeOpenVPNStatus(*emptypb.Empty, grpc.ServerStreamingServer[OpenVPNStatusUpdate]) error
 	SubmitOpenVPNChallengeResponse(context.Context, *OpenVPNChallengeSubmission) (*emptypb.Empty, error)
 	CancelOpenVPNChallenge(context.Context, *OpenVPNChallengeCancel) (*emptypb.Empty, error)
@@ -735,12 +735,12 @@ func (UnimplementedStartedServiceServer) SubscribeOpenConnectStatus(*emptypb.Emp
 	return status.Error(codes.Unimplemented, "method SubscribeOpenConnectStatus not implemented")
 }
 
-func (UnimplementedStartedServiceServer) SubmitOpenConnectAuthForm(context.Context, *OpenConnectAuthFormSubmission) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method SubmitOpenConnectAuthForm not implemented")
+func (UnimplementedStartedServiceServer) SubmitOpenConnectAuthResponse(context.Context, *OpenConnectAuthResponseSubmission) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method SubmitOpenConnectAuthResponse not implemented")
 }
 
-func (UnimplementedStartedServiceServer) CancelOpenConnectAuthForm(context.Context, *OpenConnectAuthFormCancel) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method CancelOpenConnectAuthForm not implemented")
+func (UnimplementedStartedServiceServer) CancelOpenConnectAuthChallenge(context.Context, *OpenConnectAuthChallengeCancel) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelOpenConnectAuthChallenge not implemented")
 }
 
 func (UnimplementedStartedServiceServer) SubscribeOpenVPNStatus(*emptypb.Empty, grpc.ServerStreamingServer[OpenVPNStatusUpdate]) error {
@@ -1184,38 +1184,38 @@ func _StartedService_SubscribeOpenConnectStatus_Handler(srv interface{}, stream 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type StartedService_SubscribeOpenConnectStatusServer = grpc.ServerStreamingServer[OpenConnectStatusUpdate]
 
-func _StartedService_SubmitOpenConnectAuthForm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OpenConnectAuthFormSubmission)
+func _StartedService_SubmitOpenConnectAuthResponse_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OpenConnectAuthResponseSubmission)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StartedServiceServer).SubmitOpenConnectAuthForm(ctx, in)
+		return srv.(StartedServiceServer).SubmitOpenConnectAuthResponse(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StartedService_SubmitOpenConnectAuthForm_FullMethodName,
+		FullMethod: StartedService_SubmitOpenConnectAuthResponse_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StartedServiceServer).SubmitOpenConnectAuthForm(ctx, req.(*OpenConnectAuthFormSubmission))
+		return srv.(StartedServiceServer).SubmitOpenConnectAuthResponse(ctx, req.(*OpenConnectAuthResponseSubmission))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _StartedService_CancelOpenConnectAuthForm_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OpenConnectAuthFormCancel)
+func _StartedService_CancelOpenConnectAuthChallenge_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OpenConnectAuthChallengeCancel)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StartedServiceServer).CancelOpenConnectAuthForm(ctx, in)
+		return srv.(StartedServiceServer).CancelOpenConnectAuthChallenge(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: StartedService_CancelOpenConnectAuthForm_FullMethodName,
+		FullMethod: StartedService_CancelOpenConnectAuthChallenge_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StartedServiceServer).CancelOpenConnectAuthForm(ctx, req.(*OpenConnectAuthFormCancel))
+		return srv.(StartedServiceServer).CancelOpenConnectAuthChallenge(ctx, req.(*OpenConnectAuthChallengeCancel))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1331,12 +1331,12 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _StartedService_TailscaleLogout_Handler,
 		},
 		{
-			MethodName: "SubmitOpenConnectAuthForm",
-			Handler:    _StartedService_SubmitOpenConnectAuthForm_Handler,
+			MethodName: "SubmitOpenConnectAuthResponse",
+			Handler:    _StartedService_SubmitOpenConnectAuthResponse_Handler,
 		},
 		{
-			MethodName: "CancelOpenConnectAuthForm",
-			Handler:    _StartedService_CancelOpenConnectAuthForm_Handler,
+			MethodName: "CancelOpenConnectAuthChallenge",
+			Handler:    _StartedService_CancelOpenConnectAuthChallenge_Handler,
 		},
 		{
 			MethodName: "SubmitOpenVPNChallengeResponse",
