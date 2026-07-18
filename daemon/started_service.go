@@ -1620,35 +1620,46 @@ func openConnectEndpointStatusToProto(tag string, endpointStatus adapter.OpenCon
 		Error:       endpointStatus.Error,
 		TunnelInfo:  openConnectTunnelInfoToProto(endpointStatus.TunnelInfo),
 	}
-	if endpointStatus.AuthForm != nil {
-		fields := common.Map(endpointStatus.AuthForm.Fields, func(field adapter.OpenConnectAuthFormField) *OpenConnectAuthFormField {
-			return &OpenConnectAuthFormField{
-				SubmissionKey: field.SubmissionKey,
-				Name:          field.Name,
-				Label:         field.Label,
-				Kind:          field.Kind,
-				Value:         field.Value,
-				Options: common.Map(field.Options, func(option adapter.OpenConnectAuthFormChoice) *OpenConnectAuthFormChoice {
-					return &OpenConnectAuthFormChoice{
-						Value: option.Value,
-						Label: option.Label,
+	if endpointStatus.AuthChallenge != nil {
+		challenge := &OpenConnectAuthChallenge{
+			Id:      endpointStatus.AuthChallenge.ID,
+			Banner:  endpointStatus.AuthChallenge.Banner,
+			Message: endpointStatus.AuthChallenge.Message,
+			Error:   endpointStatus.AuthChallenge.Error,
+		}
+		if endpointStatus.AuthChallenge.Form != nil {
+			challenge.Challenge = &OpenConnectAuthChallenge_Form{Form: &OpenConnectAuthForm{
+				Fields: common.Map(endpointStatus.AuthChallenge.Form.Fields, func(field adapter.OpenConnectAuthFormField) *OpenConnectAuthFormField {
+					return &OpenConnectAuthFormField{
+						SubmissionKey: field.SubmissionKey,
+						Name:          field.Name,
+						Label:         field.Label,
+						Kind:          field.Kind,
+						Value:         field.Value,
+						Options: common.Map(field.Options, func(option adapter.OpenConnectAuthFormChoice) *OpenConnectAuthFormChoice {
+							return &OpenConnectAuthFormChoice{
+								Value: option.Value,
+								Label: option.Label,
+							}
+						}),
 					}
 				}),
-			}
-		})
-		result.AuthForm = &OpenConnectAuthForm{
-			Id:      endpointStatus.AuthForm.ID,
-			Banner:  endpointStatus.AuthForm.Banner,
-			Message: endpointStatus.AuthForm.Message,
-			Error:   endpointStatus.AuthForm.Error,
-			Url:     endpointStatus.AuthForm.URL,
-			Fields:  fields,
+			}}
 		}
+		if endpointStatus.AuthChallenge.Browser != nil {
+			challenge.Challenge = &OpenConnectAuthChallenge_Browser{Browser: &OpenConnectBrowserRequest{
+				Url:         endpointStatus.AuthChallenge.Browser.URL,
+				FinalURL:    endpointStatus.AuthChallenge.Browser.FinalURL,
+				CookieNames: endpointStatus.AuthChallenge.Browser.CookieNames,
+				HeaderNames: endpointStatus.AuthChallenge.Browser.HeaderNames,
+			}}
+		}
+		result.AuthChallenge = challenge
 	}
 	return result
 }
 
-func (s *StartedService) SubmitOpenConnectAuthForm(ctx context.Context, request *OpenConnectAuthFormSubmission) (*emptypb.Empty, error) {
+func (s *StartedService) SubmitOpenConnectAuthResponse(ctx context.Context, request *OpenConnectAuthResponseSubmission) (*emptypb.Empty, error) {
 	err := s.waitForStarted(ctx)
 	if err != nil {
 		return nil, err
@@ -1661,14 +1672,31 @@ func (s *StartedService) SubmitOpenConnectAuthForm(ctx context.Context, request 
 	if err != nil {
 		return nil, err
 	}
-	err = endpoint.CompleteAuthForm(request.FormID, request.Values)
+	var authResponse adapter.OpenConnectAuthResponse
+	form := request.GetForm()
+	if form != nil {
+		authResponse.Form = &adapter.OpenConnectAuthFormResponse{Values: form.Values}
+	}
+	browser := request.GetBrowser()
+	if browser != nil {
+		authResponse.Browser = &adapter.OpenConnectBrowserResult{
+			FinalURL: browser.FinalURL,
+			Cookies: common.Map(browser.Cookies, func(cookie *OpenConnectBrowserCookie) adapter.OpenConnectBrowserCookie {
+				return adapter.OpenConnectBrowserCookie{Name: cookie.Name, Value: cookie.Value}
+			}),
+			Headers: common.Map(browser.Headers, func(header *OpenConnectBrowserHeader) adapter.OpenConnectBrowserHeader {
+				return adapter.OpenConnectBrowserHeader{Name: header.Name, Values: header.Values}
+			}),
+		}
+	}
+	err = endpoint.CompleteAuthChallenge(request.ChallengeID, authResponse)
 	if err != nil {
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
 }
 
-func (s *StartedService) CancelOpenConnectAuthForm(ctx context.Context, request *OpenConnectAuthFormCancel) (*emptypb.Empty, error) {
+func (s *StartedService) CancelOpenConnectAuthChallenge(ctx context.Context, request *OpenConnectAuthChallengeCancel) (*emptypb.Empty, error) {
 	err := s.waitForStarted(ctx)
 	if err != nil {
 		return nil, err
@@ -1681,7 +1709,7 @@ func (s *StartedService) CancelOpenConnectAuthForm(ctx context.Context, request 
 	if err != nil {
 		return nil, err
 	}
-	err = endpoint.CancelAuthForm(request.FormID)
+	err = endpoint.CancelAuthChallenge(request.ChallengeID)
 	if err != nil {
 		return nil, err
 	}
