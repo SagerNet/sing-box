@@ -32,9 +32,12 @@ type Outbound struct {
 	serverAddr M.Socksaddr
 }
 
+var _ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+
 type snellClient interface {
 	snellprotocol.Method
 	DialContext(ctx context.Context, destination M.Socksaddr) (net.Conn, error)
+	Reset()
 	Close() error
 }
 
@@ -134,6 +137,10 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return nil, err
 	}
 	return packetConn, nil
+}
+
+func (h *Outbound) InterfaceUpdated() {
+	h.client.Reset()
 }
 
 func (h *Outbound) Close() error {
