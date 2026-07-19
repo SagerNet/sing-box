@@ -391,6 +391,11 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 				return adapter.PreMatchResult{Action: adapter.PreMatchDrop}
 			}
 			return adapter.PreMatchResult{Action: adapter.PreMatchReject}
+		case *R.RuleActionHijackDNS:
+			if metadata.Network != N.NetworkUDP {
+				return continueResult
+			}
+			return adapter.PreMatchResult{Action: adapter.PreMatchHijackDNS}
 		case *R.RuleActionResolve:
 			resolveErr := r.actionResolve(adapter.WithContext(ctx, &metadata), &metadata, action)
 			if resolveErr != nil {
