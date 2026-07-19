@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun/gtcpip/header"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -516,9 +517,25 @@ func (t *Inbound) Close() error {
 
 func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
 	if slices.Contains(t.dnsHijackAddress, destination.Addr()) {
+		if network == uint8(header.UDPProtocolNumber) {
+			return tun.FlowVerdict{Action: tun.ActionHijackDNS}
+		}
 		return tun.FlowVerdict{Action: tun.ActionAccept}
 	}
 	return adapter.JudgeFlow(t.router, t.tag, C.TypeTun, network, source, destination, firstPacket)
+}
+
+func (t *Inbound) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	ctx := log.ContextWithNewID(t.ctx)
+	var metadata adapter.InboundContext
+	metadata.Inbound = t.tag
+	metadata.InboundType = C.TypeTun
+	metadata.Network = N.NetworkUDP
+	metadata.Source = source
+	metadata.Destination = destination
+	metadata.Protocol = C.ProtocolDNS
+	t.logger.InfoContext(ctx, "inbound DNS packet from ", source)
+	t.router.HijackDNSPacket(ctx, payload, writer, metadata)
 }
 
 func (t *Inbound) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
@@ -590,4 +607,8 @@ func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn
 
 func (t *autoRedirectHandler) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	panic("unexcepted")
+}
+
+func (t *autoRedirectHandler) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	(*Inbound)(t).NewDNSPacket(payload, source, destination, writer)
 }
