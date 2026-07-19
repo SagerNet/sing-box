@@ -188,6 +188,19 @@ func (w *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination n
 	return adapter.JudgeFlow(w.router, w.Tag(), w.Type(), network, source, destination, firstPacket)
 }
 
+func (w *Endpoint) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	ctx := log.ContextWithNewID(w.ctx)
+	var metadata adapter.InboundContext
+	metadata.Inbound = w.Tag()
+	metadata.InboundType = w.Type()
+	metadata.Network = N.NetworkUDP
+	metadata.Source = source
+	metadata.Destination = destination
+	metadata.Protocol = C.ProtocolDNS
+	w.logger.InfoContext(ctx, "inbound DNS packet from ", source)
+	w.router.HijackDNSPacket(ctx, payload, writer, metadata)
+}
+
 func (w *Endpoint) WritePackets(packets [][]byte) error {
 	if !w.started.Load() {
 		return E.New("WireGuard is not ready yet")
