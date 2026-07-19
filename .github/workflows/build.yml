@@ -821,7 +821,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 26
+          node-version-file: clients/desktop/package.json
           cache: pnpm
           cache-dependency-path: |
             clients/desktop/pnpm-lock.yaml
