@@ -484,6 +484,10 @@ func (s *ServerEndpoint) JudgeFlow(network uint8, source netip.AddrPort, destina
 	return judgeOpenVPNFlow(s.router, s.Tag(), s.Type(), s.localAddresses, network, source, destination, firstPacket)
 }
 
+func (s *ServerEndpoint) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	s.newDNSPacket(log.ContextWithNewID(s.ctx), s, payload, source, destination, writer)
+}
+
 func (s *ServerEndpoint) WritePackets(packets [][]byte) error {
 	if !s.started.Load() {
 		return E.New("OpenVPN server is not ready yet")
