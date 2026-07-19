@@ -3,7 +3,6 @@ package transport
 import (
 	"context"
 	"net"
-	"sync"
 	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -12,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -36,17 +36,7 @@ type UDPTransport struct {
 	serverAddr M.Socksaddr
 	udpSize    atomic.Int32
 
-	connection *ConnPool[net.Conn]
-
-	callbackAccess sync.RWMutex
-	queryId        uint16
-	callbacks      map[uint16]*udpCallback
-}
-
-type udpCallback struct {
-	access   sync.Mutex
-	response *mDNS.Msg
-	done     chan struct{}
+	multiplexer *queryMultiplexer
 }
 
 func NewUDP(ctx context.Context, logger log.ContextLogger, tag string, options option.RemoteDNSServerOptions) (adapter.DNSTransport, error) {
@@ -70,18 +60,19 @@ func NewUDPRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 		logger:           logger,
 		dialer:           dialerInstance,
 		serverAddr:       serverAddr,
-		callbacks:        make(map[uint16]*udpCallback),
-		connection: NewConnPool(ConnPoolOptions[net.Conn]{
-			Mode: ConnPoolSingle,
-			IsAlive: func(conn net.Conn) bool {
-				return conn != nil
-			},
-			Close: func(conn net.Conn, cause error) {
-				conn.Close()
-			},
-		}),
 	}
 	t.udpSize.Store(2048)
+	t.multiplexer = newQueryMultiplexer(queryMultiplexerOptions{
+		dial: func(ctx context.Context) (net.Conn, error) {
+			conn, err := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
+			if err != nil {
+				return nil, E.Cause(err, "dial UDP connection")
+			}
+			return conn, nil
+		},
+		write:    t.writeQuery,
+		readNext: t.readResponse,
+	})
 	return t
 }
 
@@ -93,28 +84,16 @@ func (t *UDPTransport) Start(stage adapter.StartStage) error {
 }
 
 func (t *UDPTransport) Close() error {
-	return t.connection.Close()
+	return t.multiplexer.Close()
 }
 
 func (t *UDPTransport) Reset() {
-	t.connection.Reset()
-}
-
-func (t *UDPTransport) nextAvailableQueryId() (uint16, error) {
-	start := t.queryId
-	for {
-		t.queryId++
-		if _, exists := t.callbacks[t.queryId]; !exists {
-			return t.queryId, nil
-		}
-		if t.queryId == start {
-			return 0, E.New("no available query ID")
-		}
-	}
+	t.multiplexer.Reset()
 }
 
 func (t *UDPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	response, err := t.exchange(ctx, message)
+	t.updateUDPSize(message)
+	response, err := t.multiplexer.Exchange(ctx, message)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +102,67 @@ func (t *UDPTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		return t.exchangeTCP(ctx, message)
 	}
 	return response, nil
+}
+
+func (t *UDPTransport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	t.updateUDPSize(message)
+	t.multiplexer.ExchangeAsync(ctx, message, func(response *mDNS.Msg, err error) {
+		if err == nil && response.Truncated {
+			t.logger.InfoContext(ctx, "response truncated, retrying with TCP")
+			go func() {
+				callback(t.exchangeTCP(ctx, message))
+			}()
+			return
+		}
+		callback(response, err)
+	})
+}
+
+func (t *UDPTransport) updateUDPSize(message *mDNS.Msg) {
+	edns0Opt := message.IsEdns0()
+	if edns0Opt == nil {
+		return
+	}
+	udpSize := int32(edns0Opt.UDPSize())
+	for {
+		current := t.udpSize.Load()
+		if udpSize <= current {
+			return
+		}
+		if t.udpSize.CompareAndSwap(current, udpSize) {
+			t.Reset()
+			return
+		}
+	}
+}
+
+func (t *UDPTransport) writeQuery(conn net.Conn, message *mDNS.Msg, queryId uint16) error {
+	buffer := buf.NewSize(1 + message.Len())
+	defer buffer.Release()
+	exMessage := *message
+	exMessage.Compress = true
+	exMessage.Id = queryId
+	rawMessage, err := exMessage.PackBuffer(buffer.FreeBytes())
+	if err != nil {
+		return err
+	}
+	return common.Error(conn.Write(rawMessage))
+}
+
+func (t *UDPTransport) readResponse(conn net.Conn) (*mDNS.Msg, error) {
+	buffer := buf.NewSize(int(t.udpSize.Load()))
+	defer buffer.Release()
+	_, err := buffer.ReadOnceFrom(conn)
+	if err != nil {
+		return nil, err
+	}
+	var message mDNS.Msg
+	err = message.Unpack(buffer.Bytes())
+	if err != nil {
+		t.logger.Debug("discarded malformed UDP response: ", err)
+		return nil, nil
+	}
+	return &message, nil
 }
 
 func (t *UDPTransport) exchangeTCP(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
@@ -141,122 +181,4 @@ func (t *UDPTransport) exchangeTCP(ctx context.Context, message *mDNS.Msg) (*mDN
 		return nil, E.Cause(err, "read response")
 	}
 	return response, nil
-}
-
-func (t *UDPTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	if edns0Opt := message.IsEdns0(); edns0Opt != nil {
-		udpSize := int32(edns0Opt.UDPSize())
-		for {
-			current := t.udpSize.Load()
-			if udpSize <= current {
-				break
-			}
-			if t.udpSize.CompareAndSwap(current, udpSize) {
-				t.Reset()
-				break
-			}
-		}
-	}
-
-	conn, connCtx, created, err := t.connection.AcquireShared(ctx, func(ctx context.Context) (net.Conn, error) {
-		rawConn, err := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
-		if err != nil {
-			return nil, E.Cause(err, "dial UDP connection")
-		}
-		return rawConn, nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if created {
-		go t.recvLoop(conn)
-	}
-
-	callback := &udpCallback{
-		done: make(chan struct{}),
-	}
-
-	t.callbackAccess.Lock()
-	queryId, err := t.nextAvailableQueryId()
-	if err != nil {
-		t.callbackAccess.Unlock()
-		t.connection.Release(conn, true)
-		return nil, err
-	}
-	t.callbacks[queryId] = callback
-	t.callbackAccess.Unlock()
-
-	defer func() {
-		t.callbackAccess.Lock()
-		delete(t.callbacks, queryId)
-		t.callbackAccess.Unlock()
-	}()
-
-	buffer := buf.NewSize(1 + message.Len())
-	defer buffer.Release()
-
-	exMessage := *message
-	exMessage.Compress = true
-	originalId := message.Id
-	exMessage.Id = queryId
-
-	rawMessage, err := exMessage.PackBuffer(buffer.FreeBytes())
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = conn.Write(rawMessage)
-	if err != nil {
-		t.connection.Invalidate(conn, err)
-		return nil, E.Cause(err, "write request")
-	}
-
-	select {
-	case <-callback.done:
-		t.connection.Release(conn, true)
-		callback.response.Id = originalId
-		return callback.response, nil
-	case <-connCtx.Done():
-		return nil, context.Cause(connCtx)
-	case <-ctx.Done():
-		t.connection.Release(conn, true)
-		return nil, ctx.Err()
-	}
-}
-
-func (t *UDPTransport) recvLoop(conn net.Conn) {
-	for {
-		buffer := buf.NewSize(int(t.udpSize.Load()))
-		_, err := buffer.ReadOnceFrom(conn)
-		if err != nil {
-			buffer.Release()
-			t.connection.Invalidate(conn, err)
-			return
-		}
-
-		var message mDNS.Msg
-		err = message.Unpack(buffer.Bytes())
-		buffer.Release()
-		if err != nil {
-			t.logger.Debug("discarded malformed UDP response: ", err)
-			continue
-		}
-
-		t.callbackAccess.RLock()
-		callback, loaded := t.callbacks[message.Id]
-		t.callbackAccess.RUnlock()
-
-		if !loaded {
-			continue
-		}
-
-		callback.access.Lock()
-		select {
-		case <-callback.done:
-		default:
-			callback.response = &message
-			close(callback.done)
-		}
-		callback.access.Unlock()
-	}
 }
