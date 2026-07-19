@@ -28,7 +28,10 @@ func RegisterURLTest(registry *outbound.Registry) {
 	outbound.Register[option.URLTestOutboundOptions](registry, C.TypeURLTest, NewURLTest)
 }
 
-var _ adapter.OutboundGroup = (*URLTest)(nil)
+var (
+	_ adapter.OutboundGroup           = (*URLTest)(nil)
+	_ adapter.InterfaceUpdateListener = (*URLTest)(nil)
+)
 
 type URLTest struct {
 	outbound.Adapter
@@ -112,6 +115,17 @@ func (s *URLTest) URLTest(ctx context.Context) (map[string]uint16, error) {
 
 func (s *URLTest) CheckOutbounds() {
 	s.group.CheckOutbounds(true)
+}
+
+func (s *URLTest) InterfaceUpdated() {
+	group := s.group
+	if group == nil {
+		return
+	}
+	if group.pause.IsDevicePaused() || group.pause.IsNetworkPaused() {
+		return
+	}
+	go group.CheckOutbounds(true)
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
