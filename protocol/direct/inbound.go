@@ -77,6 +77,10 @@ func (i *Inbound) Start(stage adapter.StartStage) error {
 	return i.listener.Start()
 }
 
+func (i *Inbound) InterfaceUpdated() {
+	i.udpNat.Purge()
+}
+
 func (i *Inbound) Close() error {
 	return i.listener.Close()
 }
