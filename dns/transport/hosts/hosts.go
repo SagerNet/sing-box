@@ -104,3 +104,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 		Question: []mDNS.Question{question},
 	}, nil
 }
+
+func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	callback(t.Exchange(ctx, message))
+}

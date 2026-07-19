@@ -410,60 +410,66 @@ type exchangeWithRulesResult struct {
 
 const dnsRespondMissingResponseMessage = "respond action requires an evaluated response from a preceding evaluate action"
 
-func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) exchangeWithRulesResult {
+type dnsRuleWalkState struct {
+	ruleIndex          int
+	effectiveOptions   adapter.DNSQueryOptions
+	evaluatedResponse  *mDNS.Msg
+	evaluatedTransport adapter.DNSTransport
+}
+
+type dnsPendingExchange struct {
+	transport adapter.DNSTransport
+	options   adapter.DNSQueryOptions
+	evaluate  bool
+}
+
+func (r *Router) finalizeExchangeOptions(options adapter.DNSQueryOptions) adapter.DNSQueryOptions {
+	if options.Strategy == C.DomainStrategyAsIS {
+		options.Strategy = r.defaultDomainStrategy
+	}
+	return options
+}
+
+func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, state *dnsRuleWalkState, allowFakeIP bool) (exchangeWithRulesResult, *dnsPendingExchange) {
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
 		panic("no context")
 	}
-	effectiveOptions := options
-	var evaluatedResponse *mDNS.Msg
-	var evaluatedTransport adapter.DNSTransport
-	for currentRuleIndex, currentRule := range rules {
+	for ; state.ruleIndex < len(rules); state.ruleIndex++ {
+		currentRule := rules[state.ruleIndex]
 		metadata.ResetRuleCache()
-		metadata.DNSResponse = evaluatedResponse
+		metadata.DNSResponse = state.evaluatedResponse
 		metadata.DestinationAddressMatchFromResponse = false
 		if !currentRule.Match(metadata) {
 			continue
 		}
-		r.logRuleMatch(ctx, currentRuleIndex, currentRule)
+		r.logRuleMatch(ctx, state.ruleIndex, currentRule)
 		switch action := currentRule.Action().(type) {
 		case *R.RuleActionDNSRouteOptions:
-			r.applyDNSRouteOptions(&effectiveOptions, *action)
+			r.applyDNSRouteOptions(&state.effectiveOptions, *action)
 		case *R.RuleActionEvaluate:
-			queryOptions := effectiveOptions
+			queryOptions := state.effectiveOptions
 			transport, loaded := r.transport.Transport(action.Server)
 			if !loaded {
 				r.logger.ErrorContext(ctx, "transport not found: ", action.Server)
-				evaluatedResponse = nil
-				evaluatedTransport = nil
+				state.evaluatedResponse = nil
+				state.evaluatedTransport = nil
 				continue
 			}
 			r.applyDNSRouteOptions(&queryOptions, action.RuleActionDNSRouteOptions)
-			exchangeOptions := queryOptions
-			if exchangeOptions.Strategy == C.DomainStrategyAsIS {
-				exchangeOptions.Strategy = r.defaultDomainStrategy
-			}
-			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
-			if err != nil {
-				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
-				evaluatedResponse = nil
-				evaluatedTransport = nil
-				continue
-			}
-			evaluatedResponse = response
-			evaluatedTransport = transport
+			return exchangeWithRulesResult{}, &dnsPendingExchange{transport: transport, options: queryOptions, evaluate: true}
 		case *R.RuleActionRespond:
-			if evaluatedResponse == nil {
+			if state.evaluatedResponse == nil {
 				return exchangeWithRulesResult{
 					err: E.New(dnsRespondMissingResponseMessage),
-				}
+				}, nil
 			}
 			return exchangeWithRulesResult{
-				response:  evaluatedResponse,
-				transport: evaluatedTransport,
-			}
+				response:  state.evaluatedResponse,
+				transport: state.evaluatedTransport,
+			}, nil
 		case *R.RuleActionDNSRoute:
-			queryOptions := effectiveOptions
+			queryOptions := state.effectiveOptions
 			transport, status := r.resolveDNSRoute(action.Server, action.RuleActionDNSRouteOptions, allowFakeIP, &queryOptions)
 			switch status {
 			case dnsRouteStatusMissing:
@@ -472,16 +478,7 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 			case dnsRouteStatusSkipped:
 				continue
 			}
-			exchangeOptions := queryOptions
-			if exchangeOptions.Strategy == C.DomainStrategyAsIS {
-				exchangeOptions.Strategy = r.defaultDomainStrategy
-			}
-			response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
-			return exchangeWithRulesResult{
-				response:  response,
-				transport: transport,
-				err:       err,
-			}
+			return exchangeWithRulesResult{}, &dnsPendingExchange{transport: transport, options: queryOptions}
 		case *R.RuleActionReject:
 			switch action.Method {
 			case C.RuleActionRejectMethodDefault:
@@ -495,30 +492,78 @@ func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule,
 						Question: []mDNS.Question{message.Question[0]},
 					},
 					rejectAction: action,
-				}
+				}, nil
 			case C.RuleActionRejectMethodDrop:
 				return exchangeWithRulesResult{
 					rejectAction: action,
 					err:          R.ErrDrop,
-				}
+				}, nil
 			}
 		case *R.RuleActionPredefined:
 			return exchangeWithRulesResult{
 				response: action.Response(message),
-			}
+			}, nil
 		}
 	}
-	transport := r.transport.Default()
-	exchangeOptions := effectiveOptions
-	if exchangeOptions.Strategy == C.DomainStrategyAsIS {
-		exchangeOptions.Strategy = r.defaultDomainStrategy
+	return exchangeWithRulesResult{}, &dnsPendingExchange{transport: r.transport.Default(), options: state.effectiveOptions}
+}
+
+func (r *Router) exchangeWithRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool) exchangeWithRulesResult {
+	state := dnsRuleWalkState{effectiveOptions: options}
+	result, pending := r.walkDNSRules(ctx, rules, message, &state, allowFakeIP)
+	if pending == nil {
+		return result
 	}
-	response, err := r.client.Exchange(adapter.OverrideContext(ctx), transport, message, exchangeOptions, nil)
-	return exchangeWithRulesResult{
-		response:  response,
-		transport: transport,
-		err:       err,
+	return r.resumeExchangeWithRules(ctx, rules, message, &state, allowFakeIP, pending)
+}
+
+func (r *Router) resumeExchangeWithRules(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, state *dnsRuleWalkState, allowFakeIP bool, pending *dnsPendingExchange) exchangeWithRulesResult {
+	for {
+		response, err := r.client.Exchange(adapter.OverrideContext(ctx), pending.transport, message, r.finalizeExchangeOptions(pending.options), nil)
+		if !pending.evaluate {
+			return exchangeWithRulesResult{
+				response:  response,
+				transport: pending.transport,
+				err:       err,
+			}
+		}
+		if err != nil {
+			r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
+			state.evaluatedResponse = nil
+			state.evaluatedTransport = nil
+		} else {
+			state.evaluatedResponse = response
+			state.evaluatedTransport = pending.transport
+		}
+		state.ruleIndex++
+		var result exchangeWithRulesResult
+		result, pending = r.walkDNSRules(ctx, rules, message, state, allowFakeIP)
+		if pending == nil {
+			return result
+		}
 	}
+}
+
+func (r *Router) exchangeWithRulesAsync(ctx context.Context, rules []adapter.DNSRule, message *mDNS.Msg, options adapter.DNSQueryOptions, allowFakeIP bool, callback func(result exchangeWithRulesResult)) {
+	state := dnsRuleWalkState{effectiveOptions: options}
+	result, pending := r.walkDNSRules(ctx, rules, message, &state, allowFakeIP)
+	if pending == nil {
+		callback(result)
+		return
+	}
+	if pending.evaluate {
+		go func() {
+			callback(r.resumeExchangeWithRules(ctx, rules, message, &state, allowFakeIP, pending))
+		}()
+		return
+	}
+	r.client.ExchangeAsync(adapter.OverrideContext(ctx), pending.transport, message, r.finalizeExchangeOptions(pending.options), nil, func(response *mDNS.Msg, err error) {
+		callback(exchangeWithRulesResult{
+			response:  response,
+			transport: pending.transport,
+			err:       err,
+		})
+	})
 }
 
 func (r *Router) resolveLookupStrategy(options adapter.DNSQueryOptions) C.DomainStrategy {
@@ -617,35 +662,35 @@ func (r *Router) lookupWithRulesType(ctx context.Context, rules []adapter.DNSRul
 	return filterAddressesByQueryType(MessageToAddresses(exchangeResult.response), qType), nil
 }
 
-func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, error) {
+type dnsExchangeContext struct {
+	ctx           context.Context
+	rules         []adapter.DNSRule
+	legacyDNSMode bool
+	metadata      *adapter.InboundContext
+}
+
+func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsExchangeContext, *mDNS.Msg, error) {
 	if len(message.Question) != 1 {
 		r.logger.WarnContext(ctx, "bad question size: ", len(message.Question))
-		responseMessage := mDNS.Msg{
+		return nil, &mDNS.Msg{
 			MsgHdr: mDNS.MsgHdr{
 				Id:       message.Id,
 				Response: true,
 				Rcode:    mDNS.RcodeFormatError,
 			},
 			Question: message.Question,
-		}
-		return &responseMessage, nil
+		}, nil
 	}
 	r.rulesAccess.RLock()
 	if r.closing {
 		r.rulesAccess.RUnlock()
-		return nil, E.New("dns router closed")
+		return nil, nil, E.New("dns router closed")
 	}
 	rules := r.rules
 	legacyDNSMode := r.legacyDNSMode
 	r.rulesAccess.RUnlock()
 	r.logger.DebugContext(ctx, "exchange ", FormatQuestion(message.Question[0].String()))
-	var (
-		response  *mDNS.Msg
-		transport adapter.DNSTransport
-		err       error
-	)
-	var metadata *adapter.InboundContext
-	ctx, metadata = adapter.ExtendContext(ctx)
+	ctx, metadata := adapter.ExtendContext(ctx)
 	metadata.Destination = M.Socksaddr{}
 	metadata.QueryType = message.Question[0].Qtype
 	metadata.DNSResponse = nil
@@ -657,76 +702,15 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 		metadata.IPVersion = 6
 	}
 	metadata.Domain = FqdnToDomain(message.Question[0].Name)
-	if options.Transport != nil {
-		transport = options.Transport
-		if options.Strategy == C.DomainStrategyAsIS {
-			options.Strategy = r.defaultDomainStrategy
-		}
-		response, err = r.client.Exchange(ctx, transport, message, options, nil)
-	} else if !legacyDNSMode {
-		exchangeResult := r.exchangeWithRules(ctx, rules, message, options, true)
-		response, transport, err = exchangeResult.response, exchangeResult.transport, exchangeResult.err
-	} else {
-		var (
-			rule      adapter.DNSRule
-			ruleIndex int
-		)
-		ruleIndex = -1
-		for {
-			dnsCtx := adapter.OverrideContext(ctx)
-			dnsOptions := options
-			transport, rule, ruleIndex = r.matchDNS(ctx, rules, true, ruleIndex, isAddressQuery(message), &dnsOptions)
-			if rule != nil {
-				switch action := rule.Action().(type) {
-				case *R.RuleActionReject:
-					switch action.Method {
-					case C.RuleActionRejectMethodDefault:
-						return &mDNS.Msg{
-							MsgHdr: mDNS.MsgHdr{
-								Id:       message.Id,
-								Rcode:    mDNS.RcodeRefused,
-								Response: true,
-							},
-							Question: []mDNS.Question{message.Question[0]},
-						}, nil
-					case C.RuleActionRejectMethodDrop:
-						return nil, R.ErrDrop
-					}
-				case *R.RuleActionPredefined:
-					err = nil
-					response = action.Response(message)
-					goto done
-				}
-			}
-			responseCheck := addressLimitResponseCheck(rule, metadata)
-			if dnsOptions.Strategy == C.DomainStrategyAsIS {
-				dnsOptions.Strategy = r.defaultDomainStrategy
-			}
-			response, err = r.client.Exchange(dnsCtx, transport, message, dnsOptions, responseCheck)
-			var rejected bool
-			if err != nil {
-				if errors.Is(err, ErrResponseRejectedCached) {
-					rejected = true
-					r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())), " (cached)")
-				} else if errors.Is(err, ErrResponseRejected) {
-					rejected = true
-					r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())))
-				} else if len(message.Question) > 0 {
-					r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
-				} else {
-					r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
-				}
-			}
-			if responseCheck != nil && rejected {
-				continue
-			}
-			break
-		}
-	}
-done:
-	if err != nil {
-		return nil, err
-	}
+	return &dnsExchangeContext{
+		ctx:           ctx,
+		rules:         rules,
+		legacyDNSMode: legacyDNSMode,
+		metadata:      metadata,
+	}, nil, nil
+}
+
+func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, transport adapter.DNSTransport) {
 	if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
 		if transport == nil || transport.Type() != C.DNSTypeFakeIP {
 			for _, answer := range response.Answer {
@@ -739,7 +723,119 @@ done:
 			}
 		}
 	}
+}
+
+func (r *Router) exchangeLegacy(ctx context.Context, exchangeCtx *dnsExchangeContext, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, adapter.DNSTransport, error) {
+	var (
+		transport adapter.DNSTransport
+		rule      adapter.DNSRule
+		ruleIndex int
+	)
+	ruleIndex = -1
+	for {
+		dnsCtx := adapter.OverrideContext(ctx)
+		dnsOptions := options
+		transport, rule, ruleIndex = r.matchDNS(ctx, exchangeCtx.rules, true, ruleIndex, isAddressQuery(message), &dnsOptions)
+		if rule != nil {
+			switch action := rule.Action().(type) {
+			case *R.RuleActionReject:
+				switch action.Method {
+				case C.RuleActionRejectMethodDefault:
+					return &mDNS.Msg{
+						MsgHdr: mDNS.MsgHdr{
+							Id:       message.Id,
+							Rcode:    mDNS.RcodeRefused,
+							Response: true,
+						},
+						Question: []mDNS.Question{message.Question[0]},
+					}, nil, nil
+				case C.RuleActionRejectMethodDrop:
+					return nil, nil, R.ErrDrop
+				}
+			case *R.RuleActionPredefined:
+				return action.Response(message), nil, nil
+			}
+		}
+		responseCheck := addressLimitResponseCheck(rule, exchangeCtx.metadata)
+		response, err := r.client.Exchange(dnsCtx, transport, message, r.finalizeExchangeOptions(dnsOptions), responseCheck)
+		var rejected bool
+		if err != nil {
+			if errors.Is(err, ErrResponseRejectedCached) {
+				rejected = true
+				r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())), " (cached)")
+			} else if errors.Is(err, ErrResponseRejected) {
+				rejected = true
+				r.logger.DebugContext(ctx, E.Cause(err, "response rejected for ", FormatQuestion(message.Question[0].String())))
+			} else if len(message.Question) > 0 {
+				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for ", FormatQuestion(message.Question[0].String())))
+			} else {
+				r.logger.ErrorContext(ctx, E.Cause(err, "exchange failed for <empty query>"))
+			}
+		}
+		if responseCheck != nil && rejected {
+			continue
+		}
+		return response, transport, err
+	}
+}
+
+func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions) (*mDNS.Msg, error) {
+	exchangeCtx, earlyResponse, err := r.prepareExchange(ctx, message)
+	if exchangeCtx == nil {
+		return earlyResponse, err
+	}
+	ctx = exchangeCtx.ctx
+	var (
+		response  *mDNS.Msg
+		transport adapter.DNSTransport
+	)
+	if options.Transport != nil {
+		transport = options.Transport
+		response, err = r.client.Exchange(ctx, transport, message, r.finalizeExchangeOptions(options), nil)
+	} else if !exchangeCtx.legacyDNSMode {
+		exchangeResult := r.exchangeWithRules(ctx, exchangeCtx.rules, message, options, true)
+		response, transport, err = exchangeResult.response, exchangeResult.transport, exchangeResult.err
+	} else {
+		response, transport, err = r.exchangeLegacy(ctx, exchangeCtx, message, options)
+	}
+	if err != nil {
+		return nil, err
+	}
+	r.recordReverseMapping(message, response, transport)
 	return response, nil
+}
+
+func (r *Router) ExchangeAsync(ctx context.Context, message *mDNS.Msg, options adapter.DNSQueryOptions, callback func(response *mDNS.Msg, err error)) {
+	exchangeCtx, earlyResponse, err := r.prepareExchange(ctx, message)
+	if exchangeCtx == nil {
+		callback(earlyResponse, err)
+		return
+	}
+	ctx = exchangeCtx.ctx
+	if options.Transport != nil {
+		transport := options.Transport
+		r.client.ExchangeAsync(ctx, transport, message, r.finalizeExchangeOptions(options), nil, func(response *mDNS.Msg, exchangeErr error) {
+			r.finishExchangeAsync(message, transport, response, exchangeErr, callback)
+		})
+	} else if !exchangeCtx.legacyDNSMode {
+		r.exchangeWithRulesAsync(ctx, exchangeCtx.rules, message, options, true, func(result exchangeWithRulesResult) {
+			r.finishExchangeAsync(message, result.transport, result.response, result.err, callback)
+		})
+	} else {
+		go func() {
+			response, transport, exchangeErr := r.exchangeLegacy(ctx, exchangeCtx, message, options)
+			r.finishExchangeAsync(message, transport, response, exchangeErr, callback)
+		}()
+	}
+}
+
+func (r *Router) finishExchangeAsync(message *mDNS.Msg, transport adapter.DNSTransport, response *mDNS.Msg, err error, callback func(response *mDNS.Msg, err error)) {
+	if err != nil {
+		callback(nil, err)
+		return
+	}
+	r.recordReverseMapping(message, response, transport)
+	callback(response, nil)
 }
 
 func (r *Router) Lookup(ctx context.Context, domain string, options adapter.DNSQueryOptions) ([]netip.Addr, error) {
