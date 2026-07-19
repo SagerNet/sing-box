@@ -507,6 +507,13 @@ func (t *Inbound) updateRouteAddressSet(it adapter.RuleSet) {
 	t.routeExcludeAddressSet = nil
 }
 
+func (t *Inbound) InterfaceUpdated() {
+	tunStack := t.tunStack
+	if tunStack != nil {
+		tunStack.ResetNetwork()
+	}
+}
+
 func (t *Inbound) Close() error {
 	return common.Close(
 		t.tunStack,
