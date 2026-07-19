@@ -201,7 +201,7 @@ func (t *Transport) PreferredDomain(domain string) bool {
 			if linkDomain.Domain == "." {
 				continue
 			}
-			if strings.HasSuffix(domain, linkDomain.Domain) {
+			if mDNS.IsSubDomain(linkDomain.Domain, domain) {
 				return true
 			}
 		}
