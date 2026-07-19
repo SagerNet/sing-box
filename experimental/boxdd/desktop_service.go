@@ -149,51 +149,78 @@ func (s *desktopService) TakeOverService(ctx context.Context, empty *emptypb.Emp
 		return nil, err
 	}
 	s.daemon.lifecycleAccess.Lock()
-	defer s.daemon.lifecycleAccess.Unlock()
 	if s.daemon.closed {
+		s.daemon.lifecycleAccess.Unlock()
 		return nil, os.ErrClosed
 	}
 	ownerUserID, err := loadOwner()
 	if err != nil && !os.IsNotExist(err) {
+		s.daemon.lifecycleAccess.Unlock()
 		return nil, err
 	}
-	if ownerUserID == identity.UserID {
-		err = s.daemon.preparePlatformOwnerLocked(identity)
-		if err != nil {
-			return nil, err
-		}
-		err = saveOwner(identity.UserID, identity.SessionID)
+	if ownerUserID == "" || ownerUserID == identity.UserID {
+		err = s.takeOverServiceLocked(identity, ownerUserID)
+		s.daemon.lifecycleAccess.Unlock()
 		if err != nil {
 			return nil, err
 		}
 		return &emptypb.Empty{}, nil
 	}
-	if ownerUserID != "" {
-		err = s.daemon.stopServiceLocked(ownerUserID)
+	s.daemon.lifecycleAccess.Unlock()
+	err = authorizeTakeOver(ctx, identity)
+	if err != nil {
+		return nil, err
+	}
+	s.daemon.lifecycleAccess.Lock()
+	defer s.daemon.lifecycleAccess.Unlock()
+	if s.daemon.closed {
+		return nil, os.ErrClosed
+	}
+	ownerUserID, err = loadOwner()
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
+	err = s.takeOverServiceLocked(identity, ownerUserID)
+	if err != nil {
+		return nil, err
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *desktopService) takeOverServiceLocked(identity peerIdentity, ownerUserID string) error {
+	if ownerUserID == identity.UserID {
+		err := s.daemon.preparePlatformOwnerLocked(identity)
 		if err != nil {
-			return nil, err
+			return err
+		}
+		return saveOwner(identity.UserID, identity.SessionID)
+	}
+	if ownerUserID != "" {
+		err := s.daemon.stopServiceLocked(ownerUserID)
+		if err != nil {
+			return err
 		}
 		if s.daemon.platform != nil {
 			err = s.daemon.platform.ReleaseOwner()
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
-	err = s.daemon.configureWorkingDirectoryLocked(userWorkingDirectory(identity.UserID))
+	err := s.daemon.configureWorkingDirectoryLocked(userWorkingDirectory(identity.UserID))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = s.daemon.preparePlatformOwnerLocked(identity)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = saveOwner(identity.UserID, identity.SessionID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	s.daemon.disconnectPeerConnectionsExcept(identity.UserID)
-	return &emptypb.Empty{}, nil
+	return nil
 }
 
 func (s *desktopService) GetSecuritySettings(ctx context.Context, empty *emptypb.Empty) (*SecuritySettings, error) {
@@ -211,7 +238,7 @@ func (s *desktopService) GetSecuritySettings(ctx context.Context, empty *emptypb
 }
 
 func (s *desktopService) SetInsecureModeEnabled(ctx context.Context, request *SetInsecureModeEnabledRequest) (*emptypb.Empty, error) {
-	_, err := peerIdentityFromContext(ctx)
+	identity, err := peerIdentityFromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -225,6 +252,10 @@ func (s *desktopService) SetInsecureModeEnabled(ctx context.Context, request *Se
 	defer s.daemon.lifecycleAccess.Unlock()
 	if s.daemon.closed {
 		return nil, os.ErrClosed
+	}
+	err = authorizeDisableInsecureMode(identity)
+	if err != nil {
+		return nil, err
 	}
 	wasEnabled := s.daemon.insecureModeEnabled()
 	err = saveSecuritySettings(workingDirectory, securitySettings{InsecureModeEnabled: false})
