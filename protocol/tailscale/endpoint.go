@@ -68,6 +68,7 @@ import (
 
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
+	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
 	_ tun.Port                            = (*Endpoint)(nil)
 )
@@ -694,6 +695,16 @@ func (t *Endpoint) Close() error {
 		t.systemTun = nil
 	}
 	return err
+}
+
+func (t *Endpoint) InterfaceUpdated() {
+	if !t.started.Load() {
+		return
+	}
+	netMon, loaded := t.server.Sys().NetMon.GetOK()
+	if loaded && netMon != nil {
+		netMon.InjectEvent()
+	}
 }
 
 func (t *Endpoint) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

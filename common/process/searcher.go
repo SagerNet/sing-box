@@ -14,6 +14,7 @@ import (
 
 type Searcher interface {
 	FindProcessInfo(ctx context.Context, network string, source netip.AddrPort, destination netip.AddrPort) (*adapter.ConnectionOwner, error)
+	ResetCache()
 	Close() error
 }
 
