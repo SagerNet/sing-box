@@ -50,19 +50,17 @@ func (r *Router) HijackDNSPacket(ctx context.Context, payload []byte, writer N.P
 	}
 	destination := metadata.Destination
 	metadata.Destination = M.Socksaddr{}
-	go func() {
-		exchangeErr := r.exchangeDNSPacket(ctx, &message, writer, metadata, destination)
+	r.dns.ExchangeAsync(adapter.WithContext(ctx, &metadata), &message, adapter.DNSQueryOptions{}, func(response *mDNS.Msg, exchangeErr error) {
+		if exchangeErr == nil {
+			exchangeErr = r.writeDNSPacketResponse(&message, response, writer, destination)
+		}
 		if exchangeErr != nil && !R.IsRejected(exchangeErr) && !E.IsClosedOrCanceled(exchangeErr) {
 			r.logger.ErrorContext(ctx, E.Cause(exchangeErr, "process DNS packet"))
 		}
-	}()
+	})
 }
 
-func (r *Router) exchangeDNSPacket(ctx context.Context, message *mDNS.Msg, writer N.PacketWriter, metadata adapter.InboundContext, destination M.Socksaddr) error {
-	response, err := r.dns.Exchange(adapter.WithContext(ctx, &metadata), message, adapter.DNSQueryOptions{})
-	if err != nil {
-		return err
-	}
+func (r *Router) writeDNSPacketResponse(message *mDNS.Msg, response *mDNS.Msg, writer N.PacketWriter, destination M.Socksaddr) error {
 	responseBuffer, err := dns.TruncateDNSMessage(message, response, 1024)
 	if err != nil {
 		return err
