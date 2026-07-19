@@ -35,6 +35,10 @@ func NewSearcher(config Config) (Searcher, error) {
 	return searcher, nil
 }
 
+func (s *linuxSearcher) ResetCache() {
+	s.processPathCache.cache.Purge()
+}
+
 func (s *linuxSearcher) Close() error {
 	var errs []error
 	for _, conn := range s.diagConns {
