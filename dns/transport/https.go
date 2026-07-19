@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -45,6 +46,8 @@ type HTTPSTransport struct {
 	dialer           N.Dialer
 	destination      *url.URL
 	headers          http.Header
+	serverAddr       M.Socksaddr
+	fallback         *atomic.Bool
 	transportAccess  sync.Mutex
 	transport        *HTTPSTransportWrapper
 	transportResetAt time.Time
@@ -123,13 +126,20 @@ func NewHTTPSRaw(
 	if tlsConfig != nil {
 		dialer = tls.NewDialer(dialer, tlsConfig)
 	}
+	fallback := new(atomic.Bool)
+	if destination.Scheme == "http" {
+		// plain HTTP DoH used by Tailscale
+		fallback.Store(true)
+	}
 	return &HTTPSTransport{
 		TransportAdapter: adapter,
 		logger:           logger,
 		dialer:           dialer,
 		destination:      destination,
 		headers:          headers,
-		transport:        NewHTTPSTransportWrapper(dialer, serverAddr, destination),
+		serverAddr:       serverAddr,
+		fallback:         fallback,
+		transport:        NewHTTPSTransportWrapper(dialer, serverAddr, fallback),
 	}
 }
 
@@ -148,8 +158,14 @@ func (t *HTTPSTransport) Close() error {
 func (t *HTTPSTransport) Reset() {
 	t.transportAccess.Lock()
 	defer t.transportAccess.Unlock()
-	t.transport.CloseIdleConnections()
-	t.transport = t.transport.Clone()
+	t.resetTransportLocked()
+}
+
+func (t *HTTPSTransport) resetTransportLocked() {
+	oldTransport := t.transport
+	t.transport = NewHTTPSTransportWrapper(t.dialer, t.serverAddr, t.fallback)
+	t.transportResetAt = time.Now()
+	oldTransport.Close()
 }
 
 func (t *HTTPSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
@@ -162,9 +178,7 @@ func (t *HTTPSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 			if t.transportResetAt.After(startAt) {
 				return nil, err
 			}
-			t.transport.CloseIdleConnections()
-			t.transport = t.transport.Clone()
-			t.transportResetAt = time.Now()
+			t.resetTransportLocked()
 		}
 		return nil, err
 	}

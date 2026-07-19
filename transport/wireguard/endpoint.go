@@ -254,6 +254,13 @@ func (e *Endpoint) Lookup(address netip.Addr) *device.Peer {
 	return e.allowedIPs.Lookup(address.AsSlice())
 }
 
+func (e *Endpoint) BindUpdate() error {
+	if e.device == nil {
+		return nil
+	}
+	return e.device.BindUpdate()
+}
+
 func (e *Endpoint) onPauseUpdated(event int) {
 	switch event {
 	case pause.EventDevicePaused, pause.EventNetworkPause:

@@ -34,6 +34,7 @@ import (
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
 	_ adapter.FlowOutbound                = (*Endpoint)(nil)
+	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
 	_ tun.Port                            = (*Endpoint)(nil)
 )
@@ -394,6 +395,10 @@ func (e *Endpoint) Close() error {
 	}
 	e.notifyStatusUpdated()
 	return err
+}
+
+func (e *Endpoint) InterfaceUpdated() {
+	e.client.RestartSession()
 }
 
 func (e *Endpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {

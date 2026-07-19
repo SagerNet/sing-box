@@ -288,4 +288,10 @@ func (r *Router) NeighborResolver() adapter.NeighborResolver {
 func (r *Router) ResetNetwork() {
 	r.httpClientManager.ResetNetwork()
 	r.dns.ResetNetwork()
+	if r.processCache != nil {
+		r.processCache.Purge()
+	}
+	if r.processSearcher != nil {
+		r.processSearcher.ResetCache()
+	}
 }
