@@ -420,6 +420,10 @@ func (e *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination n
 	return judgeOpenConnectFlow(e.router, e.Tag(), e.Type(), e.state.Load().localAddresses, network, source, destination, firstPacket)
 }
 
+func (e *Endpoint) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	e.newDNSPacket(log.ContextWithNewID(e.loopContext), e, payload, source, destination, writer)
+}
+
 func (e *Endpoint) ready() bool {
 	state := e.state.Load()
 	return state.started && state.tunnelConfigured
