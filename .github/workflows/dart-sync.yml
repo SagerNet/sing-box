@@ -78,7 +78,9 @@ jobs:
         run: |
           set -euo pipefail
           tags="$(cat release/DEFAULT_BUILD_TAGS_OTHERS)"
-          go build -trimpath -tags "$tags" -o /tmp/sing-box.exe ./cmd/sing-box
+          ldflags="$(cat release/LDFLAGS)"
+          go build -trimpath -tags "$tags" -ldflags "$ldflags -s -w -buildid=" \
+            -o /tmp/sing-box.exe ./cmd/sing-box
           test -s /tmp/sing-box.exe
 
       - name: Push verified sync
