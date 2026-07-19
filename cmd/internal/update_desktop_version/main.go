@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
 	"github.com/sagernet/sing-box/log"
@@ -17,7 +18,8 @@ var (
 )
 
 type versionMetadata struct {
-	Version string `json:"version"`
+	Version   string `json:"version"`
+	GoVersion string `json:"go_version"`
 }
 
 func init() {
@@ -38,15 +40,24 @@ func main() {
 	var metadata versionMetadata
 	common.Must(json.NewDecoder(versionFile).Decode(&metadata))
 	common.Must(versionFile.Close())
-	if metadata.Version == newVersion {
+	newGoVersion := runtime.Version()
+	versionUpdated := metadata.Version != newVersion
+	goVersionUpdated := metadata.GoVersion != newGoVersion
+	if !(versionUpdated || goVersionUpdated) {
 		log.Info("version not changed")
 		return
 	}
-	log.Info("updated version from ", metadata.Version, " to ", newVersion)
+	if versionUpdated {
+		log.Info("updated version from ", metadata.Version, " to ", newVersion)
+	}
+	if goVersionUpdated {
+		log.Info("updated Go version from ", metadata.GoVersion, " to ", newGoVersion)
+	}
 	if flagRunInCI && !flagRunNightly {
 		log.Fatal("version changed, commit changes first.")
 	}
 	metadata.Version = newVersion
+	metadata.GoVersion = newGoVersion
 	outputFile := common.Must1(os.Create(versionPath))
 	encoder := json.NewEncoder(outputFile)
 	encoder.SetIndent("", "  ")
