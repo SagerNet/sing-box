@@ -267,7 +267,7 @@ func (t *DNSTransport) PreferredDomain(domain string) bool {
 		return true
 	}
 	for suffix := range routes {
-		if strings.HasSuffix(domain, suffix) {
+		if mDNS.IsSubDomain(suffix, domain) {
 			return true
 		}
 	}
