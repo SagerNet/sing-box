@@ -477,6 +477,10 @@ func (c *ClientEndpoint) JudgeFlow(network uint8, source netip.AddrPort, destina
 	return judgeOpenVPNFlow(c.router, c.Tag(), c.Type(), c.state.Load().localAddresses, network, source, destination, firstPacket)
 }
 
+func (c *ClientEndpoint) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	c.newDNSPacket(log.ContextWithNewID(c.ctx), c, payload, source, destination, writer)
+}
+
 func (c *ClientEndpoint) ready() bool {
 	state := c.state.Load()
 	return state.started && state.tunnelConfigured
