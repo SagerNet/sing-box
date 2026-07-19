@@ -1,0 +1,85 @@
+name: Sync upstream with Dart patches
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dart-upstream-stable-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync, verify, and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          ref: stable
+
+      - name: Configure repositories
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/SagerNet/sing-box.git 2>/dev/null || \
+            git remote set-url upstream https://github.com/SagerNet/sing-box.git
+          git fetch --no-tags upstream stable
+
+      - name: Merge upstream stable
+        run: |
+          set -euo pipefail
+          git merge --no-ff upstream/stable \
+            -m "chore: sync upstream stable [skip ci]"
+
+      - name: Ensure Dart patch
+        run: |
+          set -euo pipefail
+          patch=.github/patches/allow-http-clash-api-delay.patch
+          if git apply --reverse --check "$patch"; then
+            echo "Dart HTTP latency patch is already applied."
+          elif git apply --check "$patch"; then
+            git apply "$patch"
+            git add experimental/clashapi/proxies.go
+            git commit -m "Apply Dart HTTP latency patch [skip ci]"
+          else
+            echo "The Dart patch no longer applies cleanly to upstream stable." >&2
+            exit 1
+          fi
+          if grep -Fq 'strings.HasPrefix(url, "http://")' experimental/clashapi/proxies.go; then
+            echo "HTTP latency-test blocking logic is still present." >&2
+            exit 1
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify Clash API
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l experimental/clashapi/proxies.go)"
+          go test -tags with_clash_api ./experimental/clashapi/...
+
+      - name: Build Windows amd64
+        env:
+          CGO_ENABLED: "0"
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          tags="$(cat release/DEFAULT_BUILD_TAGS_OTHERS)"
+          go build -trimpath -tags "$tags" -o /tmp/sing-box.exe ./cmd/sing-box
+          test -s /tmp/sing-box.exe
+
+      - name: Push verified sync
+        run: git push origin HEAD:stable
