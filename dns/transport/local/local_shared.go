@@ -2,182 +2,117 @@ package local
 
 import (
 	"context"
-	"errors"
-	"math/rand"
-	"syscall"
-	"time"
 
+	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/dns/transport"
-	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 
 	mDNS "github.com/miekg/dns"
 )
 
-func (t *Transport) exchange(ctx context.Context, message *mDNS.Msg, domain string) (*mDNS.Msg, error) {
-	systemConfig := getSystemDNSConfig(t.ctx)
-	if systemConfig.singleRequest || !(message.Question[0].Qtype == mDNS.TypeA || message.Question[0].Qtype == mDNS.TypeAAAA) {
-		return t.exchangeSingleRequest(ctx, systemConfig, message, domain)
-	} else {
-		return t.exchangeParallel(ctx, systemConfig, message, domain)
+type localServerSet struct {
+	config     *dnsConfig
+	transports []adapter.DNSTransport
+}
+
+func (s *localServerSet) Close() {
+	for _, serverTransport := range s.transports {
+		serverTransport.Close()
 	}
 }
 
-func (t *Transport) exchangeSingleRequest(ctx context.Context, systemConfig *dnsConfig, message *mDNS.Msg, domain string) (*mDNS.Msg, error) {
-	var lastErr error
-	for _, fqdn := range systemConfig.nameList(domain) {
-		response, err := t.tryOneName(ctx, systemConfig, fqdn, message)
+func (t *Transport) serverSetFor(systemConfig *dnsConfig) (*localServerSet, error) {
+	serverSet := t.serverSet.Load()
+	if serverSet != nil && serverSet.config == systemConfig {
+		return serverSet, nil
+	}
+	t.serverSetAccess.Lock()
+	defer t.serverSetAccess.Unlock()
+	serverSet = t.serverSet.Load()
+	if serverSet != nil && serverSet.config == systemConfig {
+		return serverSet, nil
+	}
+	transports := make([]adapter.DNSTransport, 0, len(systemConfig.servers))
+	for _, server := range systemConfig.servers {
+		serverAddr := M.ParseSocksaddr(server)
+		if serverAddr.Port == 0 {
+			serverAddr.Port = 53
+		}
+		var serverTransport adapter.DNSTransport
+		if systemConfig.useTCP {
+			serverTransport = transport.NewTCPRaw(dns.NewTransportAdapter(C.DNSTypeTCP, "", nil), t.dialer, serverAddr)
+		} else {
+			serverTransport = transport.NewUDPRaw(t.logger, dns.NewTransportAdapter(C.DNSTypeUDP, "", nil), t.dialer, serverAddr)
+		}
+		err := serverTransport.Start(adapter.StartStateStart)
 		if err != nil {
-			lastErr = err
-			continue
+			for _, startedTransport := range transports {
+				startedTransport.Close()
+			}
+			return nil, E.Cause(err, "initialize transport for ", serverAddr)
 		}
-		return response, nil
+		transports = append(transports, serverTransport)
 	}
-	return nil, lastErr
+	newServerSet := &localServerSet{
+		config:     systemConfig,
+		transports: transports,
+	}
+	oldServerSet := t.serverSet.Swap(newServerSet)
+	if oldServerSet != nil {
+		oldServerSet.Close()
+	}
+	return newServerSet, nil
 }
 
-func (t *Transport) exchangeParallel(ctx context.Context, systemConfig *dnsConfig, message *mDNS.Msg, domain string) (*mDNS.Msg, error) {
-	returned := make(chan struct{})
-	defer close(returned)
-	type queryResult struct {
-		response *mDNS.Msg
-		err      error
+func (t *Transport) exchangeAsync(ctx context.Context, message *mDNS.Msg, domain string, callback func(response *mDNS.Msg, err error)) {
+	systemConfig := getSystemDNSConfig(t.ctx)
+	serverSet, err := t.serverSetFor(systemConfig)
+	if err != nil {
+		callback(nil, err)
+		return
 	}
-	results := make(chan queryResult)
-	startRacer := func(ctx context.Context, fqdn string) {
-		response, err := t.tryOneName(ctx, systemConfig, fqdn, message)
-		select {
-		case results <- queryResult{response, err}:
-		case <-returned:
-		}
+	names := systemConfig.nameList(domain)
+	if len(names) == 0 {
+		callback(nil, E.New("invalid domain: ", domain))
+		return
 	}
-	queryCtx, queryCancel := context.WithCancel(ctx)
-	defer queryCancel()
-	var nameCount int
-	for _, fqdn := range systemConfig.nameList(domain) {
-		nameCount++
-		go startRacer(queryCtx, fqdn)
+	nameExchangers := make([]transport.AsyncExchanger, 0, len(names))
+	for _, fqdn := range names {
+		nameExchangers = append(nameExchangers, newNameExchanger(systemConfig, serverSet, message, fqdn))
 	}
-	var errors []error
-	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case result := <-results:
-			if result.err == nil {
-				return result.response, nil
-			}
-			errors = append(errors, result.err)
-			if len(errors) == nameCount {
-				return nil, E.Errors(errors...)
-			}
-		}
-	}
-}
-
-func (t *Transport) tryOneName(ctx context.Context, config *dnsConfig, fqdn string, message *mDNS.Msg) (*mDNS.Msg, error) {
-	serverOffset := config.serverOffset()
-	sLen := uint32(len(config.servers))
-	var lastErr error
-	for i := 0; i < config.attempts; i++ {
-		for j := range sLen {
-			server := config.servers[(serverOffset+j)%sLen]
-			question := message.Question[0]
-			question.Name = fqdn
-			response, err := t.exchangeOne(ctx, M.ParseSocksaddr(server), question, config.timeout, config.useTCP, config.trustAD)
-			if err != nil {
-				lastErr = err
-				continue
-			}
-			return response, nil
-		}
-	}
-	return nil, E.Cause(lastErr, fqdn)
-}
-
-func (t *Transport) exchangeOne(ctx context.Context, server M.Socksaddr, question mDNS.Question, timeout time.Duration, useTCP, ad bool) (*mDNS.Msg, error) {
-	if server.Port == 0 {
-		server.Port = 53
-	}
-	request := &mDNS.Msg{
-		MsgHdr: mDNS.MsgHdr{
-			Id:                uint16(rand.Uint32()),
-			RecursionDesired:  true,
-			AuthenticatedData: ad,
-		},
-		Question: []mDNS.Question{question},
-		Compress: true,
-	}
-	request.SetEdns0(buf.UDPBufferSize, false)
-	if !useTCP {
-		return t.exchangeUDP(ctx, server, request, timeout)
+	question := message.Question[0]
+	if systemConfig.singleRequest || !(question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA) {
+		transport.ExchangeSequential(ctx, nameExchangers, nil, callback)
 	} else {
-		return t.exchangeTCP(ctx, server, request, timeout)
+		transport.ExchangeRace(ctx, nameExchangers, callback)
 	}
 }
 
-func (t *Transport) exchangeUDP(ctx context.Context, server M.Socksaddr, request *mDNS.Msg, timeout time.Duration) (*mDNS.Msg, error) {
-	conn, err := t.dialer.DialContext(ctx, N.NetworkUDP, server)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	if deadline, loaded := ctx.Deadline(); loaded && !deadline.IsZero() {
-		newDeadline := time.Now().Add(timeout)
-		if deadline.After(newDeadline) {
-			deadline = newDeadline
+func newNameExchanger(systemConfig *dnsConfig, serverSet *localServerSet, message *mDNS.Msg, fqdn string) transport.AsyncExchanger {
+	serverOffset := systemConfig.serverOffset()
+	serverCount := uint32(len(serverSet.transports))
+	attemptExchangers := make([]transport.AsyncExchanger, 0, systemConfig.attempts*int(serverCount))
+	for i := 0; i < systemConfig.attempts; i++ {
+		for j := range serverCount {
+			serverTransport := serverSet.transports[(serverOffset+j)%serverCount]
+			attemptExchangers = append(attemptExchangers, func(ctx context.Context, callback func(response *mDNS.Msg, err error)) {
+				attemptCtx, cancel := context.WithTimeout(ctx, systemConfig.timeout)
+				serverTransport.ExchangeAsync(attemptCtx, transport.NewFanOutRequest(message, fqdn, systemConfig.trustAD), func(response *mDNS.Msg, err error) {
+					cancel()
+					callback(response, err)
+				})
+			})
 		}
-		conn.SetDeadline(deadline)
 	}
-	buffer := buf.Get(buf.UDPBufferSize)
-	defer buf.Put(buffer)
-	rawMessage, err := request.PackBuffer(buffer)
-	if err != nil {
-		return nil, E.Cause(err, "pack request")
+	return func(ctx context.Context, callback func(response *mDNS.Msg, err error)) {
+		transport.ExchangeSequential(ctx, attemptExchangers, nil, func(response *mDNS.Msg, err error) {
+			if err != nil {
+				err = E.Cause(err, fqdn)
+			}
+			callback(response, err)
+		})
 	}
-	_, err = conn.Write(rawMessage)
-	if err != nil {
-		if errors.Is(err, syscall.EMSGSIZE) {
-			return t.exchangeTCP(ctx, server, request, timeout)
-		}
-		return nil, E.Cause(err, "write request")
-	}
-	n, err := conn.Read(buffer)
-	if err != nil {
-		if errors.Is(err, syscall.EMSGSIZE) {
-			return t.exchangeTCP(ctx, server, request, timeout)
-		}
-		return nil, E.Cause(err, "read response")
-	}
-	var response mDNS.Msg
-	err = response.Unpack(buffer[:n])
-	if err != nil {
-		return nil, E.Cause(err, "unpack response")
-	}
-	if response.Truncated {
-		return t.exchangeTCP(ctx, server, request, timeout)
-	}
-	return &response, nil
-}
-
-func (t *Transport) exchangeTCP(ctx context.Context, server M.Socksaddr, request *mDNS.Msg, timeout time.Duration) (*mDNS.Msg, error) {
-	conn, err := t.dialer.DialContext(ctx, N.NetworkTCP, server)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	if deadline, loaded := ctx.Deadline(); loaded && !deadline.IsZero() {
-		newDeadline := time.Now().Add(timeout)
-		if deadline.After(newDeadline) {
-			deadline = newDeadline
-		}
-		conn.SetDeadline(deadline)
-	}
-	err = transport.WriteMessage(conn, 0, request)
-	if err != nil {
-		return nil, err
-	}
-	return transport.ReadMessage(conn)
 }

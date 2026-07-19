@@ -171,6 +171,12 @@ func (t *HTTPSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS
 	return response, nil
 }
 
+func (t *HTTPSTransport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	go func() {
+		callback(t.Exchange(ctx, message))
+	}()
+}
+
 func (t *HTTPSTransport) exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	exMessage := *message
 	exMessage.Id = 0

@@ -159,6 +159,12 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	return nil, E.New("mdns: query timeout")
 }
 
+func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	go func() {
+		callback(t.Exchange(ctx, message))
+	}()
+}
+
 type exchangeResult struct {
 	response *mDNS.Msg
 	err      error
