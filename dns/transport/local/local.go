@@ -148,6 +148,9 @@ func (t *Transport) Reset() {
 		}
 	}
 	t.system.reset()
+	if t.resolved != nil {
+		t.resolved.Reset()
+	}
 	if t.dhcpTransport != nil {
 		t.dhcpTransport.Reset()
 	}
