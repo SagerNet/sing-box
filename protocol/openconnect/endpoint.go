@@ -68,6 +68,18 @@ func (e *endpointBase) newPacketConnection(ctx context.Context, endpoint adapter
 	e.router.RoutePacketConnectionEx(ctx, conn, metadata, onClose)
 }
 
+func (e *endpointBase) newDNSPacket(ctx context.Context, endpoint adapter.Endpoint, payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	var metadata adapter.InboundContext
+	metadata.Inbound = endpoint.Tag()
+	metadata.InboundType = endpoint.Type()
+	metadata.Network = N.NetworkUDP
+	metadata.Source = source
+	metadata.Destination = destination
+	metadata.Protocol = C.ProtocolDNS
+	e.logger.InfoContext(ctx, "inbound DNS packet from ", source)
+	e.router.HijackDNSPacket(ctx, payload, writer, metadata)
+}
+
 func isEndpointLocalAddress(localAddresses []netip.Prefix, address netip.Addr) bool {
 	for _, localPrefix := range localAddresses {
 		if address == localPrefix.Addr() {
