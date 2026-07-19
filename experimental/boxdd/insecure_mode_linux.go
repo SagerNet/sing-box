@@ -1,4 +1,4 @@
-//go:build windows
+//go:build linux
 
 package main
 
@@ -23,7 +23,7 @@ func insecureModeAvailable() bool {
 }
 
 func insecureModePlatformName() string {
-	return "Windows"
+	return "Linux"
 }
 
 func loadSecuritySettings(directory string) (securitySettings, error) {
