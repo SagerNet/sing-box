@@ -9,6 +9,12 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-func (t *Transport) systemExchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	return nil, os.ErrInvalid
+type systemResolver struct{}
+
+func (r *systemResolver) close() {}
+
+func (r *systemResolver) reset() {}
+
+func (t *Transport) systemExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	callback(nil, os.ErrInvalid)
 }
