@@ -547,21 +547,6 @@ func (d *Daemon) duplicatePeerImpersonationToken(identity peerIdentity) (windows
 	return 0, E.New("authenticated application connection is no longer available")
 }
 
-func (d *Daemon) registerPeerConnection(connection peerConnection) {
-	d.peerAccess.Lock()
-	defer d.peerAccess.Unlock()
-	if d.peerConnections == nil {
-		d.peerConnections = make(map[peerConnection]peerIdentity)
-	}
-	d.peerConnections[connection] = connection.peerConnectionIdentity()
-}
-
-func (d *Daemon) unregisterPeerConnection(connection peerConnection) {
-	d.peerAccess.Lock()
-	defer d.peerAccess.Unlock()
-	delete(d.peerConnections, connection)
-}
-
 func (c *windowsAuthenticatedConnection) Close() error {
 	c.close.Do(func() {
 		c.daemon.unregisterPeerConnection(c)
