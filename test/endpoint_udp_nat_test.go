@@ -48,6 +48,9 @@ func (h *endpointUDPNATHandler) JudgeFlow(uint8, netip.AddrPort, netip.AddrPort,
 	return tun.FlowVerdict{Action: tun.ActionAccept}
 }
 
+func (h *endpointUDPNATHandler) NewDNSPacket([]byte, M.Socksaddr, M.Socksaddr, N.PacketWriter) {
+}
+
 func (h *endpointUDPNATHandler) NewConnectionEx(_ context.Context, conn net.Conn, _ M.Socksaddr, _ M.Socksaddr, onClose N.CloseHandlerFunc) {
 	err := conn.Close()
 	if onClose != nil {
