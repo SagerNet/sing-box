@@ -20,6 +20,10 @@ func NewSearcher(_ Config) (Searcher, error) {
 	return &darwinSearcher{}, nil
 }
 
+func (d *darwinSearcher) ResetCache() {
+	sharedDarwinConnectionFinder.resetCache()
+}
+
 func (d *darwinSearcher) Close() error {
 	return nil
 }

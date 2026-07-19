@@ -119,6 +119,12 @@ func (f *darwinConnectionFinder) find(network string, source netip.AddrPort, des
 	return nil, ErrNotFound
 }
 
+func (f *darwinConnectionFinder) resetCache() {
+	f.access.Lock()
+	defer f.access.Unlock()
+	clear(f.snapshots)
+}
+
 func (f *darwinConnectionFinder) loadSnapshot(network string, forceRefresh bool) (darwinSnapshot, bool, error) {
 	f.access.Lock()
 	defer f.access.Unlock()

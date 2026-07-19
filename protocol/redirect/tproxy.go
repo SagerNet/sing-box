@@ -85,6 +85,10 @@ func (t *TProxy) Start(stage adapter.StartStage) error {
 	return err
 }
 
+func (t *TProxy) InterfaceUpdated() {
+	t.udpNat.Purge()
+}
+
 func (t *TProxy) Close() error {
 	_ = t.udpNat.Close()
 	return t.listener.Close()

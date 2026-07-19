@@ -134,6 +134,19 @@ func (t *DBusResolvedResolver) Close() error {
 	return closeErr
 }
 
+func (t *DBusResolvedResolver) Reset() {
+	serverSet := t.savedServerSet.Load()
+	if serverSet == nil {
+		return
+	}
+	for _, server := range serverSet.servers {
+		server.primaryTransport.Reset()
+		if server.fallbackTransport != nil {
+			server.fallbackTransport.Reset()
+		}
+	}
+}
+
 func (t *DBusResolvedResolver) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
 	serverSet := t.savedServerSet.Load()
 	if serverSet == nil {

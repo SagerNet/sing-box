@@ -23,6 +23,9 @@ func NewSearcher(config Config) (Searcher, error) {
 	return &androidSearcher{config.PackageManager}, nil
 }
 
+func (s *androidSearcher) ResetCache() {
+}
+
 func (s *androidSearcher) Close() error {
 	return nil
 }
