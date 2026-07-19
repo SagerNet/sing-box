@@ -58,7 +58,8 @@ func build() error {
 	if err != nil {
 		return E.Cause(err, "read version")
 	}
-	tags, err := buildTags(operatingSystem, architecture)
+	cgoEnabled := operatingSystem != "windows" && os.Getenv("CC") != ""
+	tags, err := buildTags(operatingSystem, architecture, cgoEnabled)
 	if err != nil {
 		return err
 	}
@@ -76,8 +77,12 @@ func build() error {
 	}
 	arguments = append(arguments, "./experimental/boxdd")
 	command := exec.Command("go", arguments...)
+	cgoEnabledValue := "0"
+	if cgoEnabled {
+		cgoEnabledValue = "1"
+	}
 	command.Env = append(os.Environ(),
-		"CGO_ENABLED=0",
+		"CGO_ENABLED="+cgoEnabledValue,
 		"GOOS="+operatingSystem,
 		"GOARCH="+architecture,
 		"GOTOOLCHAIN=local",
@@ -91,7 +96,7 @@ func build() error {
 	return nil
 }
 
-func buildTags(operatingSystem string, architecture string) ([]string, error) {
+func buildTags(operatingSystem string, architecture string, cgoEnabled bool) ([]string, error) {
 	tagsFile := "release/DEFAULT_BUILD_TAGS"
 	if operatingSystem == "windows" {
 		if architecture == "386" {
@@ -99,15 +104,14 @@ func buildTags(operatingSystem string, architecture string) ([]string, error) {
 		} else {
 			tagsFile = "release/DEFAULT_BUILD_TAGS_WINDOWS"
 		}
+	} else if !cgoEnabled {
+		tagsFile = "release/DEFAULT_BUILD_TAGS_OTHERS"
 	}
 	content, err := os.ReadFile(tagsFile)
 	if err != nil {
 		return nil, E.Cause(err, "read build tags")
 	}
 	tags := strings.Split(strings.TrimSpace(string(content)), ",")
-	if operatingSystem != "windows" {
-		tags = append(tags, "with_purego")
-	}
 	if debugEnabled {
 		tags = append(tags, "debug")
 	}
