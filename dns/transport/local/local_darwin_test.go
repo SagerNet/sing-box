@@ -7,6 +7,7 @@ import (
 	"context"
 	"net"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,9 +27,25 @@ func requireMDNSResponder(t *testing.T) {
 	conn.Close()
 }
 
+func systemExchangeForTest(ctx context.Context, transport *Transport, message *mDNS.Msg) (*mDNS.Msg, error) {
+	done := make(chan struct{})
+	var (
+		response *mDNS.Msg
+		err      error
+	)
+	transport.systemExchangeAsync(ctx, message, func(callbackResponse *mDNS.Msg, callbackErr error) {
+		response = callbackResponse
+		err = callbackErr
+		close(done)
+	})
+	<-done
+	return response, err
+}
+
 func TestSystemExchangeLoopback(t *testing.T) {
 	requireMDNSResponder(t)
 	transport := &Transport{}
+	defer transport.system.close()
 	for _, testCase := range []struct {
 		qtype    uint16
 		expected net.IP
@@ -39,7 +56,7 @@ func TestSystemExchangeLoopback(t *testing.T) {
 		message := new(mDNS.Msg)
 		message.SetQuestion("localhost.", testCase.qtype)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		response, err := transport.systemExchange(ctx, message)
+		response, err := systemExchangeForTest(ctx, transport, message)
 		cancel()
 		if err != nil {
 			t.Fatalf("%s localhost: %v", mDNS.TypeToString[testCase.qtype], err)
@@ -67,13 +84,15 @@ func TestSystemExchangeLoopback(t *testing.T) {
 
 func TestSystemExchangeNoData(t *testing.T) {
 	requireMDNSResponder(t)
+	transport := &Transport{}
+	defer transport.system.close()
 	message := new(mDNS.Msg)
 	// localhost has no MX record, so the daemon reports NoSuchRecord, which must
 	// surface as an empty NOERROR response rather than an error.
 	message.SetQuestion("localhost.", mDNS.TypeMX)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	response, err := (&Transport{}).systemExchange(ctx, message)
+	response, err := systemExchangeForTest(ctx, transport, message)
 	if err != nil {
 		t.Fatalf("MX localhost: %v", err)
 	}
@@ -87,17 +106,60 @@ func TestSystemExchangeNoData(t *testing.T) {
 
 func TestSystemExchangeCancel(t *testing.T) {
 	requireMDNSResponder(t)
+	transport := &Transport{}
+	defer transport.system.close()
 	message := new(mDNS.Msg)
 	message.SetQuestion("localhost.", mDNS.TypeA)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	start := time.Now()
-	_, err := (&Transport{}).systemExchange(ctx, message)
+	_, err := systemExchangeForTest(ctx, transport, message)
 	elapsed := time.Since(start)
 	if err == nil {
 		t.Fatal("expected error for cancelled context")
 	}
 	if elapsed > time.Second {
 		t.Fatalf("cancellation too slow: %s", elapsed)
+	}
+}
+
+func TestSystemExchangeConcurrent(t *testing.T) {
+	requireMDNSResponder(t)
+	transport := &Transport{}
+	defer transport.system.close()
+	var waitGroup sync.WaitGroup
+	errors := make(chan error, 16)
+	for i := range 16 {
+		qtype := mDNS.TypeA
+		if i%2 == 1 {
+			qtype = mDNS.TypeAAAA
+		}
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			message := new(mDNS.Msg)
+			message.SetQuestion("localhost.", qtype)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			response, exchangeErr := systemExchangeForTest(ctx, transport, message)
+			if exchangeErr != nil {
+				errors <- exchangeErr
+				return
+			}
+			if len(response.Answer) == 0 {
+				errors <- context.DeadlineExceeded
+			}
+		}()
+	}
+	waitGroup.Wait()
+	close(errors)
+	for exchangeErr := range errors {
+		t.Fatal("concurrent query failed: ", exchangeErr)
+	}
+	transport.system.queryAccess.Lock()
+	pendingCount := len(transport.system.queries)
+	transport.system.queryAccess.Unlock()
+	if pendingCount != 0 {
+		t.Fatalf("expected no pending queries after completion, got %d", pendingCount)
 	}
 }
