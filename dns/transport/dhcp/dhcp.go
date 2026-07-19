@@ -8,12 +8,14 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/dns/transport"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
@@ -54,6 +56,8 @@ type Transport struct {
 	updatedAt         time.Time
 	lastError         error
 	servers           []M.Socksaddr
+	serverTransports  []adapter.DNSTransport
+	refreshing        atomic.Bool
 	search            []string
 	ndots             int
 	attempts          int
@@ -100,7 +104,7 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 		t.interfaceCallback = t.networkManager.InterfaceMonitor().RegisterCallback(t.interfaceUpdated)
 	}
 	go func() {
-		_, err := t.fetch()
+		err := t.fetch()
 		if err != nil {
 			if errors.Is(err, errInterfaceIsCellular) && t.optional {
 				t.logger.Debug(E.Cause(errInterfaceIsCellular, "dhcp: fetch DNS servers"))
@@ -116,6 +120,9 @@ func (t *Transport) Close() error {
 	if t.interfaceCallback != nil {
 		t.networkManager.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
 	}
+	t.transportLock.Lock()
+	defer t.transportLock.Unlock()
+	t.closeServerTransports()
 	return nil
 }
 
@@ -124,57 +131,122 @@ func (t *Transport) Reset() {
 	t.updatedAt = time.Time{}
 	t.lastError = nil
 	t.servers = nil
+	t.closeServerTransports()
 	t.transportLock.Unlock()
 }
 
-func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
-	servers, err := t.fetch()
-	if err != nil {
-		return nil, E.Cause(err, "dhcp: fetch DNS servers")
+func (t *Transport) closeServerTransports() {
+	for _, serverTransport := range t.serverTransports {
+		serverTransport.Close()
 	}
-	if len(servers) == 0 {
-		return nil, E.New("dhcp: empty DNS servers from response")
-	}
-	return t.Exchange0(ctx, message, servers)
+	t.serverTransports = nil
 }
 
-func (t *Transport) Exchange0(ctx context.Context, message *mDNS.Msg, servers []M.Socksaddr) (*mDNS.Msg, error) {
-	question := message.Question[0]
-	domain := dns.FqdnToDomain(question.Name)
-	if len(servers) == 1 || !(message.Question[0].Qtype == mDNS.TypeA || message.Question[0].Qtype == mDNS.TypeAAAA) {
-		return t.exchangeSingleRequest(ctx, servers, message, domain)
-	} else {
-		return t.exchangeParallel(ctx, servers, message, domain)
+func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	done := make(chan struct{})
+	var (
+		response *mDNS.Msg
+		err      error
+	)
+	t.ExchangeAsync(ctx, message, func(callbackResponse *mDNS.Msg, callbackErr error) {
+		response = callbackResponse
+		err = callbackErr
+		close(done)
+	})
+	<-done
+	return response, err
+}
+
+func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	t.transportLock.RLock()
+	updatedAt := t.updatedAt
+	lastError := t.lastError
+	serverTransports := t.serverTransports
+	t.transportLock.RUnlock()
+	if lastError != nil {
+		callback(nil, E.Cause(lastError, "dhcp: fetch DNS servers"))
+		return
 	}
+	if len(serverTransports) == 0 {
+		go t.exchangeCold(ctx, message, callback)
+		return
+	}
+	if time.Since(updatedAt) >= C.DHCPTTL {
+		t.startRefresh()
+	}
+	t.exchangeWithTransports(ctx, message, serverTransports, callback)
+}
+
+func (t *Transport) exchangeCold(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	err := t.fetch()
+	if err != nil {
+		callback(nil, E.Cause(err, "dhcp: fetch DNS servers"))
+		return
+	}
+	t.transportLock.RLock()
+	serverTransports := t.serverTransports
+	t.transportLock.RUnlock()
+	if len(serverTransports) == 0 {
+		callback(nil, E.New("dhcp: empty DNS servers from response"))
+		return
+	}
+	t.exchangeWithTransports(ctx, message, serverTransports, callback)
 }
 
 func (t *Transport) Fetch() []M.Socksaddr {
-	servers, _ := t.fetch()
-	return servers
-}
-
-func (t *Transport) fetch() ([]M.Socksaddr, error) {
 	t.transportLock.RLock()
 	updatedAt := t.updatedAt
 	lastError := t.lastError
 	servers := t.servers
 	t.transportLock.RUnlock()
 	if lastError != nil {
-		return nil, lastError
+		return nil
+	}
+	if len(servers) > 0 && time.Since(updatedAt) >= C.DHCPTTL {
+		t.startRefresh()
+	}
+	return servers
+}
+
+func (t *Transport) fetch() error {
+	t.transportLock.RLock()
+	updatedAt := t.updatedAt
+	lastError := t.lastError
+	t.transportLock.RUnlock()
+	if lastError != nil {
+		return lastError
 	}
 	if time.Since(updatedAt) < C.DHCPTTL {
-		return servers, nil
+		return nil
 	}
 	t.transportLock.Lock()
 	defer t.transportLock.Unlock()
 	if time.Since(t.updatedAt) < C.DHCPTTL {
-		return t.servers, nil
+		return nil
 	}
-	err := t.updateServers()
-	if err != nil {
-		return servers, err
+	return t.updateServers()
+}
+
+func (t *Transport) startRefresh() {
+	if !t.refreshing.CompareAndSwap(false, true) {
+		return
 	}
-	return t.servers, nil
+	go func() {
+		defer t.refreshing.Store(false)
+		t.transportLock.Lock()
+		defer t.transportLock.Unlock()
+		if time.Since(t.updatedAt) < C.DHCPTTL {
+			return
+		}
+		err := t.updateServers()
+		if err != nil {
+			if errors.Is(err, errInterfaceIsCellular) && t.optional {
+				t.logger.Debug(E.Cause(err, "dhcp: refresh DNS servers"))
+			} else {
+				t.logger.Error(E.Cause(err, "dhcp: refresh DNS servers"))
+			}
+		}
+	}()
 }
 
 func (t *Transport) fetchInterface() (*control.Interface, error) {
@@ -228,7 +300,9 @@ func (t *Transport) updateServers() error {
 }
 
 func (t *Transport) interfaceUpdated(defaultInterface *control.Interface, flags int) {
+	t.transportLock.Lock()
 	err := t.updateServers()
+	t.transportLock.Unlock()
 	if err != nil {
 		if errors.Is(err, errInterfaceIsCellular) && t.optional {
 			t.logger.Debug(E.Cause(errInterfaceIsCellular, "dhcp: update DNS servers"))
@@ -337,6 +411,22 @@ func (t *Transport) recreateServers(iface *control.Interface, dhcpPacket *dhcpv4
 	})
 	if len(serverAddrs) > 0 && !slices.Equal(t.servers, serverAddrs) {
 		t.logger.Info("dhcp: updated DNS servers from ", iface.Name, ": [", strings.Join(common.Map(serverAddrs, M.Socksaddr.String), ","), "], search: [", strings.Join(t.search, ","), "]")
+	}
+	if !slices.Equal(t.servers, serverAddrs) || t.serverTransports == nil {
+		t.closeServerTransports()
+		serverTransports := make([]adapter.DNSTransport, 0, len(serverAddrs))
+		for _, serverAddr := range serverAddrs {
+			serverTransport := transport.NewUDPRaw(t.logger, dns.NewTransportAdapter(C.DNSTypeUDP, "", nil), t.dialer, serverAddr)
+			err := serverTransport.Start(adapter.StartStateStart)
+			if err != nil {
+				for _, startedTransport := range serverTransports {
+					startedTransport.Close()
+				}
+				return E.Cause(err, "initialize transport for ", serverAddr)
+			}
+			serverTransports = append(serverTransports, serverTransport)
+		}
+		t.serverTransports = serverTransports
 	}
 	t.servers = serverAddrs
 	return nil
