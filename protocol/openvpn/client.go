@@ -32,6 +32,7 @@ import (
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*ClientEndpoint)(nil)
 	_ adapter.FlowOutbound                = (*ClientEndpoint)(nil)
+	_ adapter.InterfaceUpdateListener     = (*ClientEndpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*ClientEndpoint)(nil)
 	_ tun.Port                            = (*ClientEndpoint)(nil)
 )
@@ -451,6 +452,10 @@ func (c *ClientEndpoint) Close() error {
 	}
 	c.notifyStatusUpdated()
 	return err
+}
+
+func (c *ClientEndpoint) InterfaceUpdated() {
+	c.client.RestartSession()
 }
 
 func (c *ClientEndpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
