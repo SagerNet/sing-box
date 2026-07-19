@@ -19,6 +19,7 @@ type Router interface {
 	Lifecycle
 	ConnectionRouter
 	PreMatch(metadata InboundContext, firstPacket []byte) PreMatchResult
+	HijackDNSPacket(ctx context.Context, payload []byte, writer N.PacketWriter, metadata InboundContext)
 	ConnectionRouterEx
 	RuleSet(tag string) (RuleSet, bool)
 	Rules() []Rule
@@ -37,6 +38,7 @@ const (
 	PreMatchReject
 	PreMatchDrop
 	PreMatchBypass
+	PreMatchHijackDNS
 )
 
 type PreMatchResult struct {
@@ -92,6 +94,8 @@ func JudgeFlow(router Router, inbound string, inboundType string, network uint8,
 		return tun.FlowVerdict{Action: tun.ActionDrop}
 	case PreMatchBypass:
 		return tun.FlowVerdict{Action: tun.ActionBypass}
+	case PreMatchHijackDNS:
+		return tun.FlowVerdict{Action: tun.ActionHijackDNS}
 	default:
 		return tun.FlowVerdict{Action: tun.ActionAccept}
 	}
