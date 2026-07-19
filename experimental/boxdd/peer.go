@@ -11,9 +11,10 @@ import (
 )
 
 type peerIdentity struct {
-	UserID    string
-	ProcessID uint32
-	SessionID uint32
+	UserID           string
+	ProcessID        uint32
+	ProcessStartTime uint64
+	SessionID        uint32
 }
 
 type peerAuthInfo struct {
@@ -42,4 +43,19 @@ var _ credentials.AuthInfo = (*peerAuthInfo)(nil)
 type peerConnection interface {
 	net.Conn
 	peerConnectionIdentity() peerIdentity
+}
+
+func (d *Daemon) registerPeerConnection(connection peerConnection) {
+	d.peerAccess.Lock()
+	defer d.peerAccess.Unlock()
+	if d.peerConnections == nil {
+		d.peerConnections = make(map[peerConnection]peerIdentity)
+	}
+	d.peerConnections[connection] = connection.peerConnectionIdentity()
+}
+
+func (d *Daemon) unregisterPeerConnection(connection peerConnection) {
+	d.peerAccess.Lock()
+	defer d.peerAccess.Unlock()
+	delete(d.peerConnections, connection)
 }
