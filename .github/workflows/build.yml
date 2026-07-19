@@ -17,6 +17,7 @@ on:
           - Binary
           - Android
           - Windows
+          - Linux
           - Apple
           - app-store
           - iOS
@@ -882,6 +883,162 @@ jobs:
         with:
           name: binary-windows-client
           path: 'dist'
+  build_linux_client:
+    name: Build Linux client (${{ matrix.desktop_arch }})
+    if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Linux') && github.ref != 'refs/heads/oldstable'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+    strategy:
+      matrix:
+        include:
+          - { desktop_arch: x64, go_arch: amd64 }
+          - { desktop_arch: arm64, go_arch: arm64 }
+          - { desktop_arch: armv7l, go_arch: arm, go_arm: "7" }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          submodules: 'recursive'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: clients/desktop/package.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: clients/desktop/package.json
+          cache: pnpm
+          cache-dependency-path: |
+            clients/desktop/pnpm-lock.yaml
+            clients/desktop/dashboard/pnpm-lock.yaml
+      - name: Set tag
+        run: |-
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Checkout main branch
+        if: github.ref == 'refs/heads/testing'
+        run: |-
+          git -C clients/desktop checkout main
+      - name: Checkout submodule recursive
+        run: |-
+          git -C clients/desktop submodule update --init --recursive
+      - name: Update version
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/update_desktop_version --ci
+      - name: Update nightly version
+        if: github.event_name != 'workflow_dispatch'
+        run: |-
+          go run -v ./cmd/internal/update_desktop_version --ci --nightly
+      - name: Clone cronet-go
+        run: |-
+          set -xeuo pipefail
+          CRONET_GO_VERSION=$(cat .github/CRONET_GO_VERSION)
+          git init ~/cronet-go
+          git -C ~/cronet-go remote add origin https://github.com/sagernet/cronet-go.git
+          git -C ~/cronet-go fetch --depth=1 origin "$CRONET_GO_VERSION"
+          git -C ~/cronet-go checkout FETCH_HEAD
+          git -C ~/cronet-go submodule update --init --recursive --depth=1
+      - name: Regenerate Debian keyring
+        run: |-
+          set -xeuo pipefail
+          rm -f ~/cronet-go/naiveproxy/src/build/linux/sysroot_scripts/keyring.gpg
+          cd ~/cronet-go
+          GPG_TTY=/dev/null ./naiveproxy/src/build/linux/sysroot_scripts/generate_keyring.sh
+      - name: Cache Chromium toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/cronet-go/naiveproxy/src/third_party/llvm-build/
+            ~/cronet-go/naiveproxy/src/gn/out/
+            ~/cronet-go/naiveproxy/src/chrome/build/pgo_profiles/
+            ~/cronet-go/naiveproxy/src/out/sysroot-build/
+          key: chromium-toolchain-linux-desktop-${{ matrix.go_arch }}-${{ hashFiles('.github/CRONET_GO_VERSION') }}
+      - name: Download Chromium toolchain
+        run: |-
+          set -xeuo pipefail
+          cd ~/cronet-go
+          go run ./cmd/build-naive --target=linux/${{ matrix.go_arch }} download-toolchain
+      - name: Set Chromium toolchain environment
+        run: |-
+          set -xeuo pipefail
+          cd ~/cronet-go
+          go run ./cmd/build-naive --target=linux/${{ matrix.go_arch }} env >> "$GITHUB_ENV"
+      - name: Install package tools
+        run: |-
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y debsigs libarchive-tools rpm zstd
+          curl -Lo "$RUNNER_TEMP/debsigs.diff" 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
+          sudo patch /usr/bin/debsigs < "$RUNNER_TEMP/debsigs.diff"
+      - name: Install dependencies
+        run: |-
+          pnpm -C clients/desktop install
+      - name: Build
+        run: |-
+          pnpm -C clients/desktop package:linux -- deb rpm pacman ${{ matrix.desktop_arch }}
+        env:
+          CGO_ENABLED: "0"
+          GOARM: ${{ matrix.go_arm }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup package signing
+        run: |-
+          set -euo pipefail
+          SIGNING_GNUPG_HOME="$RUNNER_TEMP/package-signing-gnupg"
+          SIGNING_PASSPHRASE_FILE="$RUNNER_TEMP/package-signing-passphrase"
+          mkdir -m 700 "$SIGNING_GNUPG_HOME"
+          printf '%s' "$GPG_PASSPHRASE" > "$SIGNING_PASSPHRASE_FILE"
+          chmod 600 "$SIGNING_PASSPHRASE_FILE"
+          {
+            echo "GNUPGHOME=$SIGNING_GNUPG_HOME"
+            echo "SIGNING_PASSPHRASE_FILE=$SIGNING_PASSPHRASE_FILE"
+          } >> "$GITHUB_ENV"
+          printf '%s' "$GPG_KEY" | gpg \
+            --homedir "$SIGNING_GNUPG_HOME" \
+            --batch \
+            --pinentry-mode loopback \
+            --passphrase-file "$SIGNING_PASSPHRASE_FILE" \
+            --import
+          cat > "$HOME/.rpmmacros" <<EOF
+          %_gpg_name $GPG_KEY_ID
+          %_gpg_sign_cmd_extra_args --pinentry-mode loopback --passphrase-file $SIGNING_PASSPHRASE_FILE
+          EOF
+        env:
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Sign Linux packages
+        run: |-
+          set -euo pipefail
+          debsigs \
+            --sign=origin \
+            -k "$GPG_KEY_ID" \
+            --gpgopts "--batch --pinentry-mode loopback --passphrase-file $SIGNING_PASSPHRASE_FILE" \
+            clients/desktop/release/SFL-*.deb
+          rpmsign --addsign clients/desktop/release/SFL-*.rpm
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+      - name: Prepare upload
+        run: |-
+          shopt -s nullglob
+          artifacts=(clients/desktop/release/SFL-*.deb clients/desktop/release/SFL-*.rpm clients/desktop/release/SFL-*.pkg.tar.zst)
+          if (( ${#artifacts[@]} != 3 )); then
+            echo "expected 3 Linux packages, found ${#artifacts[@]}" >&2
+            exit 1
+          fi
+          mkdir -p dist
+          cp "${artifacts[@]}" dist
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-linux-client-${{ matrix.desktop_arch }}
+          path: 'dist'
   build_apple:
     name: Build Apple clients
     runs-on: macos-26
@@ -1066,7 +1223,7 @@ jobs:
           path: 'dist'
   upload:
     name: Upload builds
-    if: "!failure() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Windows' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone')"
+    if: "!failure() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Windows' || inputs.build == 'Linux' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone')"
     runs-on: ubuntu-latest
     needs:
       - calculate_version
@@ -1075,6 +1232,7 @@ jobs:
       - build_windows
       - build_android
       - build_windows_client
+      - build_linux_client
       - build_apple
     steps:
       - name: Checkout
