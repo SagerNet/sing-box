@@ -105,6 +105,12 @@ func (p *platformTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*m
 	}
 }
 
+func (p *platformTransport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	go func() {
+		callback(p.Exchange(ctx, message))
+	}()
+}
+
 type Func interface {
 	Invoke() error
 }
