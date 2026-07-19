@@ -11,3 +11,9 @@ The `Sync upstream with Dart patches` workflow merges `SagerNet/sing-box`'s
 API package, and cross-builds the Windows amd64 binary before pushing the
 updated branch. If upstream changes make the patch ambiguous, the workflow
 fails without pushing.
+
+The `Release Dart patched core` workflow checks the latest stable upstream
+release each day. For every new upstream version it creates a matching
+`v<version>-dart.1` source tag, verifies the patch, and publishes a Windows
+amd64 ZIP plus `SHA256SUMS.txt`. Existing releases are left untouched, and a
+manual run can target a specific stable upstream tag.
