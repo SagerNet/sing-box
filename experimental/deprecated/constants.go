@@ -36,10 +36,14 @@ func (n Note) Impending() bool {
 }
 
 func (n Note) Message() string {
+	return n.MessageForLocale(locale.Current())
+}
+
+func (n Note) MessageForLocale(selectedLocale *locale.Locale) string {
 	if n.MigrationLink != "" {
-		return fmt.Sprintf(locale.Current().DeprecatedMessage, n.Description, n.DeprecatedVersion, n.ScheduledVersion)
+		return fmt.Sprintf(selectedLocale.DeprecatedMessage, n.Description, n.DeprecatedVersion, n.ScheduledVersion)
 	} else {
-		return fmt.Sprintf(locale.Current().DeprecatedMessageNoLink, n.Description, n.DeprecatedVersion, n.ScheduledVersion)
+		return fmt.Sprintf(selectedLocale.DeprecatedMessageNoLink, n.Description, n.DeprecatedVersion, n.ScheduledVersion)
 	}
 }
 

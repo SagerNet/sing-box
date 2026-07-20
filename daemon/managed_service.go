@@ -44,7 +44,7 @@ func (s *ManagedService) StopService(ctx context.Context, empty *emptypb.Empty) 
 }
 
 func (s *ManagedService) ReloadService(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
-	err := s.handler.ServiceReload()
+	err := s.handler.ServiceReload(ctx)
 	if err != nil {
 		return nil, err
 	}
