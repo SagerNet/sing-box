@@ -23,7 +23,7 @@ type applicationService struct {
 }
 
 func (s *applicationService) CheckConfig(ctx context.Context, request *ConfigContent) (*emptypb.Empty, error) {
-	err := s.startedService.CheckConfig(request.Content)
+	err := s.startedService.CheckConfig(ctx, request.Content)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -31,7 +31,7 @@ func (s *applicationService) CheckConfig(ctx context.Context, request *ConfigCon
 }
 
 func (s *applicationService) FormatConfig(ctx context.Context, request *ConfigContent) (*ConfigContent, error) {
-	content, err := s.startedService.FormatConfig(request.Content)
+	content, err := s.startedService.FormatConfig(ctx, request.Content)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
