@@ -38,6 +38,8 @@
     "crl_path": "",
     "remote_certificate_ku": [],
     "remote_certificate_eku": "",
+    "remote_certificate_tls": "",
+    "certificate_profile": "",
     "version_min": "1.2",
     "version_max": "",
     "cipher": "",
@@ -251,15 +253,35 @@ OpenVPN 控制通道 TLS 配置。
 
 服务器证书所需的 Key Usage mask，使用 OpenVPN `remote-cert-ku` 格式的十六进制值。
 
-多个值会被组合，证书必须包含所有要求的用途。
+证书必须包含至少一个已配置 mask 中的所有 bit。
 
 默认禁用。
 
 ### tls.remote_certificate_eku
 
-服务器证书所需的 Extended Key Usage，可选值为 `server` 或 `client`。
+服务器证书所需的 Extended Key Usage。
 
-默认禁用。标准 OpenVPN 服务器证书用途检查仍然生效。
+接受 OpenSSL 名称、Object Identifier 以及 `server` 和 `client` 别名。
+
+设置后，该字段会替代默认的 `tls.remote_certificate_tls` 检查。
+
+与显式配置的 `tls.remote_certificate_tls` 冲突。
+
+### tls.remote_certificate_tls
+
+对端证书用途检查，可选值为 `server`、`client` 或 `none`。
+
+默认使用 `server`。
+
+`none` 禁用证书用途检查。
+
+与 `tls.remote_certificate_eku` 冲突。
+
+### tls.certificate_profile
+
+证书 profile，可选值为 `insecure`、`legacy`、`preferred` 或 `suiteb`。
+
+默认使用 `legacy`。
 
 ### tls.version_min
 
