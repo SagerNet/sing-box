@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/experimental/deprecated"
+	"github.com/sagernet/sing-box/experimental/locale"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -34,12 +35,14 @@ type Instance struct {
 	logFactory            log.Factory
 }
 
-func (s *StartedService) CheckConfig(configContent string) error {
-	options, err := parseConfig(s.ctx, configContent)
+func (s *StartedService) CheckConfig(ctx context.Context, configContent string) error {
+	selectedLocale := locale.FromContext(ctx)
+	ctx, _ = locale.ContextWithLocale(s.ctx, selectedLocale.Locale)
+	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(s.ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	instance, err := box.New(box.Options{
 		Context: ctx,
@@ -51,8 +54,10 @@ func (s *StartedService) CheckConfig(configContent string) error {
 	return err
 }
 
-func (s *StartedService) FormatConfig(configContent string) (string, error) {
-	options, err := parseConfig(s.ctx, configContent)
+func (s *StartedService) FormatConfig(ctx context.Context, configContent string) (string, error) {
+	selectedLocale := locale.FromContext(ctx)
+	ctx, _ = locale.ContextWithLocale(s.ctx, selectedLocale.Locale)
+	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return "", err
 	}
@@ -72,8 +77,10 @@ type OverrideOptions struct {
 	ExcludePackage []string
 }
 
-func (s *StartedService) newInstance(profileContent string, overrideOptions *OverrideOptions) (*Instance, error) {
-	ctx := service.ExtendContext(s.ctx)
+func (s *StartedService) newInstance(ctx context.Context, profileContent string, overrideOptions *OverrideOptions) (*Instance, error) {
+	selectedLocale := locale.FromContext(ctx)
+	ctx, _ = locale.ContextWithLocale(s.ctx, selectedLocale.Locale)
+	ctx = service.ExtendContext(ctx)
 	service.MustRegister[deprecated.Manager](ctx, new(deprecatedManager))
 	ctx, cancel := context.WithCancel(ctx)
 	options, err := parseConfig(ctx, profileContent)
