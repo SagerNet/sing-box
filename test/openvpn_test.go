@@ -84,9 +84,11 @@ type openVPNDockerServerEnvironment struct {
 }
 
 type openVPNSelfCase struct {
-	name     string
-	protocol string
-	tlsCrypt bool
+	name                 string
+	protocol             string
+	tlsCrypt             bool
+	omitServerKeyUsage   bool
+	remoteCertificateTLS string
 }
 
 func TestOpenVPNSelfToSelf(t *testing.T) {
@@ -103,6 +105,12 @@ func TestOpenVPNSelfToSelf(t *testing.T) {
 			name:     "real_tls_udp_tls_crypt",
 			protocol: N.NetworkUDP,
 			tlsCrypt: true,
+		},
+		{
+			name:                 "missing_server_key_usage",
+			protocol:             N.NetworkUDP,
+			omitServerKeyUsage:   true,
+			remoteCertificateTLS: "none",
 		},
 	}
 	for i := range testCases {
@@ -131,6 +139,9 @@ func runOpenVPNSelfToSelf(t *testing.T, testCase openVPNSelfCase) {
 	echoPort := reserveOpenVPNEchoPort(t)
 	readinessPort := reserveOpenVPNEchoPort(t)
 	certificates := createOpenVPNCertificateBundle(t)
+	if testCase.omitServerKeyUsage {
+		certificates = createOpenVPNCertificateBundleWithServerKeyUsage(t, 0)
+	}
 	serverOptions := option.OpenVPNServerEndpointOptions{
 		ListenOptions: option.ListenOptions{
 			Listen:     common.Ptr(badoption.Addr(netip.MustParseAddr("127.0.0.1"))),
@@ -154,6 +165,7 @@ func runOpenVPNSelfToSelf(t *testing.T, testCase openVPNSelfCase) {
 	serverOptions.UDPFiltering = option.UDPNATBehaviorAddressAndPortDependent
 	serverOptions.UDPNATMax = 128
 	clientOptions := newOpenVPNTLSClientOptions(testCase.protocol, openVPNPort, certificates.caPath, certificates.clientCertPath, certificates.clientKeyPath)
+	clientOptions.TLS.RemoteCertificateTLS = testCase.remoteCertificateTLS
 	clientOptions.UDPMapping = option.UDPNATBehaviorAddressDependent
 	clientOptions.UDPFiltering = option.UDPNATBehaviorAddressAndPortDependent
 	clientOptions.UDPNATMax = 128
@@ -1663,6 +1675,10 @@ func readOpenVPNPacketWithTimeout(packetConn net.PacketConn, buffer []byte) (int
 }
 
 func createOpenVPNCertificateBundle(t *testing.T) openVPNCertificateBundle {
+	return createOpenVPNCertificateBundleWithServerKeyUsage(t, x509.KeyUsageKeyEncipherment|x509.KeyUsageDigitalSignature)
+}
+
+func createOpenVPNCertificateBundleWithServerKeyUsage(t *testing.T, serverKeyUsage x509.KeyUsage) openVPNCertificateBundle {
 	t.Helper()
 	tempDir := t.TempDir()
 	caKey, err := rsa.GenerateKey(rand.Reader, 3072)
@@ -1694,8 +1710,8 @@ func createOpenVPNCertificateBundle(t *testing.T) openVPNCertificateBundle {
 	require.NoError(t, err)
 	caPath := filepath.Join(tempDir, "ca.crt")
 	writePEMFile(t, caPath, "CERTIFICATE", caCertificate)
-	serverCertPath, serverKeyPath := createOpenVPNLeafCertificate(t, tempDir, "server", x509.ExtKeyUsageServerAuth, caTemplate, caKey)
-	clientCertPath, clientKeyPath := createOpenVPNLeafCertificate(t, tempDir, "client", x509.ExtKeyUsageClientAuth, caTemplate, caKey)
+	serverCertPath, serverKeyPath := createOpenVPNLeafCertificate(t, tempDir, "server", serverKeyUsage, x509.ExtKeyUsageServerAuth, caTemplate, caKey)
+	clientCertPath, clientKeyPath := createOpenVPNLeafCertificate(t, tempDir, "client", x509.KeyUsageKeyEncipherment|x509.KeyUsageDigitalSignature, x509.ExtKeyUsageClientAuth, caTemplate, caKey)
 	return openVPNCertificateBundle{
 		caPath:         caPath,
 		serverCertPath: serverCertPath,
@@ -1705,7 +1721,7 @@ func createOpenVPNCertificateBundle(t *testing.T) openVPNCertificateBundle {
 	}
 }
 
-func createOpenVPNLeafCertificate(t *testing.T, tempDir string, commonName string, usage x509.ExtKeyUsage, caTemplate *x509.Certificate, caKey *rsa.PrivateKey) (string, string) {
+func createOpenVPNLeafCertificate(t *testing.T, tempDir string, commonName string, keyUsage x509.KeyUsage, extendedKeyUsage x509.ExtKeyUsage, caTemplate *x509.Certificate, caKey *rsa.PrivateKey) (string, string) {
 	t.Helper()
 	leafKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -1717,12 +1733,12 @@ func createOpenVPNLeafCertificate(t *testing.T, tempDir string, commonName strin
 		},
 		NotBefore: time.Now().Add(-time.Minute),
 		NotAfter:  time.Now().AddDate(0, 1, 0),
-		KeyUsage:  x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		KeyUsage:  keyUsage,
 		ExtKeyUsage: []x509.ExtKeyUsage{
-			usage,
+			extendedKeyUsage,
 		},
 	}
-	if usage == x509.ExtKeyUsageServerAuth {
+	if extendedKeyUsage == x509.ExtKeyUsageServerAuth {
 		leafTemplate.IPAddresses = append(leafTemplate.IPAddresses, net.ParseIP("127.0.0.1"))
 		leafTemplate.DNSNames = append(leafTemplate.DNSNames, "localhost")
 	}
