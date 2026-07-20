@@ -27,6 +27,7 @@ import (
 )
 
 type Daemon struct {
+	ctx                     context.Context
 	logger                  log.ContextLogger
 	startedService          *daemon.StartedService
 	server                  *grpc.Server
@@ -41,6 +42,7 @@ type Daemon struct {
 func newDaemon() (*Daemon, error) {
 	ctx := include.Context(context.Background())
 	d := &Daemon{
+		ctx:                     ctx,
 		logger:                  log.StdLogger(),
 		runtimeWorkingDirectory: workingDirectory,
 	}
@@ -164,7 +166,7 @@ func (d *Daemon) restore() {
 		return
 	}
 	d.logger.Info("restoring service")
-	err = d.startServiceLocked(ownerUserID, configContent, options)
+	err = d.startServiceLocked(d.ctx, ownerUserID, configContent, options)
 	if err != nil {
 		d.logger.Error("restore service: ", err)
 	}
@@ -196,7 +198,7 @@ func (d *Daemon) configureWorkingDirectoryLocked(directory string) error {
 	return nil
 }
 
-func (d *Daemon) startServiceLocked(ownerUserID string, configContent string, options startOptions) error {
+func (d *Daemon) startServiceLocked(ctx context.Context, ownerUserID string, configContent string, options startOptions) error {
 	directory := userWorkingDirectory(ownerUserID)
 	err := d.configureWorkingDirectoryLocked(directory)
 	if err != nil {
@@ -216,7 +218,7 @@ func (d *Daemon) startServiceLocked(ownerUserID string, configContent string, op
 			return err
 		}
 	}
-	err = d.startedService.StartOrReloadService(configContent, nil)
+	err = d.startedService.StartOrReloadService(ctx, configContent, nil)
 	if err != nil && d.platform != nil {
 		return E.Errors(err, d.platform.ResetPlatformOptions())
 	}
