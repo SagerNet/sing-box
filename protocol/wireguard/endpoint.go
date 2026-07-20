@@ -75,23 +75,6 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		udpTimeout = C.UDPTimeout
 	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
-	var egressPool *tun.UDPEgressPool
-	udpListener, isUDPListener := common.Cast[dialer.UDPListener](outboundDialer)
-	if isUDPListener {
-		anchorControl, egressEnabled := udpListener.UDPListenerControl()
-		if egressEnabled {
-			egressPool = tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
-				Logger:           logger,
-				Control:          anchorControl,
-				InterfaceFinder:  networkManager.InterfaceFinder(),
-				InterfaceMonitor: networkManager.InterfaceMonitor(),
-				ExcludeInterface: options.Name,
-				IsExempt: func() bool {
-					return networkManager.AutoRedirectOutputMark() != 0
-				},
-			})
-		}
-	}
 	wgEndpoint, err := wireguard.NewEndpoint(wireguard.EndpointOptions{
 		Context:         ctx,
 		Logger:          logger,
@@ -103,8 +86,16 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		UDPFiltering:    tun.NATFiltering(options.UDPFiltering),
 		UDPNATMax:       options.UDPNATMax,
 		InterfaceFinder: networkManager.InterfaceFinder(),
-		EgressPool:      egressPool,
-		Dialer:          outboundDialer,
+		EgressPoolOptions: tun.UDPEgressPoolOptions{
+			Logger:           logger,
+			InterfaceFinder:  networkManager.InterfaceFinder(),
+			InterfaceMonitor: networkManager.InterfaceMonitor(),
+			ExcludeInterface: options.Name,
+			IsExempt: func() bool {
+				return networkManager.AutoRedirectOutputMark() != 0
+			},
+		},
+		Dialer: outboundDialer,
 		CreateDialer: func(interfaceName string) N.Dialer {
 			return common.Must1(dialer.NewDefault(ctx, option.DialerOptions{
 				BindInterface: interfaceName,
