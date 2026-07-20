@@ -1,79 +1,15 @@
-name: Lint
+# Upstream multi-arch golangci-lint — disabled on push for this Dart maintenance fork.
+# Smart packages are tested inside Dart Core Release / Sync workflows.
+name: Lint (upstream, disabled)
 
 on:
-  push:
-    branches:
-      - oldstable
-      - stable
-      - testing
-      - unstable
-    paths-ignore:
-      - '**.md'
-      - '.github/**'
-      - '!.github/workflows/lint.yml'
-  pull_request:
-    branches:
-      - oldstable
-      - stable
-      - testing
-      - unstable
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.build }}
-  cancel-in-progress: true
+  workflow_dispatch:
 
 jobs:
-  build:
-    name: Lint ${{ matrix.goos }}/${{ matrix.goarch }}
+  notice:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: '386'
-          - goos: windows
-            goarch: arm64
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: linux
-            goarch: arm
-          - goos: linux
-            goarch: '386'
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: android
-            goarch: arm64
-        #  - goos: freebsd
-        #    goarch: amd64
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ^1.25
-      - name: Cache go module
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-          key: go-${{ hashFiles('**/go.sum') }}
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        with:
-          version: latest
-          args: --timeout=30m
-          install-mode: binary
-          verify: false
+      - name: Explain
+        run: |
+          echo "Upstream Lint matrix disabled on the Dart fork to avoid noise."
+          echo "Dart Core Release runs go test on Smart + Clash API."

@@ -42,10 +42,7 @@ func (e *Engine) Select(host string) []Candidate {
 	})
 
 	// Top-K weighted random among the best K (before sticky pin).
-	k := e.opts.TopK
-	if k > len(rows) {
-		k = len(rows)
-	}
+	k := min(e.opts.TopK, len(rows))
 	if k > 1 {
 		scores := make([]float64, k)
 		for i := 0; i < k; i++ {

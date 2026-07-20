@@ -1,10 +1,19 @@
-name: Release Dart patched core
+# Dart-maintained Windows core: build CURRENT stable branch (includes Smart + patches)
+# and publish a GitHub Release. Do NOT checkout bare upstream tags (that drops Dart code).
+name: Dart Core Release
 
 on:
+  push:
+    branches:
+      - stable
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "clients/**"
   workflow_dispatch:
     inputs:
-      upstream_tag:
-        description: "Upstream release tag (empty uses the latest stable release)"
+      version:
+        description: "Optional full Dart version (e.g. 1.13.14-dart.3). Empty = auto."
         required: false
         type: string
   schedule:
@@ -15,145 +24,124 @@ permissions:
 
 concurrency:
   group: dart-sing-box-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   release:
-    name: Patch, verify, and publish Windows amd64
+    name: Test, build, publish Windows amd64
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
-      - name: Checkout maintenance branch
+      - name: Checkout stable (Dart tree)
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           ref: stable
 
-      - name: Resolve upstream release
-        id: release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REQUESTED_TAG: ${{ inputs.upstream_tag }}
+      - name: Verify Dart Smart is present
         run: |
           set -euo pipefail
-          upstream_tag="${REQUESTED_TAG:-}"
-          if [[ -z "$upstream_tag" ]]; then
-            upstream_tag="$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name)"
-          fi
-          if [[ ! "$upstream_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Expected a stable upstream tag, got: $upstream_tag" >&2
-            exit 1
-          fi
-          version="${upstream_tag#v}-dart.1"
-          dart_tag="v${version}"
-          echo "upstream_tag=$upstream_tag" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "dart_tag=$dart_tag" >> "$GITHUB_OUTPUT"
-          archive="sing-box-${version}-windows-amd64.zip"
-          assets="$(gh release view "$dart_tag" --repo "$GITHUB_REPOSITORY" \
-            --json assets --jq '.assets[].name' 2>/dev/null || true)"
-          if [[ "$assets" == *"$archive"* && "$assets" == *"SHA256SUMS.txt"* ]]; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "$dart_tag is already published."
-          else
-            echo "published=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Prepare patched source tag
-        if: steps.release.outputs.published != 'true'
-        env:
-          DART_TAG: ${{ steps.release.outputs.dart_tag }}
-          UPSTREAM_TAG: ${{ steps.release.outputs.upstream_tag }}
-        run: |
-          set -euo pipefail
-          patch="$RUNNER_TEMP/allow-http-clash-api-delay.patch"
-          cp .github/patches/allow-http-clash-api-delay.patch "$patch"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git ls-remote --exit-code --tags origin "refs/tags/$DART_TAG" >/dev/null 2>&1; then
-            git fetch --force origin "refs/tags/$DART_TAG:refs/tags/$DART_TAG"
-            git checkout --detach "$DART_TAG"
-          else
-            git remote add upstream https://github.com/SagerNet/sing-box.git 2>/dev/null || \
-              git remote set-url upstream https://github.com/SagerNet/sing-box.git
-            git fetch --force upstream "refs/tags/$UPSTREAM_TAG:refs/remotes/upstream-release/$UPSTREAM_TAG"
-            git checkout --detach "refs/remotes/upstream-release/$UPSTREAM_TAG"
-            if git apply --reverse --check "$patch"; then
-              echo "The upstream release already contains the Dart behavior."
-            elif git apply --check "$patch"; then
-              git apply "$patch"
-              git add experimental/clashapi/proxies.go
-              git commit -m "Apply Dart HTTP latency patch to $UPSTREAM_TAG"
-            else
-              echo "The Dart patch does not apply cleanly to $UPSTREAM_TAG." >&2
-              exit 1
-            fi
-            git tag "$DART_TAG"
-          fi
-          if grep -Fq 'strings.HasPrefix(url, "http://")' experimental/clashapi/proxies.go; then
-            echo "HTTP latency-test blocking logic is still present." >&2
-            exit 1
-          fi
+          test -f protocol/group/smart/outbound.go
+          test -d protocol/group/smart/engine
+          grep -Fq 'TypeSmart = "smart"' constant/proxy.go
+          grep -Fq 'smart.RegisterOutbound(registry)' include/registry.go
 
       - name: Setup Go
-        if: steps.release.outputs.published != 'true'
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version: 1.25.10
+          go-version: "1.25.10"
           cache: true
 
-      - name: Verify patched source
-        if: steps.release.outputs.published != 'true'
+      - name: Test Smart + Clash API
         run: |
           set -euo pipefail
-          test -z "$(gofmt -l experimental/clashapi/proxies.go)"
-          go test -tags with_clash_api ./experimental/clashapi/...
+          go test ./protocol/group/smart/... -count=1
+          go test -tags with_clash_api ./experimental/clashapi/... -count=1
 
-      - name: Build and package Windows amd64
-        if: steps.release.outputs.published != 'true'
+      - name: Resolve version
+        id: version
+        env:
+          REQUESTED: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${REQUESTED:-}" ]]; then
+            version="${REQUESTED#v}"
+          else
+            # Prefer latest upstream stable tag as base, always append unique -dart.N
+            base="$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name | sed 's/^v//')"
+            if [[ ! "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              # Fallback: last local tag without -dart suffix
+              base="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null | sed -E 's/^v//;s/-dart\.[0-9]+$//')"
+            fi
+            if [[ -z "$base" ]]; then
+              base="0.0.0"
+            fi
+            version="${base}-dart.${RUN_NUMBER}"
+          fi
+          dart_tag="v${version}"
+          archive="sing-box-${version}-windows-amd64.zip"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dart_tag=$dart_tag" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "Publishing $dart_tag from $(git rev-parse --short HEAD)"
+
+      - name: Build Windows amd64
         env:
           CGO_ENABLED: "0"
           GOOS: windows
           GOARCH: amd64
-          VERSION: ${{ steps.release.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          tags="$(cat release/DEFAULT_BUILD_TAGS_OTHERS)"
-          ldflags="$(cat release/LDFLAGS)"
+          tags="$(tr -d '\r\n' < release/DEFAULT_BUILD_TAGS_OTHERS)"
+          ldflags="$(tr -d '\r\n' < release/LDFLAGS)"
           package="sing-box-${VERSION}-windows-amd64"
           mkdir -p "dist/$package"
           go build -trimpath -tags "$tags" \
             -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=$VERSION' $ldflags -s -w -buildid=" \
             -o "dist/$package/sing-box.exe" ./cmd/sing-box
+          test -s "dist/$package/sing-box.exe"
           cp LICENSE "dist/$package/LICENSE"
           (cd dist && zip -9 -r "$package.zip" "$package")
           (cd dist && sha256sum "$package.zip" > SHA256SUMS.txt)
           test -s "dist/$package.zip"
 
-      - name: Publish patched release
-        if: steps.release.outputs.published != 'true'
+      - name: Publish GitHub Release
         env:
-          DART_TAG: ${{ steps.release.outputs.dart_tag }}
           GH_TOKEN: ${{ github.token }}
-          UPSTREAM_TAG: ${{ steps.release.outputs.upstream_tag }}
-          VERSION: ${{ steps.release.outputs.version }}
+          DART_TAG: ${{ steps.version.outputs.dart_tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.version.outputs.archive }}
         run: |
           set -euo pipefail
-          git push origin "refs/tags/$DART_TAG"
-          notes="Dart-maintained Windows amd64 build based on SagerNet/sing-box $UPSTREAM_TAG. Includes the HTTP Clash API latency-test compatibility patch. Source and license are available from this tag."
+          # Tag current HEAD so release source includes Smart
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "refs/tags/$DART_TAG" >/dev/null 2>&1; then
+            git tag -d "$DART_TAG" || true
+            git push origin ":refs/tags/$DART_TAG" || true
+          fi
+          git tag -f "$DART_TAG"
+          git push origin "refs/tags/$DART_TAG" --force
+
+          notes="Dart-maintained Windows amd64 build of blakebill/sing-box@stable ($(git rev-parse --short HEAD)). Includes Dart Smart outbound + HTTP Clash API latency-test patch."
           if gh release view "$DART_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$DART_TAG" \
-              "dist/sing-box-${VERSION}-windows-amd64.zip" \
+              "dist/$ARCHIVE" \
               "dist/SHA256SUMS.txt" \
               --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$DART_TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "sing-box $VERSION" --latest --notes "$notes"
+              --title "sing-box $VERSION" --latest --notes "$notes" \
+              --target "$(git rev-parse HEAD)"
           else
             gh release create "$DART_TAG" \
-              "dist/sing-box-${VERSION}-windows-amd64.zip" \
+              "dist/$ARCHIVE" \
               "dist/SHA256SUMS.txt" \
               --repo "$GITHUB_REPOSITORY" \
               --title "sing-box $VERSION" \
               --latest \
-              --notes "$notes"
+              --notes "$notes" \
+              --target "$(git rev-parse HEAD)"
           fi

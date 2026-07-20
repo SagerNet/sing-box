@@ -6,6 +6,7 @@ import (
 )
 
 func TestSelectPrefersHealthyMember(t *testing.T) {
+	t.Parallel()
 	e := New([]string{"a", "b", "c"}, Options{})
 	e.Record("a", OutcomeSuccess, 200)
 	e.Record("a", OutcomeSuccess, 210)
@@ -27,6 +28,7 @@ func TestSelectPrefersHealthyMember(t *testing.T) {
 }
 
 func TestSoftFailThreshold(t *testing.T) {
+	t.Parallel()
 	e := New([]string{"a"}, Options{SoftFailRatio: 1.5, SoftFailFloorMs: 80})
 	e.Record("a", OutcomeSuccess, 100)
 	th := e.SoftFailThresholdMs("a")
@@ -36,6 +38,7 @@ func TestSoftFailThreshold(t *testing.T) {
 }
 
 func TestPenaltyGrowsAndSuccessWipes(t *testing.T) {
+	t.Parallel()
 	e := New([]string{"a"}, Options{})
 	e.Record("a", OutcomeFailure, 0)
 	e.Record("a", OutcomeFailure, 0)
@@ -55,6 +58,7 @@ func TestPenaltyGrowsAndSuccessWipes(t *testing.T) {
 }
 
 func TestHostSticky(t *testing.T) {
+	t.Parallel()
 	fixed := time.Unix(1_700_000_000, 0)
 	e := New([]string{"a", "b"}, Options{Now: func() time.Time { return fixed }})
 	e.Record("a", OutcomeSuccess, 50)

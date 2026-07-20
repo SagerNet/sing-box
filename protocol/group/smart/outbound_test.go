@@ -20,9 +20,9 @@ import (
 
 type mockOutbound struct {
 	outbound.Adapter
-	fail    bool
-	delay   time.Duration
-	calls   *atomic.Int32
+	fail  bool
+	delay time.Duration
+	calls *atomic.Int32
 }
 
 func (m *mockOutbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -49,6 +49,7 @@ func (m *mockOutbound) ListenPacket(ctx context.Context, destination M.Socksaddr
 }
 
 func TestDialContextRetriesOnFailure(t *testing.T) {
+	t.Parallel()
 	var badCalls, goodCalls atomic.Int32
 	bad := &mockOutbound{
 		Adapter: outbound.NewAdapter("direct", "bad", []string{N.NetworkTCP}, nil),
@@ -89,6 +90,7 @@ func TestDialContextRetriesOnFailure(t *testing.T) {
 }
 
 func TestDialContextSoftFailRetries(t *testing.T) {
+	t.Parallel()
 	var slowCalls, fastCalls atomic.Int32
 	eng := engine.New([]string{"slow", "fast"}, engine.Options{SoftFailRatio: 1.5, SoftFailFloorMs: 80})
 	eng.Record("slow", engine.OutcomeSuccess, 50)
@@ -127,6 +129,7 @@ func TestDialContextSoftFailRetries(t *testing.T) {
 }
 
 func TestDialContextAllFail(t *testing.T) {
+	t.Parallel()
 	bad1 := &mockOutbound{
 		Adapter: outbound.NewAdapter("direct", "a", []string{N.NetworkTCP}, nil),
 		fail:    true,

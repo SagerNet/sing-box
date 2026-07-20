@@ -21,20 +21,20 @@ const (
 
 // MemberStats is per-outbound health used for selection.
 type MemberStats struct {
-	Tag                string
-	Samples            int
-	EwmaMs             float64
-	JitterMs           float64
-	FailureRate        float64
-	ConsecutiveFails   int
-	Penalty            float64
-	LastSuccess        time.Time
-	LastFailure        time.Time
-	SuccessSinceFail   int
-	Weight             float64 // policy-priority style; 1 = neutral, <1 preferred
-	Alive              bool
-	URLTestLatencyMs   uint16 // optional prior from URL test
-	HasURLTestPrior    bool
+	Tag              string
+	Samples          int
+	EwmaMs           float64
+	JitterMs         float64
+	FailureRate      float64
+	ConsecutiveFails int
+	Penalty          float64
+	LastSuccess      time.Time
+	LastFailure      time.Time
+	SuccessSinceFail int
+	Weight           float64 // policy-priority style; 1 = neutral, <1 preferred
+	Alive            bool
+	URLTestLatencyMs uint16 // optional prior from URL test
+	HasURLTestPrior  bool
 }
 
 // Options configures an Engine.

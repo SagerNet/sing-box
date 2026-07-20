@@ -1,3 +1,5 @@
+# Merge upstream stable into this fork, re-check Dart patches + Smart, push.
+# Release is handled by dart-release.yml on the subsequent push to stable.
 name: Sync upstream with Dart patches
 
 on:
@@ -14,7 +16,7 @@ concurrency:
 
 jobs:
   sync:
-    name: Sync, verify, and build
+    name: Merge upstream stable
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -36,21 +38,28 @@ jobs:
       - name: Merge upstream stable
         run: |
           set -euo pipefail
-          git merge --no-ff upstream/stable \
-            -m "chore: sync upstream stable [skip ci]"
+          if git merge-base --is-ancestor upstream/stable HEAD; then
+            echo "Already up to date with upstream/stable."
+          else
+            git merge --no-ff upstream/stable -m "chore: sync upstream stable"
+          fi
 
-      - name: Ensure Dart patch
+      - name: Ensure Dart HTTP latency patch
         run: |
           set -euo pipefail
           patch=.github/patches/allow-http-clash-api-delay.patch
-          if git apply --reverse --check "$patch"; then
-            echo "Dart HTTP latency patch is already applied."
+          if [[ ! -f "$patch" ]]; then
+            echo "Missing $patch" >&2
+            exit 1
+          fi
+          if git apply --reverse --check "$patch" 2>/dev/null; then
+            echo "Dart HTTP latency patch already applied."
           elif git apply --check "$patch"; then
             git apply "$patch"
             git add experimental/clashapi/proxies.go
-            git commit -m "Apply Dart HTTP latency patch [skip ci]"
+            git commit -m "Apply Dart HTTP latency patch"
           else
-            echo "The Dart patch no longer applies cleanly to upstream stable." >&2
+            echo "Dart patch no longer applies cleanly." >&2
             exit 1
           fi
           if grep -Fq 'strings.HasPrefix(url, "http://")' experimental/clashapi/proxies.go; then
@@ -66,38 +75,29 @@ jobs:
           test -f option/smart.go
           grep -Fq 'TypeSmart = "smart"' constant/proxy.go
           grep -Fq 'smart.RegisterOutbound(registry)' include/registry.go
-          grep -Fq '// dart-smart:register-outbound' include/registry.go
-          grep -Fq '// dart-smart:register-type' constant/proxy.go
 
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          go-version: 1.25.10
+          go-version: "1.25.10"
           cache: true
 
-      - name: Verify Clash API
-        run: |
-          set -euo pipefail
-          test -z "$(gofmt -l experimental/clashapi/proxies.go)"
-          go test -tags with_clash_api ./experimental/clashapi/...
-
-      - name: Test Dart Smart engine + adapter
-        run: |
-          set -euo pipefail
-          go test ./protocol/group/smart/... -count=1
-
-      - name: Build Windows amd64
+      - name: Smoke test + build
         env:
           CGO_ENABLED: "0"
           GOOS: windows
           GOARCH: amd64
         run: |
           set -euo pipefail
-          tags="$(cat release/DEFAULT_BUILD_TAGS_OTHERS)"
-          ldflags="$(cat release/LDFLAGS)"
+          go test ./protocol/group/smart/... -count=1
+          tags="$(tr -d '\r\n' < release/DEFAULT_BUILD_TAGS_OTHERS)"
+          ldflags="$(tr -d '\r\n' < release/LDFLAGS)"
           go build -trimpath -tags "$tags" -ldflags "$ldflags -s -w -buildid=" \
             -o /tmp/sing-box.exe ./cmd/sing-box
           test -s /tmp/sing-box.exe
 
-      - name: Push verified sync
-        run: git push origin HEAD:stable
+      - name: Push stable
+        run: |
+          set -euo pipefail
+          git push origin HEAD:stable
+          # Pushing stable triggers Dart Core Release (push event).
