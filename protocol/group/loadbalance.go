@@ -45,6 +45,7 @@ type LoadBalance struct {
 	tags        []string
 	link        string
 	strategy    string
+	fallback    string
 	balancer    balancer
 	outbounds   []adapter.Outbound
 	interval    time.Duration
@@ -64,6 +65,7 @@ func NewLoadBalance(ctx context.Context, router adapter.Router, logger log.Conte
 		interval:    time.Duration(options.Interval),
 		idleTimeout: time.Duration(options.IdleTimeout),
 		strategy:    options.Strategy,
+		fallback:    options.Fallback,
 	}
 	if len(outbound.tags) == 0 {
 		return nil, E.New("missing tags")
@@ -80,16 +82,41 @@ func (s *LoadBalance) Start() error {
 		}
 		s.outbounds = append(s.outbounds, detour)
 	}
+
+	var fallback adapter.Outbound
+	if s.fallback != "" {
+		outbound, loaded := s.outbound.Outbound(s.fallback)
+		if !loaded {
+			return E.New("fallback outbound not found: ", s.fallback)
+		}
+		fallback = outbound
+		if _, isGroup := fallback.(adapter.OutboundGroup); isGroup {
+			return E.New("fallback outbound cannot be a group: ", s.fallback)
+		}
+	} else {
+		fallback = s.outbounds[0]
+	}
+
+	group, err := NewLoadBalanceTestGroup(s.ctx, s.outbound, s.logger, s.outbounds, s.link, s.interval, s.idleTimeout)
+	if err != nil {
+		return err
+	}
+	s.group = group
+
 	switch s.strategy {
 	case "", "round-robin":
 		s.balancer = &roundRobinBalancer{
 			outbounds: s.outbounds,
+			history:   group.history,
+			fallback:  fallback,
 		}
 	case "least-connections":
 		balancer := &leastConnectionsBalancer{
 			outbounds: s.outbounds,
 			counts:    make([]atomic.Int64, len(s.outbounds)),
 			tags:      make([]string, len(s.outbounds)),
+			history:   group.history,
+			fallback:  fallback,
 		}
 		for i, c := range s.outbounds {
 			balancer.tags[i] = c.Tag()
@@ -98,19 +125,18 @@ func (s *LoadBalance) Start() error {
 	case "source-hash":
 		s.balancer = &sourceHashBalancer{
 			outbounds: s.outbounds,
+			history:   group.history,
+			fallback:  fallback,
 		}
 	case "consistent-hash":
 		s.balancer = &consistentHashBalancer{
 			outbounds: s.outbounds,
+			history:   group.history,
+			fallback:  fallback,
 		}
 	default:
 		return E.New("unsupported load balance strategy: ", s.strategy)
 	}
-	group, err := NewLoadBalanceTestGroup(s.ctx, s.outbound, s.logger, s.outbounds, s.link, s.interval, s.idleTimeout)
-	if err != nil {
-		return err
-	}
-	s.group = group
 	return nil
 }
 
@@ -372,11 +398,20 @@ type balancer interface {
 type roundRobinBalancer struct {
 	outbounds []adapter.Outbound
 	next      atomic.Uint64
+	history   *urltest.HistoryStorage
+	fallback  adapter.Outbound
 }
 
 func (b *roundRobinBalancer) Select(_ *adapter.InboundContext) adapter.Outbound {
 	idx := b.next.Add(1) - 1
-	return b.outbounds[idx%uint64(len(b.outbounds))]
+	total := uint64(len(b.outbounds))
+	for attempts := uint64(0); attempts < total; attempts++ {
+		candidate := b.outbounds[(idx+attempts)%total]
+		if isHealthy(b.history, candidate) {
+			return candidate
+		}
+	}
+	return b.fallback
 }
 
 func (b *roundRobinBalancer) OnOpen(_ string)  {}
@@ -386,17 +421,25 @@ type leastConnectionsBalancer struct {
 	outbounds []adapter.Outbound
 	counts    []atomic.Int64
 	tags      []string
+	history   *urltest.HistoryStorage
+	fallback  adapter.Outbound
 }
 
 func (b *leastConnectionsBalancer) Select(_ *adapter.InboundContext) adapter.Outbound {
-	minIdx := 0
-	minVal := b.counts[0].Load()
-	for i := 1; i < len(b.counts); i++ {
+	minIdx := -1
+	var minVal int64
+	for i := 0; i < len(b.counts); i++ {
+		if !isHealthy(b.history, b.outbounds[i]) {
+			continue
+		}
 		val := b.counts[i].Load()
-		if val < minVal {
+		if minIdx == -1 || val < minVal {
 			minVal = val
 			minIdx = i
 		}
+	}
+	if minIdx == -1 {
+		return b.fallback
 	}
 	return b.outbounds[minIdx]
 }
@@ -421,12 +464,21 @@ func (b *leastConnectionsBalancer) OnClose(tag string) {
 
 type sourceHashBalancer struct {
 	outbounds []adapter.Outbound
+	history   *urltest.HistoryStorage
+	fallback  adapter.Outbound
 }
 
 func (b *sourceHashBalancer) Select(ctx *adapter.InboundContext) adapter.Outbound {
 	source := sourceFromCtx(ctx)
-	idx := hashToIndex(source, len(b.outbounds))
-	return b.outbounds[idx]
+	total := len(b.outbounds)
+	idx := hashToIndex(source, total)
+	for attempts := 0; attempts < total; attempts++ {
+		candidate := b.outbounds[(idx+attempts)%total]
+		if isHealthy(b.history, candidate) {
+			return candidate
+		}
+	}
+	return b.fallback
 }
 
 func (b *sourceHashBalancer) OnOpen(_ string)  {}
@@ -434,15 +486,24 @@ func (b *sourceHashBalancer) OnClose(_ string) {}
 
 type consistentHashBalancer struct {
 	outbounds []adapter.Outbound
+	history   *urltest.HistoryStorage
+	fallback  adapter.Outbound
 }
 
 func (b *consistentHashBalancer) Select(ctx *adapter.InboundContext) adapter.Outbound {
 	source := sourceFromCtx(ctx)
-	if source == "" || len(b.outbounds) == 0 {
-		return b.outbounds[0]
+	total := len(b.outbounds)
+	if source == "" || total == 0 {
+		return b.fallback
 	}
-	idx := jumpHash(uint64(crc32.ChecksumIEEE([]byte(source))), int32(len(b.outbounds)))
-	return b.outbounds[idx]
+	idx := jumpHash(uint64(crc32.ChecksumIEEE([]byte(source))), int32(total))
+	for attempts := 0; attempts < total; attempts++ {
+		candidate := b.outbounds[(int(idx)+attempts)%total]
+		if isHealthy(b.history, candidate) {
+			return candidate
+		}
+	}
+	return b.fallback
 }
 
 func (b *consistentHashBalancer) OnOpen(_ string)  {}
@@ -470,4 +531,11 @@ func sourceFromCtx(ctx *adapter.InboundContext) string {
 		return ""
 	}
 	return ctx.Source.Addr.String()
+}
+
+func isHealthy(h *urltest.HistoryStorage, o adapter.Outbound) bool {
+	if h == nil {
+		return false
+	}
+	return h.LoadURLTestHistory(RealTag(o)) != nil
 }

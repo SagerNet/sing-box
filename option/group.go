@@ -23,4 +23,5 @@ type LoadBalanceOutboundOptions struct {
 	URL         string             `json:"url,omitempty"`
 	Interval    badoption.Duration `json:"interval,omitempty"`
 	IdleTimeout badoption.Duration `json:"idle_timeout,omitempty"`
+	Fallback    string             `json:"fallback,omitempty"`
 }
