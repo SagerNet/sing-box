@@ -61,24 +61,43 @@ func (e *Engine) Select(host string) []Candidate {
 	}
 
 	// Exploration: sometimes try a cold / non-head member first (before sticky).
+	// Never explore members that already look dead/penalized — that made the UI
+	// "now" stick to red nodes after a lucky dial.
 	if e.opts.ExploreProb > 0 && len(rows) > 1 {
 		r := rand.New(rand.NewSource(now.UnixNano() + int64(len(rows))*9973))
 		if r.Float64() < e.opts.ExploreProb {
-			cold := make([]int, 0, len(rows))
+			candidates := make([]int, 0, len(rows))
 			for i := 1; i < len(rows); i++ {
+				m := e.members[rows[i].tag]
+				if m == nil || m.ConsecutiveFails > 0 || m.Penalty >= 2 || !m.Alive {
+					continue
+				}
+				if m.HasURLTestPrior && m.URLTestLatencyMs >= 500 {
+					continue
+				}
+				if m.Samples > 0 && m.EwmaMs >= 500 {
+					continue
+				}
+				candidates = append(candidates, i)
+			}
+			cold := make([]int, 0, len(candidates))
+			for _, i := range candidates {
 				m := e.members[rows[i].tag]
 				if m != nil && m.Samples == 0 {
 					cold = append(cold, i)
 				}
 			}
-			idx := 1 + r.Intn(len(rows)-1)
+			pool := candidates
 			if len(cold) > 0 {
-				idx = cold[r.Intn(len(cold))]
+				pool = cold
 			}
-			if idx > 0 && idx < len(rows) {
-				chosen := rows[idx]
-				copy(rows[1:idx+1], rows[0:idx])
-				rows[0] = chosen
+			if len(pool) > 0 {
+				idx := pool[r.Intn(len(pool))]
+				if idx > 0 && idx < len(rows) {
+					chosen := rows[idx]
+					copy(rows[1:idx+1], rows[0:idx])
+					rows[0] = chosen
+				}
 			}
 		}
 	}
