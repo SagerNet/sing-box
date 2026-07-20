@@ -29,6 +29,7 @@ import (
 
 type CommandServer struct {
 	*daemon.StartedService
+	ctx               context.Context
 	managedService    *daemon.ManagedService
 	handler           CommandServerHandler
 	platformInterface PlatformInterface
@@ -56,6 +57,7 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 	}
 	service.MustRegister[adapter.PlatformInterface](ctx, platformWrapper)
 	server := &CommandServer{
+		ctx:               ctx,
 		handler:           handler,
 		platformInterface: platformInterface,
 		platformWrapper:   platformWrapper,
@@ -191,7 +193,7 @@ type OverrideOptions struct {
 
 func (s *CommandServer) StartOrReloadService(configContent string, options *OverrideOptions) error {
 	saveConfigSnapshot(configContent)
-	err := s.StartedService.StartOrReloadService(configContent, &daemon.OverrideOptions{
+	err := s.StartedService.StartOrReloadService(s.ctx, configContent, &daemon.OverrideOptions{
 		AutoRedirect:   options.AutoRedirect,
 		IncludePackage: iteratorToArray(options.IncludePackage),
 		ExcludePackage: iteratorToArray(options.ExcludePackage),
@@ -277,7 +279,7 @@ func (h *platformHandler) ServiceStop() error {
 	return (*CommandServer)(h).handler.ServiceStop()
 }
 
-func (h *platformHandler) ServiceReload() error {
+func (h *platformHandler) ServiceReload(ctx context.Context) error {
 	return (*CommandServer)(h).handler.ServiceReload()
 }
 
