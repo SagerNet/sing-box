@@ -7,6 +7,7 @@
 
   "outbounds": ["proxy-a", "proxy-b", "proxy-c"],
   "strategy": "round-robin",
+  "fallback": "",
   "url": "",
   "interval": "",
   "idle_timeout": ""
@@ -33,6 +34,12 @@ Load balancing strategy
 | `consistent-hash`   | Consistent hash ring with jump hash              |
 
 `round-robin` is used by default.
+
+#### fallback
+
+The outbound to use when all group members are unhealthy.
+
+Cannot be a group. Defaults to the first outbound in the list.
 
 #### url
 

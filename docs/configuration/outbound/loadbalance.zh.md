@@ -7,6 +7,7 @@
 
   "outbounds": ["proxy-a", "proxy-b", "proxy-c"],
   "strategy": "round-robin",
+  "fallback": "",
   "url": "",
   "interval": "",
   "idle_timeout": ""
@@ -33,6 +34,12 @@
 | `consistent-hash`   | 一致性哈希环                |
 
 默认使用 `round-robin`。
+
+#### fallback
+
+当所有组成员都不健康时使用的出站。
+
+不能指向组。默认使用列表中的第一个出站。
 
 #### url
 
