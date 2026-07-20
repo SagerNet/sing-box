@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/sagernet/sing-box/daemon"
@@ -27,7 +28,7 @@ func (h *managedHandler) ServiceStop() error {
 	return h.daemon.stopServiceLocked(ownerUserID)
 }
 
-func (h *managedHandler) ServiceReload() error {
+func (h *managedHandler) ServiceReload(ctx context.Context) error {
 	if h.daemon.closed {
 		return os.ErrClosed
 	}
@@ -43,7 +44,7 @@ func (h *managedHandler) ServiceReload() error {
 	if err != nil {
 		return err
 	}
-	err = h.daemon.startServiceLocked(ownerUserID, configContent, options)
+	err = h.daemon.startServiceLocked(ctx, ownerUserID, configContent, options)
 	if err != nil {
 		return err
 	}
