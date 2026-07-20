@@ -58,6 +58,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify Dart Smart registration hooks
+        run: |
+          set -euo pipefail
+          test -f protocol/group/smart/outbound.go
+          test -d protocol/group/smart/engine
+          test -f option/smart.go
+          grep -Fq 'TypeSmart = "smart"' constant/proxy.go
+          grep -Fq 'smart.RegisterOutbound(registry)' include/registry.go
+          grep -Fq '// dart-smart:register-outbound' include/registry.go
+          grep -Fq '// dart-smart:register-type' constant/proxy.go
+
       - name: Setup Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
@@ -69,6 +80,11 @@ jobs:
           set -euo pipefail
           test -z "$(gofmt -l experimental/clashapi/proxies.go)"
           go test -tags with_clash_api ./experimental/clashapi/...
+
+      - name: Test Dart Smart engine + adapter
+        run: |
+          set -euo pipefail
+          go test ./protocol/group/smart/... -count=1
 
       - name: Build Windows amd64
         env:

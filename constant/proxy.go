@@ -36,6 +36,8 @@ const (
 const (
 	TypeSelector = "selector"
 	TypeURLTest  = "urltest"
+	// dart-smart:register-type
+	TypeSmart = "smart"
 )
 
 func ProxyDisplayName(proxyType string) string {
@@ -92,6 +94,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "Selector"
 	case TypeURLTest:
 		return "URLTest"
+	case TypeSmart:
+		return "Smart"
 	default:
 		return "Unknown"
 	}
