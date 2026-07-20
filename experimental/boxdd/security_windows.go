@@ -400,6 +400,9 @@ func validateInstallationAncestor(path string, allowUnsafePermissions bool) erro
 	if attributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
 		return E.New("installation ancestor is a reparse point: ", path)
 	}
+	if allowUnsafePermissions {
+		return nil
+	}
 	descriptor, err := windows.GetNamedSecurityInfo(
 		path,
 		windows.SE_FILE_OBJECT,
@@ -440,7 +443,7 @@ func validateInstallationAncestor(path string, allowUnsafePermissions bool) erro
 			continue
 		}
 		principal := (*windows.SID)(unsafe.Pointer(&accessControlEntry.SidStart))
-		if !trustedAdministrativeUser(principal) && !allowUnsafePermissions {
+		if !trustedAdministrativeUser(principal) {
 			return E.New("installation ancestor is replaceable by an unprivileged principal: ", path)
 		}
 	}
