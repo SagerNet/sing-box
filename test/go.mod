@@ -13,10 +13,10 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sagernet/quic-go v0.59.0-sing-box-mod.4
 	github.com/sagernet/sing v0.8.12-0.20260717153536-4f1ed45a99a5
-	github.com/sagernet/sing-quic v0.6.4-0.20260709034545-e23afe1172dc
+	github.com/sagernet/sing-quic v0.6.4-0.20260720125339-63fa6a7ebc31
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
-	github.com/sagernet/sing-tun v0.8.12-0.20260719050255-7e7bd198288c
+	github.com/sagernet/sing-tun v0.8.12-0.20260719094150-557ca930fccd
 	github.com/spyzhov/ajson v0.9.4
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/goleak v1.3.0
@@ -67,8 +67,9 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/btree v1.1.3 // indirect
+	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
 	github.com/google/nftables v0.2.1-0.20240414091927-5e242ec57806 // indirect
@@ -153,10 +154,10 @@ require (
 	github.com/sagernet/nftables v0.3.0-mod.4 // indirect
 	github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3 // indirect
 	github.com/sagernet/sing-mux v0.3.5 // indirect
-	github.com/sagernet/sing-openconnect v0.0.0-20260718163953-a1c7815e4f04 // indirect
-	github.com/sagernet/sing-openvpn v0.0.0-20260718163953-26ecbeb6352c // indirect
+	github.com/sagernet/sing-openconnect v0.0.0-20260720032640-bf28b6a6f10e // indirect
+	github.com/sagernet/sing-openvpn v0.0.0-20260720132803-a5e407d00242 // indirect
 	github.com/sagernet/sing-shadowtls v0.2.1 // indirect
-	github.com/sagernet/sing-snell v0.0.0-20260710094516-a4e97ee24beb // indirect
+	github.com/sagernet/sing-snell v0.0.0-20260719094200-c43fbee0e839 // indirect
 	github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb // indirect
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 // indirect
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1 // indirect
@@ -181,7 +182,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.56.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.31.0 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect

@@ -33,6 +33,7 @@
     "client_certificate": [],
     "client_certificate_path": "",
     "verify_client_certificate": "require",
+    "certificate_profile": "",
     "control_wrap": {
       "type": "tls_crypt",
       "key": [],
@@ -213,6 +214,12 @@ If set to `optional`, a client certificate is verified when provided, but client
 If set to `none`, client certificates are not requested.
 
 This field does not replace `users`; when `users` is set, username/password authentication is still required.
+
+### tls.certificate_profile
+
+Certificate profile, one of `insecure`, `legacy`, `preferred`, or `suiteb`.
+
+`legacy` is used by default.
 
 ### tls.control_wrap
 

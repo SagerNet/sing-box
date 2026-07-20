@@ -33,6 +33,7 @@
     "client_certificate": [],
     "client_certificate_path": "",
     "verify_client_certificate": "require",
+    "certificate_profile": "",
     "control_wrap": {
       "type": "tls_crypt",
       "key": [],
@@ -213,6 +214,12 @@ OpenVPN 客户端证书策略，`require`、`optional` 或 `none` 之一。
 设为 `none` 时，不请求客户端证书。
 
 该字段不替代 `users`；设置 `users` 后仍然要求用户名/密码认证。
+
+### tls.certificate_profile
+
+证书 profile，可选值为 `insecure`、`legacy`、`preferred` 或 `suiteb`。
+
+默认使用 `legacy`。
 
 ### tls.control_wrap
 
