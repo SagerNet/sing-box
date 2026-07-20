@@ -27,16 +27,42 @@ func New(tags []string, opts Options) *Engine {
 	e := &Engine{
 		opts:    opts,
 		members: make(map[string]*MemberStats, len(tags)),
-		order:   append([]string(nil), tags...),
+		order:   nil,
 		hosts:   make(map[string]hostSticky),
 	}
+	e.syncMembersLocked(tags)
+	return e
+}
+
+// SyncMembers updates the member set (e.g. provider refresh). Keeps stats for
+// tags that still exist; drops removed tags; adds new ones cold.
+func (e *Engine) SyncMembers(tags []string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.syncMembersLocked(tags)
+}
+
+func (e *Engine) syncMembersLocked(tags []string) {
+	next := make(map[string]*MemberStats, len(tags))
+	order := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		if tag == "" {
 			continue
 		}
-		e.members[tag] = &MemberStats{Tag: tag, Weight: 1, Alive: true}
+		if m, ok := e.members[tag]; ok {
+			next[tag] = m
+		} else {
+			next[tag] = &MemberStats{Tag: tag, Weight: 1, Alive: true}
+		}
+		order = append(order, tag)
 	}
-	return e
+	e.members = next
+	e.order = order
+	if e.preferred != "" {
+		if _, ok := e.members[e.preferred]; !ok {
+			e.preferred = ""
+		}
+	}
 }
 
 // SetWeight applies a policy-priority style coefficient (Surge-compatible idea).
