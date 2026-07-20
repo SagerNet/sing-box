@@ -8,6 +8,8 @@ filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
 filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
 filippo.io/hpke v0.4.0 h1:p575VVQ6ted4pL+it6M00V/f2qTZITO0zgmdKCkd5+A=
 filippo.io/hpke v0.4.0/go.mod h1:EmAN849/P3qdeK+PCMkDpDm83vRHM5cDipBJ8xbQLVY=
+github.com/H-TTTTT/sing-tun v0.8.12-0.20260720013338-877581887d0b h1:CDbyjx1lVqq7YkTuY/DAs+D8S3o8S44D1BJJFX41KYM=
+github.com/H-TTTTT/sing-tun v0.8.12-0.20260720013338-877581887d0b/go.mod h1:F/gRq5VX1WN/OZtsvbN2JjXXuNl2ATJglHMSk1/iN9U=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
 github.com/akutz/memconn v0.1.0 h1:NawI0TORU4hcOMsMr11g7vwlCdkYeLKXBcxWu2W/P8A=
@@ -299,8 +301,6 @@ github.com/sagernet/sing-shadowtls v0.2.1 h1:ZiHZdnEnP+YS73NMsxiZmIFCwNd0M4k7PkG
 github.com/sagernet/sing-shadowtls v0.2.1/go.mod h1:sWqKnGlMipCHaGsw1sTTlimyUpgzP4WP3pjhCsYt9oA=
 github.com/sagernet/sing-snell v0.0.0-20260719094200-c43fbee0e839 h1:YL0oCb55moImUGvjhhVEYODGMo5i9dAf+RpmMFPCq9w=
 github.com/sagernet/sing-snell v0.0.0-20260719094200-c43fbee0e839/go.mod h1:PcwzX/Xvqky0EP3kGt8OCjYb3R1pydenPHNQZcPZmXY=
-github.com/sagernet/sing-tun v0.8.12-0.20260719094150-557ca930fccd h1:tH79/IieRjLx5DiVu3NpXc1hir0xL6Avmmist0aFHks=
-github.com/sagernet/sing-tun v0.8.12-0.20260719094150-557ca930fccd/go.mod h1:F/gRq5VX1WN/OZtsvbN2JjXXuNl2ATJglHMSk1/iN9U=
 github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb h1:KEMbfexD4DvrQGYWwx6r+AwH9Veh8z6cnBZmtCS2G+0=
 github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb/go.mod h1:D4CnJX3MNAAANhbQUxfIRgBdnvlTEaV7h6ojedcs+pw=
 github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 h1:aSwUNYUkVyVvdmBSufR8/nRFonwJeKSIROxHcm5br9o=
