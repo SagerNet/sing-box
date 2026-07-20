@@ -47,7 +47,7 @@ require (
 	github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3
 	github.com/sagernet/sing-mux v0.3.5
 	github.com/sagernet/sing-openconnect v0.0.0-20260720032640-bf28b6a6f10e
-	github.com/sagernet/sing-openvpn v0.0.0-20260719094204-c57d60b5c5a4
+	github.com/sagernet/sing-openvpn v0.0.0-20260720132803-a5e407d00242
 	github.com/sagernet/sing-quic v0.6.4-0.20260727030926-0b32a5074a40
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
@@ -105,8 +105,9 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect
 	github.com/gobwas/pool v0.2.1 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/btree v1.1.3 // indirect
+	github.com/google/certificate-transparency-go v1.3.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
