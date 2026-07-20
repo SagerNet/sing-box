@@ -405,7 +405,7 @@ type roundRobinBalancer struct {
 func (b *roundRobinBalancer) Select(_ *adapter.InboundContext) adapter.Outbound {
 	idx := b.next.Add(1) - 1
 	total := uint64(len(b.outbounds))
-	for attempts := uint64(0); attempts < total; attempts++ {
+	for attempts := range total {
 		candidate := b.outbounds[(idx+attempts)%total]
 		if isHealthy(b.history, candidate) {
 			return candidate
@@ -472,7 +472,7 @@ func (b *sourceHashBalancer) Select(ctx *adapter.InboundContext) adapter.Outboun
 	source := sourceFromCtx(ctx)
 	total := len(b.outbounds)
 	idx := hashToIndex(source, total)
-	for attempts := 0; attempts < total; attempts++ {
+	for attempts := range total {
 		candidate := b.outbounds[(idx+attempts)%total]
 		if isHealthy(b.history, candidate) {
 			return candidate
@@ -497,7 +497,7 @@ func (b *consistentHashBalancer) Select(ctx *adapter.InboundContext) adapter.Out
 		return b.fallback
 	}
 	idx := jumpHash(uint64(crc32.ChecksumIEEE([]byte(source))), int32(total))
-	for attempts := 0; attempts < total; attempts++ {
+	for attempts := range total {
 		candidate := b.outbounds[(int(idx)+attempts)%total]
 		if isHealthy(b.history, candidate) {
 			return candidate
