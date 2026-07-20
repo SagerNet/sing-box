@@ -60,12 +60,33 @@ func TestPenaltyGrowsAndSuccessWipes(t *testing.T) {
 func TestHostSticky(t *testing.T) {
 	t.Parallel()
 	fixed := time.Unix(1_700_000_000, 0)
-	e := New([]string{"a", "b"}, Options{Now: func() time.Time { return fixed }})
+	e := New([]string{"a", "b"}, Options{
+		Now:         func() time.Time { return fixed },
+		ExploreProb: -1, // disable explore for deterministic sticky test
+	})
 	e.Record("a", OutcomeSuccess, 50)
 	e.Record("b", OutcomeSuccess, 60)
 	e.RememberHost("example.com", "b")
 	cands := e.Select("example.com")
 	if cands[0].Tag != "b" {
 		t.Fatalf("sticky want b first, got %v", cands[0].Tag)
+	}
+}
+
+func TestPreferredBeatsOrder(t *testing.T) {
+	t.Parallel()
+	fixed := time.Unix(1_700_000_000, 0)
+	e := New([]string{"a", "b", "c"}, Options{
+		Now:         func() time.Time { return fixed },
+		ExploreProb: -1,
+		TopK:        1,
+	})
+	e.Record("a", OutcomeSuccess, 40)
+	e.Record("b", OutcomeSuccess, 80)
+	e.Record("c", OutcomeSuccess, 90)
+	e.SetPreferred("c")
+	cands := e.Select("")
+	if cands[0].Tag != "c" {
+		t.Fatalf("preferred want c first, got %v", cands[0].Tag)
 	}
 }

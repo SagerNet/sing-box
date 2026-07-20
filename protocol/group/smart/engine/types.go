@@ -80,8 +80,11 @@ func (o Options) withDefaults() Options {
 	if o.MaxHosts <= 0 {
 		o.MaxHosts = DefaultMaxHosts
 	}
-	if o.ExploreProb < 0 {
+	// 0 means "use default exploration"; negative disables.
+	if o.ExploreProb == 0 {
 		o.ExploreProb = 0.15
+	} else if o.ExploreProb < 0 {
+		o.ExploreProb = 0
 	}
 	if o.Now == nil {
 		o.Now = time.Now

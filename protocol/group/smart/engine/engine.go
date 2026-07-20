@@ -8,11 +8,12 @@ import (
 
 // Engine is the shared Smart decision state for one group instance.
 type Engine struct {
-	mu      sync.Mutex
-	opts    Options
-	members map[string]*MemberStats
-	order   []string
-	hosts   map[string]hostSticky
+	mu        sync.Mutex
+	opts      Options
+	members   map[string]*MemberStats
+	order     []string
+	hosts     map[string]hostSticky
+	preferred string // API / app preferred member (soft pin)
 }
 
 type hostSticky struct {
@@ -52,7 +53,7 @@ func (e *Engine) SetWeight(tag string, weight float64) {
 	m.Weight = weight
 }
 
-// SetURLTestPrior seeds latency from a URL health check (initialization only).
+// SetURLTestPrior seeds latency from a URL health check (may be refreshed).
 func (e *Engine) SetURLTestPrior(tag string, latencyMs uint16) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -65,6 +66,26 @@ func (e *Engine) SetURLTestPrior(tag string, latencyMs uint16) {
 	if m.Samples == 0 {
 		m.EwmaMs = float64(latencyMs)
 	}
+}
+
+// SetPreferred pins a member for subsequent Select (Clash API / app smart pick).
+// Empty tag clears the pin.
+func (e *Engine) SetPreferred(tag string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if tag != "" {
+		if _, ok := e.members[tag]; !ok {
+			return
+		}
+	}
+	e.preferred = tag
+}
+
+// Preferred returns the current API/app preferred member tag.
+func (e *Engine) Preferred() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.preferred
 }
 
 // SoftFailThresholdMs returns the soft-fail ceiling for a member (Surge ×1.5 idea).

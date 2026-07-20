@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"hash/fnv"
 	"math"
 	"math/rand"
 	"sort"
@@ -19,7 +20,7 @@ type scoredMember struct {
 }
 
 // Select returns ordered members to try for a dial (host may be empty).
-// Order: host sticky (if still competitive) → top-K by score (weighted random head) → rest by score.
+// Order: preferred (API) -> host sticky -> top-K score (+ exploration) -> rest by score.
 func (e *Engine) Select(host string) []Candidate {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -41,8 +42,11 @@ func (e *Engine) Select(host string) []Candidate {
 		return rows[i].score < rows[j].score
 	})
 
-	// Top-K weighted random among the best K (before sticky pin).
-	k := min(e.opts.TopK, len(rows))
+	// Top-K weighted random among the best K (before sticky/preferred pins).
+	k := e.opts.TopK
+	if k > len(rows) {
+		k = len(rows)
+	}
 	if k > 1 {
 		scores := make([]float64, k)
 		for i := 0; i < k; i++ {
@@ -56,7 +60,30 @@ func (e *Engine) Select(host string) []Candidate {
 		}
 	}
 
-	// Host sticky wins over Top-K shuffle when still competitive.
+	// Exploration: sometimes try a cold / non-head member first (before sticky).
+	if e.opts.ExploreProb > 0 && len(rows) > 1 {
+		r := rand.New(rand.NewSource(now.UnixNano() + int64(len(rows))*9973))
+		if r.Float64() < e.opts.ExploreProb {
+			cold := make([]int, 0, len(rows))
+			for i := 1; i < len(rows); i++ {
+				m := e.members[rows[i].tag]
+				if m != nil && m.Samples == 0 {
+					cold = append(cold, i)
+				}
+			}
+			idx := 1 + r.Intn(len(rows)-1)
+			if len(cold) > 0 {
+				idx = cold[r.Intn(len(cold))]
+			}
+			if idx > 0 && idx < len(rows) {
+				chosen := rows[idx]
+				copy(rows[1:idx+1], rows[0:idx])
+				rows[0] = chosen
+			}
+		}
+	}
+
+	// Host sticky wins over Top-K/explore when still competitive.
 	if host != "" {
 		if sticky, ok := e.hosts[host]; ok && now.Sub(sticky.UpdatedAt) <= e.opts.HostStickyTTL {
 			best := rows[0].score
@@ -71,6 +98,19 @@ func (e *Engine) Select(host string) []Candidate {
 				}
 				break
 			}
+		}
+	}
+
+	// Preferred (app/API) wins over sticky for the next dials.
+	if e.preferred != "" {
+		for i, r := range rows {
+			if r.tag != e.preferred {
+				continue
+			}
+			if i > 0 {
+				rows = append([]scoredMember{r}, append(rows[:i], rows[i+1:]...)...)
+			}
+			break
 		}
 	}
 
@@ -110,7 +150,8 @@ func (e *Engine) scoreLocked(m *MemberStats, now time.Time) float64 {
 		if m.HasURLTestPrior {
 			base = float64(m.URLTestLatencyMs)
 		} else {
-			base = 800
+			// Cold default + deterministic jitter so listed order is not always first.
+			base = 800 + float64(tagJitter(m.Tag)%200)
 		}
 	}
 	base += m.JitterMs * 0.5
@@ -130,6 +171,12 @@ func (e *Engine) scoreLocked(m *MemberStats, now time.Time) float64 {
 		return 1e9
 	}
 	return base
+}
+
+func tagJitter(tag string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(tag))
+	return h.Sum32()
 }
 
 func softmaxPickIndex(scores []float64, seed int64) int {

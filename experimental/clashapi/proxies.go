@@ -167,16 +167,23 @@ func updateProxy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proxy := r.Context().Value(CtxKeyProxy).(adapter.Outbound)
-	selector, ok := proxy.(*group.Selector)
-	if !ok {
+	switch p := proxy.(type) {
+	case *group.Selector:
+		if !p.SelectOutbound(req.Name) {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, newError("Selector update error: not found"))
+			return
+		}
+	case interface{ SelectOutbound(string) bool }:
+		// Dart Smart group: pin preferred member; dial still failovers.
+		if !p.SelectOutbound(req.Name) {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, newError("Smart update error: not found"))
+			return
+		}
+	default:
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, newError("Must be a Selector"))
-		return
-	}
-
-	if !selector.SelectOutbound(req.Name) {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, newError("Selector update error: not found"))
 		return
 	}
 

@@ -94,6 +94,25 @@ func (s *Outbound) All() []string {
 	return s.tags
 }
 
+// SelectOutbound pins the preferred member for subsequent dials (Clash API).
+// Failover still walks other members when the preferred dial fails.
+func (s *Outbound) SelectOutbound(tag string) bool {
+	if _, ok := s.outbounds[tag]; !ok {
+		return false
+	}
+	s.selected = tag
+	if s.engine != nil {
+		s.engine.SetPreferred(tag)
+	}
+	if s.Tag() != "" {
+		cacheFile := service.FromContext[adapter.CacheFile](s.ctx)
+		if cacheFile != nil {
+			_ = cacheFile.StoreSelected(s.Tag(), tag)
+		}
+	}
+	return true
+}
+
 func (s *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	host := destination.Fqdn
 	if host == "" {
