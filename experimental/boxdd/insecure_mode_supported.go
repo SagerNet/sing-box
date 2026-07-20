@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,19 +13,19 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
-func insecureFeatureError(feature string) error {
-	return E.New(fmt.Sprintf(locale.Current().InsecureFeatureMessage, feature, insecureModePlatformName()))
+func insecureFeatureError(ctx context.Context, feature string) error {
+	return E.New(fmt.Sprintf(locale.FromContext(ctx).InsecureFeatureMessage, feature, insecureModePlatformName()))
 }
 
 type daemonSecurityPolicy struct {
 	daemon *Daemon
 }
 
-func (p *daemonSecurityPolicy) CheckFeature(feature string) error {
+func (p *daemonSecurityPolicy) CheckFeature(ctx context.Context, feature string) error {
 	if p.daemon.insecureModeEnabled() {
 		return nil
 	}
-	return insecureFeatureError(feature)
+	return insecureFeatureError(ctx, feature)
 }
 
 type restrictedFileManager struct {

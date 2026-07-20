@@ -188,7 +188,7 @@ func (s *StartedService) waitForStarted(ctx context.Context) error {
 	}
 }
 
-func (s *StartedService) StartOrReloadService(profileContent string, options *OverrideOptions) error {
+func (s *StartedService) StartOrReloadService(ctx context.Context, profileContent string, options *OverrideOptions) error {
 	s.serviceAccess.Lock()
 	switch s.serviceStatus.Status {
 	case ServiceStatus_IDLE, ServiceStatus_STARTED, ServiceStatus_STARTING, ServiceStatus_FATAL:
@@ -207,7 +207,7 @@ func (s *StartedService) StartOrReloadService(profileContent string, options *Ov
 	}
 	s.updateStatus(ServiceStatus_STARTING)
 	s.resetLogs()
-	instance, err := s.newInstance(profileContent, options)
+	instance, err := s.newInstance(ctx, profileContent, options)
 	if err != nil {
 		return s.updateStatusError(err)
 	}
@@ -1037,10 +1037,11 @@ func (s *StartedService) GetDeprecatedWarnings(ctx context.Context, empty *empty
 		return &DeprecatedWarnings{}, nil
 	}
 	notes := manager.Get()
+	selectedLocale := locale.FromContext(ctx)
 	return &DeprecatedWarnings{
 		Warnings: common.Map(notes, func(it deprecated.Note) *DeprecatedWarning {
 			return &DeprecatedWarning{
-				Message:           it.Message(),
+				Message:           it.MessageForLocale(selectedLocale),
 				Impending:         it.Impending(),
 				MigrationLink:     it.MigrationLink,
 				Description:       it.Description,

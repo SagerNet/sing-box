@@ -7,7 +7,7 @@ import (
 )
 
 type SecurityPolicy interface {
-	CheckFeature(feature string) error
+	CheckFeature(ctx context.Context, feature string) error
 }
 
 func CheckSecurityFeature(ctx context.Context, feature string) error {
@@ -15,5 +15,5 @@ func CheckSecurityFeature(ctx context.Context, feature string) error {
 	if policy == nil {
 		return nil
 	}
-	return policy.CheckFeature(feature)
+	return policy.CheckFeature(ctx, feature)
 }
