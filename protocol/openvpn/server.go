@@ -336,6 +336,7 @@ func buildServerTLSOptions(options option.OpenVPNInboundTLSOptions) (ovpn.Server
 		Certificate:             certificate,
 		Key:                     key,
 		VerifyClientCertificate: options.VerifyClientCertificate,
+		CertificateProfile:      options.CertificateProfile,
 	}
 	keyDirection := -1
 	controlWrap := options.ControlWrap

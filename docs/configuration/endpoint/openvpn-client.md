@@ -38,6 +38,8 @@
     "crl_path": "",
     "remote_certificate_ku": [],
     "remote_certificate_eku": "",
+    "remote_certificate_tls": "",
+    "certificate_profile": "",
     "version_min": "1.2",
     "version_max": "",
     "cipher": "",
@@ -251,15 +253,35 @@ Disabled by default.
 
 Required server certificate key usage masks, written as hexadecimal values in OpenVPN `remote-cert-ku` format.
 
-Multiple values are combined, and all requested usages must be present.
+The certificate must contain all bits from at least one configured mask.
 
 Disabled by default.
 
 ### tls.remote_certificate_eku
 
-Required server certificate extended key usage, one of `server` or `client`.
+Required server certificate extended key usage.
 
-Disabled by default. The standard OpenVPN server certificate usage check still applies.
+OpenSSL names, object identifiers, and the aliases `server` and `client` are accepted.
+
+When set, this field replaces the default `tls.remote_certificate_tls` check.
+
+Conflict with an explicitly configured `tls.remote_certificate_tls`.
+
+### tls.remote_certificate_tls
+
+Peer certificate purpose check, one of `server`, `client`, or `none`.
+
+`server` is used by default.
+
+`none` disables the certificate purpose check.
+
+Conflict with `tls.remote_certificate_eku`.
+
+### tls.certificate_profile
+
+Certificate profile, one of `insecure`, `legacy`, `preferred`, or `suiteb`.
+
+`legacy` is used by default.
 
 ### tls.version_min
 

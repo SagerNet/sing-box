@@ -237,6 +237,20 @@ func (c *ClientEndpoint) buildClientOptions(options option.OpenVPNClientEndpoint
 	tunnelRoutes := common.Map(options.Routes, func(route netip.Prefix) ovpn.TunnelRoute {
 		return ovpn.TunnelRoute{Prefix: route}
 	})
+	remoteCertificateTLS := options.TLS.RemoteCertificateTLS
+	switch remoteCertificateTLS {
+	case "", "server", "client", "none":
+	default:
+		return ovpn.ClientOptions{}, E.New("invalid `tls.remote_certificate_tls`: ", remoteCertificateTLS)
+	}
+	if options.TLS.RemoteCertificateEKU != "" && remoteCertificateTLS != "" {
+		return ovpn.ClientOptions{}, E.New("`tls.remote_certificate_eku` is conflict with `tls.remote_certificate_tls`")
+	}
+	if remoteCertificateTLS == "" && options.TLS.RemoteCertificateEKU == "" {
+		remoteCertificateTLS = "server"
+	} else if remoteCertificateTLS == "none" {
+		remoteCertificateTLS = ""
+	}
 	clientTLSOptions := ovpn.ClientTLSOptions{
 		CertificateAuthority: certificateAuthority,
 		Certificate:          clientCertificate,
@@ -249,9 +263,10 @@ func (c *ClientEndpoint) buildClientOptions(options option.OpenVPNClientEndpoint
 		CRLVerify:            options.TLS.CRLPath,
 		RemoteCertificateKU:  options.TLS.RemoteCertificateKU,
 		RemoteCertificateEKU: options.TLS.RemoteCertificateEKU,
-		RemoteCertificateTLS: "server",
+		RemoteCertificateTLS: remoteCertificateTLS,
 		VersionMin:           options.TLS.VersionMin,
 		VersionMax:           options.TLS.VersionMax,
+		CertificateProfile:   options.TLS.CertificateProfile,
 		Cipher:               options.TLS.Cipher,
 		Groups:               options.TLS.Groups,
 	}
