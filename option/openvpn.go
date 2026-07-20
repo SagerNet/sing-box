@@ -94,6 +94,8 @@ type OpenVPNOutboundTLSOptions struct {
 	CRLPath               string                     `json:"crl_path,omitempty"`
 	RemoteCertificateKU   badoption.Listable[string] `json:"remote_certificate_ku,omitempty"`
 	RemoteCertificateEKU  string                     `json:"remote_certificate_eku,omitempty"`
+	RemoteCertificateTLS  string                     `json:"remote_certificate_tls,omitempty"`
+	CertificateProfile    string                     `json:"certificate_profile,omitempty"`
 	VersionMin            string                     `json:"version_min,omitempty"`
 	VersionMax            string                     `json:"version_max,omitempty"`
 	Cipher                string                     `json:"cipher,omitempty"`
@@ -109,6 +111,7 @@ type OpenVPNInboundTLSOptions struct {
 	ClientCertificate       badoption.Listable[string]        `json:"client_certificate,omitempty"`
 	ClientCertificatePath   string                            `json:"client_certificate_path,omitempty"`
 	VerifyClientCertificate string                            `json:"verify_client_certificate,omitempty"`
+	CertificateProfile      string                            `json:"certificate_profile,omitempty"`
 	ControlWrap             *OpenVPNInboundControlWrapOptions `json:"control_wrap,omitempty"`
 }
 
