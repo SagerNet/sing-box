@@ -89,10 +89,10 @@ func (s *LoadBalance) Start() error {
 		if !loaded {
 			return E.New("fallback outbound not found: ", s.fallback)
 		}
-		fallback = outbound
-		if _, isGroup := fallback.(adapter.OutboundGroup); isGroup {
+		if _, isGroup := outbound.(adapter.OutboundGroup); isGroup {
 			return E.New("fallback outbound cannot be a group: ", s.fallback)
 		}
+		fallback = outbound
 	} else {
 		fallback = s.outbounds[0]
 	}
@@ -534,8 +534,5 @@ func sourceFromCtx(ctx *adapter.InboundContext) string {
 }
 
 func isHealthy(h *urltest.HistoryStorage, o adapter.Outbound) bool {
-	if h == nil {
-		return false
-	}
 	return h.LoadURLTestHistory(RealTag(o)) != nil
 }

@@ -20,8 +20,8 @@ type URLTestOutboundOptions struct {
 type LoadBalanceOutboundOptions struct {
 	Outbounds   []string           `json:"outbounds"`
 	Strategy    string             `json:"strategy,omitempty"`
+	Fallback    string             `json:"fallback,omitempty"`
 	URL         string             `json:"url,omitempty"`
 	Interval    badoption.Duration `json:"interval,omitempty"`
 	IdleTimeout badoption.Duration `json:"idle_timeout,omitempty"`
-	Fallback    string             `json:"fallback,omitempty"`
 }
