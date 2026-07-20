@@ -3,6 +3,7 @@ package smart
 import (
 	"context"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -136,7 +137,7 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 			lastErr = err
 			continue
 		}
-		// Soft-fail: dial itself was slow vs history (handshake-style signal).
+		// Soft-fail: dial itself was slow vs history.
 		threshold := s.engine.SoftFailThresholdMs(candidate.Tag)
 		if rttMs > threshold && threshold > 0 {
 			_ = conn.Close()
@@ -144,6 +145,31 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 			s.logger.DebugContext(ctx, "smart soft-fail via ", candidate.Tag, " rtt=", int(rttMs), "ms threshold=", int(threshold), "ms")
 			lastErr = E.New("smart soft-fail: ", candidate.Tag)
 			continue
+		}
+		tag := candidate.Tag
+		hostKey := host
+		// Defer success until first write when the outbound still needs a handshake.
+		if N.NeedHandshakeForWrite(conn) {
+			conn = &firstWriteObserveConn{
+				Conn: conn,
+				onFirstWrite: func(err error, hsMs float64) {
+					if err != nil {
+						s.engine.Record(tag, engine.OutcomeFailure, hsMs)
+						s.logger.DebugContext(ctx, "smart handshake failed via ", tag, ": ", err)
+						return
+					}
+					th := s.engine.SoftFailThresholdMs(tag)
+					if hsMs > th && th > 0 {
+						s.engine.Record(tag, engine.OutcomeSoftFail, hsMs)
+						s.logger.DebugContext(ctx, "smart handshake soft-fail via ", tag, " rtt=", int(hsMs), "ms")
+						return
+					}
+					s.engine.Record(tag, engine.OutcomeSuccess, hsMs)
+					s.engine.RememberHost(hostKey, tag)
+				},
+			}
+			s.selected = tag
+			return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 		}
 		s.engine.Record(candidate.Tag, engine.OutcomeSuccess, rttMs)
 		s.engine.RememberHost(host, candidate.Tag)
@@ -197,4 +223,22 @@ func (s *Outbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata 
 func (s *Outbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	ctx = interrupt.ContextWithIsExternalConnection(ctx)
 	s.connection.NewPacketConnection(ctx, s, conn, metadata, onClose)
+}
+
+// firstWriteObserveConn records handshake outcome on the first Write.
+type firstWriteObserveConn struct {
+	net.Conn
+	once         sync.Once
+	onFirstWrite func(err error, rttMs float64)
+}
+
+func (c *firstWriteObserveConn) Write(b []byte) (int, error) {
+	start := time.Now()
+	n, err := c.Conn.Write(b)
+	c.once.Do(func() {
+		if c.onFirstWrite != nil {
+			c.onFirstWrite(err, float64(time.Since(start).Milliseconds()))
+		}
+	})
+	return n, err
 }
