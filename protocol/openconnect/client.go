@@ -254,6 +254,13 @@ func (e *Endpoint) buildClientOptions(options option.OpenConnectEndpointOptions,
 			Certificates:                 tnccCertificates,
 		}
 	}
+	var fortinetHostCheckOptions *openconnect.FortinetHostCheckOptions
+	if options.FortinetHostCheck != nil {
+		fortinetHostCheckOptions = &openconnect.FortinetHostCheckOptions{
+			HostCheck:           options.FortinetHostCheck.HostCheck,
+			CheckVirtualDesktop: options.FortinetHostCheck.CheckVirtualDesktop,
+		}
+	}
 	formEntries := common.Map(options.FormEntries, func(entry option.OpenConnectFormEntryOptions) openconnect.FormEntry {
 		return openconnect.FormEntry{
 			FormID:        entry.FormID,
@@ -280,6 +287,7 @@ func (e *Endpoint) buildClientOptions(options option.OpenConnectEndpointOptions,
 		CSD:                            csdOptions,
 		HIP:                            hipOptions,
 		TNCC:                           tnccOptions,
+		FortinetHostCheck:              fortinetHostCheckOptions,
 		NoUDP:                          options.NoUDP,
 		DTLSLocalPort:                  options.DTLSLocalPort,
 		CompressionDisabled:            options.CompressionDisabled,

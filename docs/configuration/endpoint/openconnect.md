@@ -58,6 +58,10 @@
       }
     ]
   },
+  "fortinet_host_check": {
+    "hostcheck": "",
+    "check_virtual_desktop": ""
+  },
   "no_udp": false,
   "dtls_local_port": 0,
   "compression_disabled": false,
@@ -341,6 +345,30 @@ Conflict with `tncc.certificates.certificate_path`.
 TNCC machine certificate path in PEM format.
 
 Conflict with `tncc.certificates.certificate`.
+
+### fortinet_host_check
+
+Fortinet hostcheck result override.
+
+Hostcheck is disabled by default. It is enabled only when `fortinet_host_check.hostcheck` is non-empty. No operating system, security product, or network interface information is collected automatically.
+
+When enabled and a successful Fortinet login response requests hostcheck, both configured values are submitted to the server before the VPN session is used. The values are sent unchanged as `application/x-www-form-urlencoded` fields.
+
+Some Fortinet servers only request hostcheck from recognized FortiClient user agents. Configure `user_agent` when required by the server policy.
+
+### fortinet_host_check.hostcheck
+
+Fortinet hostcheck result string.
+
+The conventional format is `<security-status>,<os-version>`, for example `0100,10.0.19042`. `security-status` contains four `0` or `1` characters representing, in order, third-party firewall, third-party antivirus, FortiClient firewall, and FortiClient antivirus.
+
+An empty value disables Fortinet hostcheck, even if `fortinet_host_check.check_virtual_desktop` is configured.
+
+### fortinet_host_check.check_virtual_desktop
+
+Fortinet virtual desktop check result string.
+
+FortiClient conventionally sends colon-separated MAC addresses joined by `|`, for example `74:78:27:4d:81:93|84:1b:77:3a:95:84`. An empty value is submitted as an empty field when hostcheck is enabled.
 
 ### no_udp
 
