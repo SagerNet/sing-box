@@ -44,7 +44,7 @@
           "ts_omit_synology",
           "ts_omit_bird"
         ],
-        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X runtime.godebugDefault=multipathtcp=0,tlssha1=1,tlsunsafeekm=1 -s -w -buildid= -checklinkname=0",
         "trimpath": true
       }
     },
@@ -73,7 +73,7 @@
           "ts_omit_synology",
           "ts_omit_bird"
         ],
-        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X runtime.godebugDefault=multipathtcp=0,tlssha1=1,tlsunsafeekm=1 -s -w -buildid= -checklinkname=0",
         "trimpath": true
       }
     },
@@ -105,7 +105,7 @@
           "ts_omit_synology",
           "ts_omit_bird"
         ],
-        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X runtime.godebugDefault=multipathtcp=0,tlssha1=1,tlsunsafeekm=1 -s -w -buildid= -checklinkname=0",
         "trimpath": true
       },
       "overrides": [
@@ -146,7 +146,7 @@
           "ts_omit_synology",
           "ts_omit_bird"
         ],
-        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0",
+        "ldflags": "-X github.com/sagernet/sing-box/constant.Version=${VERSION} -X runtime.godebugDefault=multipathtcp=0,tlssha1=1,tlsunsafeekm=1 -s -w -buildid= -checklinkname=0",
         "trimpath": true
       }
     }
