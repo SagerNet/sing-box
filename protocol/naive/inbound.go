@@ -221,7 +221,7 @@ func (n *Inbound) newConnection(ctx context.Context, waitForClose bool, conn net
 	} else {
 		done := make(chan struct{})
 		wrapper := v2rayhttp.NewHTTP2Wrapper(conn)
-		n.router.RouteConnectionEx(ctx, conn, metadata, N.OnceClose(func(it error) {
+		n.router.RouteConnectionEx(ctx, wrapper, metadata, N.OnceClose(func(it error) {
 			close(done)
 		}))
 		<-done
