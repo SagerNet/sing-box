@@ -94,7 +94,7 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/mdlayher/netlink v1.9.0 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/metacubex/utls v1.8.4 // indirect
+	github.com/metacubex/utls v1.8.7 // indirect
 	github.com/mholt/acmez/v3 v3.1.6 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
