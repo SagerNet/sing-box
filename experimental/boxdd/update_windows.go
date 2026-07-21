@@ -227,7 +227,6 @@ func createUpdateInstallerProcess(token windows.Token, installerPath string) (wi
 	commandLine, err := windows.UTF16FromString(windows.ComposeCommandLine([]string{
 		installerPath,
 		"--updated",
-		"/S",
 		"--force-run",
 	}))
 	if err != nil {
