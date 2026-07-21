@@ -19,7 +19,7 @@ on:
           - Windows
           - Linux
           - Apple
-          - app-store
+          - Apple-release
           - iOS
           - macOS
           - tvOS
@@ -30,11 +30,6 @@ on:
         description: "TestFlight test message"
         required: false
         type: string
-      publish:
-        description: "Publish build outputs"
-        required: true
-        type: boolean
-        default: true
   push:
     branches:
       - stable
@@ -61,6 +56,18 @@ jobs:
         with:
           go-version: 1.25.12
           cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
+      - name: Cache Go tool builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-tools-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-build-tools-linux-
       - name: Check input version
         if: github.event_name == 'workflow_dispatch'
         run: |-
@@ -81,6 +88,7 @@ jobs:
     needs:
       - calculate_version
     strategy:
+      max-parallel: 13
       matrix:
         include:
           - { os: linux, arch: amd64, variant: purego, naive: true }
@@ -138,10 +146,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.25.12
-          cache-dependency-path: |
-            go.sum
-            release/DEFAULT_BUILD_TAGS
-            release/DEFAULT_BUILD_TAGS_OTHERS
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
       - name: Cache Go for Windows 7
         if: matrix.legacy_win7
         id: cache-go-for-windows7
@@ -183,17 +194,6 @@ jobs:
           rm -f ~/cronet-go/naiveproxy/src/build/linux/sysroot_scripts/keyring.gpg
           cd ~/cronet-go
           GPG_TTY=/dev/null ./naiveproxy/src/build/linux/sysroot_scripts/generate_keyring.sh
-      - name: Cache Chromium toolchain
-        if: matrix.naive
-        id: cache-chromium-toolchain
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/cronet-go/naiveproxy/src/third_party/llvm-build/
-            ~/cronet-go/naiveproxy/src/gn/out/
-            ~/cronet-go/naiveproxy/src/chrome/build/pgo_profiles/
-            ~/cronet-go/naiveproxy/src/out/sysroot-build/
-          key: chromium-toolchain-linux-${{ matrix.arch }}-${{ hashFiles('.github/CRONET_GO_VERSION') }}
       - name: Download Chromium toolchain
         if: matrix.naive
         run: |
@@ -463,10 +463,11 @@ jobs:
           path: "dist"
   build_darwin:
     name: Build Darwin binaries
-    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
+    if: ${{ !failure() && !cancelled() && (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary') }}
     runs-on: macos-latest
     needs:
       - calculate_version
+      - build_apple_library
     strategy:
       matrix:
         include:
@@ -483,10 +484,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.25.3
-          cache-dependency-path: |
-            go.sum
-            release/DEFAULT_BUILD_TAGS
-            release/DEFAULT_BUILD_TAGS_OTHERS
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-macos-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-macos-
       - name: Cache Go for macOS 10.13
         if: matrix.legacy_osx
         id: cache-go-for-macos1013
@@ -579,10 +583,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ^1.25.4
-          cache-dependency-path: |
-            go.sum
-            release/DEFAULT_BUILD_TAGS_WINDOWS
-            release/DEFAULT_BUILD_TAGS_OTHERS
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-windows-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-windows-
       - name: Set tag
         run: |-
           git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$env:GITHUB_ENV"
@@ -686,12 +693,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
-          key: libbox-go-modules-linux-1.25.12-${{ hashFiles('go.sum') }}
-      - name: Cache Go build
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/go-build
-          key: libbox-go-build-android-${{ matrix.go_arch }}-1.25.12-${{ hashFiles('go.sum') }}
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -749,10 +752,19 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.25.12
-          cache-dependency-path: |
-            go.sum
-            clients/android/gradle/libs.versions.toml
-            clients/android/gradle/wrapper/gradle-wrapper.properties
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
+      - name: Cache Go tool builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-tools-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-build-tools-linux-
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -848,10 +860,19 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.25.12
-          cache-dependency-path: |
-            go.sum
-            clients/android/gradle/libs.versions.toml
-            clients/android/gradle/wrapper/gradle-wrapper.properties
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
+      - name: Cache Go tool builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-tools-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-build-tools-linux-
       - name: Setup Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
@@ -913,16 +934,7 @@ jobs:
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
           SERVICE_ACCOUNT_CREDENTIALS: ${{ secrets.SERVICE_ACCOUNT_CREDENTIALS }}
-      - name: Validate signing and Play credentials
-        if: ${{ !inputs.publish }}
-        run: |-
-          cd clients/android
-          ./gradlew --build-cache --parallel :app:validateSigningPlayRelease :app:bootstrapPlayReleaseListing --no-app-details --listings --no-products --no-release-notes --no-subscriptions
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
       - name: Publish to Google Play
-        if: inputs.publish
         run: |-
           cd clients/android
           ./gradlew --build-cache --parallel :app:publishPlayReleaseBundle
@@ -963,12 +975,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
-          key: boxdd-go-modules-windows-1.25.12-${{ hashFiles('go.sum') }}
-      - name: Cache boxdd build
-        uses: actions/cache@v4
-        with:
-          path: ~/AppData/Local/go-build
-          key: boxdd-go-build-windows-${{ matrix.desktop_arch }}-1.25.12-${{ hashFiles('go.sum', 'release/DEFAULT_BUILD_TAGS_WINDOWS', 'release/DEFAULT_BUILD_TAGS_OTHERS') }}
+          key: go-mod-desktop-windows-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-desktop-windows-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@1.88.0
         with:
@@ -981,6 +989,7 @@ jobs:
             ~/.cargo/registry
             clients/desktop/bin/windows-share-toolchain/cargo-target
           key: windows-share-${{ matrix.rust_target }}-${{ hashFiles('clients/desktop/native/windows-share/Cargo.lock') }}
+          restore-keys: windows-share-${{ matrix.rust_target }}-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -1070,9 +1079,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: 1.25.12
-          cache-dependency-path: |
-            go.sum
-            clients/desktop/pnpm-lock.yaml
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-desktop-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-desktop-linux-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -1112,15 +1125,6 @@ jobs:
           rm -f ~/cronet-go/naiveproxy/src/build/linux/sysroot_scripts/keyring.gpg
           cd ~/cronet-go
           GPG_TTY=/dev/null ./naiveproxy/src/build/linux/sysroot_scripts/generate_keyring.sh
-      - name: Cache Chromium toolchain
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/cronet-go/naiveproxy/src/third_party/llvm-build/
-            ~/cronet-go/naiveproxy/src/gn/out/
-            ~/cronet-go/naiveproxy/src/chrome/build/pgo_profiles/
-            ~/cronet-go/naiveproxy/src/out/sysroot-build/
-          key: chromium-toolchain-linux-${{ matrix.go_arch }}-${{ hashFiles('.github/CRONET_GO_VERSION') }}
       - name: Download Chromium toolchain
         run: |-
           set -xeuo pipefail
@@ -1202,8 +1206,8 @@ jobs:
           path: 'dist'
   build_apple_library:
     name: Build Apple library (${{ matrix.artifact }})
-    runs-on: macos-26
-    if: github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS' || inputs.build == 'macOS-standalone' || inputs.build == 'iOS-jailbreak')
+    runs-on: ${{ matrix.build && 'macos-26' || 'ubuntu-latest' }}
+    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'Apple-release' || inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS' || inputs.build == 'macOS-standalone' || inputs.build == 'iOS-jailbreak'
     needs:
       - calculate_version
     strategy:
@@ -1212,16 +1216,16 @@ jobs:
         include:
           - artifact: ios-arm64
             platform: ios/arm64
-            build: ${{ inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'iOS' || inputs.build == 'iOS-jailbreak' }}
+            build: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'Apple-release' || inputs.build == 'iOS' || inputs.build == 'iOS-jailbreak' }}
           - artifact: tvos-arm64
             platform: tvos/arm64
-            build: ${{ inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'tvOS' }}
+            build: ${{ github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'tvOS') }}
           - artifact: macos-arm64
             platform: macos/arm64
-            build: ${{ inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'macOS' || inputs.build == 'macOS-standalone' }}
+            build: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'Apple-release' || inputs.build == 'macOS' || inputs.build == 'macOS-standalone' }}
           - artifact: macos-amd64
             platform: macos/amd64
-            build: ${{ inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'macOS' || inputs.build == 'macOS-standalone' }}
+            build: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'Apple-release' || inputs.build == 'macOS' || inputs.build == 'macOS-standalone' }}
     steps:
       - name: Checkout
         if: matrix.build
@@ -1239,13 +1243,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
-          key: libbox-go-modules-macos-1.25.12-${{ hashFiles('go.sum') }}
+          key: go-mod-macos-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-macos-
       - name: Cache Go build
         if: matrix.build
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/go-build
           key: libbox-go-build-${{ matrix.artifact }}-1.25.12-${{ hashFiles('go.sum') }}
+          restore-keys: libbox-go-build-${{ matrix.artifact }}-1.25.12-
       - name: Set tag
         if: matrix.build
         run: git tag v${{ needs.calculate_version.outputs.version }} -f
@@ -1265,9 +1271,9 @@ jobs:
           path: dist
           compression-level: 1
   build_apple:
-    name: Build Apple clients
-    runs-on: macos-26
-    if: github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store' || inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS' || inputs.build == 'macOS-standalone' || inputs.build == 'iOS-jailbreak')
+    name: Build Apple release clients
+    runs-on: ${{ matrix.if && 'macos-26' || 'ubuntu-latest' }}
+    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple-release' || inputs.build == 'macOS-standalone' || inputs.build == 'iOS-jailbreak'
     needs:
       - calculate_version
       - build_apple_library
@@ -1275,39 +1281,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: iOS
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'iOS' }}
-            type: app-store
-            platform: ios
-            scheme: SFI
-            destination: 'generic/platform=iOS'
-            archive: build/SFI.xcarchive
-            upload: SFI/Upload.plist
-          - name: macOS
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'macOS' }}
-            type: app-store
-            platform: macos
-            scheme: SFM
-            destination: 'generic/platform=macOS'
-            archive: build/SFM.xcarchive
-            upload: SFI/Upload.plist
-          - name: tvOS
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'app-store'|| inputs.build == 'tvOS' }}
-            type: app-store
-            platform: tvos
-            scheme: SFT
-            destination: 'generic/platform=tvOS'
-            archive: build/SFT.xcarchive
-            upload: SFI/Upload.plist
           - name: macOS-standalone
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone' }}
+            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple-release' || inputs.build == 'macOS-standalone' }}
             type: standalone
             platform: macos
+            variant: all
+            library_arch: '*'
+            scheme: ''
+            destination: ''
+            archive: ''
+            upload: ''
           - name: iOS-jailbreak
-            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'iOS-jailbreak' }}
+            if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple-release' || inputs.build == 'iOS-jailbreak' }}
             type: jailbreak
             platform: ios
-    steps:
+            variant: ''
+            library_arch: ''
+            scheme: ''
+            destination: ''
+            archive: ''
+            upload: ''
+    steps: &build_apple_steps
       - name: Checkout
         if: matrix.if
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -1324,10 +1318,18 @@ jobs:
           cache: false
       - name: Cache Go modules
         if: matrix.if
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/go/pkg/mod
-          key: libbox-go-modules-macos-1.25.12-${{ hashFiles('go.sum') }}
+          key: go-mod-macos-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-macos-
+      - name: Cache Go tool builds
+        if: matrix.if
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/go-build
+          key: go-build-tools-macos-${{ hashFiles('go.sum') }}
+          restore-keys: go-build-tools-macos-
       - name: Set tag
         if: matrix.if
         run: |-
@@ -1348,13 +1350,20 @@ jobs:
         if: matrix.if
         uses: actions/cache@v4
         with:
-          path: |
-            ${{ runner.temp }}/SourcePackages/artifacts
-            ${{ runner.temp }}/SourcePackages/checkouts
-            ${{ runner.temp }}/SourcePackages/workspace-state.json
-          key: apple-swift-packages-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          path: ${{ runner.temp }}/SourcePackages
+          key: apple-spm-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: apple-spm-
+      - name: Cache Xcode build data
+        if: matrix.if
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.type == 'standalone' && 'clients/apple/build/SFM.System-*.dd' || matrix.type == 'jailbreak' && 'clients/apple/build/jailbreak/DerivedData' || format('{0}/DerivedData', runner.temp) }}
+          key: apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-
       - name: Setup App Store Connect key
-        if: matrix.if && matrix.type != 'jailbreak' && inputs.publish
+        if: matrix.if && matrix.type != 'jailbreak' && github.event_name == 'workflow_dispatch'
         run: |-
           ASC_KEY_PATH=$RUNNER_TEMP/AuthKey.p8
           echo -n "$ASC_KEY" | base64 --decode -o $ASC_KEY_PATH
@@ -1365,18 +1374,53 @@ jobs:
           ASC_KEY: ${{ secrets.ASC_KEY }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
-      - name: Install standalone provisioning profiles
-        if: matrix.if && matrix.type == 'standalone' && inputs.publish
+      - name: Install Apple provisioning profiles
+        if: matrix.if && matrix.type != 'jailbreak'
         run: |-
-          PROFILES_ZIP_PATH=$RUNNER_TEMP/Profiles.zip
-          echo -n "$PROVISIONING_PROFILES" | base64 --decode -o $PROFILES_ZIP_PATH
+          PROFILES_ZIP_PATH=$RUNNER_TEMP/AppleProvisioningProfiles.zip
+          printf '%s%s%s%s%s%s%s%s' \
+            "$PROVISIONING_PROFILES_1" \
+            "$PROVISIONING_PROFILES_2" \
+            "$PROVISIONING_PROFILES_3" \
+            "$PROVISIONING_PROFILES_4" \
+            "$PROVISIONING_PROFILES_5" \
+            "$PROVISIONING_PROFILES_6" \
+            "$PROVISIONING_PROFILES_7" \
+            "$PROVISIONING_PROFILES_8" \
+            | base64 --decode -o $PROFILES_ZIP_PATH
           PROFILES_PATH="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
           mkdir -p "$PROFILES_PATH"
-          unzip $PROFILES_ZIP_PATH -d "$PROFILES_PATH"
+          unzip -q $PROFILES_ZIP_PATH -d "$PROFILES_PATH"
         env:
-          PROVISIONING_PROFILES: ${{ secrets.PROVISIONING_PROFILES }}
+          PROVISIONING_PROFILES_1: ${{ secrets.APPLE_PROVISIONING_PROFILES_1 }}
+          PROVISIONING_PROFILES_2: ${{ secrets.APPLE_PROVISIONING_PROFILES_2 }}
+          PROVISIONING_PROFILES_3: ${{ secrets.APPLE_PROVISIONING_PROFILES_3 }}
+          PROVISIONING_PROFILES_4: ${{ secrets.APPLE_PROVISIONING_PROFILES_4 }}
+          PROVISIONING_PROFILES_5: ${{ secrets.APPLE_PROVISIONING_PROFILES_5 }}
+          PROVISIONING_PROFILES_6: ${{ secrets.APPLE_PROVISIONING_PROFILES_6 }}
+          PROVISIONING_PROFILES_7: ${{ secrets.APPLE_PROVISIONING_PROFILES_7 }}
+          PROVISIONING_PROFILES_8: ${{ secrets.APPLE_PROVISIONING_PROFILES_8 }}
+      - name: Setup Apple Development certificate
+        if: matrix.if && matrix.type != 'jailbreak'
+        run: |-
+          CERTIFICATE_PATH=$RUNNER_TEMP/AppleDevelopment.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/apple-development.keychain-db
+          echo -n "$APPLE_DEVELOPMENT_CERTIFICATES_P12" | base64 --decode -o $CERTIFICATE_PATH
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychains -d user -s $KEYCHAIN_PATH
+          security default-keychain -d user -s $KEYCHAIN_PATH
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+          echo "APPLE_DEVELOPMENT_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+        env:
+          APPLE_DEVELOPMENT_CERTIFICATES_P12: ${{ secrets.APPLE_DEVELOPMENT_CERTIFICATES_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DEVELOPMENT_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
       - name: Setup Developer ID certificates
-        if: matrix.if && matrix.type == 'standalone' && inputs.publish
+        if: matrix.if && matrix.type == 'standalone'
         run: |-
           CERTIFICATE_PATH=$RUNNER_TEMP/DeveloperIDCertificates.p12
           KEYCHAIN_PATH=$RUNNER_TEMP/developer-id.keychain-db
@@ -1386,17 +1430,25 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security list-keychains -d user -s $KEYCHAIN_PATH
+          security list-keychains -d user -s $KEYCHAIN_PATH $APPLE_DEVELOPMENT_KEYCHAIN_PATH
           security default-keychain -d user -s $KEYCHAIN_PATH
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+          echo "SIGNING_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+        env:
+          DEVELOPER_ID_CERTIFICATES_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATES_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+      - name: Setup notarization credentials
+        if: matrix.if && matrix.type == 'standalone' && github.event_name == 'workflow_dispatch'
+        run: |-
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $SIGNING_KEYCHAIN_PATH
           xcrun notarytool store-credentials "notarytool-password" \
             --key $ASC_KEY_PATH \
             --key-id $ASC_KEY_ID \
             --issuer $ASC_KEY_ISSUER_ID \
-            --keychain $KEYCHAIN_PATH
+            --keychain $SIGNING_KEYCHAIN_PATH
         env:
-          DEVELOPER_ID_CERTIFICATES_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATES_P12 }}
-          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
       - name: Install jailbreak packaging tools
         if: matrix.if && matrix.type == 'jailbreak'
         run: |-
@@ -1409,7 +1461,7 @@ jobs:
         if: matrix.if
         uses: actions/download-artifact@v4
         with:
-          pattern: libbox-apple-${{ matrix.platform }}-*
+          pattern: ${{ matrix.type == 'standalone' && format('libbox-apple-macos-{0}', matrix.library_arch) || format('libbox-apple-{0}-*', matrix.platform) }}
           path: libbox-inputs
           merge-multiple: true
       - name: Prepare library
@@ -1428,7 +1480,7 @@ jobs:
             -output clients/apple/Libbox.xcframework \
             "${library_inputs[@]}"
       - name: Update macOS version
-        if: matrix.if && matrix.name == 'macOS' && github.event_name == 'workflow_dispatch' && inputs.publish
+        if: matrix.if && matrix.name == 'macOS' && github.event_name == 'workflow_dispatch'
         run: |-
           MACOS_PROJECT_VERSION=$(go run -v ./cmd/internal/app_store_connect next_macos_project_version)
           echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION"
@@ -1441,45 +1493,28 @@ jobs:
         if: matrix.if && matrix.type == 'app-store'
         run: |-
           cd clients/apple
-          signing_arguments=()
-          if [[ "$PUBLISH" == 'true' ]]; then
-            signing_arguments=(
-              -allowProvisioningUpdates
-              -authenticationKeyPath "$ASC_KEY_PATH"
-              -authenticationKeyID "$ASC_KEY_ID"
-              -authenticationKeyIssuerID "$ASC_KEY_ISSUER_ID"
-            )
-          else
-            signing_arguments=(
-              CODE_SIGNING_ALLOWED=NO
-              CODE_SIGNING_REQUIRED=NO
-              CODE_SIGN_IDENTITY=
-            )
-          fi
           xcodebuild archive \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -scheme "${{ matrix.scheme }}" \
             -configuration Release \
             -destination "${{ matrix.destination }}" \
-            -archivePath "${{ matrix.archive }}" \
-            "${signing_arguments[@]}"
+            -archivePath "${{ matrix.archive }}"
         env:
           DISABLE_SWIFTLINT: "1"
-          PUBLISH: ${{ inputs.publish }}
       - name: Upload to App Store Connect
-        if: matrix.if && matrix.type == 'app-store' && github.event_name == 'workflow_dispatch' && inputs.publish
+        if: matrix.if && matrix.type == 'app-store' && github.event_name == 'workflow_dispatch'
         run: |-
           go run -v ./cmd/internal/app_store_connect cancel_app_store ${{ matrix.platform }}
           cd clients/apple
           xcodebuild -exportArchive \
             -archivePath "${{ matrix.archive }}" \
             -exportOptionsPlist ${{ matrix.upload }} \
-            -allowProvisioningUpdates \
             -authenticationKeyPath $ASC_KEY_PATH \
             -authenticationKeyID $ASC_KEY_ID \
             -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
       - name: Publish to TestFlight
-        if: matrix.if && matrix.type == 'app-store' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/testing' && inputs.publish
+        if: matrix.if && matrix.type == 'app-store' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/testing'
         run: |-
           arguments=(publish_testflight "${{ matrix.platform }}")
           if [[ -n "$TEST_MESSAGE" ]]; then
@@ -1489,41 +1524,26 @@ jobs:
         env:
           TEST_MESSAGE: ${{ inputs.test_message }}
       - name: Build standalone packages
-        if: matrix.if && matrix.type == 'standalone' && inputs.publish
+        if: matrix.if && matrix.type == 'standalone'
         run: |-
-          make -C clients/apple build_macos_pkg
+          make -C clients/apple build_macos_pkg_${{ matrix.variant }}
         env:
           DISABLE_SWIFTLINT: "1"
           XCODEBUILD_FLAGS: -clonedSourcePackagesDirPath ${{ runner.temp }}/SourcePackages
-      - name: Validate standalone build
-        if: matrix.if && matrix.type == 'standalone' && !inputs.publish
-        run: |-
-          cd clients/apple
-          xcodebuild build \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
-            -scheme SFM.System \
-            -configuration Release \
-            -destination 'generic/platform=macOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=
-        env:
-          DISABLE_SWIFTLINT: "1"
       - name: Notarize standalone packages
-        if: matrix.if && matrix.type == 'standalone' && inputs.publish
+        if: matrix.if && matrix.type == 'standalone' && github.event_name == 'workflow_dispatch'
         run: |-
-          make -C clients/apple notarize_macos_pkg
+          make -C clients/apple notarize_macos_pkg_${{ matrix.variant }}
       - name: Prepare standalone packages
-        if: matrix.if && matrix.type == 'standalone' && inputs.publish
+        if: matrix.if && matrix.type == 'standalone'
         run: |-
+          mkdir -p dist
+          for label in Apple Intel Universal; do
+            cp "clients/apple/build/SFM-${label}.pkg" "dist/SFM-${VERSION}-${label}.pkg"
+          done
           pushd clients/apple/build/SFM.System-universal.xcarchive
           zip -r SFM.dSYMs.zip dSYMs
           popd
-
-          mkdir -p dist
-          cp clients/apple/build/SFM-Apple.pkg "dist/SFM-${VERSION}-Apple.pkg"
-          cp clients/apple/build/SFM-Intel.pkg "dist/SFM-${VERSION}-Intel.pkg"
-          cp clients/apple/build/SFM-Universal.pkg "dist/SFM-${VERSION}-Universal.pkg"
           cp clients/apple/build/SFM.System-universal.xcarchive/SFM.dSYMs.zip "dist/SFM-${VERSION}.dSYMs.zip"
       - name: Build jailbreak package
         if: matrix.if && matrix.type == 'jailbreak'
@@ -1533,15 +1553,67 @@ jobs:
           cp "clients/apple/build/jailbreak/SFI-${VERSION}-iphoneos-arm64.deb" dist
         env:
           XCODEBUILD_CLONED_SOURCE_PACKAGES_DIR_PATH: ${{ runner.temp }}/SourcePackages
+      - name: Report cache directory sizes
+        if: matrix.if
+        run: |-
+          du -sh "$RUNNER_TEMP/SourcePackages"/* 2>/dev/null || true
+          du -sh "$RUNNER_TEMP/DerivedData" 2>/dev/null || true
+          du -sh clients/apple/build/jailbreak/DerivedData 2>/dev/null || true
+          du -sh clients/apple/build/SFM.System-*.dd 2>/dev/null || true
+      - name: Prune Swift package repositories
+        if: matrix.if
+        run: rm -rf "$RUNNER_TEMP/SourcePackages/repositories"
       - name: Upload release artifact
-        if: matrix.if && ((matrix.type == 'standalone' && inputs.publish) || matrix.type == 'jailbreak')
+        if: matrix.if && (matrix.type == 'standalone' || matrix.type == 'jailbreak')
         uses: actions/upload-artifact@v4
         with:
-          name: binary-apple-${{ matrix.type }}
+          name: binary-apple-${{ matrix.type }}${{ matrix.variant && format('-{0}', matrix.variant) || '' }}
           path: 'dist'
+  build_apple_app_store:
+    name: Build Apple App Store clients
+    runs-on: ${{ matrix.if && 'macos-26' || 'ubuntu-latest' }}
+    if: github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'iOS' || inputs.build == 'macOS' || inputs.build == 'tvOS')
+    needs:
+      - calculate_version
+      - build_apple_library
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iOS
+            if: ${{ inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'iOS' }}
+            type: app-store
+            platform: ios
+            scheme: SFI
+            destination: 'generic/platform=iOS'
+            archive: build/SFI.xcarchive
+            upload: SFI/Upload.plist
+            variant: ''
+            library_arch: ''
+          - name: macOS
+            if: ${{ inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'macOS' }}
+            type: app-store
+            platform: macos
+            scheme: SFM
+            destination: 'generic/platform=macOS'
+            archive: build/SFM.xcarchive
+            upload: SFI/Upload.plist
+            variant: ''
+            library_arch: ''
+          - name: tvOS
+            if: ${{ inputs.build == 'All' || inputs.build == 'Apple' || inputs.build == 'tvOS' }}
+            type: app-store
+            platform: tvos
+            scheme: SFT
+            destination: 'generic/platform=tvOS'
+            archive: build/SFT.xcarchive
+            upload: SFI/Upload.plist
+            variant: ''
+            library_arch: ''
+    steps: *build_apple_steps
   upload:
     name: Upload builds
-    if: "!failure() && github.event_name == 'workflow_dispatch' && inputs.publish && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Windows' || inputs.build == 'Linux' || inputs.build == 'Apple' || inputs.build == 'macOS-standalone' || inputs.build == 'iOS-jailbreak')"
+    if: "!failure() && github.event_name == 'workflow_dispatch' && (inputs.build == 'All' || inputs.build == 'Binary' || inputs.build == 'Android' || inputs.build == 'Windows' || inputs.build == 'Linux' || inputs.build == 'Apple-release' || inputs.build == 'macOS-standalone' || inputs.build == 'iOS-jailbreak')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1586,6 +1658,7 @@ jobs:
       - name: Download builds
         uses: actions/download-artifact@v5
         with:
+          pattern: binary-*
           path: dist
           merge-multiple: true
       - name: Attest build provenance
@@ -1606,3 +1679,72 @@ jobs:
           ghr --replace -p 5 "v${VERSION}" dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  cache_gc:
+    name: Cache GC
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    needs:
+      - build
+      - build_darwin
+      - build_windows
+      - build_android_library
+      - build_android
+      - build_windows_client
+      - build_linux_client
+      - build_apple_library
+      - build_apple
+      - build_apple_app_store
+      - upload
+    steps:
+      - name: Delete superseded caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |-
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/caches?per_page=100" --paginate \
+            --jq '.actions_caches[] | [.id, .ref, .created_at, .last_accessed_at, .size_in_bytes, .key] | @tsv' > "$RUNNER_TEMP/caches.tsv"
+          python3 - "$GITHUB_REPOSITORY" "$RUNNER_TEMP/caches.tsv" <<'EOF'
+          import re
+          import subprocess
+          import sys
+
+          repository, list_path = sys.argv[1], sys.argv[2]
+          budget = 9 * 1024 * 1024 * 1024
+          rows = []
+          with open(list_path) as list_file:
+              for line in list_file:
+                  cache_id, ref, created_at, accessed_at, size, key = line.rstrip("\n").split("\t")
+                  family = key
+                  while True:
+                      stripped = re.sub(r"-[0-9a-f]{16,}$", "", family)
+                      if stripped == family:
+                          break
+                      family = stripped
+                  rows.append({
+                      "id": cache_id, "ref": ref, "created": created_at,
+                      "accessed": accessed_at, "size": int(size), "key": key,
+                      "family": family,
+                  })
+          newest = {}
+          for row in rows:
+              group = (row["ref"], row["family"])
+              if group not in newest or row["created"] > newest[group]["created"]:
+                  newest[group] = row
+          doomed = [row for row in rows if newest[(row["ref"], row["family"])] is not row]
+          kept = [row for row in rows if newest[(row["ref"], row["family"])] is row]
+          total = sum(row["size"] for row in kept)
+          for row in sorted(kept, key=lambda entry: entry["accessed"]):
+              if total <= budget:
+                  break
+              doomed.append(row)
+              total -= row["size"]
+          for row in doomed:
+              print(f"delete {row['size'] >> 20}MB {row['key']} ({row['ref']})")
+              subprocess.run(
+                  ["gh", "api", "-X", "DELETE", f"repos/{repository}/actions/caches/{row['id']}"],
+                  check=False,
+              )
+          print(f"kept {len(rows) - len(doomed)} caches, {total >> 20}MB total")
+          EOF
