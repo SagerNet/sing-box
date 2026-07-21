@@ -31,6 +31,8 @@ body:
         - sing-box for macOS Graphical Client
         - sing-box for Apple tvOS Graphical Client
         - sing-box for Android Graphical Client
+        - sing-box for Windows Graphical Client
+        - sing-box for Linux Graphical Client
         - Third-party graphical clients that advertise themselves as using sing-box (Windows)
         - Third-party graphical clients that advertise themselves as using sing-box (Android)
         - Others
