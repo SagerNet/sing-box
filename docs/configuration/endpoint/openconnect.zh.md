@@ -58,6 +58,10 @@
       }
     ]
   },
+  "fortinet_host_check": {
+    "hostcheck": "",
+    "check_virtual_desktop": ""
+  },
   "no_udp": false,
   "dtls_local_port": 0,
   "compression_disabled": false,
@@ -341,6 +345,30 @@ PEM 格式的 TNCC 机器证书内容。
 PEM 格式的 TNCC 机器证书路径。
 
 与 `tncc.certificates.certificate` 冲突。
+
+### fortinet_host_check
+
+Fortinet hostcheck 结果覆盖选项。
+
+默认禁用 hostcheck。仅当 `fortinet_host_check.hostcheck` 非空时启用。不会自动收集操作系统、安全产品或网络接口信息。
+
+启用后，如果成功的 Fortinet 登录响应要求 hostcheck，将在使用 VPN 会话前向服务器提交两个配置值。这些值不经修改，作为 `application/x-www-form-urlencoded` 字段发送。
+
+部分 Fortinet 服务器只会要求可识别的 FortiClient User-Agent 执行 hostcheck。服务器策略有要求时请配置 `user_agent`。
+
+### fortinet_host_check.hostcheck
+
+Fortinet hostcheck 结果字符串。
+
+通常格式为 `<security-status>,<os-version>`，例如 `0100,10.0.19042`。`security-status` 包含四个 `0` 或 `1` 字符，依次表示第三方防火墙、第三方杀毒软件、FortiClient 防火墙和 FortiClient 杀毒软件。
+
+空值会禁用 Fortinet hostcheck，即使配置了 `fortinet_host_check.check_virtual_desktop`。
+
+### fortinet_host_check.check_virtual_desktop
+
+Fortinet virtual desktop 检查结果字符串。
+
+FortiClient 通常发送以冒号分隔的 MAC 地址，多个地址使用 `|` 连接，例如 `74:78:27:4d:81:93|84:1b:77:3a:95:84`。启用 hostcheck 时，空值会作为空字段提交。
 
 ### no_udp
 
