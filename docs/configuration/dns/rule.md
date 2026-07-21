@@ -507,13 +507,14 @@ Match source device hostname from DHCP leases.
 
 Match specified DNS servers' preferred domains.
 
-| Type        | Match                                                                        |
-|-------------|------------------------------------------------------------------------------|
-| `hosts`     | Match predefined entries and entries in hosts files                          |
-| `local`     | Match hosts entries, neighbor-resolved hosts, and mDNS local domains         |
-| `mdns`      | Match mDNS local domains (`*.local.` and IPv4/IPv6 link-local reverse zones) |
-| `tailscale` | Match MagicDNS hosts and DNS route suffixes                                  |
-| `resolved`  | Match split DNS and search domains from systemd-resolved links               |
+| Type          | Match                                                                        |
+|---------------|------------------------------------------------------------------------------|
+| `hosts`       | Match predefined entries and entries in hosts files                          |
+| `local`       | Match hosts entries, neighbor-resolved hosts, and mDNS local domains         |
+| `mdns`        | Match mDNS local domains (`*.local.` and IPv4/IPv6 link-local reverse zones) |
+| `tailscale`   | Match MagicDNS hosts and DNS route suffixes                                  |
+| `openconnect` | Match split DNS and search domains pushed by the VPN server                  |
+| `resolved`    | Match split DNS and search domains from systemd-resolved links               |
 
 #### wifi_ssid
 

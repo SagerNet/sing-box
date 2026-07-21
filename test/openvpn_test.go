@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +30,9 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	ovpn "github.com/sagernet/sing-openvpn"
+	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-tun/gtcpip/header"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/bufio"
@@ -91,6 +95,21 @@ type openVPNSelfCase struct {
 	remoteCertificateTLS string
 }
 
+type openVPNPacketReturn struct {
+	packets chan []byte
+}
+
+func (r *openVPNPacketReturn) ReturnHeadroom() int {
+	return 0
+}
+
+func (r *openVPNPacketReturn) ReturnPackets(packets [][]byte) [][]byte {
+	for _, packet := range packets {
+		r.packets <- slices.Clone(packet)
+	}
+	return nil
+}
+
 func TestOpenVPNSelfToSelf(t *testing.T) {
 	testCases := []openVPNSelfCase{
 		{
@@ -119,6 +138,185 @@ func TestOpenVPNSelfToSelf(t *testing.T) {
 			runOpenVPNSelfToSelf(t, currentTestCase)
 		})
 	}
+}
+
+func TestOpenVPNStaticKeyClientDataPath(t *testing.T) {
+	const (
+		clientTunnelAddress = "10.91.0.2"
+		peerTunnelAddress   = "10.91.0.1"
+	)
+	listener, err := net.Listen(N.NetworkTCP, "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+	openVPNPort := uint16(listener.Addr().(*net.TCPAddr).Port)
+	staticKey := createOpenVPNStaticKey(t)
+	staticKeyPath := writeOpenVPNStaticKeyFile(t, staticKey)
+	peerContext, cancelPeer := context.WithCancel(context.Background())
+	peerClient, err := ovpn.NewClient(ovpn.ClientOptions{
+		Context: peerContext,
+		Mode:    ovpn.ModeStaticKey,
+		Transport: ovpn.ClientTransportOptions{
+			Remotes: []ovpn.Remote{{
+				Host:     "127.0.0.1",
+				Port:     openVPNPort,
+				Protocol: N.NetworkTCP,
+			}},
+			Protocol: N.NetworkTCP,
+			DialContext: func(ctx context.Context, network string, address string) (net.Conn, error) {
+				return listener.Accept()
+			},
+		},
+		DataChannel: ovpn.ClientDataChannelOptions{
+			MTU:    1500,
+			Cipher: "AES-256-CBC",
+			Auth:   "SHA256",
+		},
+		Tunnel: ovpn.ClientTunnelOptions{
+			DevType:      "tun",
+			Topology:     "p2p",
+			LocalAddress: []netip.Prefix{netip.MustParsePrefix(peerTunnelAddress + "/30")},
+			VPNGateway:   netip.MustParseAddr(clientTunnelAddress),
+		},
+		StaticKey:    ovpn.Material{Content: []byte(staticKey)},
+		KeyDirection: 0,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		cancelPeer()
+		_ = listener.Close()
+		_ = peerClient.Close()
+	})
+	err = peerClient.Start()
+	require.NoError(t, err)
+
+	clientOptions := option.OpenVPNClientEndpointOptions{
+		ServerOptions: option.ServerOptions{
+			Server:     "127.0.0.1",
+			ServerPort: openVPNPort,
+		},
+		Mode:                ovpn.ModeStaticKey,
+		Network:             N.NetworkTCP,
+		Address:             []netip.Prefix{netip.MustParsePrefix(clientTunnelAddress + "/30")},
+		PeerAddress:         badoption.Addr(netip.MustParseAddr(peerTunnelAddress)),
+		Topology:            "p2p",
+		StaticKeyPath:       staticKeyPath,
+		KeyDirection:        "client",
+		Cipher:              "AES-256-CBC",
+		Auth:                "SHA256",
+		MSSFixDisabled:      true,
+		PingRestartDisabled: true,
+	}
+	proxyPort := reserveOpenVPNTCPPort(t)
+	clientInstance := startInstance(t, openVPNClientInstanceOptions(clientOptions, proxyPort))
+	clientEndpoint := requireOpenVPNEndpoint(t, clientInstance, "openvpn-client")
+	connectedStatus := waitForOpenVPNStatus(t, clientEndpoint, 30*time.Second, func(status adapter.OpenVPNStatus) bool {
+		require.NotEqual(t, adapter.OpenVPNStateError, status.State, status.Error)
+		return status.State == adapter.OpenVPNStateConnected
+	})
+	require.Equal(t, []netip.Prefix{netip.MustParsePrefix(clientTunnelAddress + "/30")}, connectedStatus.TunnelInfo.IPv4)
+
+	port, supported := clientEndpoint.(tun.Port)
+	require.True(t, supported)
+	returnPath := &openVPNPacketReturn{packets: make(chan []byte, 1)}
+	err = port.AttachReturn(returnPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = port.DetachReturn(returnPath) })
+
+	outboundPacket := newOpenVPNDataPathUDPPacket(
+		netip.MustParseAddrPort(clientTunnelAddress+":12000"),
+		netip.MustParseAddrPort(peerTunnelAddress+":13000"),
+		[]byte("sing-box static-key outbound"),
+	)
+	err = port.WritePackets([][]byte{outboundPacket})
+	require.NoError(t, err)
+	readContext, cancelRead := context.WithTimeout(context.Background(), 10*time.Second)
+	peerPacket, err := peerClient.ReadDataPacket(readContext)
+	cancelRead()
+	require.NoError(t, err)
+	require.Equal(t, outboundPacket, peerPacket)
+
+	inboundPacket := newOpenVPNDataPathUDPPacket(
+		netip.MustParseAddrPort(peerTunnelAddress+":13000"),
+		netip.MustParseAddrPort(clientTunnelAddress+":12000"),
+		[]byte("sing-box static-key inbound"),
+	)
+	err = peerClient.WriteDataPacket(inboundPacket)
+	require.NoError(t, err)
+	select {
+	case returnedPacket := <-returnPath.packets:
+		require.Equal(t, inboundPacket, returnedPacket)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for static-key inbound packet")
+	}
+}
+
+func TestOpenVPNStaticKeySelfToSelf(t *testing.T) {
+	for _, protocol := range []string{N.NetworkTCP, N.NetworkUDP} {
+		t.Run(protocol, func(t *testing.T) {
+			runOpenVPNStaticKeySelfToSelf(t, protocol)
+		})
+	}
+}
+
+func runOpenVPNStaticKeySelfToSelf(t *testing.T, protocol string) {
+	t.Helper()
+	const (
+		serverTunnelAddress = "10.92.0.1"
+		clientTunnelAddress = "10.92.0.2"
+	)
+	openVPNPort := reserveOpenVPNProtocolPort(t, protocol)
+	var clientOpenVPNPort uint16
+	var serverRemote string
+	if protocol == N.NetworkUDP {
+		clientOpenVPNPort = reserveOpenVPNUDPPort(t)
+		serverRemote = "127.0.0.1"
+	}
+	proxyPort := reserveOpenVPNTCPPort(t)
+	echoPort := reserveOpenVPNEchoPort(t)
+	readinessPort := reserveOpenVPNEchoPort(t)
+	staticKeyPath := writeOpenVPNStaticKeyFile(t, createOpenVPNStaticKey(t))
+	serverOptions := option.OpenVPNServerEndpointOptions{
+		ListenOptions: option.ListenOptions{
+			Listen:     common.Ptr(badoption.Addr(netip.MustParseAddr("127.0.0.1"))),
+			ListenPort: openVPNPort,
+		},
+		Mode:           ovpn.ModeStaticKey,
+		Network:        protocol,
+		Remote:         serverRemote,
+		RemotePort:     clientOpenVPNPort,
+		MaxClients:     1,
+		Address:        []netip.Prefix{netip.MustParsePrefix(serverTunnelAddress + "/30")},
+		PeerAddress:    badoption.Addr(netip.MustParseAddr(clientTunnelAddress)),
+		Topology:       "p2p",
+		StaticKeyPath:  staticKeyPath,
+		KeyDirection:   "server",
+		Cipher:         "AES-256-CBC",
+		Auth:           "SHA256",
+		MSSFixDisabled: true,
+	}
+	clientOptions := option.OpenVPNClientEndpointOptions{
+		ServerOptions: option.ServerOptions{
+			Server:     "127.0.0.1",
+			ServerPort: openVPNPort,
+		},
+		Mode:                ovpn.ModeStaticKey,
+		Network:             protocol,
+		Address:             []netip.Prefix{netip.MustParsePrefix(clientTunnelAddress + "/30")},
+		PeerAddress:         badoption.Addr(netip.MustParseAddr(serverTunnelAddress)),
+		Topology:            "p2p",
+		StaticKeyPath:       staticKeyPath,
+		KeyDirection:        "client",
+		Cipher:              "AES-256-CBC",
+		Auth:                "SHA256",
+		MSSFixDisabled:      true,
+		PingRestartDisabled: true,
+	}
+	clientOptions.UDPBindPort = clientOpenVPNPort
+
+	startInstance(t, openVPNServerInstanceOptions(serverOptions))
+	startInstance(t, openVPNClientInstanceOptions(clientOptions, proxyPort))
+	waitForOpenVPNClientReady(t, proxyPort, readinessPort, serverTunnelAddress)
+	testSuitOpenVPN(t, proxyPort, echoPort, serverTunnelAddress)
 }
 
 func TestOpenVPNDockerInterop(t *testing.T) {
@@ -1775,6 +1973,27 @@ func createOpenVPNStaticKey(t *testing.T) string {
 	}
 	lines = append(lines, "-----END OpenVPN Static key V1-----", "")
 	return strings.Join(lines, "\n")
+}
+
+func newOpenVPNDataPathUDPPacket(source netip.AddrPort, destination netip.AddrPort, payload []byte) []byte {
+	packet := make([]byte, header.IPv4MinimumSize+header.UDPMinimumSize+len(payload))
+	ipHeader := header.IPv4(packet)
+	ipHeader.Encode(&header.IPv4Fields{
+		TotalLength: uint16(len(packet)),
+		TTL:         64,
+		Protocol:    uint8(header.UDPProtocolNumber),
+		SrcAddr:     source.Addr(),
+		DstAddr:     destination.Addr(),
+	})
+	ipHeader.SetChecksum(^ipHeader.CalculateChecksum())
+	udpHeader := header.UDP(packet[header.IPv4MinimumSize:])
+	udpHeader.Encode(&header.UDPFields{
+		SrcPort: source.Port(),
+		DstPort: destination.Port(),
+		Length:  uint16(header.UDPMinimumSize + len(payload)),
+	})
+	copy(udpHeader.Payload(), payload)
+	return packet
 }
 
 func reserveOpenVPNProtocolPort(t *testing.T, protocol string) uint16 {

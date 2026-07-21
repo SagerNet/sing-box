@@ -104,7 +104,7 @@ func (d *baseDevice) SetPacketWriter(writer PacketWriter) {
 func (d *baseDevice) writeOutbound(packetBuffers []*buf.Buffer) error {
 	if d.packetWriter == nil {
 		buf.ReleaseMulti(packetBuffers)
-		return E.New("missing OpenConnect packet writer")
+		return E.New("missing packet writer")
 	}
 	return d.packetWriter(packetBuffers)
 }

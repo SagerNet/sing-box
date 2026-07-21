@@ -73,11 +73,10 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 
 ## :material-wrench: 链接器标志
 
-以下 `-ldflags` 在官方构建中使用：
+官方构建所需的链接器标志维护在 `release/LDFLAGS` 中。下游构建应原样使用该文件。
 
 | 标志                                                          | 说明                                                                                                                                                         |
 |-------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `-X 'internal/godebug.defaultGODEBUG=multipathtcp=0'`      | Go 1.24 默认为监听器启用 Multipath TCP（`multipathtcp=2`）。这可能在底层 socket 上导致错误，且 sing-box 有自己的 MPTCP 控制（`tcp_multi_path` 选项）。此标志禁用 Go 的默认行为。                             |
 | `-checklinkname=0`                                          | Go 1.23+ 链接器拒绝未授权的 `go:linkname` 使用。此标志禁用该检查，需要与 `badlinkname` 构建标记一起使用。                                                                                   |
 
 ## :material-package-variant: 下游打包者
