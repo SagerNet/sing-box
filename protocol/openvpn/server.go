@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/netip"
 	"slices"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -90,17 +91,15 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		return nil, err
 	}
 	serverOptions.Context = loopContext
-	serverOptions.Authentication.Authenticator = authenticatorFromUsers(options.Users)
-	serverOptions.Authentication.DuplicateCN = options.DuplicateCN
+	if serverOptions.Mode == ovpn.ModeTLS {
+		serverOptions.Authentication.Authenticator = authenticatorFromUsers(options.Users)
+		serverOptions.Authentication.DuplicateCN = options.DuplicateCN
+	}
 	serverOptions.Logger = logger
 	serverEndpoint.serverOptions = serverOptions
 	udpTimeout := C.UDPTimeout
 	if options.UDPTimeout != 0 {
 		udpTimeout = time.Duration(options.UDPTimeout)
-	}
-	deviceRoutes := make([]ovpntransport.Route, 0, len(options.Address))
-	for _, prefix := range options.Address {
-		deviceRoutes = append(deviceRoutes, ovpntransport.Route{Prefix: prefix.Masked()})
 	}
 	device, err := ovpntransport.NewDevice(ovpntransport.DeviceOptions{
 		Context:         ctx,
@@ -118,7 +117,6 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		Configuration: ovpntransport.Configuration{
 			MTU:      options.MTU,
 			Address:  options.Address,
-			Routes:   deviceRoutes,
 			Topology: options.Topology,
 		},
 	})
@@ -134,15 +132,18 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 func validateServerAddresses(addresses []netip.Prefix) error {
 	var hasIPv4 bool
 	var hasIPv6 bool
-	for _, prefix := range addresses {
+	for addressIndex, prefix := range addresses {
+		if !prefix.IsValid() {
+			return E.New("server address[", addressIndex, "] is invalid")
+		}
 		if prefix.Addr().Is4() {
 			if hasIPv4 {
-				return E.New("multiple IPv4 OpenVPN server address pools are not supported")
+				return E.New("multiple IPv4 server address pools are not supported")
 			}
 			hasIPv4 = true
 		} else {
 			if hasIPv6 {
-				return E.New("multiple IPv6 OpenVPN server address pools are not supported")
+				return E.New("multiple IPv6 server address pools are not supported")
 			}
 			hasIPv6 = true
 		}
@@ -155,7 +156,7 @@ func validateServerTopology(topology string) error {
 	case "", "subnet", "p2p", "net30":
 		return nil
 	default:
-		return E.New("invalid OpenVPN topology ", topology, ", allowed values: subnet, p2p, net30")
+		return E.New("invalid topology ", topology, ", allowed values: subnet, p2p, net30")
 	}
 }
 
@@ -258,11 +259,17 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
 }
 
 func buildServerOptions(options option.OpenVPNServerEndpointOptions) (ovpn.ServerOptions, error) {
-	if len(options.Address) == 0 {
-		return ovpn.ServerOptions{}, E.New("missing OpenVPN server address")
+	mode := options.Mode
+	if mode == "" {
+		mode = ovpn.ModeTLS
 	}
-	if options.TLS == nil {
-		return ovpn.ServerOptions{}, E.New("missing `tls` options")
+	switch mode {
+	case ovpn.ModeTLS, ovpn.ModeStaticKey:
+	default:
+		return ovpn.ServerOptions{}, E.New("unsupported mode: ", mode, " (expected \"tls\" or \"static_key\")")
+	}
+	if len(options.Address) == 0 {
+		return ovpn.ServerOptions{}, E.New("missing server address")
 	}
 	err := validateServerAddresses(options.Address)
 	if err != nil {
@@ -279,7 +286,16 @@ func buildServerOptions(options option.OpenVPNServerEndpointOptions) (ovpn.Serve
 	switch protocol {
 	case N.NetworkTCP, N.NetworkUDP:
 	default:
-		return ovpn.ServerOptions{}, E.New("unsupported OpenVPN network: ", protocol)
+		return ovpn.ServerOptions{}, E.New("unsupported network: ", protocol)
+	}
+	if mode == ovpn.ModeStaticKey {
+		return buildStaticKeyServerOptions(options, protocol)
+	}
+	if options.TLS == nil {
+		return ovpn.ServerOptions{}, E.New("missing `tls` options")
+	}
+	if len(options.StaticKey) > 0 || options.StaticKeyPath != "" || options.KeyDirection != "" || options.Cipher != "" || options.Remote != "" || options.RemotePort != 0 || netip.Addr(options.PeerAddress).IsValid() || netip.Addr(options.PeerAddressIPv6).IsValid() {
+		return ovpn.ServerOptions{}, E.New("static-key server options require `mode: static_key`")
 	}
 	tlsOptions, keyDirection, err := buildServerTLSOptions(*options.TLS)
 	if err != nil {
@@ -295,29 +311,136 @@ func buildServerOptions(options option.OpenVPNServerEndpointOptions) (ovpn.Serve
 			MaxClients: options.MaxClients,
 		},
 		DataChannel: ovpn.ServerDataChannelOptions{
-			MTU:            options.MTU,
-			Ciphers:        []string(options.DataCiphers),
-			FallbackCipher: options.DataCiphersFallback,
-			Auth:           options.Auth,
-			PacketHeadroom: ovpntransport.PacketHeadroom,
+			MTU:              options.MTU,
+			MSSFix:           options.MSSFix,
+			MSSFixDisabled:   options.MSSFixDisabled,
+			MSSFixMode:       options.MSSFixMode,
+			Ciphers:          []string(options.DataCiphers),
+			FallbackCipher:   options.DataCiphersFallback,
+			Auth:             options.Auth,
+			ReplayWindow:     options.ReplayWindow,
+			ReplayWindowTime: time.Duration(options.ReplayWindowTime),
+			PacketHeadroom:   ovpntransport.PacketHeadroom,
 		},
 		TLS: tlsOptions,
 		Timing: ovpn.ServerTimingOptions{
 			RenegotiationInterval: time.Duration(options.RenegotiateInterval),
+			RenegotiationDisabled: options.RenegotiateDisabled,
+			RenegotiationBytes:    options.RenegotiateBytes,
+			RenegotiationPackets:  options.RenegotiatePackets,
 			HandWindow:            time.Duration(options.HandshakeWindow),
 			PingInterval:          time.Duration(options.PingInterval),
 			PingRestart:           time.Duration(options.PingRestart),
 		},
 	}
-	applyServerPushOptions(&serverOptions, options)
+	err = applyServerPushOptions(&serverOptions, options)
+	if err != nil {
+		return ovpn.ServerOptions{}, err
+	}
 	return serverOptions, nil
+}
+
+func buildStaticKeyServerOptions(options option.OpenVPNServerEndpointOptions, protocol string) (ovpn.ServerOptions, error) {
+	if options.TLS != nil {
+		return ovpn.ServerOptions{}, E.New("`tls` options are not supported in `static_key` mode")
+	}
+	if len(options.Users) > 0 || options.DuplicateCN {
+		return ovpn.ServerOptions{}, E.New("user authentication is not supported in `static_key` mode")
+	}
+	if options.Push != nil {
+		return ovpn.ServerOptions{}, E.New("push options are not supported in `static_key` mode")
+	}
+	if options.RenegotiateInterval != 0 || options.RenegotiateDisabled || options.RenegotiateBytes != 0 || options.RenegotiatePackets != 0 || options.HandshakeWindow != 0 {
+		return ovpn.ServerOptions{}, E.New("TLS timing and renegotiation options are not supported in `static_key` mode")
+	}
+	if len(options.DataCiphers) > 0 || options.DataCiphersFallback != "" {
+		return ovpn.ServerOptions{}, E.New("`data_ciphers` and `data_ciphers_fallback` are not supported in `static_key` mode; use `cipher`")
+	}
+	staticKey, err := requiredMaterialSource("static_key", options.StaticKey, options.StaticKeyPath)
+	if err != nil {
+		return ovpn.ServerOptions{}, err
+	}
+	keyDirection, err := keyDirectionValue(options.KeyDirection)
+	if err != nil {
+		return ovpn.ServerOptions{}, err
+	}
+	vpnGateway := netip.Addr(options.PeerAddress)
+	if vpnGateway.IsValid() && !vpnGateway.Is4() {
+		return ovpn.ServerOptions{}, E.New("`peer_address` must be an IPv4 address")
+	}
+	vpnGatewayIPv6 := netip.Addr(options.PeerAddressIPv6)
+	if vpnGatewayIPv6.IsValid() && !vpnGatewayIPv6.Is6() {
+		return ovpn.ServerOptions{}, E.New("`peer_address_ipv6` must be an IPv6 address")
+	}
+	var hasIPv4 bool
+	var hasIPv6 bool
+	for _, address := range options.Address {
+		hasIPv4 = hasIPv4 || address.Addr().Is4()
+		hasIPv6 = hasIPv6 || address.Addr().Is6()
+	}
+	if hasIPv4 && !vpnGateway.IsValid() {
+		return ovpn.ServerOptions{}, E.New("missing `peer_address` for the IPv4 static-key tunnel")
+	}
+	if hasIPv6 && !vpnGatewayIPv6.IsValid() {
+		return ovpn.ServerOptions{}, E.New("missing `peer_address_ipv6` for the IPv6 static-key tunnel")
+	}
+	if vpnGateway.IsValid() && !hasIPv4 {
+		return ovpn.ServerOptions{}, E.New("`peer_address` requires an IPv4 tunnel `address` in `static_key` mode")
+	}
+	if vpnGatewayIPv6.IsValid() && !hasIPv6 {
+		return ovpn.ServerOptions{}, E.New("`peer_address_ipv6` requires an IPv6 tunnel `address` in `static_key` mode")
+	}
+	remoteAddress := ""
+	if protocol == N.NetworkUDP {
+		if options.Remote == "" || options.RemotePort == 0 {
+			return ovpn.ServerOptions{}, E.New("`remote` and `remote_port` are required for a UDP static-key server")
+		}
+		remoteAddress = net.JoinHostPort(options.Remote, strconv.Itoa(int(options.RemotePort)))
+	} else if options.Remote != "" || options.RemotePort != 0 {
+		return ovpn.ServerOptions{}, E.New("`remote` and `remote_port` are only used by a UDP static-key server")
+	}
+	topology := options.Topology
+	if topology == "" {
+		topology = "p2p"
+	}
+	return ovpn.ServerOptions{
+		Mode:         ovpn.ModeStaticKey,
+		StaticKey:    staticKey,
+		KeyDirection: keyDirection,
+		Transport: ovpn.ServerTransportOptions{
+			Protocol:      protocol,
+			RemoteAddress: remoteAddress,
+		},
+		Resources: ovpn.ServerResourceOptions{MaxClients: options.MaxClients},
+		DataChannel: ovpn.ServerDataChannelOptions{
+			MTU:              options.MTU,
+			MSSFix:           options.MSSFix,
+			MSSFixDisabled:   options.MSSFixDisabled,
+			MSSFixMode:       options.MSSFixMode,
+			Cipher:           options.Cipher,
+			Auth:             options.Auth,
+			ReplayWindow:     options.ReplayWindow,
+			ReplayWindowTime: time.Duration(options.ReplayWindowTime),
+			PacketHeadroom:   ovpntransport.PacketHeadroom,
+		},
+		Timing: ovpn.ServerTimingOptions{
+			PingInterval: time.Duration(options.PingInterval),
+			PingRestart:  time.Duration(options.PingRestart),
+		},
+		Tunnel: ovpn.ServerTunnelOptions{
+			Topology:       topology,
+			LocalAddress:   slices.Clone(options.Address),
+			VPNGateway:     vpnGateway,
+			VPNGatewayIPv6: vpnGatewayIPv6,
+		},
+	}, nil
 }
 
 func buildServerTLSOptions(options option.OpenVPNInboundTLSOptions) (ovpn.ServerTLSOptions, int, error) {
 	switch options.VerifyClientCertificate {
 	case "", "require", "optional", "none":
 	default:
-		return ovpn.ServerTLSOptions{}, 0, E.New("invalid OpenVPN client certificate policy ", options.VerifyClientCertificate, ", allowed values: require, optional, none")
+		return ovpn.ServerTLSOptions{}, 0, E.New("invalid client certificate policy ", options.VerifyClientCertificate, ", allowed values: require, optional, none")
 	}
 	certificate, err := requiredMaterialSource("tls.certificate", options.Certificate, options.CertificatePath)
 	if err != nil {
@@ -327,16 +450,46 @@ func buildServerTLSOptions(options option.OpenVPNInboundTLSOptions) (ovpn.Server
 	if err != nil {
 		return ovpn.ServerTLSOptions{}, 0, err
 	}
-	certificateAuthority, err := requiredMaterialSource("tls.client_certificate", options.ClientCertificate, options.ClientCertificatePath)
+	certificateAuthority, err := materialSource("tls.client_certificate", options.ClientCertificate, options.ClientCertificatePath)
 	if err != nil {
 		return ovpn.ServerTLSOptions{}, 0, err
+	}
+	remoteCertificateTLS := options.RemoteCertificateTLS
+	switch remoteCertificateTLS {
+	case "", "server", "client", "none":
+	default:
+		return ovpn.ServerTLSOptions{}, 0, E.New("invalid `tls.remote_certificate_tls`: ", remoteCertificateTLS)
+	}
+	if options.RemoteCertificateEKU != "" && remoteCertificateTLS != "" {
+		return ovpn.ServerTLSOptions{}, 0, E.New("`tls.remote_certificate_eku` is conflict with `tls.remote_certificate_tls`")
+	}
+	if remoteCertificateTLS == "" && options.RemoteCertificateEKU == "" {
+		remoteCertificateTLS = "client"
+	} else if remoteCertificateTLS == "none" {
+		remoteCertificateTLS = ""
+	}
+	clientNameType := options.ClientNameType
+	if options.ClientName != "" && clientNameType == "" {
+		clientNameType = "name"
 	}
 	tlsOptions := ovpn.ServerTLSOptions{
 		CertificateAuthority:    certificateAuthority,
 		Certificate:             certificate,
 		Key:                     key,
 		VerifyClientCertificate: options.VerifyClientCertificate,
+		VerifyX509Name:          options.ClientName,
+		VerifyX509Type:          clientNameType,
+		PeerFingerprint:         options.PeerFingerprint,
+		CRLVerify:               options.CRLPath,
+		RemoteCertificateKU:     options.RemoteCertificateKU,
+		RemoteCertificateEKU:    options.RemoteCertificateEKU,
+		RemoteCertificateTLS:    remoteCertificateTLS,
+		NSCertificateType:       options.NSCertificateType,
 		CertificateProfile:      options.CertificateProfile,
+		VersionMin:              options.VersionMin,
+		VersionMax:              options.VersionMax,
+		Cipher:                  options.Cipher,
+		Groups:                  options.Groups,
 	}
 	keyDirection := -1
 	controlWrap := options.ControlWrap
@@ -369,15 +522,15 @@ func buildServerTLSOptions(options option.OpenVPNInboundTLSOptions) (ovpn.Server
 				tlsOptions.CryptV2ForceCookie = controlWrap.ForceCookie
 			}
 		case "":
-			return ovpn.ServerTLSOptions{}, 0, E.New("missing OpenVPN control wrap type")
+			return ovpn.ServerTLSOptions{}, 0, E.New("missing control wrap type")
 		default:
-			return ovpn.ServerTLSOptions{}, 0, E.New("unknown OpenVPN control wrap type: ", controlWrap.Type)
+			return ovpn.ServerTLSOptions{}, 0, E.New("unknown control wrap type: ", controlWrap.Type)
 		}
 	}
 	return tlsOptions, keyDirection, nil
 }
 
-func applyServerPushOptions(serverOptions *ovpn.ServerOptions, options option.OpenVPNServerEndpointOptions) {
+func applyServerPushOptions(serverOptions *ovpn.ServerOptions, options option.OpenVPNServerEndpointOptions) error {
 	topology := options.Topology
 	if topology == "" {
 		topology = "subnet"
@@ -399,10 +552,35 @@ func applyServerPushOptions(serverOptions *ovpn.ServerOptions, options option.Op
 		LocalAddress: localAddresses,
 	}
 	if options.Push == nil {
-		return
+		return nil
 	}
 	serverOptions.Push.Routes = slices.Clone(options.Push.Routes)
 	serverOptions.Push.DNS = slices.Clone(options.Push.DNS)
+	serverOptions.Push.SearchDomains = slices.Clone(options.Push.SearchDomains)
+	serverOptions.Push.DHCPOptions = slices.Clone(options.Push.DHCPOptions)
+	for serverIndex, server := range options.Push.DNSServers {
+		addresses := make([]netip.AddrPort, 0, len(server.Addresses))
+		for addressIndex, addressValue := range server.Addresses {
+			address, err := netip.ParseAddr(addressValue)
+			if err == nil {
+				addresses = append(addresses, netip.AddrPortFrom(address, 0))
+				continue
+			}
+			addressPort, addressPortErr := netip.ParseAddrPort(addressValue)
+			if addressPortErr != nil || addressPort.Port() == 0 {
+				return E.New("invalid push.dns_servers[", serverIndex, "].addresses[", addressIndex, "]: ", addressValue)
+			}
+			addresses = append(addresses, addressPort)
+		}
+		serverOptions.Push.DNSServers = append(serverOptions.Push.DNSServers, ovpn.TunnelDNSServer{
+			Priority:       server.Priority,
+			Addresses:      addresses,
+			ResolveDomains: slices.Clone(server.ResolveDomains),
+			DNSSEC:         server.DNSSEC,
+			Transport:      server.Transport,
+			SNI:            server.SNI,
+		})
+	}
 	serverOptions.Push.BlockOutsideDNS = options.Push.BlockOutsideDNS
 	serverOptions.Push.PingInterval = time.Duration(options.Push.PingInterval)
 	serverOptions.Push.PingRestart = time.Duration(options.Push.PingRestart)
@@ -414,6 +592,7 @@ func applyServerPushOptions(serverOptions *ovpn.ServerOptions, options option.Op
 			serverOptions.Push.RedirectGatewayFlags = []string{"def1"}
 		}
 	}
+	return nil
 }
 
 func (s *ServerEndpoint) readLoop() {
@@ -424,7 +603,7 @@ func (s *ServerEndpoint) readLoop() {
 			if E.IsClosedOrCanceled(err) || s.loopContext.Err() != nil {
 				return
 			}
-			s.logger.Error(E.Cause(err, "OpenVPN server terminated"))
+			s.logger.Error(E.Cause(err, "server terminated"))
 			return
 		}
 		packetBuffers := make([]*buf.Buffer, len(serverPacketBuffers))
@@ -491,7 +670,7 @@ func (s *ServerEndpoint) NewDNSPacket(payload []byte, source M.Socksaddr, destin
 
 func (s *ServerEndpoint) WritePackets(packets [][]byte) error {
 	if !s.started.Load() {
-		return E.New("OpenVPN server is not ready yet")
+		return E.New("endpoint is not ready yet")
 	}
 	packetBuffers := make([]*buf.Buffer, len(packets))
 	for i, packet := range packets {
@@ -547,7 +726,7 @@ func (s *ServerEndpoint) DialContext(ctx context.Context, network string, destin
 		s.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
 	if !s.started.Load() {
-		return nil, E.New("OpenVPN server is not ready yet")
+		return nil, E.New("endpoint is not ready yet")
 	}
 	if destination.IsDomain() {
 		destinationAddresses, err := s.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
@@ -565,7 +744,7 @@ func (s *ServerEndpoint) DialContext(ctx context.Context, network string, destin
 func (s *ServerEndpoint) ListenPacketWithDestination(ctx context.Context, destination M.Socksaddr) (net.PacketConn, netip.Addr, error) {
 	s.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	if !s.started.Load() {
-		return nil, netip.Addr{}, E.New("OpenVPN server is not ready yet")
+		return nil, netip.Addr{}, E.New("endpoint is not ready yet")
 	}
 	if destination.IsDomain() {
 		destinationAddresses, err := s.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})

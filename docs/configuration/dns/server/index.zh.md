@@ -46,6 +46,8 @@ DNS 服务器的类型。
 | `mdns`          | [mDNS](./mdns/)           |
 | `fakeip`        | [Fake IP](./fakeip/)      |
 | `tailscale`     | [Tailscale](./tailscale/) |
+| `openconnect`   | [OpenConnect](./openconnect/) |
+| `openvpn`       | [OpenVPN](./openvpn/)         |
 | `resolved`      | [Resolved](./resolved/)   |
 
 #### tag

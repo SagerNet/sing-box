@@ -499,13 +499,14 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 
 匹配指定 DNS 服务器的首选域名。
 
-| 类型          | 匹配                                                          |
-|-------------|-------------------------------------------------------------|
-| `hosts`     | 匹配预定义条目和 hosts 文件中的条目                                       |
-| `local`     | 匹配 hosts 中的条目、邻居解析得到的主机名以及 mDNS 本地域名                         |
-| `mdns`      | 匹配 mDNS 本地域名（`*.local.` 以及 IPv4/IPv6 链路本地反向区域）              |
-| `tailscale` | 匹配 MagicDNS 主机和 DNS 路由后缀                                    |
-| `resolved`  | 匹配 systemd-resolved 链路中的分流域名和搜索域                            |
+| 类型            | 匹配                                                          |
+|---------------|-------------------------------------------------------------|
+| `hosts`       | 匹配预定义条目和 hosts 文件中的条目                                       |
+| `local`       | 匹配 hosts 中的条目、邻居解析得到的主机名以及 mDNS 本地域名                         |
+| `mdns`        | 匹配 mDNS 本地域名（`*.local.` 以及 IPv4/IPv6 链路本地反向区域）              |
+| `tailscale`   | 匹配 MagicDNS 主机和 DNS 路由后缀                                    |
+| `openconnect` | 匹配 VPN 服务器推送的分流 DNS 和搜索域                                  |
+| `resolved`    | 匹配 systemd-resolved 链路中的分流域名和搜索域                            |
 
 #### wifi_ssid
 
