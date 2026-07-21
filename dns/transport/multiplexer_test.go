@@ -8,8 +8,98 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/common/dialer"
+	C "github.com/sagernet/sing-box/constant"
+	boxDNS "github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/option"
+	M "github.com/sagernet/sing/common/metadata"
+
 	mDNS "github.com/miekg/dns"
 )
+
+func TestTCPTransportRetriesReadErrorOnReusedConn(t *testing.T) {
+	t.Parallel()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	serverDone := make(chan error, 1)
+	go func() {
+		firstConn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		firstRequest, readErr := ReadMessage(firstConn)
+		if readErr != nil {
+			firstConn.Close()
+			serverDone <- readErr
+			return
+		}
+		firstResponse := new(mDNS.Msg)
+		firstResponse.SetReply(firstRequest)
+		writeErr := WriteMessage(firstConn, firstRequest.Id, firstResponse)
+		if writeErr != nil {
+			firstConn.Close()
+			serverDone <- writeErr
+			return
+		}
+		_, readErr = ReadMessage(firstConn)
+		firstConn.Close()
+		if readErr != nil {
+			serverDone <- readErr
+			return
+		}
+		secondConn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer secondConn.Close()
+		secondRequest, readErr := ReadMessage(secondConn)
+		if readErr != nil {
+			serverDone <- readErr
+			return
+		}
+		secondResponse := new(mDNS.Msg)
+		secondResponse.SetReply(secondRequest)
+		serverDone <- WriteMessage(secondConn, secondRequest.Id, secondResponse)
+	}()
+
+	transportDialer, err := dialer.NewDefault(context.Background(), option.DialerOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport := NewTCPRaw(boxDNS.NewTransportAdapter(C.DNSTypeTCP, "test", nil), transportDialer, M.SocksaddrFromNet(listener.Addr()))
+	defer transport.Close()
+
+	firstMessage := new(mDNS.Msg)
+	firstMessage.SetQuestion("first.example.com.", mDNS.TypeA)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	_, err = transport.Exchange(ctx, firstMessage)
+	cancel()
+	if err != nil {
+		t.Fatal("first query failed: ", err)
+	}
+
+	secondMessage := new(mDNS.Msg)
+	secondMessage.SetQuestion("second.example.com.", mDNS.TypeAAAA)
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	_, err = transport.Exchange(ctx, secondMessage)
+	cancel()
+	if err != nil {
+		t.Fatal("second query failed: ", err)
+	}
+	select {
+	case err = <-serverDone:
+		if err != nil {
+			t.Fatal("DNS server failed: ", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("DNS server did not finish")
+	}
+}
 
 func TestMultiplexerTimeoutInvalidatesConn(t *testing.T) {
 	t.Parallel()
