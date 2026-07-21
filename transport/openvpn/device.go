@@ -3,7 +3,6 @@ package openvpn
 import (
 	"context"
 	"net/netip"
-	"slices"
 	"sync/atomic"
 	"time"
 
@@ -54,19 +53,32 @@ type DeviceOptions struct {
 }
 
 type Configuration struct {
-	MTU       uint32
-	Address   []netip.Prefix
-	Routes    []Route
-	DNS       []netip.Addr
-	Topology  string
-	Interface string
-	BlockIPv6 bool
+	MTU            uint32
+	Address        []netip.Prefix
+	Routes         []Route
+	ExcludedRoutes []Route
+	DNS            []netip.Addr
+	DNSServers     []DNSServer
+	SearchDomains  []string
+	DNSRoutes      []string
+	Topology       string
+	Interface      string
+	BlockIPv6      bool
 }
 
 type Route struct {
 	Prefix  netip.Prefix
 	Gateway netip.Addr
 	Metric  int
+}
+
+type DNSServer struct {
+	Priority       int
+	Addresses      []netip.AddrPort
+	ResolveDomains []string
+	DNSSEC         string
+	Transport      string
+	SNI            string
 }
 
 func NewDevice(options DeviceOptions) (Device, error) {
@@ -91,7 +103,7 @@ func (d *baseDevice) SetPacketWriter(writer PacketWriter) {
 func (d *baseDevice) writeOutbound(packetBuffers []*buf.Buffer) error {
 	if d.packetWriter == nil {
 		buf.ReleaseMulti(packetBuffers)
-		return E.New("missing OpenVPN packet writer")
+		return E.New("missing packet writer")
 	}
 	return d.packetWriter(packetBuffers)
 }
@@ -190,34 +202,6 @@ func splitPrefixes(prefixes []netip.Prefix) ([]netip.Prefix, []netip.Prefix) {
 		}
 	}
 	return inet4Prefixes, inet6Prefixes
-}
-
-func splitRoutes(routes []Route) ([]netip.Prefix, []netip.Prefix) {
-	var inet4Prefixes []netip.Prefix
-	var inet6Prefixes []netip.Prefix
-	for _, route := range routes {
-		if route.Prefix.Addr().Is4() {
-			inet4Prefixes = append(inet4Prefixes, route.Prefix)
-		} else {
-			inet6Prefixes = append(inet6Prefixes, route.Prefix)
-		}
-	}
-	return inet4Prefixes, inet6Prefixes
-}
-
-func routesWithBlockIPv6(configuration Configuration) []Route {
-	routes := configuration.Routes
-	if !configuration.BlockIPv6 {
-		return routes
-	}
-	inet6DefaultRoute := netip.PrefixFrom(netip.IPv6Unspecified(), 0)
-	for _, route := range routes {
-		if route.Prefix == inet6DefaultRoute {
-			return routes
-		}
-	}
-	routes = append(slices.Clone(routes), Route{Prefix: inet6DefaultRoute})
-	return routes
 }
 
 func hasRouteOptions(routes []Route) bool {
