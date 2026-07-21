@@ -13,9 +13,10 @@ import (
 )
 
 type queryMultiplexerOptions struct {
-	dial     func(ctx context.Context) (net.Conn, error)
-	write    func(conn net.Conn, message *mDNS.Msg, queryId uint16) error
-	readNext func(conn net.Conn) (*mDNS.Msg, error)
+	dial           func(ctx context.Context) (net.Conn, error)
+	write          func(conn net.Conn, message *mDNS.Msg, queryId uint16) error
+	readNext       func(conn net.Conn) (*mDNS.Msg, error)
+	retryReadError bool
 }
 
 type queryMultiplexer struct {
@@ -32,13 +33,26 @@ type multiplexConn struct {
 	readEpoch atomic.Uint64
 }
 
+type queryMultiplexerReadError struct {
+	cause error
+}
+
+func (e *queryMultiplexerReadError) Error() string {
+	return e.cause.Error()
+}
+
+func (e *queryMultiplexerReadError) Unwrap() error {
+	return e.cause
+}
+
 type pendingQuery struct {
 	conn        *multiplexConn
-	originalId  uint16
+	message     *mDNS.Msg
 	readEpoch   uint64
 	callback    func(response *mDNS.Msg, err error)
 	stopContext func() bool
 	stopConn    func() bool
+	retryCtx    context.Context
 }
 
 func newQueryMultiplexer(options queryMultiplexerOptions) *queryMultiplexer {
@@ -81,6 +95,10 @@ func (m *queryMultiplexer) Exchange(ctx context.Context, message *mDNS.Msg) (*mD
 }
 
 func (m *queryMultiplexer) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	m.exchangeAsync(ctx, message, callback, true)
+}
+
+func (m *queryMultiplexer) exchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error), retryReadError bool) {
 	for firstAttempt := true; ; firstAttempt = false {
 		conn, connCtx, created, err := m.connection.AcquireShared(ctx, m.dialConn)
 		if err != nil {
@@ -90,7 +108,7 @@ func (m *queryMultiplexer) ExchangeAsync(ctx context.Context, message *mDNS.Msg,
 		if created {
 			go m.recvLoop(conn)
 		}
-		queryId, err := m.register(ctx, connCtx, conn, message.Id, callback)
+		queryId, err := m.register(ctx, connCtx, conn, message, callback, retryReadError && m.options.retryReadError && !created)
 		if err != nil {
 			m.connection.Release(conn, true)
 			callback(nil, err)
@@ -121,7 +139,7 @@ func (m *queryMultiplexer) dialConn(ctx context.Context) (*multiplexConn, error)
 	return &multiplexConn{Conn: conn}, nil
 }
 
-func (m *queryMultiplexer) register(ctx context.Context, connCtx context.Context, conn *multiplexConn, originalId uint16, callback func(response *mDNS.Msg, err error)) (uint16, error) {
+func (m *queryMultiplexer) register(ctx context.Context, connCtx context.Context, conn *multiplexConn, message *mDNS.Msg, callback func(response *mDNS.Msg, err error), retryReadError bool) (uint16, error) {
 	m.queryAccess.Lock()
 	defer m.queryAccess.Unlock()
 	start := m.queryId
@@ -136,19 +154,36 @@ func (m *queryMultiplexer) register(ctx context.Context, connCtx context.Context
 	}
 	queryId := m.queryId
 	pending := &pendingQuery{
-		conn:       conn,
-		originalId: originalId,
-		readEpoch:  conn.readEpoch.Load(),
-		callback:   callback,
+		conn:      conn,
+		message:   message,
+		readEpoch: conn.readEpoch.Load(),
+		callback:  callback,
+	}
+	if retryReadError {
+		pending.retryCtx = ctx
 	}
 	m.queries[queryId] = pending
 	pending.stopContext = context.AfterFunc(ctx, func() {
 		m.completeContextDone(queryId, ctx)
 	})
 	pending.stopConn = context.AfterFunc(connCtx, func() {
-		m.complete(queryId, nil, context.Cause(connCtx), false)
+		m.completeConnDone(queryId, connCtx)
 	})
 	return queryId, nil
+}
+
+func (m *queryMultiplexer) completeConnDone(queryId uint16, connCtx context.Context) {
+	pending := m.take(queryId)
+	if pending == nil {
+		return
+	}
+	connErr := context.Cause(connCtx)
+	_, readFailed := connErr.(*queryMultiplexerReadError)
+	if pending.retryCtx != nil && readFailed {
+		m.exchangeAsync(pending.retryCtx, pending.message, pending.callback, false)
+		return
+	}
+	pending.callback(nil, connErr)
 }
 
 func (m *queryMultiplexer) take(queryId uint16) *pendingQuery {
@@ -174,7 +209,7 @@ func (m *queryMultiplexer) complete(queryId uint16, response *mDNS.Msg, err erro
 		m.connection.Release(pending.conn, true)
 	}
 	if response != nil {
-		response.Id = pending.originalId
+		response.Id = pending.message.Id
 	}
 	pending.callback(response, err)
 }
@@ -197,7 +232,7 @@ func (m *queryMultiplexer) recvLoop(conn *multiplexConn) {
 	for {
 		message, err := m.options.readNext(conn)
 		if err != nil {
-			m.connection.Invalidate(conn, err)
+			m.connection.Invalidate(conn, &queryMultiplexerReadError{cause: err})
 			return
 		}
 		conn.readEpoch.Add(1)
