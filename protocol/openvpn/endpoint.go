@@ -17,6 +17,7 @@ import (
 	ovpn "github.com/sagernet/sing-openvpn"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -118,7 +119,7 @@ func keyDirectionValue(direction string) (int, error) {
 	case "client":
 		return 1, nil
 	default:
-		return 0, E.New("unsupported OpenVPN key direction: ", direction, " (expected \"server\" or \"client\")")
+		return 0, E.New("unsupported key direction: ", direction, " (expected \"server\" or \"client\")")
 	}
 }
 
@@ -187,21 +188,43 @@ func configurationFromClientEvent(event ovpn.TunnelConfigurationEvent, logger lo
 			hasInet6DefaultRoute = true
 		}
 	}
+	var excludedRoutes []ovpntransport.Route
+	for _, route := range configuration.ExcludedIPv4Routes {
+		excludedRoutes = append(excludedRoutes, ovpntransport.Route{Prefix: route.Prefix, Gateway: route.Gateway, Metric: route.Metric})
+	}
+	for _, route := range configuration.ExcludedIPv6Routes {
+		excludedRoutes = append(excludedRoutes, ovpntransport.Route{Prefix: route.Prefix, Gateway: route.Gateway, Metric: route.Metric})
+	}
 	if configuration.RedirectGateway {
 		if !hasOpenVPNFlag(configuration.RedirectGatewayFlags, "!ipv4") && !hasInet4DefaultRoute {
-			routes = append(routes, ovpntransport.Route{
-				Prefix:  inet4DefaultRoute,
-				Gateway: configuration.VPNGateway,
-				Metric:  configuration.RouteMetric,
-			})
+			if hasOpenVPNFlag(configuration.RedirectGatewayFlags, "def1") {
+				for _, prefix := range []netip.Prefix{
+					netip.PrefixFrom(netip.IPv4Unspecified(), 1),
+					netip.MustParsePrefix("128.0.0.0/1"),
+				} {
+					if !openVPNRoutesContainPrefix(routes, prefix) {
+						routes = append(routes, ovpntransport.Route{Prefix: prefix, Gateway: configuration.VPNGateway, Metric: configuration.RouteMetric})
+					}
+				}
+			} else {
+				routes = append(routes, ovpntransport.Route{
+					Prefix:  inet4DefaultRoute,
+					Gateway: configuration.VPNGateway,
+					Metric:  configuration.RouteMetric,
+				})
+			}
 		}
 		if hasOpenVPNFlag(configuration.RedirectGatewayFlags, "ipv6") && !hasInet6DefaultRoute {
-			routes = append(routes, ovpntransport.Route{
-				Prefix:  inet6DefaultRoute,
-				Gateway: configuration.VPNGatewayIPv6,
-				Metric:  configuration.RouteMetric,
-			})
-			hasInet6DefaultRoute = true
+			for _, prefix := range []netip.Prefix{
+				netip.MustParsePrefix("::/3"),
+				netip.MustParsePrefix("2000::/4"),
+				netip.MustParsePrefix("3000::/4"),
+				netip.MustParsePrefix("fc00::/7"),
+			} {
+				if !openVPNRoutesContainPrefix(routes, prefix) {
+					routes = append(routes, ovpntransport.Route{Prefix: prefix, Gateway: configuration.VPNGatewayIPv6, Metric: configuration.RouteMetric})
+				}
+			}
 		}
 	}
 	if configuration.BlockIPv6 && !hasInet6DefaultRoute {
@@ -211,46 +234,113 @@ func configurationFromClientEvent(event ovpn.TunnelConfigurationEvent, logger lo
 			Metric:  configuration.RouteMetric,
 		})
 	}
+	var dnsAddresses []netip.Addr
+	if len(configuration.DNSServers) > 0 {
+		servers := slices.Clone(configuration.DNSServers)
+		slices.SortFunc(servers, func(left ovpn.TunnelDNSServer, right ovpn.TunnelDNSServer) int {
+			return left.Priority - right.Priority
+		})
+		for _, address := range servers[0].Addresses {
+			if address.Addr().IsValid() && !slices.Contains(dnsAddresses, address.Addr()) {
+				dnsAddresses = append(dnsAddresses, address.Addr())
+			}
+		}
+	} else {
+		dnsAddresses = slices.Clone(configuration.DNS)
+	}
+	for _, dnsAddress := range dnsAddresses {
+		if openVPNRoutesContainAddress(routes, dnsAddress) || openVPNRoutesContainAddress(excludedRoutes, dnsAddress) {
+			continue
+		}
+		gateway := configuration.VPNGateway
+		if dnsAddress.Is6() {
+			gateway = configuration.VPNGatewayIPv6
+		}
+		routes = append(routes, ovpntransport.Route{
+			Prefix:  netip.PrefixFrom(dnsAddress, dnsAddress.BitLen()),
+			Gateway: gateway,
+			Metric:  configuration.RouteMetric,
+		})
+	}
 	var ignoredOptions []string
+	var notApplicableOptions []string
 	for _, flag := range configuration.RedirectGatewayFlags {
 		switch strings.ToLower(flag) {
-		case "!ipv4", "ipv6":
+		case "!ipv4", "ipv6", "def1", "local", "autolocal":
+		case "bypass-dhcp", "bypass-dns":
+			notApplicableOptions = append(notApplicableOptions, "redirect-gateway "+flag)
 		default:
 			if flag != "" {
 				ignoredOptions = append(ignoredOptions, "redirect-gateway "+flag)
 			}
 		}
 	}
-	if configuration.RedirectPrivate {
-		ignoredOptions = append(ignoredOptions, "redirect-private")
-	}
 	if configuration.BlockOutsideDNS {
 		ignoredOptions = append(ignoredOptions, "block-outside-dns")
 	}
 	for _, dhcpOption := range configuration.DHCPOptions {
 		fields := strings.Fields(dhcpOption)
-		if len(fields) == 0 || strings.EqualFold(fields[0], "DNS") || strings.EqualFold(fields[0], "DNS6") {
+		if len(fields) == 0 || slices.ContainsFunc([]string{"DNS", "DNS6", "DOMAIN", "ADAPTER_DOMAIN_SUFFIX", "DOMAIN-SEARCH", "DOMAIN-ROUTE"}, func(optionName string) bool {
+			return strings.EqualFold(fields[0], optionName)
+		}) {
 			continue
 		}
 		ignoredOptions = append(ignoredOptions, "dhcp-option "+strings.TrimSpace(dhcpOption))
 	}
 	if len(ignoredOptions) > 0 && logger != nil {
-		logger.Debug("ignored pushed OpenVPN options: ", strings.Join(ignoredOptions, ", "))
+		logger.Debug("ignored pushed options: ", strings.Join(ignoredOptions, ", "))
+	}
+	if len(notApplicableOptions) > 0 && logger != nil {
+		logger.Debug("pushed options are not applicable: ", strings.Join(notApplicableOptions, ", "))
 	}
 	return ovpntransport.Configuration{
-		MTU:       mtu,
-		Address:   addresses,
-		Routes:    routes,
-		DNS:       configuration.DNS,
-		Topology:  configuration.Topology,
-		BlockIPv6: configuration.BlockIPv6,
+		MTU:            mtu,
+		Address:        addresses,
+		Routes:         routes,
+		ExcludedRoutes: excludedRoutes,
+		DNS:            configuration.DNS,
+		DNSServers: common.Map(configuration.DNSServers, func(server ovpn.TunnelDNSServer) ovpntransport.DNSServer {
+			return ovpntransport.DNSServer{
+				Priority:       server.Priority,
+				Addresses:      slices.Clone(server.Addresses),
+				ResolveDomains: slices.Clone(server.ResolveDomains),
+				DNSSEC:         server.DNSSEC,
+				Transport:      server.Transport,
+				SNI:            server.SNI,
+			}
+		}),
+		SearchDomains: slices.Clone(configuration.SearchDomains),
+		DNSRoutes:     slices.Clone(configuration.DNSRoutes),
+		Topology:      configuration.Topology,
+		BlockIPv6:     configuration.BlockIPv6,
 	}
 }
 
-func buildIPSet(routes []ovpntransport.Route) (*netipx.IPSet, error) {
+func openVPNRoutesContainAddress(routes []ovpntransport.Route, address netip.Addr) bool {
+	for _, route := range routes {
+		if route.Prefix.Contains(address) {
+			return true
+		}
+	}
+	return false
+}
+
+func openVPNRoutesContainPrefix(routes []ovpntransport.Route, prefix netip.Prefix) bool {
+	for _, route := range routes {
+		if route.Prefix == prefix {
+			return true
+		}
+	}
+	return false
+}
+
+func buildIPSet(routes []ovpntransport.Route, excludedRoutes []ovpntransport.Route) (*netipx.IPSet, error) {
 	var builder netipx.IPSetBuilder
 	for _, route := range routes {
 		builder.AddPrefix(route.Prefix)
+	}
+	for _, route := range excludedRoutes {
+		builder.RemovePrefix(route.Prefix)
 	}
 	return builder.IPSet()
 }

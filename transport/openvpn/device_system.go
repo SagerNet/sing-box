@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"runtime"
 	"slices"
 	"sync"
 	"syscall"
@@ -30,14 +29,13 @@ const (
 
 type systemDevice struct {
 	baseDevice
-	stateAccess     sync.RWMutex
-	options         DeviceOptions
-	dialer          N.Dialer
-	device          tun.Tun
-	inet4Address    netip.Addr
-	inet6Address    netip.Addr
-	logRouteOptions bool
-	closed          bool
+	stateAccess  sync.RWMutex
+	options      DeviceOptions
+	dialer       N.Dialer
+	device       tun.Tun
+	inet4Address netip.Addr
+	inet6Address netip.Addr
+	closed       bool
 }
 
 func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
@@ -55,11 +53,10 @@ func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
 	}
 	inet4Address, inet6Address := firstAddresses(options.Configuration.Address)
 	return &systemDevice{
-		options:         options,
-		dialer:          interfaceDialer,
-		inet4Address:    inet4Address,
-		inet6Address:    inet6Address,
-		logRouteOptions: true,
+		options:      options,
+		dialer:       interfaceDialer,
+		inet4Address: inet4Address,
+		inet6Address: inet6Address,
 	}, nil
 }
 
@@ -97,13 +94,6 @@ func (d *systemDevice) buildTunOptions() tun.Options {
 	d.inet4Address = inet4Address
 	d.inet6Address = inet6Address
 	inet4Addresses, inet6Addresses := splitPrefixes(d.options.Configuration.Address)
-	if d.options.Configuration.BlockIPv6 && len(inet6Addresses) == 0 {
-		inet6Addresses = append(inet6Addresses, netip.MustParsePrefix("fddd:1194:1194:1194::2/64"))
-	}
-	routes := routesWithBlockIPv6(d.options.Configuration)
-	inet4Routes, inet6Routes := splitRoutes(routes)
-	inet4Gateway, _ := systemRouteGateway(routes, true)
-	inet6Gateway, _ := systemRouteGateway(routes, false)
 	networkManager := service.FromContext[adapter.NetworkManager](d.options.Context)
 	tunOptions := tun.Options{
 		Name:                 d.options.Name,
@@ -112,11 +102,7 @@ func (d *systemDevice) buildTunOptions() tun.Options {
 		MTU:                  d.options.MTU,
 		GSO:                  true,
 		InterfaceScope:       true,
-		DNSAddress:           d.options.Configuration.DNS,
-		Inet4Gateway:         inet4Gateway,
-		Inet6Gateway:         inet6Gateway,
-		Inet4RouteAddress:    inet4Routes,
-		Inet6RouteAddress:    inet6Routes,
+		DNSMode:              tun.DNSModeDisabled,
 		InterfaceMonitor:     nil,
 		InterfaceFinder:      nil,
 		Logger:               d.options.Logger,
@@ -124,51 +110,11 @@ func (d *systemDevice) buildTunOptions() tun.Options {
 		IPRoute2RuleIndex:    tun.DefaultIPRoute2RuleIndex,
 		EXP_DisableDNSHijack: true,
 	}
-	if runtime.GOOS == "darwin" {
-		tunOptions.AutoRoute = true
-	}
 	if networkManager != nil {
 		tunOptions.InterfaceMonitor = networkManager.InterfaceMonitor()
 		tunOptions.InterfaceFinder = networkManager.InterfaceFinder()
 	}
 	return tunOptions
-}
-
-func systemRouteGateway(routes []Route, ipv4 bool) (netip.Addr, bool) {
-	var gateway netip.Addr
-	var hasGateway bool
-	var hasMissingGateway bool
-	var gatewayUnrepresentable bool
-	var metricUnrepresentable bool
-	for _, route := range routes {
-		if route.Prefix.Addr().Is4() != ipv4 {
-			continue
-		}
-		if route.Metric != 0 {
-			metricUnrepresentable = true
-		}
-		if !route.Gateway.IsValid() {
-			hasMissingGateway = true
-			continue
-		}
-		if route.Gateway.Is4() != ipv4 {
-			gatewayUnrepresentable = true
-			continue
-		}
-		if !hasGateway {
-			gateway = route.Gateway
-			hasGateway = true
-		} else if gateway != route.Gateway {
-			gatewayUnrepresentable = true
-		}
-	}
-	if hasGateway && hasMissingGateway {
-		gatewayUnrepresentable = true
-	}
-	if gatewayUnrepresentable {
-		gateway = netip.Addr{}
-	}
-	return gateway, gatewayUnrepresentable || metricUnrepresentable
 }
 
 func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
@@ -295,13 +241,6 @@ func (d *systemDevice) readLoopDarwin(tunInterface tun.DarwinTUN) {
 func (d *systemDevice) UpdateConfiguration(configuration Configuration) error {
 	d.stateAccess.Lock()
 	defer d.stateAccess.Unlock()
-	routes := routesWithBlockIPv6(configuration)
-	_, hasUnrepresentableInet4RouteOptions := systemRouteGateway(routes, true)
-	_, hasUnrepresentableInet6RouteOptions := systemRouteGateway(routes, false)
-	if d.logRouteOptions && (hasUnrepresentableInet4RouteOptions || hasUnrepresentableInet6RouteOptions) {
-		d.options.Logger.Debug("some OpenVPN route gateway or metric options are not representable by the system device; routes are installed by prefix")
-		d.logRouteOptions = false
-	}
 	previousConfiguration := d.options.Configuration
 	previousMTU := d.options.MTU
 	updatedMTU := d.options.MTU
@@ -317,14 +256,12 @@ func (d *systemDevice) UpdateConfiguration(configuration Configuration) error {
 		return nil
 	}
 	if !slices.Equal(previousConfiguration.Address, configuration.Address) ||
-		previousMTU != updatedMTU ||
-		!slices.Equal(previousConfiguration.DNS, configuration.DNS) ||
-		previousConfiguration.BlockIPv6 != configuration.BlockIPv6 {
+		previousMTU != updatedMTU {
 		d.device.Close()
 		d.device = nil
 		return d.startLocked()
 	}
-	return d.device.UpdateRouteOptions(d.buildTunOptions())
+	return nil
 }
 
 func (d *systemDevice) blockIPv6Enabled() bool {
@@ -342,7 +279,7 @@ func (d *systemDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 	tunInterface := d.device
 	d.stateAccess.RUnlock()
 	if tunInterface == nil {
-		return E.New("OpenVPN system device is not ready")
+		return E.New("system device is not ready")
 	}
 	linuxTUN, isLinuxTUN := tunInterface.(tun.LinuxTUN)
 	if isLinuxTUN {
@@ -385,7 +322,7 @@ func (d *systemDevice) writePacket(packet []byte) error {
 	tunInterface := d.device
 	d.stateAccess.RUnlock()
 	if tunInterface == nil {
-		return E.New("OpenVPN system device is not ready")
+		return E.New("system device is not ready")
 	}
 	if tun.PacketOffset == 0 {
 		_, err := tunInterface.Write(packet)

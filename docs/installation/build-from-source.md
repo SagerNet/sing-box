@@ -69,11 +69,10 @@ It is not recommended to change the default build tag list unless you really kno
 
 ## :material-wrench: Linker Flags
 
-The following `-ldflags` are used in official builds:
+The required linker flags for official builds are maintained in `release/LDFLAGS`. Downstream builds should use that file unchanged.
 
 | Flag                                                        | Description                                                                                                                                                                                                             |
 |-------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `-X 'internal/godebug.defaultGODEBUG=multipathtcp=0'`      | Go 1.24 enabled Multipath TCP for listeners by default (`multipathtcp=2`). This may cause errors on low-level sockets, and sing-box has its own MPTCP control (`tcp_multi_path` option). This flag disables the Go default. |
 | `-checklinkname=0`                                          | Go 1.23+ linker rejects unauthorized `go:linkname` usage. This flag disables the check, required together with the `badlinkname` build tag.                                                                            |
 
 ## :material-package-variant: For Downstream Packagers
