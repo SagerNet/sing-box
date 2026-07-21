@@ -31,6 +31,8 @@ body:
         - sing-box for macOS 图形客户端程序
         - sing-box for Apple tvOS 图形客户端程序
         - sing-box for Android 图形客户端程序
+        - sing-box for Windows 图形客户端程序
+        - sing-box for Linux 图形客户端程序
         - 宣传使用 sing-box 的第三方图形客户端程序 (Windows)
         - 宣传使用 sing-box 的第三方图形客户端程序 (Android)
         - 其他
