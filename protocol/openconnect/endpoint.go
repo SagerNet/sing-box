@@ -133,6 +133,55 @@ func configurationFromClientEvent(event openconnect.TunnelConfigurationEvent) op
 			Metric:  route.Metric,
 		}
 	})
+	if configuration.RemoteAddress.IsValid() {
+		remoteAddress := configuration.RemoteAddress.Unmap()
+		if remoteAddress.Is6() {
+			remoteAddress = remoteAddress.WithZone("")
+		}
+		remoteAddressExcluded := false
+		for _, route := range excludedRoutes {
+			if route.Prefix.Contains(remoteAddress) {
+				remoteAddressExcluded = true
+				break
+			}
+		}
+		if !remoteAddressExcluded {
+			excludedRoutes = append(excludedRoutes, openconnecttransport.Route{
+				Prefix: netip.PrefixFrom(remoteAddress, remoteAddress.BitLen()),
+			})
+		}
+	}
+	dnsAddresses := append([]netip.Addr(nil), configuration.DNS...)
+	for _, rule := range configuration.SplitDNSRules {
+		dnsAddresses = append(dnsAddresses, rule.Servers...)
+	}
+	for _, dnsAddress := range dnsAddresses {
+		if !dnsAddress.IsValid() {
+			continue
+		}
+		dnsAddressExcluded := false
+		for _, route := range excludedRoutes {
+			if route.Prefix.Contains(dnsAddress) {
+				dnsAddressExcluded = true
+				break
+			}
+		}
+		if dnsAddressExcluded {
+			continue
+		}
+		dnsAddressIncluded := false
+		for _, route := range routes {
+			if route.Prefix.Contains(dnsAddress) {
+				dnsAddressIncluded = true
+				break
+			}
+		}
+		if !dnsAddressIncluded {
+			routes = append(routes, openconnecttransport.Route{
+				Prefix: netip.PrefixFrom(dnsAddress, dnsAddress.BitLen()),
+			})
+		}
+	}
 	splitDNSRules := common.Map(configuration.SplitDNSRules, func(rule openconnect.TunnelSplitDNSRule) openconnecttransport.SplitDNSRule {
 		return openconnecttransport.SplitDNSRule{
 			Domains: rule.Domains,
@@ -167,4 +216,47 @@ func buildIPSet(routes []openconnecttransport.Route, excludedRoutes []openconnec
 		builder.RemovePrefix(route.Prefix)
 	}
 	return builder.IPSet()
+}
+
+func buildPreferredDomains(configuration openconnecttransport.Configuration) map[string]bool {
+	preferredDomains := make(map[string]bool)
+	for _, domain := range configuration.SearchDomains {
+		canonicalDomain := canonicalOpenConnectDomain(domain)
+		if canonicalDomain != "" {
+			preferredDomains[canonicalDomain] = true
+		}
+	}
+	for _, domain := range configuration.SplitDNS {
+		canonicalDomain := canonicalOpenConnectDomain(domain)
+		if canonicalDomain != "" {
+			preferredDomains[canonicalDomain] = true
+		}
+	}
+	for _, rule := range configuration.SplitDNSRules {
+		for _, domain := range rule.Domains {
+			canonicalDomain := canonicalOpenConnectDomain(domain)
+			if canonicalDomain != "" {
+				preferredDomains[canonicalDomain] = true
+			}
+		}
+	}
+	return preferredDomains
+}
+
+func canonicalOpenConnectDomain(domain string) string {
+	return strings.ToLower(strings.Trim(strings.TrimSpace(domain), "."))
+}
+
+func openConnectDomainMatchesAny(domain string, suffixes map[string]bool) bool {
+	for domain != "" {
+		if suffixes[domain] {
+			return true
+		}
+		dotIndex := strings.IndexByte(domain, '.')
+		if dotIndex == -1 {
+			break
+		}
+		domain = domain[dotIndex+1:]
+	}
+	return false
 }

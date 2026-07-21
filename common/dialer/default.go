@@ -155,6 +155,13 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	if options.DisableTCPKeepAlive {
 		dialer.KeepAlive = -1
 		dialer.KeepAliveConfig.Enable = false
+	} else if options.TCPKeepAliveSystemDefaults {
+		dialer.KeepAliveConfig = net.KeepAliveConfig{
+			Enable:   true,
+			Idle:     -1,
+			Interval: -1,
+			Count:    -1,
+		}
 	} else {
 		keepIdle := time.Duration(options.TCPKeepAlive)
 		if keepIdle == 0 {
@@ -188,8 +195,11 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	if options.Inet4BindAddress != nil {
 		bindAddr := options.Inet4BindAddress.Build(netip.IPv4Unspecified())
 		dialer4.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
-		udpDialer4.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
-		udpAddr4 = M.SocksaddrFrom(bindAddr, 0).String()
+		udpDialer4.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice(), Port: int(options.UDPBindPort)}
+		udpAddr4 = M.SocksaddrFrom(bindAddr, options.UDPBindPort).String()
+	} else if options.UDPBindPort != 0 {
+		udpDialer4.LocalAddr = &net.UDPAddr{IP: net.IPv4zero, Port: int(options.UDPBindPort)}
+		udpAddr4 = M.SocksaddrFrom(netip.IPv4Unspecified(), options.UDPBindPort).String()
 	}
 	var (
 		dialer6    = dialer
@@ -199,8 +209,11 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	if options.Inet6BindAddress != nil {
 		bindAddr := options.Inet6BindAddress.Build(netip.IPv6Unspecified())
 		dialer6.LocalAddr = &net.TCPAddr{IP: bindAddr.AsSlice()}
-		udpDialer6.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice()}
-		udpAddr6 = M.SocksaddrFrom(bindAddr, 0).String()
+		udpDialer6.LocalAddr = &net.UDPAddr{IP: bindAddr.AsSlice(), Port: int(options.UDPBindPort)}
+		udpAddr6 = M.SocksaddrFrom(bindAddr, options.UDPBindPort).String()
+	} else if options.UDPBindPort != 0 {
+		udpDialer6.LocalAddr = &net.UDPAddr{IP: net.IPv6unspecified, Port: int(options.UDPBindPort)}
+		udpAddr6 = M.SocksaddrFrom(netip.IPv6Unspecified(), options.UDPBindPort).String()
 	}
 	if options.TCPMultiPath {
 		dialer4.SetMultipathTCP(true)
