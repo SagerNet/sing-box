@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -24,6 +25,12 @@ func registerOpenVPNEndpoints(registry *endpoint.Registry) {
 		if !options.System {
 			return nil, E.New(`OpenVPN is not included in this build, rebuild with -tags with_openvpn,with_gvisor for system:false`)
 		}
+		return nil, E.New(`OpenVPN is not included in this build, rebuild with -tags with_openvpn`)
+	})
+}
+
+func registerOpenVPNDNSTransport(registry *dns.TransportRegistry) {
+	dns.RegisterTransport[option.OpenVPNDNSServerOptions](registry, C.DNSTypeOpenVPN, func(ctx context.Context, logger log.ContextLogger, tag string, options option.OpenVPNDNSServerOptions) (adapter.DNSTransport, error) {
 		return nil, E.New(`OpenVPN is not included in this build, rebuild with -tags with_openvpn`)
 	})
 }
