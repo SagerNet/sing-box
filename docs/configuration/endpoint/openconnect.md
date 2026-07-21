@@ -21,9 +21,11 @@
   "username": "",
   "password": "",
   "auth_group": "",
+  "cookie": "",
   "token": {
     "mode": "",
     "secret": "",
+    "secret_path": "",
     "pin": "",
     "password": "",
     "device_id": "",
@@ -31,6 +33,13 @@
   },
   "reported_os": "",
   "user_agent": "",
+  "version": "",
+  "local_hostname": "",
+  "mobile": {
+    "platform_version": "",
+    "device_type": "",
+    "device_unique_id": ""
+  },
   "csd": {
     "wrapper_path": ""
   },
@@ -50,8 +59,28 @@
     ]
   },
   "no_udp": false,
+  "dtls_local_port": 0,
+  "compression_disabled": false,
+  "compression_mode": "",
+  "ipv6_disabled": false,
+  "http_keepalive_disabled": false,
+  "xml_post_disabled": false,
+  "external_auth_disabled": false,
+  "password_authentication_disabled": false,
+  "tcp_keep_alive_enabled": false,
+  "pfs": false,
+  "mtu": 0,
+  "base_mtu": 0,
+  "dpd_interval": "",
+  "reconnect_timeout": "",
+  "trojan_interval": "",
+  "queue_length": 0,
   "allow_insecure_crypto": false,
   "tls": {
+    "insecure": false,
+    "server_name": "",
+    "peer_fingerprint": [],
+    "system_trust_disabled": false,
     "certificate_authority": [],
     "certificate_authority_path": "",
     "client_certificate": [],
@@ -125,29 +154,55 @@ Password used to fill matching authentication form fields.
 
 Authentication group used to preselect a matching group, realm, domain, or gateway choice when supported by the selected flavor.
 
+### cookie
+
+Existing authentication session used to connect without first prompting for credentials.
+
+The accepted format depends on `flavor`:
+
+- `anyconnect`: A `webvpn` value, or a semicolon-separated cookie list containing `webvpn`.
+- `gp`: The complete authenticated query string returned by GlobalProtect authentication.
+- `nc`: A `DSID` value, or a semicolon-separated cookie list containing `DSID`.
+- `pulse`: The raw Pulse authentication cookie value.
+- `f5`: An `MRHSession` value, or a semicolon-separated cookie list containing `MRHSession` and optionally `F5_ST`.
+- `fortinet`: An `SVPNCOOKIE` value, or a semicolon-separated cookie list containing `SVPNCOOKIE`.
+
+If the server rejects the supplied session, normal authentication is attempted.
+
 ### token
 
-Software token configuration for automatically answering matching token fields.
+Token configuration for automatically answering matching token fields or HTTP Bearer authentication.
+
+One of `token.secret` or `token.secret_path` is required.
 
 ### token.mode
 
 ==Required==
 
-Software token mode, one of:
+Token mode, one of:
 
 - `totp`: Time-based One-Time Password.
 - `hotp`: HMAC-based One-Time Password.
 - `stoken`: RSA SecurID software token.
+- `oidc`: OIDC access token used for HTTP Bearer authentication.
 
 ### token.secret
-
-==Required==
 
 Software token secret.
 
 For `totp` and `hotp`, this can be a Base32 secret, a `base32:`-prefixed secret, or an `otpauth://` URI of the matching type.
 
 For `stoken`, this is the encoded RSA SecurID CTF token content.
+
+For `oidc`, this is the access token value. It is sent only after the VPN server requests HTTP Bearer authentication.
+
+Conflict with `token.secret_path`.
+
+### token.secret_path
+
+Path to the software token secret or OIDC access token.
+
+Conflict with `token.secret`.
 
 ### token.pin
 
@@ -173,13 +228,41 @@ Operating system identity reported to the VPN server when supported by the selec
 
 For `anyconnect`, `gp`, and `pulse`, the supported values are `linux`, `linux-64`, `win`, `mac-intel`, `android`, and `apple-ios`.
 
-`anyconnect` uses `linux-64` by default. `gp` and `pulse` select a value based on the system platform by default.
+The default is selected from the system platform: `win` on Windows, `mac-intel` on macOS, `android` on Android, `apple-ios` on iOS, and `linux-64` or `linux` on other 64-bit or 32-bit systems.
 
 ### user_agent
 
 User agent reported to the VPN server when supported by the selected flavor.
 
-The default is flavor-specific.
+The default is flavor-specific. AnyConnect, Network Connect, Pulse, and F5 use `AnyConnect-compatible OpenConnect VPN Agent v9.21`; GlobalProtect uses `PAN GlobalProtect`; Fortinet uses `Mozilla/5.0 SV1`.
+
+### version
+
+Client version reported separately from `user_agent` when supported by the selected flavor.
+
+`v9.21` is used by default. Currently used by AnyConnect XML authentication.
+
+### local_hostname
+
+Local hostname reported to the VPN server when supported by the selected flavor.
+
+The system hostname is used by default, or `localhost` if it is unavailable.
+
+### mobile
+
+AnyConnect mobile client identity. When configured, all three fields are required and are reported during XML authentication and tunnel establishment.
+
+### mobile.platform_version
+
+Mobile operating system version reported to the AnyConnect server.
+
+### mobile.device_type
+
+Mobile device model or type reported to the AnyConnect server.
+
+### mobile.device_unique_id
+
+Mobile device identifier reported to the AnyConnect server.
 
 ### csd
 
@@ -263,15 +346,157 @@ Conflict with `tncc.certificates.certificate`.
 
 Disable the DTLS or ESP secondary data channel and use the TLS data channel only.
 
+### dtls_local_port
+
+Local UDP port used by the direct DTLS or ESP secondary data channel.
+
+An automatically selected ephemeral port is used by default.
+
+### compression_disabled
+
+Disable AnyConnect compression negotiation.
+
+By default, stateless `oc-lz4` and `lzs` compression is negotiated for CSTP and DTLS when supported by the server.
+
+Compression can weaken traffic confidentiality when an attacker can influence plaintext sent through the VPN tunnel.
+
+Conflict with `compression_mode` set to `all`.
+
+### compression_mode
+
+AnyConnect compression mode, one of:
+
+- `stateless`: Advertise stateless `oc-lz4` and `lzs` compression.
+- `all`: Additionally advertise stateful `deflate` compression for CSTP.
+
+`stateless` is used by default. DTLS always uses stateless compression, including when `all` is selected.
+
+Stateful compression has additional traffic confidentiality risks and should only be enabled when required by the VPN server.
+
+### ipv6_disabled
+
+Disable requesting and using IPv6 tunnel configuration.
+
+### http_keepalive_disabled
+
+Disable HTTP connection reuse during authentication and configuration requests.
+
+### xml_post_disabled
+
+Disable AnyConnect XML POST authentication and start authentication with the legacy GET flow.
+
+### external_auth_disabled
+
+Disable external browser authentication such as SSO and SAML for AnyConnect and GlobalProtect.
+
+When enabled, external authentication is not advertised to the server and an unexpected external authentication request is rejected.
+
+### password_authentication_disabled
+
+Abort AnyConnect authentication if the server returns a non-success authentication form, matching OpenConnect `--no-passwd` behavior.
+
+This does not affect the other flavors or a session supplied by `cookie`.
+
+### tcp_keep_alive_enabled
+
+Enable TCP keep alive for direct VPN server connections.
+
+Disabled by default to match OpenConnect. Setting `tcp_keep_alive` or `tcp_keep_alive_interval` also enables it without requiring this field. When enabled without either duration, the operating system TCP keep alive timing is retained.
+
+Conflict with `disable_tcp_keep_alive`.
+
+### pfs
+
+Require forward-secret TLS cipher suites for TLS 1.2 and earlier.
+
+Disabled by default for compatibility with VPN servers that require RSA key exchange. This does not enable deprecated cipher suites; see `allow_insecure_crypto` for legacy crypto support.
+
+### mtu
+
+Preferred tunnel MTU.
+
+The negotiated MTU is limited to this value for all flavors. For AnyConnect, this value is also sent to the server. GlobalProtect, F5, and Fortinet remove their protocol overhead before using it as the tunnel MTU.
+
+Non-zero values below `576` are treated as `576`. The maximum value is `65535`.
+
+### base_mtu
+
+Base path MTU used to calculate the AnyConnect, GlobalProtect, F5, and Fortinet tunnel MTU after outer IP, transport, and protocol overhead.
+
+`1406` is used by default.
+
+These flavors treat values below `1280` as `1280`. The maximum value is `65535`.
+
+### dpd_interval
+
+Override the Dead Peer Detection interval.
+
+The server-provided or flavor-specific interval is used by default.
+
+Positive values below `2s` are treated as `2s`. The value must not be negative.
+
+### reconnect_timeout
+
+Maximum accumulated backoff time after failed reconnect attempts. The first reconnect attempt starts immediately, and this timeout does not cancel an attempt already in progress.
+
+`300s` is used by default.
+
+The value must not be negative.
+
+### trojan_interval
+
+Override the interval between GlobalProtect HIP reports or Network Connect TNCC checks.
+
+The server-provided interval is used by default. GlobalProtect uses `1h` when the server does not provide one.
+
+The value must not be negative.
+
+### queue_length
+
+Inbound and outbound packet queue length between the VPN transport and the tunnel interface.
+
+`32` is used by default. A full queue applies backpressure until its consumer makes room; queued packets are not discarded.
+
 ### allow_insecure_crypto
 
-Allow deprecated TLS and DTLS versions and cipher suites required by legacy VPN servers.
+Enable weak TLS and DTLS cipher suites and TLS 1.0 compatibility required by legacy VPN servers.
 
-Disabled by default. This option does not disable server certificate verification.
+Disabled by default; TLS versions below 1.2 are otherwise rejected. This option does not disable server certificate verification.
 
 ### tls
 
 OpenConnect TLS configuration.
+
+### tls.insecure
+
+Disable verification of the VPN server certificate and hostname.
+
+Disabled by default. Enabling this permits an active attacker to impersonate the VPN server. Prefer `tls.certificate_authority` or `tls.peer_fingerprint` when possible.
+
+### tls.server_name
+
+Server name used for TLS SNI and certificate hostname verification.
+
+The hostname from `server` is used by default.
+
+### tls.peer_fingerprint
+
+Allowed server certificate fingerprints. A single string or a list can be specified.
+
+Supported formats:
+
+- An unprefixed SHA-1 certificate fingerprint compatible with OpenConnect `--servercert`.
+- `sha1:<hex>`: SHA-1 SPKI fingerprint.
+- `sha256:<hex>`: SHA-256 SPKI fingerprint.
+- `pin-sha256:<base64>`: Base64-encoded SHA-256 SPKI pin.
+
+The encoded fingerprint in every format can be abbreviated to a prefix of at least four characters. When configured, the peer certificate must match one of these fingerprints; a match can authorize a certificate that is not otherwise trusted.
+
+### tls.system_trust_disabled
+
+Disable the system CA certificate pool.
+
+Use `tls.certificate_authority` or `tls.peer_fingerprint` to establish trust when enabled.
 
 ### tls.certificate_authority
 
@@ -392,3 +617,7 @@ See [Dial Fields](/configuration/shared/dial/) for details.
 ## Interactive authentication
 
 Use `Tools` > `Endpoints` in the sing-box dashboard or any sing-box graphical client to authenticate and manage the endpoint.
+
+## DNS
+
+Pushed DNS settings are not installed into the operating system. Configure an [OpenConnect DNS server](/configuration/dns/server/openconnect/) to use them through sing-box.

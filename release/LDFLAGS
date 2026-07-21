@@ -1,1 +1,1 @@
--X internal/godebug.defaultGODEBUG=multipathtcp=0 -checklinkname=0
+-X runtime.godebugDefault=multipathtcp=0,tlssha1=1,tlsunsafeekm=1 -checklinkname=0
