@@ -1,6 +1,8 @@
 package libbox
 
 import (
+	"strings"
+
 	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing/common"
 )
@@ -68,18 +70,29 @@ func (f *OpenConnectAuthForm) Fields() OpenConnectAuthFormFieldIterator {
 }
 
 type OpenConnectBrowserRequest struct {
-	URL         string
-	FinalURL    string
-	cookieNames []string
-	headerNames []string
+	URL                 string
+	FinalURL            string
+	CacheID             string
+	cookieNames         []string
+	earlyCookieNames    []string
+	headerNames         []string
+	callbackURLPrefixes []string
 }
 
 func (r *OpenConnectBrowserRequest) CookieNames() StringIterator {
 	return newIterator(r.cookieNames)
 }
 
+func (r *OpenConnectBrowserRequest) EarlyCookieNames() StringIterator {
+	return newIterator(r.earlyCookieNames)
+}
+
 func (r *OpenConnectBrowserRequest) HeaderNames() StringIterator {
 	return newIterator(r.headerNames)
+}
+
+func (r *OpenConnectBrowserRequest) CallbackURLPrefixes() StringIterator {
+	return newIterator(r.callbackURLPrefixes)
 }
 
 type OpenConnectAuthFormFieldIterator interface {
@@ -137,9 +150,9 @@ func (r *OpenConnectBrowserResult) AddCookie(name string, value string) {
 }
 
 func (r *OpenConnectBrowserResult) AddHeader(name string, value string) {
-	for _, header := range r.headers {
-		if header.Name == name {
-			header.Values = append(header.Values, value)
+	for i := range r.headers {
+		if strings.EqualFold(r.headers[i].Name, name) {
+			r.headers[i].Values = append(r.headers[i].Values, value)
 			return
 		}
 	}
@@ -221,10 +234,13 @@ func openConnectEndpointStatusFromGRPC(status *daemon.OpenConnectEndpointStatus)
 		browser := status.AuthChallenge.GetBrowser()
 		if browser != nil {
 			challenge.Browser = &OpenConnectBrowserRequest{
-				URL:         browser.Url,
-				FinalURL:    browser.FinalURL,
-				cookieNames: browser.CookieNames,
-				headerNames: browser.HeaderNames,
+				URL:                 browser.Url,
+				FinalURL:            browser.FinalURL,
+				CacheID:             browser.CacheID,
+				cookieNames:         browser.CookieNames,
+				earlyCookieNames:    browser.EarlyCookieNames,
+				headerNames:         browser.HeaderNames,
+				callbackURLPrefixes: browser.CallbackURLPrefixes,
 			}
 		}
 		result.AuthChallenge = challenge
