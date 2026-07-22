@@ -163,14 +163,14 @@ func buildAndroid() {
 
 	bindTarget := getAndroidBindTarget()
 
-	// Build main variant (SDK 23)
+	// Build main variant (SDK 24)
 	mainTags := append([]string{}, sharedTags...)
 	// mainTags = append(mainTags, memcTags...)
 	if debugEnabled {
 		mainTags = append(mainTags, debugTags...)
 	}
 	buildAndroidVariant(AndroidBuildConfig{
-		AndroidAPI: 23,
+		AndroidAPI: 24,
 		OutputName: "libbox.aar",
 		Tags:       mainTags,
 	}, bindTarget)
