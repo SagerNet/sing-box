@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -67,17 +68,24 @@ func TestTCPTransportRetriesReadErrorOnReusedConn(t *testing.T) {
 		serverDone <- WriteMessage(secondConn, secondRequest.Id, secondResponse)
 	}()
 
-	transportDialer, err := dialer.NewDefault(context.Background(), option.DialerOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	transport := NewTCPRaw(boxDNS.NewTransportAdapter(C.DNSTypeTCP, "test", nil), transportDialer, M.SocksaddrFromNet(listener.Addr()))
-	defer transport.Close()
+	multiplexer := newQueryMultiplexer(queryMultiplexerOptions{
+		dial: func(ctx context.Context) (net.Conn, error) {
+			return net.Dial("tcp", listener.Addr().String())
+		},
+		write: func(conn net.Conn, message *mDNS.Msg, queryId uint16) error {
+			return WriteMessage(conn, queryId, message)
+		},
+		readNext: func(conn net.Conn) (*mDNS.Msg, error) {
+			return ReadMessage(conn)
+		},
+		retryReadError: true,
+	})
+	defer multiplexer.Close()
 
 	firstMessage := new(mDNS.Msg)
 	firstMessage.SetQuestion("first.example.com.", mDNS.TypeA)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	_, err = transport.Exchange(ctx, firstMessage)
+	_, err = multiplexer.Exchange(ctx, firstMessage)
 	cancel()
 	if err != nil {
 		t.Fatal("first query failed: ", err)
@@ -86,7 +94,7 @@ func TestTCPTransportRetriesReadErrorOnReusedConn(t *testing.T) {
 	secondMessage := new(mDNS.Msg)
 	secondMessage.SetQuestion("second.example.com.", mDNS.TypeAAAA)
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
-	_, err = transport.Exchange(ctx, secondMessage)
+	_, err = multiplexer.Exchange(ctx, secondMessage)
 	cancel()
 	if err != nil {
 		t.Fatal("second query failed: ", err)
@@ -98,6 +106,290 @@ func TestTCPTransportRetriesReadErrorOnReusedConn(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("DNS server did not finish")
+	}
+}
+
+func newTestTCPTransport(t *testing.T, listener net.Listener) *TCPTransport {
+	transportDialer, err := dialer.NewDefault(context.Background(), option.DialerOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return NewTCPRaw(boxDNS.NewTransportAdapter(C.DNSTypeTCP, "test", nil), transportDialer, M.SocksaddrFromNet(listener.Addr()))
+}
+
+func testExchange(transport *TCPTransport, questionName string) error {
+	message := new(mDNS.Msg)
+	message.SetQuestion(questionName, mDNS.TypeA)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_, err := transport.Exchange(ctx, message)
+	return err
+}
+
+func TestTCPTransportSingleQueryServer(t *testing.T) {
+	t.Parallel()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	var accepted atomic.Int32
+	go func() {
+		for {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			accepted.Add(1)
+			go func() {
+				defer conn.Close()
+				request, readErr := ReadMessage(conn)
+				if readErr != nil {
+					return
+				}
+				response := new(mDNS.Msg)
+				response.SetReply(request)
+				WriteMessage(conn, request.Id, response)
+			}()
+		}
+	}()
+
+	transport := newTestTCPTransport(t, listener)
+	defer transport.Close()
+
+	const queryCount = 8
+	results := make(chan error, queryCount)
+	for range queryCount {
+		go func() {
+			results <- testExchange(transport, "example.com.")
+		}()
+	}
+	for range queryCount {
+		err = <-results
+		if err != nil {
+			t.Fatal("query failed: ", err)
+		}
+	}
+	deadline := time.Now().Add(time.Second)
+	for accepted.Load() < queryCount+1 {
+		if time.Now().After(deadline) {
+			t.Fatal("expected a probe connection, accepted ", accepted.Load())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if count := accepted.Load(); count != queryCount+1 {
+		t.Fatal("expected one connection per query plus probe, accepted ", count)
+	}
+}
+
+func TestTCPTransportProbeEnablesReuse(t *testing.T) {
+	t.Parallel()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	var maxServedOnConn atomic.Int32
+	go func() {
+		for {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				var served int32
+				for {
+					request, readErr := ReadMessage(conn)
+					if readErr != nil {
+						return
+					}
+					served++
+					for {
+						current := maxServedOnConn.Load()
+						if served <= current || maxServedOnConn.CompareAndSwap(current, served) {
+							break
+						}
+					}
+					response := new(mDNS.Msg)
+					response.SetReply(request)
+					WriteMessage(conn, request.Id, response)
+				}
+			}()
+		}
+	}()
+
+	transport := newTestTCPTransport(t, listener)
+	defer transport.Close()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for maxServedOnConn.Load() < 3 {
+		if time.Now().After(deadline) {
+			t.Fatal("reuse was not enabled after successful probe")
+		}
+		err = testExchange(transport, "example.com.")
+		if err != nil {
+			t.Fatal("query failed: ", err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	const burstCount = 5
+	results := make(chan error, burstCount)
+	for range burstCount {
+		go func() {
+			results <- testExchange(transport, "example.com.")
+		}()
+	}
+	for range burstCount {
+		err = <-results
+		if err != nil {
+			t.Fatal("burst query failed: ", err)
+		}
+	}
+}
+
+func TestTCPTransportDemotesBrokenReuse(t *testing.T) {
+	t.Parallel()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	var accepted atomic.Int32
+	go func() {
+		for {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			accepted.Add(1)
+			go func() {
+				defer conn.Close()
+				for served := 0; ; served++ {
+					request, readErr := ReadMessage(conn)
+					if readErr != nil {
+						return
+					}
+					if served >= 2 {
+						return
+					}
+					response := new(mDNS.Msg)
+					response.SetReply(request)
+					WriteMessage(conn, request.Id, response)
+				}
+			}()
+		}
+	}()
+
+	transport := newTestTCPTransport(t, listener)
+	defer transport.Close()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		before := accepted.Load()
+		err = testExchange(transport, "example.com.")
+		if err != nil {
+			t.Fatal("query failed: ", err)
+		}
+		if accepted.Load() == before {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("reuse was not enabled after successful probe")
+		}
+	}
+
+	for range 15 {
+		err = testExchange(transport, "example.com.")
+		if err != nil {
+			t.Fatal("query failed during demotion: ", err)
+		}
+	}
+	if transport.multiplexer.reuseState.Load() != reuseStateUnsupported {
+		t.Fatal("expected demotion to single connection mode")
+	}
+
+	time.Sleep(100 * time.Millisecond)
+	before := accepted.Load()
+	const singleCount = 4
+	for range singleCount {
+		err = testExchange(transport, "example.com.")
+		if err != nil {
+			t.Fatal("query failed after demotion: ", err)
+		}
+	}
+	if count := accepted.Load() - before; count != singleCount {
+		t.Fatal("expected one connection per query after demotion, got ", count)
+	}
+}
+
+func TestTCPTransportSilentPipelineServer(t *testing.T) {
+	t.Parallel()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	go func() {
+		for {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				request, readErr := ReadMessage(conn)
+				if readErr != nil {
+					return
+				}
+				conn.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+				_, secondErr := ReadMessage(conn)
+				if secondErr == nil {
+					conn.SetReadDeadline(time.Time{})
+					io.Copy(io.Discard, conn)
+					return
+				}
+				var netErr net.Error
+				if !errors.As(secondErr, &netErr) || !netErr.Timeout() {
+					return
+				}
+				conn.SetReadDeadline(time.Time{})
+				response := new(mDNS.Msg)
+				response.SetReply(request)
+				WriteMessage(conn, request.Id, response)
+			}()
+		}
+	}()
+
+	transport := newTestTCPTransport(t, listener)
+	defer transport.Close()
+
+	const queryCount = 5
+	results := make(chan error, queryCount)
+	for range queryCount {
+		go func() {
+			results <- testExchange(transport, "example.com.")
+		}()
+	}
+	for range queryCount {
+		err = <-results
+		if err != nil {
+			t.Fatal("query failed: ", err)
+		}
+	}
+
+	deadline := time.Now().Add(8 * time.Second)
+	for transport.multiplexer.reuseState.Load() != reuseStateUnsupported {
+		if time.Now().After(deadline) {
+			t.Fatal("expected probe timeout to disable reuse")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	err = testExchange(transport, "example.com.")
+	if err != nil {
+		t.Fatal("query failed after probe timeout: ", err)
 	}
 }
 
