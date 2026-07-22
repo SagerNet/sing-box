@@ -14,27 +14,40 @@ const (
 	DefaultPenaltyMax      = 64.0
 	DefaultPenaltyHalfLife = 5 * time.Minute
 	DefaultHostStickyTTL   = 10 * time.Minute
-	DefaultTopK            = 4
 	DefaultMaxHosts        = 4096
+	DefaultMaxTargets      = 1024
 	DefaultMaxMembers      = 512
+	DefaultExplorationMs   = 90.0
+)
+
+type Network string
+
+const (
+	NetworkTCP Network = "tcp"
+	NetworkUDP Network = "udp"
 )
 
 // MemberStats is per-outbound health used for selection.
 type MemberStats struct {
-	Tag              string
-	Samples          int
-	EwmaMs           float64
-	JitterMs         float64
-	FailureRate      float64
-	ConsecutiveFails int
-	Penalty          float64
-	LastSuccess      time.Time
-	LastFailure      time.Time
-	SuccessSinceFail int
-	Weight           float64 // policy-priority style; 1 = neutral, <1 preferred
-	Alive            bool
-	URLTestLatencyMs uint16 // optional prior from URL test
-	HasURLTestPrior  bool
+	Tag               string
+	Samples           int
+	EwmaMs            float64
+	JitterMs          float64
+	FailureRate       float64
+	ConsecutiveFails  int
+	Penalty           float64
+	LastSuccess       time.Time
+	LastFailure       time.Time
+	SuccessSinceFail  int
+	Weight            float64 // policy-priority style; 1 = neutral, <1 preferred
+	Alive             bool
+	URLTestLatencyMs  uint16 // optional prior from URL test
+	HasURLTestPrior   bool
+	Attempts          int
+	FirstByteAttempts int
+	FirstByteSamples  int
+	FirstByteEwmaMs   float64
+	FirstByteFailRate float64
 }
 
 // Options configures an Engine.
@@ -46,9 +59,12 @@ type Options struct {
 	PenaltyMax      float64
 	PenaltyHalfLife time.Duration
 	HostStickyTTL   time.Duration
-	TopK            int
 	MaxHosts        int
-	ExploreProb     float64 // 0..1 chance to probe non-sticky candidate
+	MaxTargets      int
+	ExplorationMs   float64
+	RTTWeight       float64
+	FirstByteWeight float64
+	JitterWeight    float64
 	Now             func() time.Time
 }
 
@@ -74,22 +90,49 @@ func (o Options) withDefaults() Options {
 	if o.HostStickyTTL <= 0 {
 		o.HostStickyTTL = DefaultHostStickyTTL
 	}
-	if o.TopK <= 0 {
-		o.TopK = DefaultTopK
-	}
 	if o.MaxHosts <= 0 {
 		o.MaxHosts = DefaultMaxHosts
 	}
-	// 0 means "use default exploration"; negative disables.
-	if o.ExploreProb == 0 {
-		o.ExploreProb = 0.15
-	} else if o.ExploreProb < 0 {
-		o.ExploreProb = 0
+	if o.MaxTargets <= 0 {
+		o.MaxTargets = DefaultMaxTargets
+	}
+	if o.ExplorationMs <= 0 {
+		o.ExplorationMs = DefaultExplorationMs
+	}
+	if o.RTTWeight <= 0 {
+		o.RTTWeight = 0.45
+	}
+	if o.FirstByteWeight <= 0 {
+		o.FirstByteWeight = 0.35
+	}
+	if o.JitterWeight <= 0 {
+		o.JitterWeight = 0.2
 	}
 	if o.Now == nil {
 		o.Now = time.Now
 	}
 	return o
+}
+
+// OptionsForMode keeps user-facing modes small while preserving one engine.
+func OptionsForMode(mode string) Options {
+	switch mode {
+	case "latency":
+		return Options{
+			SoftFailRatio: 1.35, SoftFailFloorMs: 60,
+			PenaltyHalfLife: 3 * time.Minute, HostStickyTTL: 4 * time.Minute,
+			ExplorationMs: 120, RTTWeight: 0.55, FirstByteWeight: 0.35, JitterWeight: 0.1,
+		}
+	case "stable":
+		return Options{
+			SoftFailRatio: 1.8, SoftFailFloorMs: 120,
+			PenaltyGrowth: 2.4, PenaltyHalfLife: 10 * time.Minute,
+			HostStickyTTL: 30 * time.Minute,
+			ExplorationMs: 45, RTTWeight: 0.35, FirstByteWeight: 0.3, JitterWeight: 0.35,
+		}
+	default:
+		return Options{}
+	}
 }
 
 // Outcome of a dial/handshake attempt.

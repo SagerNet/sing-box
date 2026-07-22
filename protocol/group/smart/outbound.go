@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -14,6 +15,8 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/group/smart/engine"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -59,7 +62,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		logger:                       logger,
 		tags:                         options.Outbounds,
 		outbounds:                    make(map[string]adapter.Outbound),
-		engine:                       engine.New(options.Outbounds, engine.Options{}),
+		engine:                       engine.New(options.Outbounds, engine.OptionsForMode(options.Mode)),
 		interruptGroup:               interrupt.NewGroup(),
 		interruptExternalConnections: options.InterruptExistConnections,
 	}, nil
@@ -120,7 +123,7 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		host = destination.AddrString()
 	}
 	var lastErr error
-	for _, candidate := range s.engine.Select(host) {
+	for _, candidate := range s.engine.SelectFor(host, engine.NetworkTCP) {
 		detour := s.outbounds[candidate.Tag]
 		if detour == nil {
 			continue
@@ -132,7 +135,7 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		conn, err := detour.DialContext(ctx, network, destination)
 		rttMs := float64(time.Since(start).Milliseconds())
 		if err != nil {
-			s.engine.Record(candidate.Tag, engine.OutcomeFailure, rttMs)
+			s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeFailure, rttMs)
 			s.logger.DebugContext(ctx, "smart dial failed via ", candidate.Tag, ": ", err)
 			lastErr = err
 			continue
@@ -141,7 +144,7 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		threshold := s.engine.SoftFailThresholdMs(candidate.Tag)
 		if rttMs > threshold && threshold > 0 {
 			_ = conn.Close()
-			s.engine.Record(candidate.Tag, engine.OutcomeSoftFail, rttMs)
+			s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeSoftFail, rttMs)
 			s.logger.DebugContext(ctx, "smart soft-fail via ", candidate.Tag, " rtt=", int(rttMs), "ms threshold=", int(threshold), "ms")
 			lastErr = E.New("smart soft-fail: ", candidate.Tag)
 			continue
@@ -154,26 +157,28 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 				Conn: conn,
 				onFirstWrite: func(err error, hsMs float64) {
 					if err != nil {
-						s.engine.Record(tag, engine.OutcomeFailure, hsMs)
+						s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeFailure, hsMs)
 						s.logger.DebugContext(ctx, "smart handshake failed via ", tag, ": ", err)
 						return
 					}
 					th := s.engine.SoftFailThresholdMs(tag)
 					if hsMs > th && th > 0 {
-						s.engine.Record(tag, engine.OutcomeSoftFail, hsMs)
+						s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeSoftFail, hsMs)
 						s.logger.DebugContext(ctx, "smart handshake soft-fail via ", tag, " rtt=", int(hsMs), "ms")
 						return
 					}
-					s.engine.Record(tag, engine.OutcomeSuccess, hsMs)
-					s.engine.RememberHost(hostKey, tag)
+					s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeSuccess, hsMs)
+					s.engine.RememberHostFor(hostKey, engine.NetworkTCP, tag)
 				},
 			}
 			s.selected = tag
+			conn = s.observeFirstByte(conn, hostKey, tag)
 			return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 		}
-		s.engine.Record(candidate.Tag, engine.OutcomeSuccess, rttMs)
-		s.engine.RememberHost(host, candidate.Tag)
+		s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeSuccess, rttMs)
+		s.engine.RememberHostFor(host, engine.NetworkTCP, candidate.Tag)
 		s.selected = candidate.Tag
+		conn = s.observeFirstByte(conn, host, candidate.Tag)
 		return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 	}
 	if lastErr != nil {
@@ -182,13 +187,22 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 	return nil, E.New("smart: no usable outbound")
 }
 
+func (s *Outbound) observeFirstByte(conn net.Conn, host, tag string) net.Conn {
+	return &firstByteObserveConn{
+		ExtendedConn: bufio.NewExtendedConn(conn),
+		onFirstByte: func(err error, latencyMs float64) {
+			s.engine.RecordFirstByteFor(host, engine.NetworkTCP, tag, err == nil, latencyMs)
+		},
+	}
+}
+
 func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	host := destination.Fqdn
 	if host == "" {
 		host = destination.AddrString()
 	}
 	var lastErr error
-	for _, candidate := range s.engine.Select(host) {
+	for _, candidate := range s.engine.SelectFor(host, engine.NetworkUDP) {
 		detour := s.outbounds[candidate.Tag]
 		if detour == nil {
 			continue
@@ -200,12 +214,12 @@ func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		conn, err := detour.ListenPacket(ctx, destination)
 		rttMs := float64(time.Since(start).Milliseconds())
 		if err != nil {
-			s.engine.Record(candidate.Tag, engine.OutcomeFailure, rttMs)
+			s.engine.RecordFor(host, engine.NetworkUDP, candidate.Tag, engine.OutcomeFailure, rttMs)
 			lastErr = err
 			continue
 		}
-		s.engine.Record(candidate.Tag, engine.OutcomeSuccess, rttMs)
-		s.engine.RememberHost(host, candidate.Tag)
+		s.engine.RecordFor(host, engine.NetworkUDP, candidate.Tag, engine.OutcomeSuccess, rttMs)
+		s.engine.RememberHostFor(host, engine.NetworkUDP, candidate.Tag)
 		s.selected = candidate.Tag
 		return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 	}
@@ -241,4 +255,70 @@ func (c *firstWriteObserveConn) Write(b []byte) (int, error) {
 		}
 	})
 	return n, err
+}
+
+// firstByteObserveConn measures from the first request write to the first read.
+// It observes only; replay after a partial write remains deliberately disabled.
+type firstByteObserveConn struct {
+	N.ExtendedConn
+	armOnce     sync.Once
+	requestAt   time.Time
+	observed    atomic.Bool
+	onFirstByte func(err error, latencyMs float64)
+}
+
+func (c *firstByteObserveConn) arm() {
+	c.armOnce.Do(func() {
+		c.requestAt = time.Now()
+	})
+}
+
+func (c *firstByteObserveConn) elapsedMs() float64 {
+	c.arm()
+	return float64(time.Since(c.requestAt).Milliseconds())
+}
+
+func (c *firstByteObserveConn) Write(b []byte) (int, error) {
+	c.arm()
+	return c.ExtendedConn.Write(b)
+}
+
+func (c *firstByteObserveConn) Read(b []byte) (int, error) {
+	c.arm()
+	n, err := c.ExtendedConn.Read(b)
+	if n > 0 || err != nil {
+		observedErr := err
+		if n > 0 {
+			observedErr = nil
+		}
+		c.observe(observedErr)
+	}
+	return n, err
+}
+
+func (c *firstByteObserveConn) WriteBuffer(buffer *buf.Buffer) error {
+	c.arm()
+	return c.ExtendedConn.WriteBuffer(buffer)
+}
+
+func (c *firstByteObserveConn) ReadBuffer(buffer *buf.Buffer) error {
+	c.arm()
+	before := buffer.Len()
+	err := c.ExtendedConn.ReadBuffer(buffer)
+	if buffer.Len() > before {
+		c.observe(nil)
+	} else if err != nil {
+		c.observe(err)
+	}
+	return err
+}
+
+func (c *firstByteObserveConn) observe(err error) {
+	if c.observed.Swap(true) {
+		return
+	}
+	latencyMs := c.elapsedMs()
+	if c.onFirstByte != nil {
+		c.onFirstByte(err, latencyMs)
+	}
 }

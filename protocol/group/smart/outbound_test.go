@@ -14,6 +14,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/protocol/group/smart/engine"
+	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -60,8 +61,8 @@ func TestDialContextRetriesOnFailure(t *testing.T) {
 		Adapter: outbound.NewAdapter("direct", "good", []string{N.NetworkTCP}, nil),
 		calls:   &goodCalls,
 	}
-	eng := engine.New([]string{"bad", "good"}, engine.Options{TopK: 1})
-	// Pin sticky so the failing member is attempted first (order independent of softmax).
+	eng := engine.New([]string{"bad", "good"}, engine.Options{})
+	// Pin sticky so the failing member is attempted first.
 	eng.RememberHost("example.com", "bad")
 	s := &Outbound{
 		Adapter:        outbound.NewAdapter(C.TypeSmart, "smart", []string{N.NetworkTCP}, []string{"bad", "good"}),
@@ -149,5 +150,39 @@ func TestDialContextAllFail(t *testing.T) {
 	_, err := s.DialContext(context.Background(), N.NetworkTCP, M.ParseSocksaddrHostPort("example.com", 443))
 	if err == nil {
 		t.Fatal("expected error when all members fail")
+	}
+}
+
+func TestFirstByteObserveConn(t *testing.T) {
+	t.Parallel()
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	observed := make(chan error, 1)
+	conn := &firstByteObserveConn{
+		ExtendedConn: bufio.NewExtendedConn(client),
+		onFirstByte: func(err error, _ float64) {
+			observed <- err
+		},
+	}
+	go func() {
+		buffer := make([]byte, 4)
+		_, _ = server.Read(buffer)
+		_, _ = server.Write([]byte("ok"))
+	}()
+	if _, err := conn.Write([]byte("ping")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	buffer := make([]byte, 2)
+	if _, err := conn.Read(buffer); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	select {
+	case err := <-observed:
+		if err != nil {
+			t.Fatalf("first byte marked failed: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("first-byte observation timed out")
 	}
 }
