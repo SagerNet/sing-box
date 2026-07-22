@@ -77,6 +77,7 @@ func NewTLSRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 			return ReadMessage(conn)
 		},
 		retryReadError: true,
+		probeReuse:     true,
 	})
 	return t
 }
