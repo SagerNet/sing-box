@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
+
 	"github.com/stretchr/testify/require"
 )
 

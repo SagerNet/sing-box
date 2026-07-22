@@ -37,6 +37,7 @@ func (c *responseConn) Write(buffer []byte) (int, error) {
 	}
 	return n, err
 }
+
 func (c *responseConn) Close() error {
 	c.access.Lock()
 	defer c.access.Unlock()

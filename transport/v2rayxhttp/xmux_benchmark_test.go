@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -120,7 +120,7 @@ func benchmarkProxyTraffic(b *testing.B, proxyPort, targetPort uint16) {
 		b.Fatal(firstErr)
 	}
 	if len(latencies) > 0 {
-		sort.Slice(latencies, func(i, j int) bool { return latencies[i] < latencies[j] })
+		slices.Sort(latencies)
 		index := (len(latencies)*99+99)/100 - 1
 		b.ReportMetric(float64(latencies[index].Microseconds())/1000, "p99_ms")
 	}

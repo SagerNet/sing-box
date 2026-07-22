@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -167,7 +168,7 @@ func TestTransportResourceCleanup(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			listener := newTrackingListener(t)
 			client, server := newLifecycleTransport(t, mode, listener)
-			for index := 0; index < 12; index++ {
+			for index := range 12 {
 				connection, err := client.DialContext(context.Background())
 				require.NoError(t, err)
 				payload := []byte{byte(index), 'x', 'h', 't', 't', 'p'}

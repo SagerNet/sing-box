@@ -416,7 +416,7 @@ func interopCertificate(t testing.TB) (certificatePath, keyPath, caPath string) 
 	require.NoError(t, os.WriteFile(certificatePath, certificate, 0o600))
 	require.NoError(t, os.WriteFile(keyPath, key, 0o600))
 	require.NoError(t, os.WriteFile(caPath, certificate, 0o600))
-	return
+	return certificatePath, keyPath, caPath
 }
 
 func interopPort(t testing.TB) uint16 {

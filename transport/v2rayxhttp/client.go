@@ -369,6 +369,7 @@ func newPacketWriter(ctx context.Context, target *clientTarget, xmuxClient *xmux
 	go writer.run()
 	return writer
 }
+
 func (w *packetWriter) Write(payload []byte) (int, error) {
 	w.access.Lock()
 	err := w.err

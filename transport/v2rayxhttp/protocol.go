@@ -179,10 +179,7 @@ func (c *config) splitEncodedPayload(payload []byte) []string {
 	}
 	var chunks []string
 	for len(encoded) > 0 {
-		size := c.uplinkChunk.random()
-		if size > len(encoded) {
-			size = len(encoded)
-		}
+		size := min(c.uplinkChunk.random(), len(encoded))
 		chunks, encoded = append(chunks, encoded[:size]), encoded[size:]
 	}
 	return chunks
@@ -230,32 +227,33 @@ func (c *config) extractPacketPayload(request *http.Request) ([]byte, error) {
 }
 
 func decodeHeaderPayload(request *http.Request, key string) ([]byte, error) {
-	var encoded string
+	var encoded strings.Builder
 	for index := 0; ; index++ {
 		value := request.Header.Get(fmt.Sprintf("%s-%d", key, index))
 		if value == "" {
 			break
 		}
-		encoded += value
+		encoded.WriteString(value)
 	}
-	if encoded == "" {
+	if encoded.Len() == 0 {
 		return nil, nil
 	}
-	return base64.RawURLEncoding.DecodeString(encoded)
+	return base64.RawURLEncoding.DecodeString(encoded.String())
 }
+
 func decodeCookiePayload(request *http.Request, key string) ([]byte, error) {
-	var encoded string
+	var encoded strings.Builder
 	for index := 0; ; index++ {
 		cookie, _ := request.Cookie(fmt.Sprintf("%s_%d", key, index))
 		if cookie == nil {
 			break
 		}
-		encoded += cookie.Value
+		encoded.WriteString(cookie.Value)
 	}
-	if encoded == "" {
+	if encoded.Len() == 0 {
 		return nil, nil
 	}
-	return base64.RawURLEncoding.DecodeString(encoded)
+	return base64.RawURLEncoding.DecodeString(encoded.String())
 }
 
 func readRequestBody(request *http.Request, maxSize int) ([]byte, error) {

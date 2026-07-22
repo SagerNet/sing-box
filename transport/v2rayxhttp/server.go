@@ -244,12 +244,14 @@ func (s *Server) invalid(writer http.ResponseWriter, request *http.Request, stat
 	writer.WriteHeader(status)
 	s.logger.DebugContext(request.Context(), E.Cause(err, "process xhttp request from ", request.RemoteAddr))
 }
+
 func (s *Server) Network() []string {
 	if isHTTP3(s.tlsConfig) {
 		return []string{N.NetworkUDP}
 	}
 	return []string{N.NetworkTCP}
 }
+
 func (s *Server) Serve(listener net.Listener) error {
 	if isHTTP3(s.tlsConfig) {
 		return os.ErrInvalid
@@ -262,6 +264,7 @@ func (s *Server) Serve(listener net.Listener) error {
 	}
 	return s.httpServer.Serve(listener)
 }
+
 func (s *Server) Close() error {
 	s.sessions.Range(func(_, value any) bool { value.(*serverSession).close(); return true })
 	return common.Close(s.httpServer, s.packetServer)
@@ -287,6 +290,7 @@ func newServerSession(maxPackets int) *serverSession {
 	go session.copyPackets()
 	return session
 }
+
 func (s *serverSession) copyPackets() {
 	pending := make(map[uint64][]byte)
 	var next uint64
@@ -310,6 +314,7 @@ func (s *serverSession) copyPackets() {
 		}
 	}
 }
+
 func (s *serverSession) push(item packet) bool {
 	select {
 	case s.packets <- item:
@@ -318,6 +323,7 @@ func (s *serverSession) push(item packet) bool {
 		return false
 	}
 }
+
 func (s *serverSession) startStream(reader io.ReadCloser) {
 	go func() { _, _ = io.Copy(s.writer, reader); _ = reader.Close() }()
 }

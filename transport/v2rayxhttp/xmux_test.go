@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sagernet/sing-box/option"
+
 	"github.com/stretchr/testify/require"
 )
 

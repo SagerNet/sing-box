@@ -21,6 +21,7 @@ import (
 	"github.com/sagernet/quic-go/http3"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+
 	"github.com/stretchr/testify/require"
 )
 

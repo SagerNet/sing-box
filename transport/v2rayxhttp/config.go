@@ -193,14 +193,8 @@ func newConfig(options option.V2RayXHTTPOptions) (*config, error) {
 
 func normalizedUplinkChunk(value option.V2RayXHTTPRange, placement string, postLimit byteRange) byteRange {
 	if value.To != 0 {
-		from := value.From
-		if from < 64 {
-			from = 64
-		}
-		to := value.To
-		if to < from {
-			to = from
-		}
+		from := max(value.From, 64)
+		to := max(value.To, from)
 		return byteRange{from: from, to: to}
 	}
 	switch placement {
