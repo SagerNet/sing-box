@@ -32,6 +32,8 @@ type V2RayServer interface {
 type CacheFile interface {
 	LifecycleService
 
+	CacheID() string
+
 	StoreFakeIP() bool
 	FakeIPStorage
 
