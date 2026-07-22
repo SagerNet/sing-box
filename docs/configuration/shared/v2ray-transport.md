@@ -16,6 +16,7 @@ Available transports:
 * QUIC
 * gRPC
 * HTTPUpgrade
+* XHTTP
 
 !!! warning "Difference from v2ray-core"
 
@@ -121,6 +122,30 @@ The server will verify.
 Extra headers of HTTP request.
 
 The server will write in response if not empty.
+
+### XHTTP
+
+```json
+{
+  "type": "xhttp",
+  "host": "",
+  "path": "",
+  "mode": "auto",
+  "x_padding_bytes": { "from": 100, "to": 1000 },
+  "sc_max_each_post_bytes": { "from": 1000000, "to": 1000000 }
+}
+```
+
+XHTTP is compatible with Xray's XHTTP transport. It carries one logical
+bidirectional connection as a streaming download plus either a streaming or
+packetized upload. `stream-one` uses one request for both directions;
+`stream-up` uses a download request and a streaming upload request; `packet-up`
+uses a download request and ordered upload packets. `auto` currently selects
+`packet-up`.
+
+It supports Xray's session/sequence placements, request padding, and
+body/header/cookie upload placement. HTTP/1.1, HTTP/2, and h2c are available.
+HTTP/3 and `download_settings` are not available yet.
 
 #### max_early_data
 

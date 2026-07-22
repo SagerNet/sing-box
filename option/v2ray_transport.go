@@ -15,6 +15,7 @@ type _V2RayTransportOptions struct {
 	QUICOptions        V2RayQUICOptions        `json:"-"`
 	GRPCOptions        V2RayGRPCOptions        `json:"-"`
 	HTTPUpgradeOptions V2RayHTTPUpgradeOptions `json:"-"`
+	XHTTPOptions       V2RayXHTTPOptions       `json:"-"`
 }
 
 type V2RayTransportOptions _V2RayTransportOptions
@@ -32,6 +33,8 @@ func (o V2RayTransportOptions) MarshalJSON() ([]byte, error) {
 		v = o.GRPCOptions
 	case C.V2RayTransportTypeHTTPUpgrade:
 		v = o.HTTPUpgradeOptions
+	case C.V2RayTransportTypeXHTTP:
+		v = o.XHTTPOptions
 	case "":
 		return nil, E.New("missing transport type")
 	default:
@@ -57,6 +60,8 @@ func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {
 		v = &o.GRPCOptions
 	case C.V2RayTransportTypeHTTPUpgrade:
 		v = &o.HTTPUpgradeOptions
+	case C.V2RayTransportTypeXHTTP:
+		v = &o.XHTTPOptions
 	default:
 		return E.New("unknown transport type: " + o.Type)
 	}
@@ -97,4 +102,55 @@ type V2RayHTTPUpgradeOptions struct {
 	Host    string               `json:"host,omitempty"`
 	Path    string               `json:"path,omitempty"`
 	Headers badoption.HTTPHeader `json:"headers,omitempty"`
+}
+
+// V2RayXHTTPRange is an inclusive random range. A zero value selects the
+// corresponding XHTTP protocol default.
+type V2RayXHTTPRange struct {
+	From int32 `json:"from,omitempty"`
+	To   int32 `json:"to,omitempty"`
+}
+
+// V2RayXHTTPXmuxOptions controls reuse of the HTTP client used by XHTTP.
+// max_connections and max_concurrency are mutually exclusive.
+type V2RayXHTTPXmuxOptions struct {
+	MaxConcurrency   V2RayXHTTPRange `json:"max_concurrency,omitempty"`
+	MaxConnections   V2RayXHTTPRange `json:"max_connections,omitempty"`
+	CMaxReuseTimes   V2RayXHTTPRange `json:"c_max_reuse_times,omitempty"`
+	HMaxRequestTimes V2RayXHTTPRange `json:"h_max_request_times,omitempty"`
+	HMaxReusableSecs V2RayXHTTPRange `json:"h_max_reusable_secs,omitempty"`
+	HKeepAlivePeriod int64           `json:"h_keep_alive_period,omitempty"`
+}
+
+// V2RayXHTTPOptions intentionally follows Xray's XHTTP wire configuration.
+// Field names use sing-box's snake_case JSON convention.
+type V2RayXHTTPOptions struct {
+	Host                 string                `json:"host,omitempty"`
+	Path                 string                `json:"path,omitempty"`
+	Mode                 string                `json:"mode,omitempty"`
+	Headers              badoption.HTTPHeader  `json:"headers,omitempty"`
+	XPaddingBytes        V2RayXHTTPRange       `json:"x_padding_bytes,omitempty"`
+	XPaddingObfsMode     bool                  `json:"x_padding_obfs_mode,omitempty"`
+	XPaddingKey          string                `json:"x_padding_key,omitempty"`
+	XPaddingHeader       string                `json:"x_padding_header,omitempty"`
+	XPaddingPlacement    string                `json:"x_padding_placement,omitempty"`
+	XPaddingMethod       string                `json:"x_padding_method,omitempty"`
+	UplinkHTTPMethod     string                `json:"uplink_http_method,omitempty"`
+	SessionIDPlacement   string                `json:"session_id_placement,omitempty"`
+	SessionIDKey         string                `json:"session_id_key,omitempty"`
+	SessionIDTable       string                `json:"session_id_table,omitempty"`
+	SessionIDLength      V2RayXHTTPRange       `json:"session_id_length,omitempty"`
+	SeqPlacement         string                `json:"seq_placement,omitempty"`
+	SeqKey               string                `json:"seq_key,omitempty"`
+	UplinkDataPlacement  string                `json:"uplink_data_placement,omitempty"`
+	UplinkDataKey        string                `json:"uplink_data_key,omitempty"`
+	UplinkChunkSize      V2RayXHTTPRange       `json:"uplink_chunk_size,omitempty"`
+	NoGRPCHeader         bool                  `json:"no_grpc_header,omitempty"`
+	NoSSEHeader          bool                  `json:"no_sse_header,omitempty"`
+	SCMaxEachPostBytes   V2RayXHTTPRange       `json:"sc_max_each_post_bytes,omitempty"`
+	SCMinPostsIntervalMS V2RayXHTTPRange       `json:"sc_min_posts_interval_ms,omitempty"`
+	SCMaxBufferedPosts   int                   `json:"sc_max_buffered_posts,omitempty"`
+	SCStreamUpServerSecs V2RayXHTTPRange       `json:"sc_stream_up_server_secs,omitempty"`
+	ServerMaxHeaderBytes int                   `json:"server_max_header_bytes,omitempty"`
+	XMUX                 V2RayXHTTPXmuxOptions `json:"xmux,omitempty"`
 }

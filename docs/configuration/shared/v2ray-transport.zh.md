@@ -15,6 +15,7 @@ V2Ray Transport 是 v2ray 发明的一组私有协议，并污染了其他协议
 * QUIC
 * gRPC
 * HTTPUpgrade
+* XHTTP
 
 !!! warning "与 v2ray-core 的区别"
 
@@ -114,6 +115,27 @@ HTTP 请求路径
 HTTP 请求的额外标头
 
 如果设置，服务器将写入响应。
+
+### XHTTP
+
+```json
+{
+  "type": "xhttp",
+  "host": "",
+  "path": "",
+  "mode": "auto",
+  "x_padding_bytes": { "from": 100, "to": 1000 },
+  "sc_max_each_post_bytes": { "from": 1000000, "to": 1000000 }
+}
+```
+
+XHTTP 与 Xray 的 XHTTP 传输层兼容。它将一个逻辑双向连接拆为流式下行，
+以及流式或分包式上行。`stream-one` 在一个请求中传输双向数据；`stream-up`
+使用一个下行请求和一个流式上行请求；`packet-up` 使用一个下行请求和按序上行
+分包。`auto` 当前选择 `packet-up`。
+
+本版本支持 Xray 的 session/seq placement、请求 padding，以及 body/header/cookie
+上行载荷。支持 HTTP/1.1、HTTP/2 和 h2c；HTTP/3 与 `download_settings` 尚未实现。
 
 #### max_early_data
 
