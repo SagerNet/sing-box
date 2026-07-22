@@ -415,9 +415,9 @@ Disable AnyConnect XML POST authentication and start authentication with the leg
 
 ### external_auth_disabled
 
-Disable external browser authentication such as SSO and SAML for AnyConnect and GlobalProtect.
+Disable external browser authentication such as SSO and SAML for AnyConnect, GlobalProtect, and Fortinet.
 
-When enabled, external authentication is not advertised to the server and an unexpected external authentication request is rejected.
+When enabled, external authentication is not advertised for AnyConnect or GlobalProtect, and any unexpected external authentication request, including Fortinet SAML, is rejected.
 
 ### password_authentication_disabled
 
