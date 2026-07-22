@@ -52,10 +52,13 @@ type OpenConnectAuthForm struct {
 }
 
 type OpenConnectBrowserRequest struct {
-	URL         string
-	FinalURL    string
-	CookieNames []string
-	HeaderNames []string
+	URL                 string
+	FinalURL            string
+	CookieNames         []string
+	EarlyCookieNames    []string
+	HeaderNames         []string
+	CallbackURLPrefixes []string
+	CacheID             string
 }
 
 type OpenConnectBrowserCookie struct {

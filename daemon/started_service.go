@@ -1649,10 +1649,13 @@ func openConnectEndpointStatusToProto(tag string, endpointStatus adapter.OpenCon
 		}
 		if endpointStatus.AuthChallenge.Browser != nil {
 			challenge.Challenge = &OpenConnectAuthChallenge_Browser{Browser: &OpenConnectBrowserRequest{
-				Url:         endpointStatus.AuthChallenge.Browser.URL,
-				FinalURL:    endpointStatus.AuthChallenge.Browser.FinalURL,
-				CookieNames: endpointStatus.AuthChallenge.Browser.CookieNames,
-				HeaderNames: endpointStatus.AuthChallenge.Browser.HeaderNames,
+				Url:                 endpointStatus.AuthChallenge.Browser.URL,
+				FinalURL:            endpointStatus.AuthChallenge.Browser.FinalURL,
+				CookieNames:         endpointStatus.AuthChallenge.Browser.CookieNames,
+				EarlyCookieNames:    endpointStatus.AuthChallenge.Browser.EarlyCookieNames,
+				HeaderNames:         endpointStatus.AuthChallenge.Browser.HeaderNames,
+				CallbackURLPrefixes: endpointStatus.AuthChallenge.Browser.CallbackURLPrefixes,
+				CacheID:             endpointStatus.AuthChallenge.Browser.CacheID,
 			}}
 		}
 		result.AuthChallenge = challenge

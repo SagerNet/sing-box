@@ -5149,13 +5149,16 @@ func (x *OpenConnectAuthFormChoice) GetLabel() string {
 }
 
 type OpenConnectBrowserRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	FinalURL      string                 `protobuf:"bytes,2,opt,name=finalURL,proto3" json:"finalURL,omitempty"`
-	CookieNames   []string               `protobuf:"bytes,3,rep,name=cookieNames,proto3" json:"cookieNames,omitempty"`
-	HeaderNames   []string               `protobuf:"bytes,4,rep,name=headerNames,proto3" json:"headerNames,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Url                 string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	FinalURL            string                 `protobuf:"bytes,2,opt,name=finalURL,proto3" json:"finalURL,omitempty"`
+	CookieNames         []string               `protobuf:"bytes,3,rep,name=cookieNames,proto3" json:"cookieNames,omitempty"`
+	HeaderNames         []string               `protobuf:"bytes,4,rep,name=headerNames,proto3" json:"headerNames,omitempty"`
+	CallbackURLPrefixes []string               `protobuf:"bytes,5,rep,name=callbackURLPrefixes,proto3" json:"callbackURLPrefixes,omitempty"`
+	EarlyCookieNames    []string               `protobuf:"bytes,6,rep,name=earlyCookieNames,proto3" json:"earlyCookieNames,omitempty"`
+	CacheID             string                 `protobuf:"bytes,7,opt,name=cacheID,proto3" json:"cacheID,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *OpenConnectBrowserRequest) Reset() {
@@ -5214,6 +5217,27 @@ func (x *OpenConnectBrowserRequest) GetHeaderNames() []string {
 		return x.HeaderNames
 	}
 	return nil
+}
+
+func (x *OpenConnectBrowserRequest) GetCallbackURLPrefixes() []string {
+	if x != nil {
+		return x.CallbackURLPrefixes
+	}
+	return nil
+}
+
+func (x *OpenConnectBrowserRequest) GetEarlyCookieNames() []string {
+	if x != nil {
+		return x.EarlyCookieNames
+	}
+	return nil
+}
+
+func (x *OpenConnectBrowserRequest) GetCacheID() string {
+	if x != nil {
+		return x.CacheID
+	}
+	return ""
 }
 
 type OpenConnectBrowserCookie struct {
@@ -6492,12 +6516,15 @@ const file_daemon_started_service_proto_rawDesc = "" +
 	"\aoptions\x18\x06 \x03(\v2!.daemon.OpenConnectAuthFormChoiceR\aoptions\"G\n" +
 	"\x19OpenConnectAuthFormChoice\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
-	"\x05label\x18\x02 \x01(\tR\x05label\"\x8d\x01\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\x85\x02\n" +
 	"\x19OpenConnectBrowserRequest\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x1a\n" +
 	"\bfinalURL\x18\x02 \x01(\tR\bfinalURL\x12 \n" +
 	"\vcookieNames\x18\x03 \x03(\tR\vcookieNames\x12 \n" +
-	"\vheaderNames\x18\x04 \x03(\tR\vheaderNames\"D\n" +
+	"\vheaderNames\x18\x04 \x03(\tR\vheaderNames\x120\n" +
+	"\x13callbackURLPrefixes\x18\x05 \x03(\tR\x13callbackURLPrefixes\x12*\n" +
+	"\x10earlyCookieNames\x18\x06 \x03(\tR\x10earlyCookieNames\x12\x18\n" +
+	"\acacheID\x18\a \x01(\tR\acacheID\"D\n" +
 	"\x18OpenConnectBrowserCookie\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\"F\n" +

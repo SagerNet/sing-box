@@ -415,9 +415,9 @@ AnyConnect 压缩模式，可选值为：
 
 ### external_auth_disabled
 
-禁用 AnyConnect 和 GlobalProtect 的 SSO、SAML 等外部浏览器认证。
+禁用 AnyConnect、GlobalProtect 和 Fortinet 的 SSO、SAML 等外部浏览器认证。
 
-启用时不会向服务器声明外部认证支持，并会拒绝意外收到的外部认证请求。
+启用时不会为 AnyConnect 或 GlobalProtect 向服务器声明外部认证支持，并会拒绝任何意外收到的外部认证请求，包括 Fortinet SAML。
 
 ### password_authentication_disabled
 
