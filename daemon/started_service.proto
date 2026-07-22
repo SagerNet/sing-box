@@ -582,6 +582,9 @@ message OpenConnectBrowserRequest {
   string finalURL = 2;
   repeated string cookieNames = 3;
   repeated string headerNames = 4;
+  repeated string callbackURLPrefixes = 5;
+  repeated string earlyCookieNames = 6;
+  string cacheID = 7;
 }
 
 message OpenConnectBrowserCookie {

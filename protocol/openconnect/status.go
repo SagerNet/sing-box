@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-openconnect"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/service"
 )
 
 var _ adapter.OpenConnectEndpoint = (*Endpoint)(nil)
@@ -45,11 +46,19 @@ func (e *Endpoint) OpenConnectStatus() adapter.OpenConnectStatus {
 			}
 		}
 		if authChallenge.Browser != nil {
+			var cacheID string
+			cacheFile := service.FromContext[adapter.CacheFile](e.loopContext)
+			if cacheFile != nil {
+				cacheID = cacheFile.CacheID()
+			}
 			challenge.Browser = &adapter.OpenConnectBrowserRequest{
-				URL:         authChallenge.Browser.URL,
-				FinalURL:    authChallenge.Browser.FinalURL,
-				CookieNames: slices.Clone(authChallenge.Browser.CookieNames),
-				HeaderNames: slices.Clone(authChallenge.Browser.HeaderNames),
+				URL:                 authChallenge.Browser.URL,
+				FinalURL:            authChallenge.Browser.FinalURL,
+				CookieNames:         slices.Clone(authChallenge.Browser.CookieNames),
+				EarlyCookieNames:    slices.Clone(authChallenge.Browser.EarlyCookieNames),
+				HeaderNames:         slices.Clone(authChallenge.Browser.HeaderNames),
+				CallbackURLPrefixes: slices.Clone(authChallenge.Browser.CallbackURLPrefixes),
+				CacheID:             cacheID,
 			}
 		}
 		status.AuthChallenge = challenge
