@@ -210,9 +210,9 @@ icon: material/new-box
     (`port` || `port_range`) &&  
     (`source_geoip` || `source_ip_cidr` || `source_ip_is_private`) &&  
     (`source_port` || `source_port_range`) &&  
-    `other fields`
+    `其他字段`
 
-    另外，引用规则集中的每个分支都可视为与外层规则合并，不同分支之间仍保持 OR 语义。
+    当规则集仅包含一条默认规则且非 invert 时，其中字段视为按以上规则与外层规则合并；否则，作为一条 `其他字段` 匹配；不同规则集之间始终保持 or。
 
 #### inbound
 
