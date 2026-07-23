@@ -28,6 +28,9 @@ func NewDNSRule(ctx context.Context, logger log.ContextLogger, options option.DN
 		if err != nil {
 			return nil, err
 		}
+		if options.DefaultOptions.Race && !options.DefaultOptions.MatchResponse.IsEnabled() {
+			return nil, E.New("`race` requires `match_response`")
+		}
 		switch options.DefaultOptions.Action {
 		case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
 			if options.DefaultOptions.RouteOptions.Server == "" && checkServer {
@@ -62,6 +65,16 @@ func validateDNSRuleAction(action option.DNSRuleAction) error {
 	if action.Action == C.RuleActionTypeReject && action.RejectOptions.Method == C.RuleActionRejectMethodReply {
 		return E.New("reject method `reply` is not supported for DNS rules")
 	}
+	if action.Race {
+		switch action.Action {
+		case "", C.RuleActionTypeRoute, C.RuleActionTypeRespond, C.RuleActionTypeReject, C.RuleActionTypePredefined:
+		default:
+			return E.New("`race` requires a final action")
+		}
+		if action.RouteOptions.Speculative {
+			return E.New("`race` and `speculative` cannot be combined on the same rule")
+		}
+	}
 	return nil
 }
 
@@ -69,7 +82,9 @@ var _ adapter.DNSRule = (*DefaultDNSRule)(nil)
 
 type DefaultDNSRule struct {
 	abstractDefaultRule
-	matchResponse bool
+	matchResponse    bool
+	matchResponseTag string
+	race             bool
 }
 
 func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options option.DefaultDNSRule, legacyDNSMode bool) (*DefaultDNSRule, error) {
@@ -78,7 +93,9 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
 		},
-		matchResponse: options.MatchResponse,
+		matchResponse:    options.MatchResponse.IsEnabled(),
+		matchResponseTag: options.MatchResponse.ResponseTag(),
+		race:             options.Race,
 	}
 	if len(options.Inbound) > 0 {
 		item := NewInboundRule(options.Inbound)
@@ -377,12 +394,36 @@ func (r *DefaultDNSRule) LegacyPreMatch(metadata *adapter.InboundContext) bool {
 	return r.abstractDefaultRule.Match(metadata)
 }
 
+func (r *DefaultDNSRule) MatchResponseTag() string {
+	return r.matchResponseTag
+}
+
+func (r *DefaultDNSRule) MatchResponseTags() []string {
+	if r.matchResponseTag == "" {
+		return nil
+	}
+	return []string{r.matchResponseTag}
+}
+
+func (r *DefaultDNSRule) MatchResponseAnonymous() bool {
+	return r.matchResponse && r.matchResponseTag == ""
+}
+
+func (r *DefaultDNSRule) Race() bool {
+	return r.race
+}
+
 func (r *DefaultDNSRule) matchForMatch(metadata *adapter.InboundContext) bool {
 	if r.matchResponse {
-		if metadata.DNSResponse == nil {
+		response := metadata.DNSResponse
+		if r.matchResponseTag != "" {
+			response = metadata.NamedDNSResponses[r.matchResponseTag]
+		}
+		if response == nil {
 			return r.invert
 		}
 		matchMetadata := *metadata
+		matchMetadata.DNSResponse = response
 		matchMetadata.DestinationAddressMatchFromResponse = true
 		return r.abstractDefaultRule.Match(&matchMetadata)
 	}
@@ -400,17 +441,25 @@ var _ adapter.DNSRule = (*LogicalDNSRule)(nil)
 
 type LogicalDNSRule struct {
 	abstractLogicalRule
+	matchResponseTags      []string
+	matchResponseAnonymous bool
+	race                   bool
 }
 
-func matchDNSHeadlessRuleForMatch(rule adapter.HeadlessRule, metadata *adapter.InboundContext) bool {
-	switch typedRule := rule.(type) {
-	case *DefaultDNSRule:
-		return typedRule.matchForMatch(metadata)
-	case *LogicalDNSRule:
-		return typedRule.matchForMatch(metadata)
-	default:
-		return typedRule.Match(metadata)
-	}
+func (r *LogicalDNSRule) MatchResponseTag() string {
+	return ""
+}
+
+func (r *LogicalDNSRule) MatchResponseTags() []string {
+	return r.matchResponseTags
+}
+
+func (r *LogicalDNSRule) MatchResponseAnonymous() bool {
+	return r.matchResponseAnonymous
+}
+
+func (r *LogicalDNSRule) Race() bool {
+	return r.race
 }
 
 func (r *LogicalDNSRule) matchForMatch(metadata *adapter.InboundContext) bool {
@@ -420,7 +469,7 @@ func (r *LogicalDNSRule) matchForMatch(metadata *adapter.InboundContext) bool {
 		for _, rule := range r.rules {
 			nestedMetadata := *metadata
 			nestedMetadata.ResetRuleCache()
-			if !matchDNSHeadlessRuleForMatch(rule, &nestedMetadata) {
+			if !rule.Match(&nestedMetadata) {
 				matched = false
 				break
 			}
@@ -429,7 +478,7 @@ func (r *LogicalDNSRule) matchForMatch(metadata *adapter.InboundContext) bool {
 		for _, rule := range r.rules {
 			nestedMetadata := *metadata
 			nestedMetadata.ResetRuleCache()
-			if matchDNSHeadlessRuleForMatch(rule, &nestedMetadata) {
+			if rule.Match(&nestedMetadata) {
 				matched = true
 				break
 			}
@@ -448,6 +497,7 @@ func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options op
 			invert: options.Invert,
 			action: NewDNSRuleAction(logger, options.DNSRuleAction),
 		},
+		race: options.Race,
 	}
 	switch options.Mode {
 	case C.LogicalTypeAnd:
@@ -468,6 +518,16 @@ func NewLogicalDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		}
 		r.rules[i] = rule
 	}
+	for _, subRule := range r.rules {
+		if dnsRule, isDNSRule := subRule.(adapter.DNSRule); isDNSRule {
+			r.matchResponseTags = append(r.matchResponseTags, dnsRule.MatchResponseTags()...)
+			r.matchResponseAnonymous = r.matchResponseAnonymous || dnsRule.MatchResponseAnonymous()
+		}
+	}
+	r.matchResponseTags = common.Uniq(r.matchResponseTags)
+	if r.race && len(r.matchResponseTags) == 0 && !r.matchResponseAnonymous {
+		return nil, E.New("`race` requires `match_response` in sub-rules")
+	}
 	return r, nil
 }
 
@@ -477,15 +537,8 @@ func (r *LogicalDNSRule) Action() adapter.RuleAction {
 
 func (r *LogicalDNSRule) WithAddressLimit() bool {
 	for _, rawRule := range r.rules {
-		switch rule := rawRule.(type) {
-		case *DefaultDNSRule:
-			if rule.WithAddressLimit() {
-				return true
-			}
-		case *LogicalDNSRule:
-			if rule.WithAddressLimit() {
-				return true
-			}
+		if dnsRule, isDNSRule := rawRule.(adapter.DNSRule); isDNSRule && dnsRule.WithAddressLimit() {
+			return true
 		}
 	}
 	return false
