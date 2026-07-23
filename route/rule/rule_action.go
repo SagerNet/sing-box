@@ -128,7 +128,8 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		return nil
 	case C.RuleActionTypeRoute:
 		return &RuleActionDNSRoute{
-			Server: action.RouteOptions.Server,
+			Server:      action.RouteOptions.Server,
+			Speculative: action.RouteOptions.Speculative,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
 				Timeout:                time.Duration(action.RouteOptions.Timeout),
@@ -140,7 +141,9 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		}
 	case C.RuleActionTypeEvaluate:
 		return &RuleActionEvaluate{
-			Server: action.RouteOptions.Server,
+			Server:      action.RouteOptions.Server,
+			Tag:         action.RouteOptions.Tag,
+			Speculative: action.RouteOptions.Speculative,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
 				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
 				Timeout:                time.Duration(action.RouteOptions.Timeout),
@@ -285,7 +288,8 @@ func (r *RuleActionRouteOptions) Descriptions() []string {
 }
 
 type RuleActionDNSRoute struct {
-	Server string
+	Server      string
+	Speculative bool
 	RuleActionDNSRouteOptions
 }
 
@@ -294,11 +298,13 @@ func (r *RuleActionDNSRoute) Type() string {
 }
 
 func (r *RuleActionDNSRoute) String() string {
-	return formatDNSRouteAction("route", r.Server, r.RuleActionDNSRouteOptions)
+	return formatDNSRouteAction("route", r.Server, r.Speculative, r.RuleActionDNSRouteOptions)
 }
 
 type RuleActionEvaluate struct {
-	Server string
+	Server      string
+	Tag         string
+	Speculative bool
 	RuleActionDNSRouteOptions
 }
 
@@ -307,7 +313,7 @@ func (r *RuleActionEvaluate) Type() string {
 }
 
 func (r *RuleActionEvaluate) String() string {
-	return formatDNSRouteAction("evaluate", r.Server, r.RuleActionDNSRouteOptions)
+	return formatDNSRouteAction("evaluate", r.Server, r.Speculative, r.RuleActionDNSRouteOptions)
 }
 
 type RuleActionRespond struct{}
@@ -320,9 +326,12 @@ func (r *RuleActionRespond) String() string {
 	return "respond"
 }
 
-func formatDNSRouteAction(action string, server string, options RuleActionDNSRouteOptions) string {
+func formatDNSRouteAction(action string, server string, speculative bool, options RuleActionDNSRouteOptions) string {
 	var descriptions []string
 	descriptions = append(descriptions, server)
+	if speculative {
+		descriptions = append(descriptions, "speculative")
+	}
 	if options.DisableCache {
 		descriptions = append(descriptions, "disable-cache")
 	}
