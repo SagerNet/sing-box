@@ -86,6 +86,7 @@ type InboundContext struct {
 
 	DestinationAddresses                []netip.Addr
 	DNSResponse                         *dns.Msg
+	NamedDNSResponses                   map[string]*dns.Msg
 	DestinationAddressMatchFromResponse bool
 	SourceGeoIPCode                     string
 	GeoIPCode                           string
