@@ -34,10 +34,6 @@ type DefaultHeadlessRule struct {
 	abstractDefaultRule
 }
 
-func (r *DefaultHeadlessRule) matchStates(metadata *adapter.InboundContext) ruleMatchStateSet {
-	return r.abstractDefaultRule.matchStates(metadata)
-}
-
 func NewDefaultHeadlessRule(ctx context.Context, options option.DefaultHeadlessRule) (*DefaultHeadlessRule, error) {
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
 	rule := &DefaultHeadlessRule{
@@ -214,10 +210,6 @@ var _ adapter.HeadlessRule = (*LogicalHeadlessRule)(nil)
 
 type LogicalHeadlessRule struct {
 	abstractLogicalRule
-}
-
-func (r *LogicalHeadlessRule) matchStates(metadata *adapter.InboundContext) ruleMatchStateSet {
-	return r.abstractLogicalRule.matchStates(metadata)
 }
 
 func NewLogicalHeadlessRule(ctx context.Context, options option.LogicalHeadlessRule) (*LogicalHeadlessRule, error) {
