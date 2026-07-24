@@ -10,7 +10,7 @@ type OCMServiceOptions struct {
 	CredentialPath string               `json:"credential_path,omitempty"`
 	Users          []OCMUser            `json:"users,omitempty"`
 	Headers        badoption.HTTPHeader `json:"headers,omitempty"`
-	Detour         string               `json:"detour,omitempty"`
+	Detour         string               `json:"detour,omitempty" reference:"outbound"`
 	UsagesPath     string               `json:"usages_path,omitempty"`
 }
 
