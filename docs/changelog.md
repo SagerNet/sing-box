@@ -2,6 +2,22 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-beta.2
+
+* Add [JSON Schema](/configuration/schema/) support **1**
+* Fixes and improvements
+
+**1**:
+
+sing-box now provides a JSON Schema for its configuration, enabling completion
+and validation in compatible editors. The schema published with the
+documentation can be selected with the new top-level `$schema` field, while
+the new `sing-box schema` command generates a schema matching the current
+binary and its build tags.
+
+We have also improved the JSON editor experience in the graphical clients on
+macOS, Android, Windows, and Linux, and added schema-based completion support.
+
 #### 1.14.0-beta.1
 
 * Correct undefined rule-set matching semantics **1**
