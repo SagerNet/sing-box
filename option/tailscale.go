@@ -90,7 +90,7 @@ type DERPMeshOptions struct {
 }
 
 type _DERPSTUNListenOptions struct {
-	Enabled bool
+	Enabled bool `json:"enabled,omitempty"`
 	ListenOptions
 }
 
