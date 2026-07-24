@@ -3,7 +3,9 @@ package option
 import (
 	"net/netip"
 	"net/url"
+	"reflect"
 
+	"github.com/sagernet/sing-box/schema"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -54,6 +56,15 @@ func (o *TailscaleSSHServerOptions) UnmarshalJSON(bytes []byte) error {
 		return nil
 	}
 	return json.UnmarshalDisallowUnknownFields(bytes, (*_TailscaleSSHServerOptions)(o))
+}
+
+func (o TailscaleSSHServerOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	objectForm := schema.StrictObject()
+	err := builder.FlattenStruct(objectForm, reflect.TypeFor[TailscaleSSHServerOptions]())
+	if err != nil {
+		return nil, err
+	}
+	return schema.AnyOf(schema.BooleanNode(), objectForm), nil
 }
 
 type TailscaleDNSServerOptions struct {
@@ -127,6 +138,15 @@ func (d *DERPVerifyClientURLOptions) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (d DERPVerifyClientURLOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	objectForm, err := describeHTTPClientObject(builder)
+	if err != nil {
+		return nil, err
+	}
+	objectForm.Properties.Put("url", schema.StringNode())
+	return schema.AnyOf(schema.StringNode(), objectForm), nil
+}
+
 type DERPMeshOptions struct {
 	ServerOptions
 	Host string `json:"host,omitempty"`
@@ -164,4 +184,13 @@ func (d *DERPSTUNListenOptions) UnmarshalJSON(bytes []byte) error {
 		return nil
 	}
 	return json.Unmarshal(bytes, (*_DERPSTUNListenOptions)(d))
+}
+
+func (d DERPSTUNListenOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	objectForm := schema.StrictObject()
+	err := builder.FlattenStruct(objectForm, reflect.TypeFor[DERPSTUNListenOptions]())
+	if err != nil {
+		return nil, err
+	}
+	return schema.AnyOf(schema.UnsignedNode(16), objectForm), nil
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/schema"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/domain"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -19,9 +20,9 @@ import (
 )
 
 type _RuleSet struct {
-	Type          string                     `json:"type,omitempty"`
+	Type          string                     `json:"type,omitempty" enum:"inline,local,remote"`
 	Tag           badoption.Listable[string] `json:"tag"`
-	Format        string                     `json:"format,omitempty"`
+	Format        string                     `json:"format,omitempty" enum:"source,binary"`
 	InlineOptions PlainRuleSet               `json:"-"`
 	LocalOptions  LocalRuleSet               `json:"-"`
 	RemoteOptions RemoteRuleSet              `json:"-"`
@@ -131,6 +132,45 @@ func ruleSetDefaultFormat(path string) string {
 	}
 }
 
+func (r RuleSet) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("RuleSet", func() (*schema.Node, error) {
+		headlessRef, err := builder.Describe(reflect.TypeFor[HeadlessRule]())
+		if err != nil {
+			return nil, err
+		}
+		tagNode := schema.ListableOf(schema.StringNode())
+		formatNode := schema.StringEnum(C.RuleSetFormatSource, C.RuleSetFormatBinary)
+
+		inlineVariant := schema.StrictObject()
+		inlineVariant.Properties.Put("type", schema.StringEnum(C.RuleSetTypeInline, ""))
+		inlineVariant.Properties.Put("tag", tagNode)
+		inlineVariant.Properties.Put("rules", &schema.Node{Type: "array", Items: headlessRef})
+		inlineVariant.Required = []string{"tag"}
+
+		localVariant := schema.StrictObject()
+		localVariant.Properties.Put("type", schema.StringConst(C.RuleSetTypeLocal))
+		localVariant.Properties.Put("tag", tagNode)
+		localVariant.Properties.Put("format", formatNode)
+		err = builder.FlattenStruct(localVariant, reflect.TypeFor[LocalRuleSet]())
+		if err != nil {
+			return nil, err
+		}
+		localVariant.Required = []string{"type", "tag"}
+
+		remoteVariant := schema.StrictObject()
+		remoteVariant.Properties.Put("type", schema.StringConst(C.RuleSetTypeRemote))
+		remoteVariant.Properties.Put("tag", tagNode)
+		remoteVariant.Properties.Put("format", formatNode)
+		err = builder.FlattenStruct(remoteVariant, reflect.TypeFor[RemoteRuleSet]())
+		if err != nil {
+			return nil, err
+		}
+		remoteVariant.Required = []string{"type", "tag"}
+
+		return schema.OneOf(inlineVariant, localVariant, remoteVariant), nil
+	})
+}
+
 type LocalRuleSet struct {
 	Path string `json:"path,omitempty"`
 }
@@ -140,11 +180,11 @@ type RemoteRuleSet struct {
 	HTTPClient     *HTTPClientOptions `json:"http_client,omitempty"`
 	UpdateInterval badoption.Duration `json:"update_interval,omitempty"`
 	// Deprecated: use http_client instead
-	DownloadDetour string `json:"download_detour,omitempty"`
+	DownloadDetour string `json:"download_detour,omitempty" reference:"outbound" schema:"omit"`
 }
 
 type _HeadlessRule struct {
-	Type           string              `json:"type,omitempty"`
+	Type           string              `json:"type,omitempty" enum:"default,logical"`
 	DefaultOptions DefaultHeadlessRule `json:"-"`
 	LogicalOptions LogicalHeadlessRule `json:"-"`
 }
@@ -198,9 +238,15 @@ func (r HeadlessRule) IsValid() bool {
 	}
 }
 
+func (r HeadlessRule) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("HeadlessRule", func() (*schema.Node, error) {
+		return nestedRuleUnion(builder, reflect.TypeFor[DefaultHeadlessRule](), "HeadlessRule")
+	})
+}
+
 type DefaultHeadlessRule struct {
 	QueryType               badoption.Listable[DNSQueryType]                                            `json:"query_type,omitempty"`
-	Network                 badoption.Listable[string]                                                  `json:"network,omitempty"`
+	Network                 badoption.Listable[string]                                                  `json:"network,omitempty" enum:"tcp,udp,icmp"`
 	Domain                  badoption.Listable[string]                                                  `json:"domain,omitempty"`
 	DomainSuffix            badoption.Listable[string]                                                  `json:"domain_suffix,omitempty"`
 	DomainKeyword           badoption.Listable[string]                                                  `json:"domain_keyword,omitempty"`
@@ -241,7 +287,7 @@ func (r DefaultHeadlessRule) IsValid() bool {
 }
 
 type LogicalHeadlessRule struct {
-	Mode   string         `json:"mode"`
+	Mode   string         `json:"mode" enum:"and,or"`
 	Rules  []HeadlessRule `json:"rules,omitempty"`
 	Invert bool           `json:"invert,omitempty"`
 }
@@ -251,7 +297,7 @@ func (r LogicalHeadlessRule) IsValid() bool {
 }
 
 type _PlainRuleSetCompat struct {
-	Version    uint8           `json:"version"`
+	Version    uint8           `json:"version" enum:"1,2,3,4,5"`
 	Options    PlainRuleSet    `json:"-"`
 	RawMessage json.RawMessage `json:"-"`
 }

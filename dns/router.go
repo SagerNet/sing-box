@@ -1623,8 +1623,10 @@ func dnsRuleActionDisablesLegacyDNSMode(action option.DNSRuleAction) bool {
 		return true
 	}
 	switch action.Action {
-	case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
+	case "", C.RuleActionTypeRoute:
 		return action.RouteOptions.DisableOptimisticCache || action.RouteOptions.Speculative
+	case C.RuleActionTypeEvaluate:
+		return action.EvaluateOptions.DisableOptimisticCache || action.EvaluateOptions.Speculative
 	case C.RuleActionTypeRouteOptions:
 		return action.RouteOptionsOptions.DisableOptimisticCache
 	default:
@@ -1634,8 +1636,10 @@ func dnsRuleActionDisablesLegacyDNSMode(action option.DNSRuleAction) bool {
 
 func dnsRuleActionHasStrategy(action option.DNSRuleAction) bool {
 	switch action.Action {
-	case "", C.RuleActionTypeRoute, C.RuleActionTypeEvaluate:
+	case "", C.RuleActionTypeRoute:
 		return C.DomainStrategy(action.RouteOptions.Strategy) != C.DomainStrategyAsIS
+	case C.RuleActionTypeEvaluate:
+		return C.DomainStrategy(action.EvaluateOptions.Strategy) != C.DomainStrategyAsIS
 	case C.RuleActionTypeRouteOptions:
 		return C.DomainStrategy(action.RouteOptionsOptions.Strategy) != C.DomainStrategyAsIS
 	default:
@@ -1663,8 +1667,14 @@ func dnsRuleActionType(rule option.DNSRule) string {
 func dnsRuleActionServer(rule option.DNSRule) string {
 	switch rule.Type {
 	case "", C.RuleTypeDefault:
+		if dnsRuleActionType(rule) == C.RuleActionTypeEvaluate {
+			return rule.DefaultOptions.EvaluateOptions.Server
+		}
 		return rule.DefaultOptions.RouteOptions.Server
 	case C.RuleTypeLogical:
+		if dnsRuleActionType(rule) == C.RuleActionTypeEvaluate {
+			return rule.LogicalOptions.EvaluateOptions.Server
+		}
 		return rule.LogicalOptions.RouteOptions.Server
 	default:
 		return ""
@@ -1674,9 +1684,9 @@ func dnsRuleActionServer(rule option.DNSRule) string {
 func dnsRuleActionEvaluateTag(rule option.DNSRule) string {
 	switch rule.Type {
 	case "", C.RuleTypeDefault:
-		return rule.DefaultOptions.RouteOptions.Tag
+		return rule.DefaultOptions.EvaluateOptions.Tag
 	case C.RuleTypeLogical:
-		return rule.LogicalOptions.RouteOptions.Tag
+		return rule.LogicalOptions.EvaluateOptions.Tag
 	default:
 		return ""
 	}
@@ -1685,8 +1695,14 @@ func dnsRuleActionEvaluateTag(rule option.DNSRule) string {
 func dnsRuleActionSpeculative(rule option.DNSRule) bool {
 	switch rule.Type {
 	case "", C.RuleTypeDefault:
+		if dnsRuleActionType(rule) == C.RuleActionTypeEvaluate {
+			return rule.DefaultOptions.EvaluateOptions.Speculative
+		}
 		return rule.DefaultOptions.RouteOptions.Speculative
 	case C.RuleTypeLogical:
+		if dnsRuleActionType(rule) == C.RuleActionTypeEvaluate {
+			return rule.LogicalOptions.EvaluateOptions.Speculative
+		}
 		return rule.LogicalOptions.RouteOptions.Speculative
 	default:
 		return false

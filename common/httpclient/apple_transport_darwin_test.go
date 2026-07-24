@@ -94,7 +94,9 @@ func TestNewAppleSessionConfig(t *testing.T) {
 			options: option.HTTPClientOptions{
 				Version: 2,
 				DialerOptions: option.DialerOptions{
-					ConnectTimeout: badoption.Duration(2 * time.Second),
+					AbstractDialerOptions: option.AbstractDialerOptions{
+						ConnectTimeout: badoption.Duration(2 * time.Second),
+					},
 				},
 				OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
 					TLS: &option.OutboundTLSOptions{

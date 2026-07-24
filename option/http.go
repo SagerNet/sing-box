@@ -3,6 +3,7 @@ package option
 import (
 	"reflect"
 
+	"github.com/sagernet/sing-box/schema"
 	"github.com/sagernet/sing/common/byteformats"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -26,8 +27,8 @@ type QUICOptions struct {
 
 type _HTTPClientOptions struct {
 	Tag                     string               `json:"tag,omitempty"`
-	Engine                  string               `json:"engine,omitempty"`
-	Version                 int                  `json:"version,omitempty"`
+	Engine                  string               `json:"engine,omitempty" enum:"go,apple"`
+	Version                 int                  `json:"version,omitempty" enum:"0,1,2,3"`
 	DisableVersionFallback  bool                 `json:"disable_version_fallback,omitempty"`
 	Headers                 badoption.HTTPHeader `json:"headers,omitempty"`
 	HTTP2Options            HTTP2Options         `json:"-"`
@@ -124,4 +125,34 @@ func httpClientVariant(options _HTTPClientOptions) any {
 	default:
 		return nil
 	}
+}
+
+func describeHTTPClientObject(builder schema.Builder) (*schema.Node, error) {
+	node := schema.StrictObject()
+	err := builder.FlattenStruct(node, reflect.TypeFor[HTTPClient]())
+	if err != nil {
+		return nil, err
+	}
+	err = builder.FlattenStruct(node, reflect.TypeFor[QUICOptions]())
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func (h HTTPClient) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("HTTPClient", func() (*schema.Node, error) {
+		return describeHTTPClientObject(builder)
+	})
+}
+
+func (o HTTPClientOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("HTTPClientReference", func() (*schema.Node, error) {
+		clientObject, err := describeHTTPClientObject(builder)
+		if err != nil {
+			return nil, err
+		}
+		clientObject.Properties.Remove("tag")
+		return schema.AnyOf(schema.TagReferenceNode("http_client"), clientObject), nil
+	})
 }

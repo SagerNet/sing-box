@@ -1,18 +1,25 @@
 package option
 
 import (
+	"reflect"
+
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 )
 
 type _SnellInboundOptions struct {
-	ListenOptions
-	Version     int                    `json:"version"`
-	PSK         string                 `json:"psk"`
-	Users       []SnellUser            `json:"users,omitempty"`
+	Version int `json:"version" enum:"5,6"`
+	AbstractSnellInboundOptions
 	ObfsOptions SnellObfsServerOptions `json:"-"`
 	V6Options   SnellV6Options         `json:"-"`
+}
+
+type AbstractSnellInboundOptions struct {
+	ListenOptions
+	PSK   string      `json:"psk"`
+	Users []SnellUser `json:"users,omitempty"`
 }
 
 type SnellInboundOptions _SnellInboundOptions
@@ -51,16 +58,29 @@ func (o SnellInboundOptions) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects((_SnellInboundOptions)(o), versionOptions)
 }
 
+func (o SnellInboundOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.DiscriminatedUnion(builder, "version", true, []schema.UnionVariant{
+		{Value: 5, StructType: reflect.TypeFor[SnellObfsServerOptions]()},
+		{Value: 6, StructType: reflect.TypeFor[SnellV6Options]()},
+	}, func(variant *schema.Node) error {
+		return builder.FlattenStruct(variant, reflect.TypeFor[AbstractSnellInboundOptions]())
+	})
+}
+
 type _SnellOutboundOptions struct {
-	DialerOptions
-	ServerOptions
-	Version     int                    `json:"version"`
-	PSK         string                 `json:"psk"`
-	UserKey     string                 `json:"userkey,omitempty"`
-	Reuse       bool                   `json:"reuse,omitempty"`
-	Network     NetworkList            `json:"network,omitempty"`
+	Version int `json:"version" enum:"4,6"`
+	AbstractSnellOutboundOptions
 	ObfsOptions SnellObfsClientOptions `json:"-"`
 	V6Options   SnellV6Options         `json:"-"`
+}
+
+type AbstractSnellOutboundOptions struct {
+	DialerOptions
+	ServerOptions
+	PSK     string      `json:"psk"`
+	UserKey string      `json:"userkey,omitempty"`
+	Reuse   bool        `json:"reuse,omitempty"`
+	Network NetworkList `json:"network,omitempty"`
 }
 
 type SnellOutboundOptions _SnellOutboundOptions
@@ -99,8 +119,17 @@ func (o SnellOutboundOptions) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects((_SnellOutboundOptions)(o), versionOptions)
 }
 
+func (o SnellOutboundOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.DiscriminatedUnion(builder, "version", true, []schema.UnionVariant{
+		{Value: 4, StructType: reflect.TypeFor[SnellObfsClientOptions]()},
+		{Value: 6, StructType: reflect.TypeFor[SnellV6Options]()},
+	}, func(variant *schema.Node) error {
+		return builder.FlattenStruct(variant, reflect.TypeFor[AbstractSnellOutboundOptions]())
+	})
+}
+
 type SnellObfsServerOptions struct {
-	ObfsMode string `json:"obfs_mode,omitempty"`
+	ObfsMode string `json:"obfs_mode,omitempty" enum:"none,http,tls"`
 }
 
 type SnellUser struct {
@@ -109,10 +138,10 @@ type SnellUser struct {
 }
 
 type SnellObfsClientOptions struct {
-	ObfsMode string `json:"obfs_mode,omitempty"`
+	ObfsMode string `json:"obfs_mode,omitempty" enum:"none,http,tls"`
 	ObfsHost string `json:"obfs_host,omitempty"`
 }
 
 type SnellV6Options struct {
-	Mode string `json:"mode,omitempty"`
+	Mode string `json:"mode,omitempty" enum:"default,unshaped,unsafe-raw"`
 }

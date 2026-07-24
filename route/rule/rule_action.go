@@ -74,7 +74,9 @@ func NewRuleAction(ctx context.Context, logger logger.ContextLogger, action opti
 			RuleActionRouteOptions: routeOptions,
 		}, nil
 	case C.RuleActionTypeDirect:
-		directDialer, err := dialer.New(ctx, option.DialerOptions(action.DirectOptions), false)
+		directDialer, err := dialer.New(ctx, option.DialerOptions{
+			AbstractDialerOptions: action.DirectOptions.AbstractDialerOptions,
+		}, false)
 		if err != nil {
 			return nil, err
 		}
@@ -141,16 +143,16 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 		}
 	case C.RuleActionTypeEvaluate:
 		return &RuleActionEvaluate{
-			Server:      action.RouteOptions.Server,
-			Tag:         action.RouteOptions.Tag,
-			Speculative: action.RouteOptions.Speculative,
+			Server:      action.EvaluateOptions.Server,
+			Tag:         action.EvaluateOptions.Tag,
+			Speculative: action.EvaluateOptions.Speculative,
 			RuleActionDNSRouteOptions: RuleActionDNSRouteOptions{
-				Strategy:               C.DomainStrategy(action.RouteOptions.Strategy),
-				Timeout:                time.Duration(action.RouteOptions.Timeout),
-				DisableCache:           action.RouteOptions.DisableCache,
-				DisableOptimisticCache: action.RouteOptions.DisableOptimisticCache,
-				RewriteTTL:             action.RouteOptions.RewriteTTL,
-				ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
+				Strategy:               C.DomainStrategy(action.EvaluateOptions.Strategy),
+				Timeout:                time.Duration(action.EvaluateOptions.Timeout),
+				DisableCache:           action.EvaluateOptions.DisableCache,
+				DisableOptimisticCache: action.EvaluateOptions.DisableOptimisticCache,
+				RewriteTTL:             action.EvaluateOptions.RewriteTTL,
+				ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.EvaluateOptions.ClientSubnet)),
 			},
 		}
 	case C.RuleActionTypeRespond:
