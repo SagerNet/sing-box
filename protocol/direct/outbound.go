@@ -72,7 +72,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		domainStrategy: C.DomainStrategy(options.DomainStrategy),
 		fallbackDelay:  time.Duration(options.FallbackDelay),
 		dialer:         outboundDialer.(dialer.ParallelInterfaceDialer),
-		isEmpty:        reflect.DeepEqual(options.DialerOptions, option.DialerOptions{UDPFragmentDefault: true}),
+		isEmpty: reflect.DeepEqual(options.DialerOptions, option.DialerOptions{
+			AbstractDialerOptions: option.AbstractDialerOptions{UDPFragmentDefault: true},
+		}),
 	}
 	//nolint:staticcheck
 	if options.ProxyProtocol != 0 {

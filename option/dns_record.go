@@ -1,9 +1,12 @@
 package option
 
 import (
+	"cmp"
 	"encoding/base64"
+	"slices"
 	"strings"
 
+	"github.com/sagernet/sing-box/schema"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -49,6 +52,43 @@ func (r *DNSRCode) Build() int {
 		return dns.RcodeSuccess
 	}
 	return int(*r)
+}
+
+func (r DNSRCode) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("DNSRCode", func() (*schema.Node, error) {
+		type rCodeName struct {
+			name      string
+			value     int
+			canonical bool
+		}
+		rCodeNames := make([]rCodeName, 0, len(dns.StringToRcode))
+		for name, value := range dns.StringToRcode {
+			canonicalName, canonical := dns.RcodeToString[value]
+			rCodeNames = append(rCodeNames, rCodeName{
+				name:      name,
+				value:     value,
+				canonical: canonical && canonicalName == name,
+			})
+		}
+		slices.SortFunc(rCodeNames, func(left rCodeName, right rCodeName) int {
+			comparison := cmp.Compare(left.value, right.value)
+			if comparison != 0 {
+				return comparison
+			}
+			if left.canonical != right.canonical {
+				if left.canonical {
+					return -1
+				}
+				return 1
+			}
+			return cmp.Compare(left.name, right.name)
+		})
+		values := make([]string, 0, len(rCodeNames))
+		for _, entry := range rCodeNames {
+			values = append(values, entry.name)
+		}
+		return schema.AnyOf(schema.IntegerNode(), schema.StringEnum(values...)), nil
+	})
 }
 
 type DNSRecordOptions struct {
@@ -122,4 +162,8 @@ func (o DNSRecordOptions) Match(record dns.RR) bool {
 		return false
 	}
 	return dns.IsDuplicate(o.RR, record)
+}
+
+func (o DNSRecordOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.StringNode(), nil
 }
