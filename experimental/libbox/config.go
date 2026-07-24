@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"reflect"
 
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
@@ -13,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/schema"
 	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -239,6 +241,14 @@ func (s *interfaceMonitorStub) RegisterMyInterface(interfaceName string) {
 
 func (s *interfaceMonitorStub) MyInterfaces() []string {
 	return nil
+}
+
+func GenerateConfigSchema() (*StringBox, error) {
+	content, err := schema.Generate(baseContext(nil), reflect.TypeFor[option.Options]())
+	if err != nil {
+		return nil, err
+	}
+	return wrapString(string(content)), nil
 }
 
 func FormatConfig(configContent string) (*StringBox, error) {

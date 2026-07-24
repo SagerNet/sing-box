@@ -14,13 +14,13 @@ type HysteriaInboundOptions struct {
 	Obfs     string                          `json:"obfs,omitempty"`
 	Users    []HysteriaUser                  `json:"users,omitempty"`
 	// Deprecated: use QUIC fields instead
-	ReceiveWindowConn uint64 `json:"recv_window_conn,omitempty"`
+	ReceiveWindowConn uint64 `json:"recv_window_conn,omitempty" schema:"omit"`
 	// Deprecated: use QUIC fields instead
-	ReceiveWindowClient uint64 `json:"recv_window_client,omitempty"`
+	ReceiveWindowClient uint64 `json:"recv_window_client,omitempty" schema:"omit"`
 	// Deprecated: use QUIC fields instead
-	MaxConnClient int `json:"max_conn_client,omitempty"`
+	MaxConnClient int `json:"max_conn_client,omitempty" schema:"omit"`
 	// Deprecated: use QUIC fields instead
-	DisableMTUDiscovery bool `json:"disable_mtu_discovery,omitempty"`
+	DisableMTUDiscovery bool `json:"disable_mtu_discovery,omitempty" schema:"omit"`
 	InboundTLSOptionsContainer
 	QUICOptions
 }
@@ -44,11 +44,11 @@ type HysteriaOutboundOptions struct {
 	Auth        []byte                          `json:"auth,omitempty"`
 	AuthString  string                          `json:"auth_str,omitempty"`
 	// Deprecated: use QUIC fields instead
-	ReceiveWindowConn uint64 `json:"recv_window_conn,omitempty"`
+	ReceiveWindowConn uint64 `json:"recv_window_conn,omitempty" schema:"omit"`
 	// Deprecated: use QUIC fields instead
-	ReceiveWindow uint64 `json:"recv_window,omitempty"`
+	ReceiveWindow uint64 `json:"recv_window,omitempty" schema:"omit"`
 	// Deprecated: use QUIC fields instead
-	DisableMTUDiscovery bool        `json:"disable_mtu_discovery,omitempty"`
+	DisableMTUDiscovery bool        `json:"disable_mtu_discovery,omitempty" schema:"omit"`
 	Network             NetworkList `json:"network,omitempty"`
 	OutboundTLSOptionsContainer
 	QUICOptions

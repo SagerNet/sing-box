@@ -6,7 +6,6 @@ import (
 	unsafe "unsafe"
 
 	daemon "github.com/sagernet/sing-box/daemon"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -1743,10 +1742,11 @@ const file_experimental_boxdd_desktop_service_proto_rawDesc = "" +
 	"\x13DeleteAllOOMReports\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\"\x00\x12P\n" +
 	"\rInstallUpdate\x12\x1d.desktop.InstallUpdateRequest\x1a\x1e.desktop.InstallUpdateResponse\"\x00\x12J\n" +
 	"\x13GetSecuritySettings\x12\x16.google.protobuf.Empty\x1a\x19.desktop.SecuritySettings\"\x00\x12Z\n" +
-	"\x16SetInsecureModeEnabled\x12&.desktop.SetInsecureModeEnabledRequest\x1a\x16.google.protobuf.Empty\"\x002\xbd\x04\n" +
+	"\x16SetInsecureModeEnabled\x12&.desktop.SetInsecureModeEnabledRequest\x1a\x16.google.protobuf.Empty\"\x002\x87\x05\n" +
 	"\x12ApplicationService\x12?\n" +
 	"\vCheckConfig\x12\x16.desktop.ConfigContent\x1a\x16.google.protobuf.Empty\"\x00\x12@\n" +
-	"\fFormatConfig\x12\x16.desktop.ConfigContent\x1a\x16.desktop.ConfigContent\"\x00\x12@\n" +
+	"\fFormatConfig\x12\x16.desktop.ConfigContent\x1a\x16.desktop.ConfigContent\"\x00\x12H\n" +
+	"\x14GenerateConfigSchema\x12\x16.google.protobuf.Empty\x1a\x16.desktop.ConfigContent\"\x00\x12@\n" +
 	"\rEncodeProfile\x12\x17.desktop.ProfileContent\x1a\x14.desktop.ProfileData\"\x00\x12@\n" +
 	"\rDecodeProfile\x12\x14.desktop.ProfileData\x1a\x17.desktop.ProfileContent\"\x00\x12H\n" +
 	"\rArchiveReport\x12\x1d.desktop.ArchiveReportRequest\x1a\x16.google.protobuf.Empty\"\x00\x12y\n" +
@@ -1837,41 +1837,43 @@ var file_experimental_boxdd_desktop_service_proto_depIdxs = []int32{
 	27, // 28: desktop.DesktopService.SetInsecureModeEnabled:input_type -> desktop.SetInsecureModeEnabledRequest
 	9,  // 29: desktop.ApplicationService.CheckConfig:input_type -> desktop.ConfigContent
 	9,  // 30: desktop.ApplicationService.FormatConfig:input_type -> desktop.ConfigContent
-	10, // 31: desktop.ApplicationService.EncodeProfile:input_type -> desktop.ProfileContent
-	11, // 32: desktop.ApplicationService.DecodeProfile:input_type -> desktop.ProfileData
-	3,  // 33: desktop.ApplicationService.ArchiveReport:input_type -> desktop.ArchiveReportRequest
-	4,  // 34: desktop.ApplicationService.StartStandaloneNetworkQualityTest:input_type -> desktop.StandaloneNetworkQualityTestRequest
-	5,  // 35: desktop.ApplicationService.StartStandaloneSTUNTest:input_type -> desktop.StandaloneSTUNTestRequest
-	6,  // 36: desktop.DesktopService.GetDaemonInfo:output_type -> desktop.DaemonInfo
-	30, // 37: desktop.DesktopService.ClaimService:output_type -> google.protobuf.Empty
-	30, // 38: desktop.DesktopService.TakeOverService:output_type -> google.protobuf.Empty
-	30, // 39: desktop.DesktopService.StartService:output_type -> google.protobuf.Empty
-	12, // 40: desktop.DesktopService.GetWorkingDirectory:output_type -> desktop.WorkingDirectoryInfo
-	30, // 41: desktop.DesktopService.DestroyWorkingDirectory:output_type -> google.protobuf.Empty
-	13, // 42: desktop.DesktopService.ListCrashReports:output_type -> desktop.CrashReportList
-	17, // 43: desktop.DesktopService.ReadCrashReport:output_type -> desktop.CrashReportContent
-	30, // 44: desktop.DesktopService.MarkCrashReportRead:output_type -> google.protobuf.Empty
-	19, // 45: desktop.DesktopService.ExportCrashReport:output_type -> desktop.CrashReportArchive
-	30, // 46: desktop.DesktopService.DeleteCrashReport:output_type -> google.protobuf.Empty
-	30, // 47: desktop.DesktopService.DeleteAllCrashReports:output_type -> google.protobuf.Empty
-	20, // 48: desktop.DesktopService.ListOOMReports:output_type -> desktop.OOMReportList
-	24, // 49: desktop.DesktopService.ReadOOMReport:output_type -> desktop.OOMReportContent
-	30, // 50: desktop.DesktopService.MarkOOMReportRead:output_type -> google.protobuf.Empty
-	19, // 51: desktop.DesktopService.ExportOOMReport:output_type -> desktop.CrashReportArchive
-	30, // 52: desktop.DesktopService.DeleteOOMReport:output_type -> google.protobuf.Empty
-	30, // 53: desktop.DesktopService.DeleteAllOOMReports:output_type -> google.protobuf.Empty
-	29, // 54: desktop.DesktopService.InstallUpdate:output_type -> desktop.InstallUpdateResponse
-	26, // 55: desktop.DesktopService.GetSecuritySettings:output_type -> desktop.SecuritySettings
-	30, // 56: desktop.DesktopService.SetInsecureModeEnabled:output_type -> google.protobuf.Empty
-	30, // 57: desktop.ApplicationService.CheckConfig:output_type -> google.protobuf.Empty
-	9,  // 58: desktop.ApplicationService.FormatConfig:output_type -> desktop.ConfigContent
-	11, // 59: desktop.ApplicationService.EncodeProfile:output_type -> desktop.ProfileData
-	10, // 60: desktop.ApplicationService.DecodeProfile:output_type -> desktop.ProfileContent
-	30, // 61: desktop.ApplicationService.ArchiveReport:output_type -> google.protobuf.Empty
-	31, // 62: desktop.ApplicationService.StartStandaloneNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
-	32, // 63: desktop.ApplicationService.StartStandaloneSTUNTest:output_type -> daemon.STUNTestProgress
-	36, // [36:64] is the sub-list for method output_type
-	8,  // [8:36] is the sub-list for method input_type
+	30, // 31: desktop.ApplicationService.GenerateConfigSchema:input_type -> google.protobuf.Empty
+	10, // 32: desktop.ApplicationService.EncodeProfile:input_type -> desktop.ProfileContent
+	11, // 33: desktop.ApplicationService.DecodeProfile:input_type -> desktop.ProfileData
+	3,  // 34: desktop.ApplicationService.ArchiveReport:input_type -> desktop.ArchiveReportRequest
+	4,  // 35: desktop.ApplicationService.StartStandaloneNetworkQualityTest:input_type -> desktop.StandaloneNetworkQualityTestRequest
+	5,  // 36: desktop.ApplicationService.StartStandaloneSTUNTest:input_type -> desktop.StandaloneSTUNTestRequest
+	6,  // 37: desktop.DesktopService.GetDaemonInfo:output_type -> desktop.DaemonInfo
+	30, // 38: desktop.DesktopService.ClaimService:output_type -> google.protobuf.Empty
+	30, // 39: desktop.DesktopService.TakeOverService:output_type -> google.protobuf.Empty
+	30, // 40: desktop.DesktopService.StartService:output_type -> google.protobuf.Empty
+	12, // 41: desktop.DesktopService.GetWorkingDirectory:output_type -> desktop.WorkingDirectoryInfo
+	30, // 42: desktop.DesktopService.DestroyWorkingDirectory:output_type -> google.protobuf.Empty
+	13, // 43: desktop.DesktopService.ListCrashReports:output_type -> desktop.CrashReportList
+	17, // 44: desktop.DesktopService.ReadCrashReport:output_type -> desktop.CrashReportContent
+	30, // 45: desktop.DesktopService.MarkCrashReportRead:output_type -> google.protobuf.Empty
+	19, // 46: desktop.DesktopService.ExportCrashReport:output_type -> desktop.CrashReportArchive
+	30, // 47: desktop.DesktopService.DeleteCrashReport:output_type -> google.protobuf.Empty
+	30, // 48: desktop.DesktopService.DeleteAllCrashReports:output_type -> google.protobuf.Empty
+	20, // 49: desktop.DesktopService.ListOOMReports:output_type -> desktop.OOMReportList
+	24, // 50: desktop.DesktopService.ReadOOMReport:output_type -> desktop.OOMReportContent
+	30, // 51: desktop.DesktopService.MarkOOMReportRead:output_type -> google.protobuf.Empty
+	19, // 52: desktop.DesktopService.ExportOOMReport:output_type -> desktop.CrashReportArchive
+	30, // 53: desktop.DesktopService.DeleteOOMReport:output_type -> google.protobuf.Empty
+	30, // 54: desktop.DesktopService.DeleteAllOOMReports:output_type -> google.protobuf.Empty
+	29, // 55: desktop.DesktopService.InstallUpdate:output_type -> desktop.InstallUpdateResponse
+	26, // 56: desktop.DesktopService.GetSecuritySettings:output_type -> desktop.SecuritySettings
+	30, // 57: desktop.DesktopService.SetInsecureModeEnabled:output_type -> google.protobuf.Empty
+	30, // 58: desktop.ApplicationService.CheckConfig:output_type -> google.protobuf.Empty
+	9,  // 59: desktop.ApplicationService.FormatConfig:output_type -> desktop.ConfigContent
+	9,  // 60: desktop.ApplicationService.GenerateConfigSchema:output_type -> desktop.ConfigContent
+	11, // 61: desktop.ApplicationService.EncodeProfile:output_type -> desktop.ProfileData
+	10, // 62: desktop.ApplicationService.DecodeProfile:output_type -> desktop.ProfileContent
+	30, // 63: desktop.ApplicationService.ArchiveReport:output_type -> google.protobuf.Empty
+	31, // 64: desktop.ApplicationService.StartStandaloneNetworkQualityTest:output_type -> daemon.NetworkQualityTestProgress
+	32, // 65: desktop.ApplicationService.StartStandaloneSTUNTest:output_type -> daemon.STUNTestProgress
+	37, // [37:66] is the sub-list for method output_type
+	8,  // [8:37] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
