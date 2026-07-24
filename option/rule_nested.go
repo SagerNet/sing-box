@@ -20,7 +20,7 @@ const (
 
 var (
 	routeRuleActionKeys = jsonFieldNames(reflect.TypeFor[_RuleAction](), reflect.TypeFor[RouteActionOptions]())
-	dnsRuleActionKeys   = jsonFieldNames(reflect.TypeFor[_DNSRuleAction](), reflect.TypeFor[DNSRouteActionOptions]())
+	dnsRuleActionKeys   = jsonFieldNames(reflect.TypeFor[_DNSRuleAction](), reflect.TypeFor[DNSRouteActionOptions](), reflect.TypeFor[DNSEvaluateActionOptions]())
 )
 
 func nestedRuleChildContext(ctx context.Context) context.Context {

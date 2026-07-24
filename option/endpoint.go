@@ -3,6 +3,7 @@ package option
 import (
 	"context"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -10,6 +11,7 @@ import (
 )
 
 type EndpointOptionsRegistry interface {
+	OptionTypes() []string
 	CreateOptions(endpointType string) (any, bool)
 }
 
@@ -44,4 +46,14 @@ func (h *Endpoint) UnmarshalJSONContext(ctx context.Context, content []byte) err
 	}
 	h.Options = options
 	return nil
+}
+
+func (h Endpoint) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("Endpoint", func() (*schema.Node, error) {
+		registry := service.FromContext[EndpointOptionsRegistry](builder.Context())
+		if registry == nil {
+			return nil, E.New("missing endpoint options registry in context")
+		}
+		return registryUnion(builder, registry, nil, true)
+	})
 }

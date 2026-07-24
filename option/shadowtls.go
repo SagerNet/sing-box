@@ -3,13 +3,14 @@ package option
 import (
 	"encoding/json"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badjson"
 )
 
 type ShadowTLSInboundOptions struct {
 	ListenOptions
-	Version                int                                                  `json:"version,omitempty"`
+	Version                int                                                  `json:"version,omitempty" enum:"1,2,3"`
 	Password               string                                               `json:"password,omitempty"`
 	Users                  []ShadowTLSUser                                      `json:"users,omitempty"`
 	Handshake              ShadowTLSHandshakeOptions                            `json:"handshake,omitempty"`
@@ -62,6 +63,10 @@ func (w *WildcardSNI) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (w WildcardSNI) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.StringEnum("", "off", "authed", "all"), nil
+}
+
 type ShadowTLSUser struct {
 	Name     string `json:"name,omitempty"`
 	Password string `json:"password,omitempty"`
@@ -75,7 +80,7 @@ type ShadowTLSHandshakeOptions struct {
 type ShadowTLSOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	Version  int    `json:"version,omitempty"`
+	Version  int    `json:"version,omitempty" enum:"1,2,3"`
 	Password string `json:"password,omitempty"`
 	OutboundTLSOptionsContainer
 }
