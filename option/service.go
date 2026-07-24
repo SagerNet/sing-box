@@ -3,6 +3,7 @@ package option
 import (
 	"context"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -10,6 +11,7 @@ import (
 )
 
 type ServiceOptionsRegistry interface {
+	OptionTypes() []string
 	CreateOptions(serviceType string) (any, bool)
 }
 
@@ -44,4 +46,14 @@ func (h *Service) UnmarshalJSONContext(ctx context.Context, content []byte) erro
 	}
 	h.Options = options
 	return nil
+}
+
+func (h Service) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("Service", func() (*schema.Node, error) {
+		registry := service.FromContext[ServiceOptionsRegistry](builder.Context())
+		if registry == nil {
+			return nil, E.New("missing service options registry in context")
+		}
+		return registryUnion(builder, registry, nil, true)
+	})
 }

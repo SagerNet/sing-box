@@ -11,7 +11,7 @@ type OpenConnectEndpointOptions struct {
 	UDPFiltering                   UDPNATBehavior                       `json:"udp_filtering,omitempty"`
 	UDPNATMax                      uint32                               `json:"udp_nat_max,omitempty"`
 	Server                         string                               `json:"server"`
-	Flavor                         string                               `json:"flavor,omitempty"`
+	Flavor                         string                               `json:"flavor,omitempty" enum:"anyconnect,gp,fortinet,f5,pulse,nc"`
 	Username                       string                               `json:"username,omitempty"`
 	Password                       string                               `json:"password,omitempty"`
 	AuthGroup                      string                               `json:"auth_group,omitempty"`
@@ -29,7 +29,7 @@ type OpenConnectEndpointOptions struct {
 	NoUDP                          bool                                 `json:"no_udp,omitempty"`
 	DTLSLocalPort                  uint16                               `json:"dtls_local_port,omitempty"`
 	CompressionDisabled            bool                                 `json:"compression_disabled,omitempty"`
-	CompressionMode                string                               `json:"compression_mode,omitempty"`
+	CompressionMode                string                               `json:"compression_mode,omitempty" enum:"stateless,all"`
 	IPv6Disabled                   bool                                 `json:"ipv6_disabled,omitempty"`
 	HTTPKeepAliveDisabled          bool                                 `json:"http_keepalive_disabled,omitempty"`
 	XMLPostDisabled                bool                                 `json:"xml_post_disabled,omitempty"`
@@ -49,7 +49,7 @@ type OpenConnectEndpointOptions struct {
 }
 
 type OpenConnectTokenOptions struct {
-	Mode       string `json:"mode,omitempty"`
+	Mode       string `json:"mode,omitempty" enum:"totp,hotp,stoken,oidc"`
 	Secret     string `json:"secret,omitempty"`
 	SecretPath string `json:"secret_path,omitempty"`
 	PIN        string `json:"pin,omitempty"`

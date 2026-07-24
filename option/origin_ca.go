@@ -3,6 +3,7 @@ package option
 import (
 	"strings"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -13,8 +14,8 @@ type CloudflareOriginCACertificateProviderOptions struct {
 	DataDirectory     string                            `json:"data_directory,omitempty"`
 	APIToken          string                            `json:"api_token,omitempty"`
 	OriginCAKey       string                            `json:"origin_ca_key,omitempty"`
-	RequestType       CloudflareOriginCARequestType     `json:"request_type,omitempty"`
-	RequestedValidity CloudflareOriginCARequestValidity `json:"requested_validity,omitempty"`
+	RequestType       CloudflareOriginCARequestType     `json:"request_type,omitempty" enum:"origin-rsa,origin-ecc"`
+	RequestedValidity CloudflareOriginCARequestValidity `json:"requested_validity,omitempty" enum:"0,7,30,90,365,730,1095,5475"`
 	HTTPClient        *HTTPClientOptions                `json:"http_client,omitempty"`
 }
 
@@ -39,6 +40,10 @@ func (t *CloudflareOriginCARequestType) UnmarshalJSON(data []byte) error {
 		return E.New("unsupported Cloudflare Origin CA request type: ", value)
 	}
 	return nil
+}
+
+func (t CloudflareOriginCARequestType) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.StringEnum("", "origin-rsa", "origin-ecc"), nil
 }
 
 type CloudflareOriginCARequestValidity uint16
@@ -73,4 +78,8 @@ func (v *CloudflareOriginCARequestValidity) UnmarshalJSON(data []byte) error {
 		return E.New("unsupported Cloudflare Origin CA requested validity: ", value)
 	}
 	return nil
+}
+
+func (v CloudflareOriginCARequestValidity) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return &schema.Node{Type: "integer", Enum: []any{0, 7, 30, 90, 365, 730, 1095, 5475}}, nil
 }

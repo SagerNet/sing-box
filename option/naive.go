@@ -20,7 +20,7 @@ type NaiveInboundOptions struct {
 	ListenOptions
 	Users                 []auth.User `json:"users,omitempty"`
 	Network               NetworkList `json:"network,omitempty"`
-	QUICCongestionControl string      `json:"quic_congestion_control,omitempty"`
+	QUICCongestionControl string      `json:"quic_congestion_control,omitempty" enum:"bbr,bbr_standard,bbr2,bbr2_variant,cubic,reno"`
 	InboundTLSOptionsContainer
 }
 
@@ -34,7 +34,7 @@ type NaiveOutboundOptions struct {
 	ReceiveWindow            *byteformats.MemoryBytes `json:"stream_receive_window,omitempty"`
 	UDPOverTCP               *UDPOverTCPOptions       `json:"udp_over_tcp,omitempty"`
 	QUIC                     bool                     `json:"quic,omitempty"`
-	QUICCongestionControl    string                   `json:"quic_congestion_control,omitempty"`
+	QUICCongestionControl    string                   `json:"quic_congestion_control,omitempty" enum:"bbr,bbr2,cubic,reno"`
 	QUICSessionReceiveWindow *byteformats.MemoryBytes `json:"quic_session_receive_window,omitempty"`
 	OutboundTLSOptionsContainer
 }

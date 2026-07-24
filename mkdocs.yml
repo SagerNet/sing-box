@@ -81,6 +81,7 @@ nav:
           - AnyTLS client metadata: manual/misc/anytls-client-metadata.md
   - Configuration:
       - configuration/index.md
+      - JSON Schema: configuration/schema.md
       - Log:
           - configuration/log/index.md
       - DNS:

@@ -3,6 +3,7 @@ package option
 import (
 	"context"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -10,6 +11,7 @@ import (
 )
 
 type CertificateProviderOptionsRegistry interface {
+	OptionTypes() []string
 	CreateOptions(providerType string) (any, bool)
 }
 
@@ -44,6 +46,16 @@ func (h *CertificateProvider) UnmarshalJSONContext(ctx context.Context, content 
 	}
 	h.Options = options
 	return nil
+}
+
+func (h CertificateProvider) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("CertificateProvider", func() (*schema.Node, error) {
+		registry := service.FromContext[CertificateProviderOptionsRegistry](builder.Context())
+		if registry == nil {
+			return nil, E.New("missing certificate provider options registry in context")
+		}
+		return registryUnion(builder, registry, nil, true)
+	})
 }
 
 type CertificateProviderOptions struct {
@@ -97,4 +109,18 @@ func (o *CertificateProviderOptions) UnmarshalJSONContext(ctx context.Context, c
 
 func (o *CertificateProviderOptions) IsShared() bool {
 	return o.Tag != ""
+}
+
+func (o CertificateProviderOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("CertificateProviderReference", func() (*schema.Node, error) {
+		registry := service.FromContext[CertificateProviderOptionsRegistry](builder.Context())
+		if registry == nil {
+			return nil, E.New("missing certificate provider options registry in context")
+		}
+		union, err := registryUnion(builder, registry, nil, false)
+		if err != nil {
+			return nil, err
+		}
+		return schema.AnyOf(schema.TagReferenceNode("certificate_provider"), union), nil
+	})
 }

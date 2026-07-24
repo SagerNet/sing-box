@@ -1,9 +1,11 @@
 package option
 
 import (
+	"reflect"
 	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -23,21 +25,25 @@ type ACMECertificateProviderOptions struct {
 	AlternativeTLSPort      uint16                             `json:"alternative_tls_port,omitempty"`
 	ExternalAccount         *ACMEExternalAccountOptions        `json:"external_account,omitempty"`
 	DNS01Challenge          *ACMEProviderDNS01ChallengeOptions `json:"dns01_challenge,omitempty"`
-	KeyType                 ACMEKeyType                        `json:"key_type,omitempty"`
+	KeyType                 ACMEKeyType                        `json:"key_type,omitempty" enum:"ed25519,p256,p384,rsa2048,rsa4096"`
 	Profile                 string                             `json:"profile,omitempty"`
 	HTTPClient              *HTTPClientOptions                 `json:"http_client,omitempty"`
 }
 
 type _ACMEProviderDNS01ChallengeOptions struct {
+	AbstractACMEProviderDNS01ChallengeOptions
+	Provider          string                     `json:"provider,omitempty" enum:"alidns,cloudflare,acmedns"`
+	AliDNSOptions     ACMEDNS01AliDNSOptions     `json:"-"`
+	CloudflareOptions ACMEDNS01CloudflareOptions `json:"-"`
+	ACMEDNSOptions    ACMEDNS01ACMEDNSOptions    `json:"-"`
+}
+
+type AbstractACMEProviderDNS01ChallengeOptions struct {
 	TTL                badoption.Duration         `json:"ttl,omitempty"`
 	PropagationDelay   badoption.Duration         `json:"propagation_delay,omitempty"`
 	PropagationTimeout badoption.Duration         `json:"propagation_timeout,omitempty"`
 	Resolvers          badoption.Listable[string] `json:"resolvers,omitempty"`
 	OverrideDomain     string                     `json:"override_domain,omitempty"`
-	Provider           string                     `json:"provider,omitempty"`
-	AliDNSOptions      ACMEDNS01AliDNSOptions     `json:"-"`
-	CloudflareOptions  ACMEDNS01CloudflareOptions `json:"-"`
-	ACMEDNSOptions     ACMEDNS01ACMEDNSOptions    `json:"-"`
 }
 
 type ACMEProviderDNS01ChallengeOptions _ACMEProviderDNS01ChallengeOptions
@@ -80,6 +86,14 @@ func (o *ACMEProviderDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
 	return badjson.UnmarshallExcluded(bytes, (*_ACMEProviderDNS01ChallengeOptions)(o), v)
 }
 
+func (o ACMEProviderDNS01ChallengeOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("ACMEProviderDNS01Challenge", func() (*schema.Node, error) {
+		return schema.DiscriminatedUnion(builder, "provider", true, acmeDNS01Variants(), func(variant *schema.Node) error {
+			return builder.FlattenStruct(variant, reflect.TypeFor[AbstractACMEProviderDNS01ChallengeOptions]())
+		})
+	})
+}
+
 type ACMEKeyType string
 
 const (
@@ -104,4 +118,8 @@ func (t *ACMEKeyType) UnmarshalJSON(data []byte) error {
 		return E.New("unknown ACME key type: ", value)
 	}
 	return nil
+}
+
+func (t ACMEKeyType) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.StringEnum("", "ed25519", "p256", "p384", "rsa2048", "rsa4096"), nil
 }

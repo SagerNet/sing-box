@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"reflect"
 	"time"
 
 	"github.com/sagernet/sing-box/common/networkquality"
 	"github.com/sagernet/sing-box/common/stun"
 	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/experimental/libbox"
+	"github.com/sagernet/sing-box/include"
+	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/schema"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -36,6 +40,14 @@ func (s *applicationService) FormatConfig(ctx context.Context, request *ConfigCo
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	return &ConfigContent{Content: content}, nil
+}
+
+func (s *applicationService) GenerateConfigSchema(ctx context.Context, request *emptypb.Empty) (*ConfigContent, error) {
+	content, err := schema.Generate(include.Context(context.Background()), reflect.TypeFor[option.Options]())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &ConfigContent{Content: string(content)}, nil
 }
 
 func (s *applicationService) EncodeProfile(ctx context.Context, request *ProfileContent) (*ProfileData, error) {

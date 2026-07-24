@@ -174,7 +174,7 @@ func evaluateRule(server string, tag string, speculative bool) option.DNSRule {
 		DefaultOptions: option.DefaultDNSRule{
 			DNSRuleAction: option.DNSRuleAction{
 				Action: C.RuleActionTypeEvaluate,
-				RouteOptions: option.DNSRouteActionOptions{
+				EvaluateOptions: option.DNSEvaluateActionOptions{
 					Server:      server,
 					Tag:         tag,
 					Speculative: speculative,

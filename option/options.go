@@ -3,7 +3,9 @@ package option
 import (
 	"bytes"
 	"context"
+	"reflect"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
@@ -12,7 +14,7 @@ import (
 type _Options struct {
 	RawMessage           json.RawMessage       `json:"-"`
 	CommentsSet          *json.CommentSet      `json:"-"`
-	Schema               string                `json:"$schema,omitempty"`
+	Schema               string                `json:"$schema,omitempty" examples:"https://sing-box.sagernet.org/schema.json"`
 	Log                  *LogOptions           `json:"log,omitempty"`
 	DNS                  *DNSOptions           `json:"dns,omitempty"`
 	NTP                  *NTPOptions           `json:"ntp,omitempty"`
@@ -45,6 +47,17 @@ func (o *Options) UnmarshalJSONContext(ctx context.Context, content []byte) erro
 	return checkOptions(o)
 }
 
+func (o Options) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	node := schema.StrictObject()
+	node.SchemaURI = "https://json-schema.org/draft/2020-12/schema"
+	node.ID = "https://sing-box.sagernet.org/schema.json"
+	err := builder.FlattenStruct(node, reflect.TypeFor[Options]())
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
 func (o Options) Comments() *json.CommentSet {
 	return o.CommentsSet
 }
@@ -55,7 +68,7 @@ func (o *Options) SetComments(comments *json.CommentSet) {
 
 type LogOptions struct {
 	Disabled     bool   `json:"disabled,omitempty"`
-	Level        string `json:"level,omitempty"`
+	Level        string `json:"level,omitempty" enum:"trace,debug,info,warn,warning,error,fatal,panic"`
 	Output       string `json:"output,omitempty"`
 	Timestamp    bool   `json:"timestamp,omitempty"`
 	DisableColor bool   `json:"-"`
