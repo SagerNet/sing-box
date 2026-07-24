@@ -20,6 +20,9 @@ func NewProcessPathItem(processNameList []string) *ProcessPathItem {
 		processMap: make(map[string]bool),
 	}
 	for _, processName := range processNameList {
+		if C.IsWindows {
+			processName = strings.ToLower(processName)
+		}
 		rule.processMap[processName] = true
 	}
 	return rule
@@ -29,7 +32,11 @@ func (r *ProcessPathItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.ProcessInfo == nil {
 		return false
 	}
-	if metadata.ProcessInfo.ProcessPath != "" && r.processMap[metadata.ProcessInfo.ProcessPath] {
+	path := metadata.ProcessInfo.ProcessPath
+	if C.IsWindows {
+		path = strings.ToLower(path)
+	}
+	if path != "" && r.processMap[path] {
 		return true
 	}
 	if C.IsAndroid {
