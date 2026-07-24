@@ -1,7 +1,10 @@
 package option
 
 import (
+	"reflect"
+
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -46,6 +49,19 @@ func (o *NetworkNamespace) UnmarshalJSON(content []byte) error {
 		return E.New("unknown network namespace type: ", o.Type)
 	}
 	return badjson.UnmarshallExcluded(content, (*_NetworkNamespace)(o), v)
+}
+
+func (o NetworkNamespace) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("NetworkNamespace", func() (*schema.Node, error) {
+		return schema.DiscriminatedUnion(builder, "type", false, []schema.UnionVariant{
+			{Value: C.NetNsTypeDefault, StructType: reflect.TypeFor[DefaultNetworkNamespaceOptions](), TypeOptional: true},
+			{Value: C.NetNsTypeUnshare, StructType: reflect.TypeFor[UnshareNetworkNamespaceOptions]()},
+		}, func(variant *schema.Node) error {
+			variant.Properties.Put("tag", schema.StringNode())
+			variant.Required = append(variant.Required, "tag")
+			return nil
+		})
+	})
 }
 
 type DefaultNetworkNamespaceOptions struct {
