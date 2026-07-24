@@ -33,6 +33,7 @@ service DesktopService {
 service ApplicationService {
   rpc CheckConfig(ConfigContent) returns (google.protobuf.Empty) {}
   rpc FormatConfig(ConfigContent) returns (ConfigContent) {}
+  rpc GenerateConfigSchema(google.protobuf.Empty) returns (ConfigContent) {}
   rpc EncodeProfile(ProfileContent) returns (ProfileData) {}
   rpc DecodeProfile(ProfileData) returns (ProfileContent) {}
   rpc ArchiveReport(ArchiveReportRequest) returns (google.protobuf.Empty) {}

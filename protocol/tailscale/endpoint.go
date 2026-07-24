@@ -329,7 +329,9 @@ func (t *Endpoint) start() error {
 			return err
 		}
 		systemDialer, err := dialer.NewDefault(t.ctx, option.DialerOptions{
-			BindInterface: tunName,
+			AbstractDialerOptions: option.AbstractDialerOptions{
+				BindInterface: tunName,
+			},
 		})
 		if err != nil {
 			_ = systemTun.Close()

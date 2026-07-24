@@ -80,6 +80,7 @@ nav:
           - TunnelVision: manual/misc/tunnelvision.md
   - Configuration:
       - configuration/index.md
+      - JSON Schema: configuration/schema.md
       - Log:
           - configuration/log/index.md
       - DNS:
