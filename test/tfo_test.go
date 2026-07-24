@@ -52,7 +52,9 @@ func TestTCPSlowOpen(t *testing.T) {
 						ServerPort: serverPort,
 					},
 					DialerOptions: option.DialerOptions{
-						TCPFastOpen: true,
+						AbstractDialerOptions: option.AbstractDialerOptions{
+							TCPFastOpen: true,
+						},
 					},
 					Method:   method,
 					Password: password,
