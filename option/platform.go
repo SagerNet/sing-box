@@ -1,6 +1,7 @@
 package option
 
 import (
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -63,6 +64,10 @@ func (r *OnDemandRuleAction) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (r OnDemandRuleAction) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.StringEnum("connect", "disconnect", "evaluate_connection", "ignore"), nil
+}
+
 type OnDemandRuleInterfaceType int
 
 func (r *OnDemandRuleInterfaceType) MarshalJSON() ([]byte, error) {
@@ -102,4 +107,8 @@ func (r *OnDemandRuleInterfaceType) UnmarshalJSON(bytes []byte) error {
 	}
 	*r = OnDemandRuleInterfaceType(interfaceTypeValue)
 	return nil
+}
+
+func (r OnDemandRuleInterfaceType) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.StringEnum("any", "wifi", "cellular"), nil
 }

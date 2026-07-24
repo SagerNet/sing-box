@@ -1,7 +1,10 @@
 package option
 
 import (
+	"reflect"
+
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -29,7 +32,7 @@ type ACMEExternalAccountOptions struct {
 }
 
 type _ACMEDNS01ChallengeOptions struct {
-	Provider          string                     `json:"provider,omitempty"`
+	Provider          string                     `json:"provider,omitempty" enum:"alidns,cloudflare,acmedns"`
 	AliDNSOptions     ACMEDNS01AliDNSOptions     `json:"-"`
 	CloudflareOptions ACMEDNS01CloudflareOptions `json:"-"`
 	ACMEDNSOptions    ACMEDNS01ACMEDNSOptions    `json:"-"`
@@ -75,6 +78,20 @@ func (o *ACMEDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	return nil
+}
+
+func acmeDNS01Variants() []schema.UnionVariant {
+	return []schema.UnionVariant{
+		{Value: C.DNSProviderAliDNS, StructType: reflect.TypeFor[ACMEDNS01AliDNSOptions]()},
+		{Value: C.DNSProviderCloudflare, StructType: reflect.TypeFor[ACMEDNS01CloudflareOptions]()},
+		{Value: C.DNSProviderACMEDNS, StructType: reflect.TypeFor[ACMEDNS01ACMEDNSOptions]()},
+	}
+}
+
+func (o ACMEDNS01ChallengeOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("ACMEDNS01Challenge", func() (*schema.Node, error) {
+		return schema.DiscriminatedUnion(builder, "provider", true, acmeDNS01Variants(), nil)
+	})
 }
 
 type ACMEDNS01AliDNSOptions struct {
