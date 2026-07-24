@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/schema"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
@@ -13,7 +14,7 @@ import (
 )
 
 type _DNSRule struct {
-	Type           string         `json:"type,omitempty"`
+	Type           string         `json:"type,omitempty" enum:"default,logical"`
 	DefaultOptions DefaultDNSRule `json:"-"`
 	LogicalOptions LogicalDNSRule `json:"-"`
 }
@@ -67,6 +68,24 @@ func (r DNSRule) IsValid() bool {
 	}
 }
 
+func (r DNSRule) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("DNSRule", func() (*schema.Node, error) {
+		actionRef, err := builder.Define("DNSRuleAction", func() (*schema.Node, error) {
+			return dnsActionUnion(builder)
+		})
+		if err != nil {
+			return nil, err
+		}
+		nestedRef, err := builder.Define("NestedDNSRule", func() (*schema.Node, error) {
+			return nestedRuleUnion(builder, reflect.TypeFor[RawDefaultDNSRule](), "NestedDNSRule")
+		})
+		if err != nil {
+			return nil, err
+		}
+		return ruleUnion(builder, reflect.TypeFor[RawDefaultDNSRule](), nestedRef, actionRef)
+	})
+}
+
 type DNSRuleMatchResponse struct {
 	Enabled bool
 	Tag     string
@@ -111,13 +130,17 @@ func (m *DNSRuleMatchResponse) ResponseTag() string {
 	return m.Tag
 }
 
+func (m DNSRuleMatchResponse) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.AnyOf(schema.BooleanNode(), schema.StringNode()), nil
+}
+
 type RawDefaultDNSRule struct {
-	Inbound                  badoption.Listable[string]                                                  `json:"inbound,omitempty"`
-	IPVersion                int                                                                         `json:"ip_version,omitempty"`
+	Inbound                  badoption.Listable[string]                                                  `json:"inbound,omitempty" reference:"inbound"`
+	IPVersion                int                                                                         `json:"ip_version,omitempty" enum:"4,6"`
 	QueryType                badoption.Listable[DNSQueryType]                                            `json:"query_type,omitempty"`
-	Network                  badoption.Listable[string]                                                  `json:"network,omitempty"`
+	Network                  badoption.Listable[string]                                                  `json:"network,omitempty" enum:"tcp,udp"`
 	AuthUser                 badoption.Listable[string]                                                  `json:"auth_user,omitempty"`
-	Protocol                 badoption.Listable[string]                                                  `json:"protocol,omitempty"`
+	Protocol                 badoption.Listable[string]                                                  `json:"protocol,omitempty" enum:"tls,http,quic,dns,stun,bittorrent,dtls,ssh,rdp,ntp"`
 	Domain                   badoption.Listable[string]                                                  `json:"domain,omitempty"`
 	DomainSuffix             badoption.Listable[string]                                                  `json:"domain_suffix,omitempty"`
 	DomainKeyword            badoption.Listable[string]                                                  `json:"domain_keyword,omitempty"`
@@ -135,7 +158,7 @@ type RawDefaultDNSRule struct {
 	PackageNameRegex         badoption.Listable[string]                                                  `json:"package_name_regex,omitempty"`
 	User                     badoption.Listable[string]                                                  `json:"user,omitempty"`
 	UserID                   badoption.Listable[int32]                                                   `json:"user_id,omitempty"`
-	Outbound                 badoption.Listable[string]                                                  `json:"outbound,omitempty"`
+	Outbound                 badoption.Listable[string]                                                  `json:"outbound,omitempty" reference:"outbound" schema:"omit"`
 	ClashMode                string                                                                      `json:"clash_mode,omitempty"`
 	NetworkType              badoption.Listable[InterfaceType]                                           `json:"network_type,omitempty"`
 	NetworkIsExpensive       bool                                                                        `json:"network_is_expensive,omitempty"`
@@ -148,7 +171,7 @@ type RawDefaultDNSRule struct {
 	SourceMACAddress         badoption.Listable[string]                                                  `json:"source_mac_address,omitempty"`
 	SourceHostname           badoption.Listable[string]                                                  `json:"source_hostname,omitempty"`
 	PreferredBy              badoption.Listable[string]                                                  `json:"preferred_by,omitempty"`
-	RuleSet                  badoption.Listable[string]                                                  `json:"rule_set,omitempty"`
+	RuleSet                  badoption.Listable[string]                                                  `json:"rule_set,omitempty" reference:"rule_set"`
 	RuleSetIPCIDRMatchSource bool                                                                        `json:"rule_set_ip_cidr_match_source,omitempty"`
 	MatchResponse            *DNSRuleMatchResponse                                                       `json:"match_response,omitempty"`
 	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
@@ -161,13 +184,13 @@ type RawDefaultDNSRule struct {
 	Invert                   bool                                                                        `json:"invert,omitempty"`
 
 	// Deprecated: removed in sing-box 1.12.0
-	Geosite     badoption.Listable[string] `json:"geosite,omitempty"`
-	SourceGeoIP badoption.Listable[string] `json:"source_geoip,omitempty"`
-	GeoIP       badoption.Listable[string] `json:"geoip,omitempty"`
+	Geosite     badoption.Listable[string] `json:"geosite,omitempty" schema:"omit"`
+	SourceGeoIP badoption.Listable[string] `json:"source_geoip,omitempty" schema:"omit"`
+	GeoIP       badoption.Listable[string] `json:"geoip,omitempty" schema:"omit"`
 	// Deprecated: removed in sing-box 1.11.0
-	RuleSetIPCIDRAcceptEmpty bool `json:"rule_set_ip_cidr_accept_empty,omitempty"`
+	RuleSetIPCIDRAcceptEmpty bool `json:"rule_set_ip_cidr_accept_empty,omitempty" schema:"omit"`
 	// Deprecated: renamed to rule_set_ip_cidr_match_source
-	Deprecated_RulesetIPCIDRMatchSource bool `json:"rule_set_ipcidr_match_source,omitempty"`
+	Deprecated_RulesetIPCIDRMatchSource bool `json:"rule_set_ipcidr_match_source,omitempty" schema:"omit"`
 }
 
 type DefaultDNSRule struct {
@@ -210,7 +233,7 @@ func (r DefaultDNSRule) IsValid() bool {
 }
 
 type RawLogicalDNSRule struct {
-	Mode   string    `json:"mode"`
+	Mode   string    `json:"mode" enum:"and,or"`
 	Rules  []DNSRule `json:"rules,omitempty"`
 	Invert bool      `json:"invert,omitempty"`
 }
