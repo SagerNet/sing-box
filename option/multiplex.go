@@ -8,7 +8,7 @@ type InboundMultiplexOptions struct {
 
 type OutboundMultiplexOptions struct {
 	Enabled        bool           `json:"enabled,omitempty"`
-	Protocol       string         `json:"protocol,omitempty"`
+	Protocol       string         `json:"protocol,omitempty" enum:"h2mux,smux,yamux"`
 	MaxConnections int            `json:"max_connections,omitempty"`
 	MinStreams     int            `json:"min_streams,omitempty"`
 	MaxStreams     int            `json:"max_streams,omitempty"`

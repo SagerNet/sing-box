@@ -4,7 +4,6 @@ import (
 	context "context"
 
 	daemon "github.com/sagernet/sing-box/daemon"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -901,6 +900,7 @@ var DesktopService_ServiceDesc = grpc.ServiceDesc{
 const (
 	ApplicationService_CheckConfig_FullMethodName                       = "/desktop.ApplicationService/CheckConfig"
 	ApplicationService_FormatConfig_FullMethodName                      = "/desktop.ApplicationService/FormatConfig"
+	ApplicationService_GenerateConfigSchema_FullMethodName              = "/desktop.ApplicationService/GenerateConfigSchema"
 	ApplicationService_EncodeProfile_FullMethodName                     = "/desktop.ApplicationService/EncodeProfile"
 	ApplicationService_DecodeProfile_FullMethodName                     = "/desktop.ApplicationService/DecodeProfile"
 	ApplicationService_ArchiveReport_FullMethodName                     = "/desktop.ApplicationService/ArchiveReport"
@@ -914,6 +914,7 @@ const (
 type ApplicationServiceClient interface {
 	CheckConfig(ctx context.Context, in *ConfigContent, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	FormatConfig(ctx context.Context, in *ConfigContent, opts ...grpc.CallOption) (*ConfigContent, error)
+	GenerateConfigSchema(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ConfigContent, error)
 	EncodeProfile(ctx context.Context, in *ProfileContent, opts ...grpc.CallOption) (*ProfileData, error)
 	DecodeProfile(ctx context.Context, in *ProfileData, opts ...grpc.CallOption) (*ProfileContent, error)
 	ArchiveReport(ctx context.Context, in *ArchiveReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -943,6 +944,16 @@ func (c *applicationServiceClient) FormatConfig(ctx context.Context, in *ConfigC
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ConfigContent)
 	err := c.cc.Invoke(ctx, ApplicationService_FormatConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationServiceClient) GenerateConfigSchema(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ConfigContent, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfigContent)
+	err := c.cc.Invoke(ctx, ApplicationService_GenerateConfigSchema_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,6 +1034,7 @@ type ApplicationService_StartStandaloneSTUNTestClient = grpc.ServerStreamingClie
 type ApplicationServiceServer interface {
 	CheckConfig(context.Context, *ConfigContent) (*emptypb.Empty, error)
 	FormatConfig(context.Context, *ConfigContent) (*ConfigContent, error)
+	GenerateConfigSchema(context.Context, *emptypb.Empty) (*ConfigContent, error)
 	EncodeProfile(context.Context, *ProfileContent) (*ProfileData, error)
 	DecodeProfile(context.Context, *ProfileData) (*ProfileContent, error)
 	ArchiveReport(context.Context, *ArchiveReportRequest) (*emptypb.Empty, error)
@@ -1044,6 +1056,10 @@ func (UnimplementedApplicationServiceServer) CheckConfig(context.Context, *Confi
 
 func (UnimplementedApplicationServiceServer) FormatConfig(context.Context, *ConfigContent) (*ConfigContent, error) {
 	return nil, status.Error(codes.Unimplemented, "method FormatConfig not implemented")
+}
+
+func (UnimplementedApplicationServiceServer) GenerateConfigSchema(context.Context, *emptypb.Empty) (*ConfigContent, error) {
+	return nil, status.Error(codes.Unimplemented, "method GenerateConfigSchema not implemented")
 }
 
 func (UnimplementedApplicationServiceServer) EncodeProfile(context.Context, *ProfileContent) (*ProfileData, error) {
@@ -1118,6 +1134,24 @@ func _ApplicationService_FormatConfig_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ApplicationServiceServer).FormatConfig(ctx, req.(*ConfigContent))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationService_GenerateConfigSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationServiceServer).GenerateConfigSchema(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ApplicationService_GenerateConfigSchema_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationServiceServer).GenerateConfigSchema(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1212,6 +1246,10 @@ var ApplicationService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FormatConfig",
 			Handler:    _ApplicationService_FormatConfig_Handler,
+		},
+		{
+			MethodName: "GenerateConfigSchema",
+			Handler:    _ApplicationService_GenerateConfigSchema_Handler,
 		},
 		{
 			MethodName: "EncodeProfile",
