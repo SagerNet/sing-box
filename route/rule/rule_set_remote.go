@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/filemanager"
 	"github.com/sagernet/sing/service/pause"
 
 	"go4.org/netipx"
@@ -36,6 +38,7 @@ type RemoteRuleSet struct {
 	outbound       adapter.OutboundManager
 	tag            string
 	url            string
+	initialPath    string
 	options        option.RuleSet
 	updateInterval time.Duration
 	httpClient     *http.Client
@@ -58,6 +61,11 @@ func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag stri
 	} else {
 		updateInterval = 24 * time.Hour
 	}
+	var initialPath string
+	if options.RemoteOptions.InitialPath != "" {
+		initialPath = filemanager.BasePath(ctx, strings.ReplaceAll(options.RemoteOptions.InitialPath, C.RuleSetTagPlaceholder, tag))
+		initialPath, _ = filepath.Abs(initialPath)
+	}
 	return &RemoteRuleSet{
 		ctx:            ctx,
 		cancel:         cancel,
@@ -65,6 +73,7 @@ func NewRemoteRuleSet(ctx context.Context, logger logger.ContextLogger, tag stri
 		logger:         logger,
 		tag:            tag,
 		url:            strings.ReplaceAll(options.RemoteOptions.URL, C.RuleSetTagPlaceholder, tag),
+		initialPath:    initialPath,
 		options:        options,
 		updateInterval: updateInterval,
 		pauseManager:   service.FromContext[pause.Manager](ctx),
@@ -98,7 +107,20 @@ func (s *RemoteRuleSet) StartContext(ctx context.Context, startContext *adapter.
 			}
 		}
 	}
-	if s.lastUpdated.IsZero() {
+	var loadedFromInitialPath bool
+	if s.lastUpdated.IsZero() && s.initialPath != "" {
+		var content []byte
+		content, err = filemanager.ReadFile(s.ctx, s.initialPath)
+		if err == nil {
+			err = s.loadBytes(content)
+		}
+		if err != nil {
+			s.logger.Warn(E.Cause(err, "load initial rule-set from ", s.initialPath))
+		} else {
+			loadedFromInitialPath = true
+		}
+	}
+	if s.lastUpdated.IsZero() && !loadedFromInitialPath {
 		err = s.fetch(ctx, true)
 		if err != nil {
 			return E.Cause(err, "initial rule-set: ", s.tag)

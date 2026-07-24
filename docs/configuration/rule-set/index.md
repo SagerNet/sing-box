@@ -2,7 +2,8 @@
 
     :material-plus: [http_client](#http_client)  
     :material-delete-clock: [download_detour](#download_detour)  
-    :material-alert: [tag](#tag)
+    :material-alert: [tag](#tag)  
+    :material-plus: [initial_path](#initial_path)
 
 !!! quote "Changes in sing-box 1.10.0"
 
@@ -49,6 +50,7 @@
       "tag": "", // or []
       "format": "source", // or binary
       "url": "",
+      "initial_path": "",
       "http_client": "", // or {}
       "update_interval": "",
 
@@ -76,7 +78,7 @@ Tag of rule-set.
 
     `tag` also accepts a list of tags to define multiple rule-sets sharing other options at once.
 
-    The `{tag}` placeholder in `path` or `url` is replaced by each tag,
+    The `{tag}` placeholder in `path`, `url` or `initial_path` is replaced by each tag,
     and is required when multiple tags are set.
 
     Multiple tags conflict with `type: inline`.
@@ -120,6 +122,16 @@ File path of rule-set.
 ==Required==
 
 Download URL of rule-set.
+
+#### initial_path
+
+!!! question "Since sing-box 1.14.0"
+
+File path of the initial rule-set content.
+
+Read once at startup when no cached rule-set is available, so startup is not
+blocked by the initial download. The rule-set is still updated in the background
+immediately after startup.
 
 #### http_client
 
