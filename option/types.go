@@ -1,9 +1,12 @@
 package option
 
 import (
+	"maps"
+	"slices"
 	"strings"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
@@ -41,6 +44,10 @@ func (v NetworkList) Build() []string {
 		return []string{N.NetworkTCP, N.NetworkUDP}
 	}
 	return strings.Split(string(v), "\n")
+}
+
+func (v NetworkList) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.ListableOf(schema.StringEnum(N.NetworkTCP, N.NetworkUDP)), nil
 }
 
 type DomainStrategy C.DomainStrategy
@@ -105,6 +112,12 @@ func (s *DomainStrategy) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
+func (s DomainStrategy) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("DomainStrategy", func() (*schema.Node, error) {
+		return schema.StringEnum("", "as_is", "prefer_ipv4", "prefer_ipv6", "ipv4_only", "ipv6_only"), nil
+	})
+}
+
 type DNSQueryType uint16
 
 func (t DNSQueryType) String() string {
@@ -142,6 +155,15 @@ func (t *DNSQueryType) UnmarshalJSON(bytes []byte) error {
 	return E.New("unknown DNS query type: ", string(bytes))
 }
 
+func (t DNSQueryType) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("DNSQueryType", func() (*schema.Node, error) {
+		return schema.AnyOf(
+			schema.UnsignedNode(16),
+			schema.StringEnum(slices.Sorted(maps.Keys(mDNS.StringToType))...),
+		), nil
+	})
+}
+
 func DNSQueryTypeToString(queryType uint16) string {
 	typeName, loaded := mDNS.TypeToString[queryType]
 	if loaded {
@@ -170,6 +192,10 @@ func (n *NetworkStrategy) UnmarshalJSON(content []byte) error {
 	return nil
 }
 
+func (n NetworkStrategy) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.StringEnum(slices.Sorted(maps.Keys(C.StringToNetworkStrategy))...), nil
+}
+
 type InterfaceType C.InterfaceType
 
 func (t InterfaceType) Build() C.InterfaceType {
@@ -192,4 +218,10 @@ func (t *InterfaceType) UnmarshalJSON(content []byte) error {
 	}
 	*t = InterfaceType(interfaceType)
 	return nil
+}
+
+func (t InterfaceType) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return builder.Define("InterfaceType", func() (*schema.Node, error) {
+		return schema.StringEnum(slices.Sorted(maps.Keys(C.StringToInterfaceType))...), nil
+	})
 }

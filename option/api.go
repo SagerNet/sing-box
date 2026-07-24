@@ -1,6 +1,9 @@
 package option
 
 import (
+	"reflect"
+
+	"github.com/sagernet/sing-box/schema"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badoption"
 )
@@ -8,7 +11,7 @@ import (
 type APIServiceOptions struct {
 	ListenOptions
 	Secret                           string                     `json:"secret,omitempty"`
-	AccessControlAllowOrigin         badoption.Listable[string] `json:"access_control_allow_origin,omitempty"`
+	AccessControlAllowOrigin         badoption.Listable[string] `json:"access_control_allow_origin,omitempty" examples:"http://sing-box-dashboard.sagernet.org/,https://sing-box-dashboard.sagernet.org/"`
 	AccessControlAllowPrivateNetwork bool                       `json:"access_control_allow_private_network,omitempty"`
 	Dashboard                        *APIDashboardOptions       `json:"dashboard,omitempty"`
 	InboundTLSOptionsContainer
@@ -47,4 +50,13 @@ func (o *APIDashboardOptions) UnmarshalJSON(bytes []byte) error {
 		return nil
 	}
 	return json.UnmarshalDisallowUnknownFields(bytes, (*_APIDashboardOptions)(o))
+}
+
+func (o APIDashboardOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	objectForm := schema.StrictObject()
+	err := builder.FlattenStruct(objectForm, reflect.TypeFor[APIDashboardOptions]())
+	if err != nil {
+		return nil, err
+	}
+	return schema.AnyOf(schema.BooleanNode(), schema.StringNode(), objectForm), nil
 }

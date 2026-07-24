@@ -13,6 +13,10 @@ import (
 
 type stubDNSTransportOptionsRegistry struct{}
 
+func (stubDNSTransportOptionsRegistry) OptionTypes() []string {
+	return []string{C.DNSTypeUDP, C.DNSTypeFakeIP}
+}
+
 func (stubDNSTransportOptionsRegistry) CreateOptions(transportType string) (any, bool) {
 	switch transportType {
 	case C.DNSTypeUDP:

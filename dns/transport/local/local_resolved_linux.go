@@ -328,8 +328,10 @@ func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServ
 		return nil, E.New("link has no DNS servers configured")
 	}
 	serverDialer, err := dialer.NewDefault(t.ctx, option.DialerOptions{
-		BindInterface:      defaultInterface.Name,
-		UDPFragmentDefault: true,
+		AbstractDialerOptions: option.AbstractDialerOptions{
+			BindInterface:      defaultInterface.Name,
+			UDPFragmentDefault: true,
+		},
 	})
 	if err != nil {
 		return nil, err
