@@ -550,10 +550,10 @@ func (c *CommandClient) SelectOutbound(groupTag string, outboundTag string) erro
 	return nil
 }
 
-func (c *CommandClient) URLTest(groupTag string) error {
+func (c *CommandClient) URLTest(outboundTag string) error {
 	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
 		return client.URLTest(ctx, &daemon.URLTestRequest{
-			OutboundTag: groupTag,
+			OutboundTag: outboundTag,
 		})
 	})
 	if err != nil {
