@@ -15327,6 +15327,9 @@
             "url": {
               "type": "string"
             },
+            "initial_path": {
+              "type": "string"
+            },
             "http_client": {
               "$ref": "#/$defs/HTTPClientReference"
             },
