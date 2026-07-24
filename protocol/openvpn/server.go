@@ -184,9 +184,11 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
 		listenAddress := s.options.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1}))
 		if listenAddress.IsUnspecified() && s.options.BindInterface == "" && s.options.RoutingMark == 0 && s.options.NetNs == "" {
 			udpDialer, dialerErr := dialer.NewDefault(s.ctx, option.DialerOptions{
-				ReuseAddr:          s.options.ReuseAddr,
-				UDPFragment:        s.options.UDPFragment,
-				UDPFragmentDefault: s.options.UDPFragmentDefault,
+				AbstractDialerOptions: option.AbstractDialerOptions{
+					ReuseAddr:          s.options.ReuseAddr,
+					UDPFragment:        s.options.UDPFragment,
+					UDPFragmentDefault: s.options.UDPFragmentDefault,
+				},
 			})
 			if dialerErr != nil {
 				return dialerErr

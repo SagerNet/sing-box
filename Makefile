@@ -14,7 +14,7 @@ PREFIX ?= $(shell go env GOPATH)
 SING_FFI ?= sing-ffi
 LIBBOX_FFI_CONFIG ?= ./experimental/libbox/ffi.json
 
-.PHONY: test release docs build
+.PHONY: test release docs build schema
 
 build:
 	export GOTOOLCHAIN=local && \
@@ -31,6 +31,9 @@ ci_build:
 
 generate_completions:
 	go run -v --tags "$(TAGS),generate,generate_completions" $(MAIN)
+
+schema:
+	go run -ldflags "$(LDFLAGS_SHARED)" --tags "$(TAGS)" $(MAIN) schema -o docs/schema.json
 
 install:
 	go build -o $(PREFIX)/bin/$(NAME) $(MAIN_PARAMS) $(MAIN)
