@@ -2,8 +2,10 @@ package option
 
 import (
 	"net/url"
+	"reflect"
 
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
@@ -20,7 +22,7 @@ type Hysteria2InboundOptions struct {
 	InboundTLSOptionsContainer
 	QUICOptions
 	Masquerade  *Hysteria2Masquerade   `json:"masquerade,omitempty"`
-	BBRProfile  string                 `json:"bbr_profile,omitempty"`
+	BBRProfile  string                 `json:"bbr_profile,omitempty" enum:"standard,conservative,aggressive"`
 	BrutalDebug bool                   `json:"brutal_debug,omitempty"`
 	Realm       *Hysteria2InboundRealm `json:"realm,omitempty"`
 }
@@ -30,7 +32,7 @@ type Hysteria2Realm struct {
 	Token       string                     `json:"token,omitempty"`
 	RealmID     string                     `json:"realm_id"`
 	STUNServers badoption.Listable[string] `json:"stun_servers"`
-	IPVersion   int                        `json:"ip_version,omitempty"`
+	IPVersion   int                        `json:"ip_version,omitempty" enum:"0,4,6"`
 	PortMapping *Hysteria2RealmPortMapping `json:"port_mapping,omitempty"`
 	HTTPClient  *HTTPClientOptions         `json:"http_client,omitempty"`
 }
@@ -52,7 +54,7 @@ type Hysteria2ObfsGecko struct {
 }
 
 type _Hysteria2Obfs struct {
-	Type         string             `json:"type,omitempty"`
+	Type         string             `json:"type,omitempty" enum:"salamander,gecko"`
 	Password     string             `json:"password,omitempty"`
 	GeckoOptions Hysteria2ObfsGecko `json:"-"`
 }
@@ -93,13 +95,23 @@ func (o *Hysteria2Obfs) UnmarshalJSON(bytes []byte) error {
 	return badjson.UnmarshallExcluded(bytes, (*_Hysteria2Obfs)(o), v)
 }
 
+func (o Hysteria2Obfs) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.DiscriminatedUnion(builder, "type", true, []schema.UnionVariant{
+		{Value: C.Hysteria2ObfsTypeSalamander},
+		{Value: C.Hysteria2ObfsTypeGecko, StructType: reflect.TypeFor[Hysteria2ObfsGecko]()},
+	}, func(variant *schema.Node) error {
+		variant.Properties.Put("password", schema.StringNode())
+		return nil
+	})
+}
+
 type Hysteria2User struct {
 	Name     string `json:"name,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
 type _Hysteria2Masquerade struct {
-	Type          string                    `json:"type,omitempty"`
+	Type          string                    `json:"type,omitempty" enum:"file,proxy,string"`
 	FileOptions   Hysteria2MasqueradeFile   `json:"-"`
 	ProxyOptions  Hysteria2MasqueradeProxy  `json:"-"`
 	StringOptions Hysteria2MasqueradeString `json:"-"`
@@ -160,6 +172,18 @@ func (m *Hysteria2Masquerade) UnmarshalJSON(bytes []byte) error {
 	return badjson.UnmarshallExcluded(bytes, (*_Hysteria2Masquerade)(m), v)
 }
 
+func (m Hysteria2Masquerade) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	union, err := schema.DiscriminatedUnion(builder, "type", true, []schema.UnionVariant{
+		{Value: C.Hysterai2MasqueradeTypeFile, StructType: reflect.TypeFor[Hysteria2MasqueradeFile]()},
+		{Value: C.Hysterai2MasqueradeTypeProxy, StructType: reflect.TypeFor[Hysteria2MasqueradeProxy]()},
+		{Value: C.Hysterai2MasqueradeTypeString, StructType: reflect.TypeFor[Hysteria2MasqueradeString]()},
+	}, nil)
+	if err != nil {
+		return nil, err
+	}
+	return schema.AnyOf(schema.StringNode(), union), nil
+}
+
 type Hysteria2MasqueradeFile struct {
 	Directory string `json:"directory"`
 }
@@ -188,7 +212,7 @@ type Hysteria2OutboundOptions struct {
 	Network        NetworkList                `json:"network,omitempty"`
 	OutboundTLSOptionsContainer
 	QUICOptions
-	BBRProfile  string          `json:"bbr_profile,omitempty"`
+	BBRProfile  string          `json:"bbr_profile,omitempty" enum:"standard,conservative,aggressive"`
 	BrutalDebug bool            `json:"brutal_debug,omitempty"`
 	Realm       *Hysteria2Realm `json:"realm,omitempty"`
 }

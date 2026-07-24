@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"strconv"
 
+	"github.com/sagernet/sing-box/schema"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/json"
@@ -12,10 +13,10 @@ import (
 
 type TunInboundOptions struct {
 	InterfaceName                 string                           `json:"interface_name,omitempty"`
-	NetNs                         string                           `json:"netns,omitempty"`
+	NetNs                         string                           `json:"netns,omitempty" reference:"network_namespace"`
 	MTU                           uint32                           `json:"mtu,omitempty"`
-	Address                       badoption.Listable[netip.Prefix] `json:"address,omitempty"`
-	DNSMode                       string                           `json:"dns_mode,omitempty"`
+	Address                       badoption.Listable[netip.Prefix] `json:"address,omitempty" examples:"172.19.0.1/30,fdfe:dcba:9876::1/126"`
+	DNSMode                       string                           `json:"dns_mode,omitempty" enum:"disabled,native,hijack"`
 	DNSAddress                    badoption.Listable[netip.Addr]   `json:"dns_address,omitempty"`
 	AutoRoute                     bool                             `json:"auto_route,omitempty"`
 	IPRoute2TableIndex            int                              `json:"iproute2_table_index,omitempty"`
@@ -48,26 +49,26 @@ type TunInboundOptions struct {
 	UDPMapping                    UDPNATBehavior                   `json:"udp_mapping,omitempty"`
 	UDPFiltering                  UDPNATBehavior                   `json:"udp_filtering,omitempty"`
 	UDPNATMax                     uint32                           `json:"udp_nat_max,omitempty"`
-	Stack                         string                           `json:"stack,omitempty"`
+	Stack                         string                           `json:"stack,omitempty" enum:"system,gvisor,mixed"`
 	Platform                      *TunPlatformOptions              `json:"platform,omitempty"`
 	InboundOptions
 
 	// Deprecated: removed
-	GSO bool `json:"gso,omitempty"`
+	GSO bool `json:"gso,omitempty" schema:"omit"`
 	// Deprecated: merged to Address
-	Inet4Address badoption.Listable[netip.Prefix] `json:"inet4_address,omitempty"`
+	Inet4Address badoption.Listable[netip.Prefix] `json:"inet4_address,omitempty" schema:"omit"`
 	// Deprecated: merged to Address
-	Inet6Address badoption.Listable[netip.Prefix] `json:"inet6_address,omitempty"`
+	Inet6Address badoption.Listable[netip.Prefix] `json:"inet6_address,omitempty" schema:"omit"`
 	// Deprecated: merged to RouteAddress
-	Inet4RouteAddress badoption.Listable[netip.Prefix] `json:"inet4_route_address,omitempty"`
+	Inet4RouteAddress badoption.Listable[netip.Prefix] `json:"inet4_route_address,omitempty" schema:"omit"`
 	// Deprecated: merged to RouteAddress
-	Inet6RouteAddress badoption.Listable[netip.Prefix] `json:"inet6_route_address,omitempty"`
+	Inet6RouteAddress badoption.Listable[netip.Prefix] `json:"inet6_route_address,omitempty" schema:"omit"`
 	// Deprecated: merged to RouteExcludeAddress
-	Inet4RouteExcludeAddress badoption.Listable[netip.Prefix] `json:"inet4_route_exclude_address,omitempty"`
+	Inet4RouteExcludeAddress badoption.Listable[netip.Prefix] `json:"inet4_route_exclude_address,omitempty" schema:"omit"`
 	// Deprecated: merged to RouteExcludeAddress
-	Inet6RouteExcludeAddress badoption.Listable[netip.Prefix] `json:"inet6_route_exclude_address,omitempty"`
+	Inet6RouteExcludeAddress badoption.Listable[netip.Prefix] `json:"inet6_route_exclude_address,omitempty" schema:"omit"`
 	// Deprecated: removed
-	EndpointIndependentNat bool `json:"endpoint_independent_nat,omitempty"`
+	EndpointIndependentNat bool `json:"endpoint_independent_nat,omitempty" schema:"omit"`
 }
 
 type FwMark uint32
@@ -91,4 +92,8 @@ func (f *FwMark) UnmarshalJSON(bytes []byte) error {
 	}
 	*f = FwMark(intValue)
 	return nil
+}
+
+func (f FwMark) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
+	return schema.AnyOf(schema.UnsignedNode(32), schema.StringNode()), nil
 }
