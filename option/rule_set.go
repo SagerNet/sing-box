@@ -113,6 +113,9 @@ func (r *RuleSet) UnmarshalJSON(bytes []byte) error {
 			if !strings.Contains(r.RemoteOptions.URL, C.RuleSetTagPlaceholder) {
 				return E.New("missing ", C.RuleSetTagPlaceholder, " placeholder in url")
 			}
+			if r.RemoteOptions.InitialPath != "" && !strings.Contains(r.RemoteOptions.InitialPath, C.RuleSetTagPlaceholder) {
+				return E.New("missing ", C.RuleSetTagPlaceholder, " placeholder in initial_path")
+			}
 		}
 	}
 	return nil
@@ -177,6 +180,7 @@ type LocalRuleSet struct {
 
 type RemoteRuleSet struct {
 	URL            string             `json:"url"`
+	InitialPath    string             `json:"initial_path,omitempty"`
 	HTTPClient     *HTTPClientOptions `json:"http_client,omitempty"`
 	UpdateInterval badoption.Duration `json:"update_interval,omitempty"`
 	// Deprecated: use http_client instead
