@@ -84,7 +84,7 @@ jobs:
   build:
     name: Build binary
     if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs:
       - calculate_version
     strategy:
@@ -351,7 +351,6 @@ jobs:
         run: |
           set -xeuo pipefail
           sudo gem install fpm
-          sudo apt-get update
           sudo apt-get install -y debsigs
           cp .fpm_systemd .fpm
           fpm -t deb \
@@ -359,8 +358,6 @@ jobs:
             -p "dist/sing-box_${{ needs.calculate_version.outputs.version }}_${{ matrix.os }}_${{ matrix.debian }}.deb" \
             --architecture ${{ matrix.debian }} \
             dist/sing-box=/usr/bin/sing-box
-          curl -Lo '/tmp/debsigs.diff' 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
-          sudo patch /usr/bin/debsigs < '/tmp/debsigs.diff'
           rm -rf $HOME/.gnupg
           gpg --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" --import <<EOF
           ${{ secrets.GPG_KEY }}
@@ -390,7 +387,7 @@ jobs:
         run: |-
           set -xeuo pipefail
           sudo gem install fpm
-          sudo apt-get update
+          sudo apt-get update || true
           sudo apt-get install -y libarchive-tools
           cp .fpm_pacman .fpm
           fpm -t pacman \
@@ -1054,7 +1051,7 @@ jobs:
   build_linux_client:
     name: Build Linux client (${{ matrix.desktop_arch }})
     if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Linux') && github.ref != 'refs/heads/oldstable'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs:
       - calculate_version
     strategy:
@@ -1138,10 +1135,8 @@ jobs:
       - name: Install package tools
         run: |-
           set -euo pipefail
-          sudo apt-get update
+          sudo apt-get update || true
           sudo apt-get install -y debsigs libarchive-tools rpm zstd
-          curl -Lo "$RUNNER_TEMP/debsigs.diff" 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
-          sudo patch /usr/bin/debsigs < "$RUNNER_TEMP/debsigs.diff"
       - name: Install dependencies
         run: |-
           pnpm -C clients/desktop install
