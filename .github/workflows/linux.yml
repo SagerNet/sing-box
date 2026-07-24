@@ -45,7 +45,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
   build:
     name: Build binary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs:
       - calculate_version
     strategy:
@@ -182,8 +182,6 @@ jobs:
             -p "dist/${NAME}_${{ needs.calculate_version.outputs.version }}_linux_${{ matrix.debian }}.deb" \
             --architecture ${{ matrix.debian }} \
             dist/sing-box=/usr/bin/sing-box
-          curl -Lo '/tmp/debsigs.diff' 'https://gitlab.com/debsigs/debsigs/-/commit/160138f5de1ec110376d3c807b60a37388bc7c90.diff'
-          sudo patch /usr/bin/debsigs < '/tmp/debsigs.diff'
           rm -rf $HOME/.gnupg
           gpg --pinentry-mode loopback --passphrase "${{ secrets.GPG_PASSPHRASE }}" --import <<EOF
           ${{ secrets.GPG_KEY }}
