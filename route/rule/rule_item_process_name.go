@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 )
 
 var _ RuleItem = (*ProcessItem)(nil)
@@ -20,6 +21,9 @@ func NewProcessItem(processNameList []string) *ProcessItem {
 		processMap: make(map[string]bool),
 	}
 	for _, processName := range processNameList {
+		if C.IsWindows {
+			processName = strings.ToLower(processName)
+		}
 		rule.processMap[processName] = true
 	}
 	return rule
@@ -29,7 +33,11 @@ func (r *ProcessItem) Match(metadata *adapter.InboundContext) bool {
 	if metadata.ProcessInfo == nil || metadata.ProcessInfo.ProcessPath == "" {
 		return false
 	}
-	return r.processMap[filepath.Base(metadata.ProcessInfo.ProcessPath)]
+	path := filepath.Base(metadata.ProcessInfo.ProcessPath)
+	if C.IsWindows {
+		path = strings.ToLower(path)
+	}
+	return r.processMap[path]
 }
 
 func (r *ProcessItem) String() string {
