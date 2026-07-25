@@ -397,9 +397,14 @@ func (t *Transport) fetchServersResponse(iface *control.Interface, packetConn ne
 func (t *Transport) recreateServers(iface *control.Interface, dhcpPacket *dhcpv4.DHCPv4) error {
 	searchList := dhcpPacket.DomainSearch()
 	if searchList != nil && len(searchList.Labels) > 0 {
-		t.search = searchList.Labels
+		t.search = common.Filter(common.Map(searchList.Labels, mDNS.Fqdn), func(it string) bool {
+			return it != "."
+		})
 	} else if dhcpPacket.DomainName() != "" {
-		t.search = []string{dhcpPacket.DomainName()}
+		domainName := mDNS.Fqdn(dhcpPacket.DomainName())
+		if domainName != "." {
+			t.search = []string{domainName}
+		}
 	}
 	serverAddrs := common.Map(dhcpPacket.DNS(), func(it net.IP) M.Socksaddr {
 		return M.SocksaddrFrom(M.AddrFromIP(it), 53)
