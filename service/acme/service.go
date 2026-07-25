@@ -116,7 +116,7 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		case option.ACMEKeyTypeRSA4096:
 			keyType = certmagic.RSA4096
 		default:
-			return nil, E.New("unsupported ACME key type: ", options.KeyType)
+			return nil, E.New("unsupported ACME key type: ", string(options.KeyType))
 		}
 		config.KeySource = certmagic.StandardKeyGenerator{KeyType: keyType}
 	}
@@ -231,13 +231,13 @@ func newDNSSolver(dnsOptions *option.ACMEProviderDNS01ChallengeOptions, logger *
 		return nil, nil
 	}
 	if dnsOptions.TTL < 0 {
-		return nil, E.New("invalid ACME DNS01 ttl: ", dnsOptions.TTL)
+		return nil, E.New("invalid ACME DNS01 ttl: ", dnsOptions.TTL.Build())
 	}
 	if dnsOptions.PropagationDelay < 0 {
-		return nil, E.New("invalid ACME DNS01 propagation_delay: ", dnsOptions.PropagationDelay)
+		return nil, E.New("invalid ACME DNS01 propagation_delay: ", dnsOptions.PropagationDelay.Build())
 	}
 	if dnsOptions.PropagationTimeout < -1 {
-		return nil, E.New("invalid ACME DNS01 propagation_timeout: ", dnsOptions.PropagationTimeout)
+		return nil, E.New("invalid ACME DNS01 propagation_timeout: ", dnsOptions.PropagationTimeout.Build())
 	}
 	solver := &certmagic.DNS01Solver{
 		DNSManager: certmagic.DNSManager{
