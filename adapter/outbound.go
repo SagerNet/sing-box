@@ -26,6 +26,11 @@ type OutboundWithPreferredRoutes interface {
 	PreferredAddress(metadata *InboundContext, address netip.Addr) bool
 }
 
+type OutboundWithMultiplex interface {
+	Outbound
+	MultiplexEnabled() bool
+}
+
 type FlowOutbound interface {
 	Outbound
 	tun.Port
