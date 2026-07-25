@@ -27,6 +27,11 @@ type OutboundWithPreferredRoutes interface {
 	PreferredAddress(address netip.Addr) bool
 }
 
+type OutboundWithMultiplex interface {
+	Outbound
+	MultiplexEnabled() bool
+}
+
 type DirectRouteOutbound interface {
 	Outbound
 	NewDirectRouteConnection(metadata InboundContext, routeContext tun.DirectRouteContext, timeout time.Duration) (tun.DirectRouteDestination, error)
