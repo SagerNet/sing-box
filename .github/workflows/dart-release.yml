@@ -16,8 +16,6 @@ on:
         description: "Optional full Dart version (e.g. 1.13.14-dart.3). Empty = auto."
         required: false
         type: string
-  schedule:
-    - cron: "47 3 * * *"
 
 permissions:
   contents: write
@@ -38,7 +36,86 @@ jobs:
           fetch-depth: 0
           ref: stable
 
+      - name: Resolve stable-based version
+        id: version
+        env:
+          REQUESTED: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          stable_tag="$(
+            git tag --merged HEAD --list 'v*' |
+              grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' |
+              sort -V |
+              tail -n 1 ||
+              true
+          )"
+          if [[ -z "$stable_tag" ]]; then
+            echo "::error::HEAD is not based on a stable semantic-version tag."
+            exit 1
+          fi
+          base="${stable_tag#v}"
+          requested="${REQUESTED#v}"
+          should_build=true
+
+          if [[ -n "$requested" ]]; then
+            if [[ ! "$requested" =~ ^((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))-dart\.([1-9][0-9]*)$ ]]; then
+              echo "::error::Requested version must look like 1.13.14-dart.3."
+              exit 1
+            fi
+            if [[ "${BASH_REMATCH[1]}" != "$base" ]]; then
+              echo "::error::Requested base ${BASH_REMATCH[1]} does not match reachable stable $base."
+              exit 1
+            fi
+            version="$requested"
+            dart_tag="v$version"
+            if git rev-parse -q --verify "refs/tags/$dart_tag" >/dev/null; then
+              tagged_commit="$(git rev-parse "$dart_tag^{commit}")"
+              if [[ "$tagged_commit" != "$(git rev-parse HEAD)" ]]; then
+                echo "::error::$dart_tag already points at $tagged_commit, not the checked-out commit."
+                exit 1
+              fi
+            fi
+          else
+            dart_tag="$(
+              git tag --points-at HEAD --list "v${base}-dart.*" |
+                grep -E "^v${base//./\\.}-dart\.[1-9][0-9]*$" |
+                sort -V |
+                tail -n 1 ||
+                true
+            )"
+            if [[ -n "$dart_tag" ]]; then
+              version="${dart_tag#v}"
+              archive="sing-box-${version}-windows-amd64.zip"
+              release_state="$(
+                gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${dart_tag}" \
+                  --jq "[.draft, .prerelease, ([.assets[] | select(.name == \"$archive\" and .size > 0)] | length), ([.assets[] | select(.name == \"SHA256SUMS.txt\" and .size > 0)] | length)] | @tsv" \
+                  2>/dev/null ||
+                  true
+              )"
+              if [[ "$release_state" == $'false\tfalse\t1\t1' ]]; then
+                should_build=false
+                echo "Commit already has a complete release at $dart_tag; skipping duplicate build."
+              else
+                echo "Release $dart_tag is incomplete; rebuilding its assets."
+              fi
+            else
+              version="${base}-dart.${RUN_NUMBER}"
+              dart_tag="v${version}"
+            fi
+          fi
+
+          archive="sing-box-${version}-windows-amd64.zip"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dart_tag=$dart_tag" >> "$GITHUB_OUTPUT"
+          echo "stable_tag=$stable_tag" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
+          echo "stable=$stable_tag version=$version build=$should_build sha=$(git rev-parse --short HEAD)"
+
       - name: Verify Dart Smart is present
+        if: steps.version.outputs.should_build == 'true'
         run: |
           set -euo pipefail
           test -f protocol/group/smart/outbound.go
@@ -47,47 +124,21 @@ jobs:
           grep -Fq 'smart.RegisterOutbound(registry)' include/registry.go
 
       - name: Setup Go
+        if: steps.version.outputs.should_build == 'true'
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: "1.25.10"
           cache: true
 
       - name: Test Smart + Clash API
+        if: steps.version.outputs.should_build == 'true'
         run: |
           set -euo pipefail
           go test ./protocol/group/smart/... -count=1
           go test -tags with_clash_api ./experimental/clashapi/... -count=1
 
-      - name: Resolve version
-        id: version
-        env:
-          REQUESTED: ${{ inputs.version }}
-          GH_TOKEN: ${{ github.token }}
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          set -euo pipefail
-          if [[ -n "${REQUESTED:-}" ]]; then
-            version="${REQUESTED#v}"
-          else
-            # Prefer latest upstream stable tag as base, always append unique -dart.N
-            base="$(gh api repos/SagerNet/sing-box/releases/latest --jq .tag_name | sed 's/^v//')"
-            if [[ ! "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              # Fallback: last local tag without -dart suffix
-              base="$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null | sed -E 's/^v//;s/-dart\.[0-9]+$//')"
-            fi
-            if [[ -z "$base" ]]; then
-              base="0.0.0"
-            fi
-            version="${base}-dart.${RUN_NUMBER}"
-          fi
-          dart_tag="v${version}"
-          archive="sing-box-${version}-windows-amd64.zip"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "dart_tag=$dart_tag" >> "$GITHUB_OUTPUT"
-          echo "archive=$archive" >> "$GITHUB_OUTPUT"
-          echo "Publishing $dart_tag from $(git rev-parse --short HEAD)"
-
       - name: Build Windows amd64
+        if: steps.version.outputs.should_build == 'true'
         env:
           CGO_ENABLED: "0"
           GOOS: windows
@@ -109,24 +160,16 @@ jobs:
           test -s "dist/$package.zip"
 
       - name: Publish GitHub Release
+        if: steps.version.outputs.should_build == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           DART_TAG: ${{ steps.version.outputs.dart_tag }}
           VERSION: ${{ steps.version.outputs.version }}
           ARCHIVE: ${{ steps.version.outputs.archive }}
+          STABLE_TAG: ${{ steps.version.outputs.stable_tag }}
         run: |
           set -euo pipefail
-          # Tag current HEAD so release source includes Smart
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "refs/tags/$DART_TAG" >/dev/null 2>&1; then
-            git tag -d "$DART_TAG" || true
-            git push origin ":refs/tags/$DART_TAG" || true
-          fi
-          git tag -f "$DART_TAG"
-          git push origin "refs/tags/$DART_TAG" --force
-
-          notes="Dart-maintained Windows amd64 build of blakebill/sing-box@stable ($(git rev-parse --short HEAD)). Includes Dart Smart outbound + HTTP Clash API latency-test patch."
+          notes="Dart-maintained Windows amd64 build based on upstream stable $STABLE_TAG ($(git rev-parse --short HEAD)). Includes Dart Smart outbound + HTTP Clash API latency-test patch."
           if gh release view "$DART_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$DART_TAG" \
               "dist/$ARCHIVE" \
@@ -134,6 +177,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$DART_TAG" --repo "$GITHUB_REPOSITORY" \
               --title "sing-box $VERSION" --latest --notes "$notes" \
+              --draft=false --prerelease=false \
               --target "$(git rev-parse HEAD)"
           else
             gh release create "$DART_TAG" \

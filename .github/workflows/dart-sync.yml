@@ -1,5 +1,5 @@
-# Merge upstream stable into this fork, re-check Dart patches + Smart, push.
-# Release is handled by dart-release.yml on the subsequent push to stable.
+# Merge the latest upstream stable release into this fork, re-check Dart
+# patches + Smart, push, then explicitly dispatch the release workflow.
 name: Sync upstream with Dart patches
 
 on:
@@ -8,6 +8,7 @@ on:
     - cron: "17 3 * * *"
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -26,7 +27,8 @@ jobs:
           fetch-depth: 0
           ref: stable
 
-      - name: Configure repositories
+      - name: Resolve upstream stable release
+        id: stable
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -34,14 +36,37 @@ jobs:
           git remote add upstream https://github.com/SagerNet/sing-box.git 2>/dev/null || \
             git remote set-url upstream https://github.com/SagerNet/sing-box.git
           git fetch --no-tags upstream stable
+          tag="$(
+            git ls-remote --tags --refs upstream 'v*' |
+              awk '{ sub("^refs/tags/", "", $2); print $2 }' |
+              grep -E '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' |
+              sort -V |
+              tail -n 1 ||
+              true
+          )"
+          if [[ -z "$tag" ]]; then
+            echo "::error::No stable semantic-version tag was found upstream."
+            exit 1
+          fi
+          git fetch --no-tags upstream "refs/tags/${tag}:refs/tags/${tag}"
+          commit="$(git rev-parse "${tag}^{commit}")"
+          if ! git merge-base --is-ancestor "$commit" upstream/stable; then
+            echo "::error::Latest stable tag $tag is not reachable from upstream/stable."
+            exit 1
+          fi
+          echo "UPSTREAM_TAG=$tag" >> "$GITHUB_ENV"
+          echo "UPSTREAM_COMMIT=$commit" >> "$GITHUB_ENV"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "Resolved upstream stable release $tag at $commit"
 
-      - name: Merge upstream stable
+      - name: Merge upstream stable release
         run: |
           set -euo pipefail
-          if git merge-base --is-ancestor upstream/stable HEAD; then
-            echo "Already up to date with upstream/stable."
+          if git merge-base --is-ancestor "$UPSTREAM_COMMIT" HEAD; then
+            echo "Already contains upstream stable $UPSTREAM_TAG."
           else
-            git merge --no-ff upstream/stable -m "chore: sync upstream stable"
+            git merge --no-ff "$UPSTREAM_TAG" -m "chore: sync upstream stable $UPSTREAM_TAG"
           fi
 
       - name: Ensure Dart HTTP latency patch
@@ -76,28 +101,88 @@ jobs:
           grep -Fq 'TypeSmart = "smart"' constant/proxy.go
           grep -Fq 'smart.RegisterOutbound(registry)' include/registry.go
 
+      - name: Determine whether stable changed
+        id: changes
+        run: |
+          set -euo pipefail
+          if [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/stable)" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Go
+        if: steps.changes.outputs.changed == 'true'
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version: "1.25.10"
           cache: true
 
       - name: Smoke test + build
+        if: steps.changes.outputs.changed == 'true'
         env:
           CGO_ENABLED: "0"
-          GOOS: windows
-          GOARCH: amd64
         run: |
           set -euo pipefail
           go test ./protocol/group/smart/... -count=1
           tags="$(tr -d '\r\n' < release/DEFAULT_BUILD_TAGS_OTHERS)"
           ldflags="$(tr -d '\r\n' < release/LDFLAGS)"
-          go build -trimpath -tags "$tags" -ldflags "$ldflags -s -w -buildid=" \
+          GOOS=windows GOARCH=amd64 go build \
+            -trimpath -tags "$tags" -ldflags "$ldflags -s -w -buildid=" \
             -o /tmp/sing-box.exe ./cmd/sing-box
           test -s /tmp/sing-box.exe
 
       - name: Push stable
         run: |
           set -euo pipefail
-          git push origin HEAD:stable
-          # Pushing stable triggers Dart Core Release (push event).
+          if [[ "${{ steps.changes.outputs.changed }}" == "true" ]]; then
+            git push --atomic origin \
+              HEAD:stable \
+              "refs/tags/${UPSTREAM_TAG}:refs/tags/${UPSTREAM_TAG}"
+          else
+            # Mirror provenance even if the release commit was merged manually.
+            git push origin "refs/tags/${UPSTREAM_TAG}:refs/tags/${UPSTREAM_TAG}"
+          fi
+
+      - name: Check whether this commit needs a core release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base="${UPSTREAM_TAG#v}"
+          dart_tag="$(
+            git tag --points-at HEAD --list "v${base}-dart.*" |
+              grep -E "^v${base//./\\.}-dart\.[1-9][0-9]*$" |
+              sort -V |
+              tail -n 1 ||
+              true
+          )"
+          needed=true
+          if [[ -n "$dart_tag" ]]; then
+            version="${dart_tag#v}"
+            archive="sing-box-${version}-windows-amd64.zip"
+            release_state="$(
+              gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${dart_tag}" \
+                --jq "[.draft, .prerelease, ([.assets[] | select(.name == \"$archive\" and .size > 0)] | length), ([.assets[] | select(.name == \"SHA256SUMS.txt\" and .size > 0)] | length)] | @tsv" \
+                2>/dev/null ||
+                true
+            )"
+            if [[ "$release_state" == $'false\tfalse\t1\t1' ]]; then
+              needed=false
+              echo "Complete stable Dart release already exists at $dart_tag."
+            else
+              echo "Release $dart_tag is incomplete and will be repaired."
+            fi
+          else
+            echo "No Dart release tag for stable $UPSTREAM_TAG points at HEAD."
+          fi
+          echo "needed=$needed" >> "$GITHUB_OUTPUT"
+
+      # Pushes made with GITHUB_TOKEN do not recursively start push workflows.
+      # Dispatch explicitly; the scheduled sync also retries incomplete releases.
+      - name: Dispatch Dart Core Release
+        if: steps.release.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run dart-release.yml --repo "$GITHUB_REPOSITORY" --ref stable
