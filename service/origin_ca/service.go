@@ -338,7 +338,7 @@ func (s *Service) requestCertificate(ctx context.Context) ([]byte, []byte, *tls.
 		}
 		privateKey = ecKey
 	default:
-		return nil, nil, nil, nil, E.New("unsupported Cloudflare Origin CA request type: ", s.requestType)
+		return nil, nil, nil, nil, E.New("unsupported Cloudflare Origin CA request type: ", string(s.requestType))
 	}
 	privateKeyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
