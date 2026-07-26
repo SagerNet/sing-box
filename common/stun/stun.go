@@ -418,7 +418,11 @@ func Run(options Options) (*Result, error) {
 		if err != nil {
 			return nil, E.Cause(err, "create UDP socket")
 		}
-		serverAddr = serverSocksaddr
+		if serverSocksaddr.IsIP() {
+			serverAddr = serverSocksaddr.UDPAddr()
+		} else {
+			serverAddr = serverSocksaddr
+		}
 	} else {
 		serverUDPAddr, resolveErr := net.ResolveUDPAddr("udp", serverSocksaddr.String())
 		if resolveErr != nil {
