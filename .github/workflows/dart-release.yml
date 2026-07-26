@@ -124,6 +124,10 @@ jobs:
           test -f experimental/clashapi/dial_feedback.go
           grep -Fq 'TypeSmart = "smart"' constant/proxy.go
           grep -Fq 'smart.RegisterOutbound(registry)' include/registry.go
+          grep -Fq 'json:"signal"' protocol/group/smart/feedback.go
+          grep -Fq 'func DialFeedbackSince(since uint64)' protocol/group/smart/feedback.go
+          grep -Fq 'func DialFeedbackDetailedSince(since uint64)' protocol/group/smart/feedback.go
+          grep -Fq 'Get("signals") == "1"' experimental/clashapi/dial_feedback.go
           grep -Fq 'r.Get("/dart/dial-feedback", getDialFeedback)' experimental/clashapi/server.go
 
       - name: Setup Go

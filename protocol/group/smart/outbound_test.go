@@ -21,9 +21,10 @@ import (
 
 type mockOutbound struct {
 	outbound.Adapter
-	fail  bool
-	delay time.Duration
-	calls *atomic.Int32
+	fail      bool
+	handshake bool
+	delay     time.Duration
+	calls     *atomic.Int32
 }
 
 func (m *mockOutbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -41,12 +42,45 @@ func (m *mockOutbound) DialContext(ctx context.Context, network string, destinat
 		return nil, errors.New("dial failed")
 	}
 	c1, c2 := net.Pipe()
+	if m.handshake {
+		go func() {
+			defer c2.Close()
+			buffer := make([]byte, 4)
+			_, _ = c2.Read(buffer)
+			_, _ = c2.Write([]byte("ok"))
+		}()
+		return &handshakeMockConn{Conn: c1}, nil
+	}
 	go c2.Close()
 	return c1, nil
 }
 
 func (m *mockOutbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	return nil, errors.New("udp not implemented")
+}
+
+type handshakeMockConn struct {
+	net.Conn
+}
+
+func (*handshakeMockConn) NeedHandshake() bool {
+	return true
+}
+
+type reorderedWriteConn struct {
+	net.Conn
+	firstStarted chan struct{}
+	releaseFirst chan struct{}
+	calls        atomic.Int32
+}
+
+func (c *reorderedWriteConn) Write(buffer []byte) (int, error) {
+	if c.calls.Add(1) == 1 {
+		close(c.firstStarted)
+		<-c.releaseFirst
+		return 0, errors.New("first write failed")
+	}
+	return len(buffer), nil
 }
 
 func TestDialContextRetriesOnFailure(t *testing.T) {
@@ -154,7 +188,7 @@ func TestDialContextAllFail(t *testing.T) {
 }
 
 func TestDialContextPublishesSanitizedFeedback(t *testing.T) {
-	startSequence, _ := DialFeedbackSince(^uint64(0))
+	startSequence, _ := DialFeedbackDetailedSince(^uint64(0))
 	tag := "feedback-failure"
 	failing := &mockOutbound{
 		Adapter: outbound.NewAdapter("direct", tag, []string{N.NetworkTCP}, nil),
@@ -174,17 +208,83 @@ func TestDialContextPublishesSanitizedFeedback(t *testing.T) {
 		t.Fatal("expected dial failure")
 	}
 
-	_, events := DialFeedbackSince(startSequence)
+	_, events := DialFeedbackDetailedSince(startSequence)
 	for _, event := range events {
 		if event.Outbound != tag {
 			continue
 		}
-		if event.Success || event.ErrorClass != "network" {
+		if event.Signal != dialFeedbackSignalTCP || event.Success || event.ErrorClass != "network" {
 			t.Fatalf("unexpected event: %+v", event)
 		}
 		return
 	}
 	t.Fatalf("missing feedback for %q in %+v", tag, events)
+}
+
+func TestDialFeedbackPublishesOptInSignalsAndLegacyView(t *testing.T) {
+	startSequence, _ := DialFeedbackDetailedSince(^uint64(0))
+	tag := "feedback-signals"
+	detour := &mockOutbound{
+		Adapter:   outbound.NewAdapter("direct", tag, []string{N.NetworkTCP, N.NetworkUDP}, nil),
+		handshake: true,
+	}
+	s := &Outbound{
+		Adapter:        outbound.NewAdapter(C.TypeSmart, "feedback-smart", []string{N.NetworkTCP, N.NetworkUDP}, []string{tag}),
+		tags:           []string{tag},
+		outbounds:      map[string]adapter.Outbound{tag: detour},
+		engine:         engine.New([]string{tag}, engine.Options{}),
+		interruptGroup: interrupt.NewGroup(),
+		logger:         log.NewNOPFactory().Logger(),
+	}
+
+	conn, err := s.DialContext(context.Background(), N.NetworkTCP, M.ParseSocksaddrHostPort("private.example", 443))
+	if err != nil {
+		t.Fatalf("DialContext: %v", err)
+	}
+	sequenceAfterDial, dialEvents := DialFeedbackDetailedSince(startSequence)
+	if len(dialEvents) != 1 || dialEvents[0].Signal != dialFeedbackSignalTCP || !dialEvents[0].Success {
+		t.Fatalf("unexpected TCP signal events: %+v", dialEvents)
+	}
+	legacySequence, legacyBeforeHandshake := DialFeedbackSince(startSequence)
+	if legacySequence != sequenceAfterDial || legacyBeforeHandshake == nil || len(legacyBeforeHandshake) != 0 {
+		t.Fatalf("legacy before handshake sequence=%d events=%+v", legacySequence, legacyBeforeHandshake)
+	}
+
+	if _, err = conn.Write([]byte("ping")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	response := make([]byte, 2)
+	if _, err = conn.Read(response); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	_ = conn.Close()
+
+	sequenceAfterRead, postDialEvents := DialFeedbackDetailedSince(sequenceAfterDial)
+	if len(postDialEvents) != 2 ||
+		postDialEvents[0].Signal != dialFeedbackSignalHandshake ||
+		postDialEvents[1].Signal != dialFeedbackSignalFirstByte ||
+		!postDialEvents[0].Success ||
+		!postDialEvents[1].Success {
+		t.Fatalf("unexpected handshake/first-byte events: %+v", postDialEvents)
+	}
+	legacySequence, legacyAfterHandshake := DialFeedbackSince(startSequence)
+	if legacySequence != sequenceAfterRead ||
+		len(legacyAfterHandshake) != 1 ||
+		legacyAfterHandshake[0].Signal != dialFeedbackSignalHandshake {
+		t.Fatalf("unexpected legacy events: %+v", legacyAfterHandshake)
+	}
+
+	_, err = s.ListenPacket(context.Background(), M.ParseSocksaddrHostPort("private.example", 443))
+	if err == nil {
+		t.Fatal("expected UDP failure")
+	}
+	_, udpEvents := DialFeedbackDetailedSince(sequenceAfterRead)
+	if len(udpEvents) != 1 ||
+		udpEvents[0].Signal != dialFeedbackSignalUDP ||
+		udpEvents[0].Success ||
+		udpEvents[0].ErrorClass != "network" {
+		t.Fatalf("unexpected UDP events: %+v", udpEvents)
+	}
 }
 
 func TestFirstByteObserveConn(t *testing.T) {
@@ -195,7 +295,7 @@ func TestFirstByteObserveConn(t *testing.T) {
 	observed := make(chan error, 1)
 	conn := &firstByteObserveConn{
 		ExtendedConn: bufio.NewExtendedConn(client),
-		onFirstByte: func(err error, _ float64) {
+		onFirstByte: func(err error, _ time.Duration) {
 			observed <- err
 		},
 	}
@@ -218,5 +318,41 @@ func TestFirstByteObserveConn(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("first-byte observation timed out")
+	}
+}
+
+func TestFirstWriteObserveConnKeepsFirstConcurrentWrite(t *testing.T) {
+	t.Parallel()
+	base := &reorderedWriteConn{
+		firstStarted: make(chan struct{}),
+		releaseFirst: make(chan struct{}),
+	}
+	observed := make(chan error, 1)
+	conn := &firstWriteObserveConn{
+		Conn: base,
+		onFirstWrite: func(err error, _ time.Duration) {
+			observed <- err
+		},
+	}
+	firstResult := make(chan error, 1)
+	go func() {
+		_, err := conn.Write([]byte("first"))
+		firstResult <- err
+	}()
+	<-base.firstStarted
+	if _, err := conn.Write([]byte("second")); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	close(base.releaseFirst)
+	if err := <-firstResult; err == nil {
+		t.Fatal("first write unexpectedly succeeded")
+	}
+	select {
+	case err := <-observed:
+		if err == nil || err.Error() != "first write failed" {
+			t.Fatalf("observed error=%v, want first write failure", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("first-write observation timed out")
 	}
 }

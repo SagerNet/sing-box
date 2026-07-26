@@ -118,6 +118,41 @@ func (s *Outbound) SelectOutbound(tag string) bool {
 	return true
 }
 
+func (s *Outbound) recordDialFeedback(
+	tag string,
+	signal string,
+	legacy bool,
+	success bool,
+	duration time.Duration,
+	errorClass string,
+) {
+	network := "tcp"
+	if signal == dialFeedbackSignalUDP {
+		network = "udp"
+	}
+	recordDialFeedback(s.Tag(), tag, network, signal, legacy, success, duration, errorClass)
+}
+
+func (s *Outbound) recordHandshakeFeedback(
+	tag string,
+	success bool,
+	writeElapsed time.Duration,
+	totalElapsed time.Duration,
+	errorClass string,
+) {
+	recordProjectedDialFeedback(
+		s.Tag(),
+		tag,
+		"tcp",
+		dialFeedbackSignalHandshake,
+		true,
+		success,
+		writeElapsed,
+		totalElapsed,
+		errorClass,
+	)
+}
+
 func (s *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	host := destination.Fqdn
 	if host == "" {
@@ -138,7 +173,14 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		rttMs := float64(elapsed.Milliseconds())
 		if err != nil {
 			s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeFailure, rttMs)
-			recordDialFeedback(s.Tag(), candidate.Tag, "tcp", false, elapsed, classifyDialError(err))
+			s.recordDialFeedback(
+				candidate.Tag,
+				dialFeedbackSignalTCP,
+				true,
+				false,
+				elapsed,
+				classifyDialError(err),
+			)
 			s.logger.DebugContext(ctx, "smart dial failed via ", candidate.Tag, ": ", err)
 			lastErr = err
 			continue
@@ -148,35 +190,70 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		if rttMs > threshold && threshold > 0 {
 			_ = conn.Close()
 			s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeSoftFail, rttMs)
-			recordDialFeedback(s.Tag(), candidate.Tag, "tcp", false, elapsed, "soft-fail")
+			s.recordDialFeedback(
+				candidate.Tag,
+				dialFeedbackSignalTCP,
+				true,
+				false,
+				elapsed,
+				"soft-fail",
+			)
 			s.logger.DebugContext(ctx, "smart soft-fail via ", candidate.Tag, " rtt=", int(rttMs), "ms threshold=", int(threshold), "ms")
 			lastErr = E.New("smart soft-fail: ", candidate.Tag)
 			continue
 		}
 		tag := candidate.Tag
 		hostKey := host
+		needsHandshake := N.NeedHandshakeForWrite(conn)
+		s.recordDialFeedback(
+			tag,
+			dialFeedbackSignalTCP,
+			!needsHandshake,
+			true,
+			elapsed,
+			"",
+		)
 		// Defer success until first write when the outbound still needs a handshake.
-		if N.NeedHandshakeForWrite(conn) {
+		if needsHandshake {
 			conn = &firstWriteObserveConn{
 				Conn: conn,
-				onFirstWrite: func(err error, hsMs float64) {
-					totalElapsed := elapsed + time.Duration(hsMs*float64(time.Millisecond))
+				onFirstWrite: func(err error, writeElapsed time.Duration) {
+					hsMs := float64(writeElapsed.Milliseconds())
+					totalElapsed := elapsed + writeElapsed
 					if err != nil {
 						s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeFailure, hsMs)
-						recordDialFeedback(s.Tag(), tag, "tcp", false, totalElapsed, classifyDialError(err))
+						s.recordHandshakeFeedback(
+							tag,
+							false,
+							writeElapsed,
+							totalElapsed,
+							classifyDialError(err),
+						)
 						s.logger.DebugContext(ctx, "smart handshake failed via ", tag, ": ", err)
 						return
 					}
 					th := s.engine.SoftFailThresholdMs(tag)
 					if hsMs > th && th > 0 {
 						s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeSoftFail, hsMs)
-						recordDialFeedback(s.Tag(), tag, "tcp", false, totalElapsed, "soft-fail")
+						s.recordHandshakeFeedback(
+							tag,
+							false,
+							writeElapsed,
+							totalElapsed,
+							"soft-fail",
+						)
 						s.logger.DebugContext(ctx, "smart handshake soft-fail via ", tag, " rtt=", int(hsMs), "ms")
 						return
 					}
 					s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeSuccess, hsMs)
 					s.engine.RememberHostFor(hostKey, engine.NetworkTCP, tag)
-					recordDialFeedback(s.Tag(), tag, "tcp", true, totalElapsed, "")
+					s.recordHandshakeFeedback(
+						tag,
+						true,
+						writeElapsed,
+						totalElapsed,
+						"",
+					)
 				},
 			}
 			s.selected = tag
@@ -185,7 +262,6 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		}
 		s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeSuccess, rttMs)
 		s.engine.RememberHostFor(host, engine.NetworkTCP, candidate.Tag)
-		recordDialFeedback(s.Tag(), candidate.Tag, "tcp", true, elapsed, "")
 		s.selected = candidate.Tag
 		conn = s.observeFirstByte(conn, host, candidate.Tag)
 		return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
@@ -199,8 +275,17 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 func (s *Outbound) observeFirstByte(conn net.Conn, host, tag string) net.Conn {
 	return &firstByteObserveConn{
 		ExtendedConn: bufio.NewExtendedConn(conn),
-		onFirstByte: func(err error, latencyMs float64) {
+		onFirstByte: func(err error, latency time.Duration) {
+			latencyMs := float64(latency.Milliseconds())
 			s.engine.RecordFirstByteFor(host, engine.NetworkTCP, tag, err == nil, latencyMs)
+			s.recordDialFeedback(
+				tag,
+				dialFeedbackSignalFirstByte,
+				false,
+				err == nil,
+				latency,
+				classifyDialError(err),
+			)
 		},
 	}
 }
@@ -225,13 +310,27 @@ func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		rttMs := float64(elapsed.Milliseconds())
 		if err != nil {
 			s.engine.RecordFor(host, engine.NetworkUDP, candidate.Tag, engine.OutcomeFailure, rttMs)
-			recordDialFeedback(s.Tag(), candidate.Tag, "udp", false, elapsed, classifyDialError(err))
+			s.recordDialFeedback(
+				candidate.Tag,
+				dialFeedbackSignalUDP,
+				true,
+				false,
+				elapsed,
+				classifyDialError(err),
+			)
 			lastErr = err
 			continue
 		}
 		s.engine.RecordFor(host, engine.NetworkUDP, candidate.Tag, engine.OutcomeSuccess, rttMs)
 		s.engine.RememberHostFor(host, engine.NetworkUDP, candidate.Tag)
-		recordDialFeedback(s.Tag(), candidate.Tag, "udp", true, elapsed, "")
+		s.recordDialFeedback(
+			candidate.Tag,
+			dialFeedbackSignalUDP,
+			true,
+			true,
+			elapsed,
+			"",
+		)
 		s.selected = candidate.Tag
 		return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 	}
@@ -271,17 +370,23 @@ func (s *Outbound) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 type firstWriteObserveConn struct {
 	net.Conn
 	once         sync.Once
-	onFirstWrite func(err error, rttMs float64)
+	onFirstWrite func(err error, latency time.Duration)
 }
 
 func (c *firstWriteObserveConn) Write(b []byte) (int, error) {
+	isFirstWrite := false
+	c.once.Do(func() {
+		isFirstWrite = true
+	})
+	if !isFirstWrite {
+		return c.Conn.Write(b)
+	}
 	start := time.Now()
 	n, err := c.Conn.Write(b)
-	c.once.Do(func() {
-		if c.onFirstWrite != nil {
-			c.onFirstWrite(err, float64(time.Since(start).Milliseconds()))
-		}
-	})
+	elapsed := time.Since(start)
+	if c.onFirstWrite != nil {
+		c.onFirstWrite(err, elapsed)
+	}
 	return n, err
 }
 
@@ -292,7 +397,7 @@ type firstByteObserveConn struct {
 	armOnce     sync.Once
 	requestAt   time.Time
 	observed    atomic.Bool
-	onFirstByte func(err error, latencyMs float64)
+	onFirstByte func(err error, latency time.Duration)
 }
 
 func (c *firstByteObserveConn) arm() {
@@ -301,9 +406,9 @@ func (c *firstByteObserveConn) arm() {
 	})
 }
 
-func (c *firstByteObserveConn) elapsedMs() float64 {
+func (c *firstByteObserveConn) elapsed() time.Duration {
 	c.arm()
-	return float64(time.Since(c.requestAt).Milliseconds())
+	return time.Since(c.requestAt)
 }
 
 func (c *firstByteObserveConn) Write(b []byte) (int, error) {
@@ -345,8 +450,8 @@ func (c *firstByteObserveConn) observe(err error) {
 	if c.observed.Swap(true) {
 		return
 	}
-	latencyMs := c.elapsedMs()
+	latency := c.elapsed()
 	if c.onFirstByte != nil {
-		c.onFirstByte(err, latencyMs)
+		c.onFirstByte(err, latency)
 	}
 }

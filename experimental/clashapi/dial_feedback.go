@@ -15,7 +15,29 @@ type dialFeedbackResponse struct {
 	Events   []smart.DialFeedbackEvent `json:"events"`
 }
 
+type dialFeedbackReadFunc func(since uint64) (uint64, []smart.DialFeedbackEvent)
+
+func dialFeedbackSignalsEnabled(r *http.Request) bool {
+	return r.URL.Query().Get("signals") == "1"
+}
+
 func getDialFeedback(w http.ResponseWriter, r *http.Request) {
+	serveDialFeedback(
+		w,
+		r,
+		smart.DialFeedbackInstance(),
+		smart.DialFeedbackSince,
+		smart.DialFeedbackDetailedSince,
+	)
+}
+
+func serveDialFeedback(
+	w http.ResponseWriter,
+	r *http.Request,
+	instance string,
+	readLegacy dialFeedbackReadFunc,
+	readDetailed dialFeedbackReadFunc,
+) {
 	w.Header().Set("Cache-Control", "no-store")
 
 	var since uint64
@@ -29,9 +51,18 @@ func getDialFeedback(w http.ResponseWriter, r *http.Request) {
 		since = parsedSince
 	}
 
-	sequence, events := smart.DialFeedbackSince(since)
+	includeSignals := dialFeedbackSignalsEnabled(r)
+	var (
+		sequence uint64
+		events   []smart.DialFeedbackEvent
+	)
+	if includeSignals {
+		sequence, events = readDetailed(since)
+	} else {
+		sequence, events = readLegacy(since)
+	}
 	render.JSON(w, r, dialFeedbackResponse{
-		Instance: smart.DialFeedbackInstance(),
+		Instance: instance,
 		Sequence: sequence,
 		Events:   events,
 	})
