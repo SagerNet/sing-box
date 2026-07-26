@@ -153,6 +153,40 @@ func TestDialContextAllFail(t *testing.T) {
 	}
 }
 
+func TestDialContextPublishesSanitizedFeedback(t *testing.T) {
+	startSequence, _ := DialFeedbackSince(^uint64(0))
+	tag := "feedback-failure"
+	failing := &mockOutbound{
+		Adapter: outbound.NewAdapter("direct", tag, []string{N.NetworkTCP}, nil),
+		fail:    true,
+	}
+	s := &Outbound{
+		Adapter:        outbound.NewAdapter(C.TypeSmart, "feedback-smart", []string{N.NetworkTCP}, []string{tag}),
+		tags:           []string{tag},
+		outbounds:      map[string]adapter.Outbound{tag: failing},
+		engine:         engine.New([]string{tag}, engine.Options{}),
+		interruptGroup: interrupt.NewGroup(),
+		logger:         log.NewNOPFactory().Logger(),
+	}
+
+	_, err := s.DialContext(context.Background(), N.NetworkTCP, M.ParseSocksaddrHostPort("private.example", 443))
+	if err == nil {
+		t.Fatal("expected dial failure")
+	}
+
+	_, events := DialFeedbackSince(startSequence)
+	for _, event := range events {
+		if event.Outbound != tag {
+			continue
+		}
+		if event.Success || event.ErrorClass != "network" {
+			t.Fatalf("unexpected event: %+v", event)
+		}
+		return
+	}
+	t.Fatalf("missing feedback for %q in %+v", tag, events)
+}
+
 func TestFirstByteObserveConn(t *testing.T) {
 	t.Parallel()
 	client, server := net.Pipe()

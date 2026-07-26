@@ -2,6 +2,7 @@ package smart
 
 import (
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -133,9 +134,11 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		}
 		start := time.Now()
 		conn, err := detour.DialContext(ctx, network, destination)
-		rttMs := float64(time.Since(start).Milliseconds())
+		elapsed := time.Since(start)
+		rttMs := float64(elapsed.Milliseconds())
 		if err != nil {
 			s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeFailure, rttMs)
+			recordDialFeedback(s.Tag(), candidate.Tag, "tcp", false, elapsed, classifyDialError(err))
 			s.logger.DebugContext(ctx, "smart dial failed via ", candidate.Tag, ": ", err)
 			lastErr = err
 			continue
@@ -145,6 +148,7 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		if rttMs > threshold && threshold > 0 {
 			_ = conn.Close()
 			s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeSoftFail, rttMs)
+			recordDialFeedback(s.Tag(), candidate.Tag, "tcp", false, elapsed, "soft-fail")
 			s.logger.DebugContext(ctx, "smart soft-fail via ", candidate.Tag, " rtt=", int(rttMs), "ms threshold=", int(threshold), "ms")
 			lastErr = E.New("smart soft-fail: ", candidate.Tag)
 			continue
@@ -156,19 +160,23 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 			conn = &firstWriteObserveConn{
 				Conn: conn,
 				onFirstWrite: func(err error, hsMs float64) {
+					totalElapsed := elapsed + time.Duration(hsMs*float64(time.Millisecond))
 					if err != nil {
 						s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeFailure, hsMs)
+						recordDialFeedback(s.Tag(), tag, "tcp", false, totalElapsed, classifyDialError(err))
 						s.logger.DebugContext(ctx, "smart handshake failed via ", tag, ": ", err)
 						return
 					}
 					th := s.engine.SoftFailThresholdMs(tag)
 					if hsMs > th && th > 0 {
 						s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeSoftFail, hsMs)
+						recordDialFeedback(s.Tag(), tag, "tcp", false, totalElapsed, "soft-fail")
 						s.logger.DebugContext(ctx, "smart handshake soft-fail via ", tag, " rtt=", int(hsMs), "ms")
 						return
 					}
 					s.engine.RecordFor(hostKey, engine.NetworkTCP, tag, engine.OutcomeSuccess, hsMs)
 					s.engine.RememberHostFor(hostKey, engine.NetworkTCP, tag)
+					recordDialFeedback(s.Tag(), tag, "tcp", true, totalElapsed, "")
 				},
 			}
 			s.selected = tag
@@ -177,6 +185,7 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 		}
 		s.engine.RecordFor(host, engine.NetworkTCP, candidate.Tag, engine.OutcomeSuccess, rttMs)
 		s.engine.RememberHostFor(host, engine.NetworkTCP, candidate.Tag)
+		recordDialFeedback(s.Tag(), candidate.Tag, "tcp", true, elapsed, "")
 		s.selected = candidate.Tag
 		conn = s.observeFirstByte(conn, host, candidate.Tag)
 		return s.interruptGroup.NewConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
@@ -212,14 +221,17 @@ func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		}
 		start := time.Now()
 		conn, err := detour.ListenPacket(ctx, destination)
-		rttMs := float64(time.Since(start).Milliseconds())
+		elapsed := time.Since(start)
+		rttMs := float64(elapsed.Milliseconds())
 		if err != nil {
 			s.engine.RecordFor(host, engine.NetworkUDP, candidate.Tag, engine.OutcomeFailure, rttMs)
+			recordDialFeedback(s.Tag(), candidate.Tag, "udp", false, elapsed, classifyDialError(err))
 			lastErr = err
 			continue
 		}
 		s.engine.RecordFor(host, engine.NetworkUDP, candidate.Tag, engine.OutcomeSuccess, rttMs)
 		s.engine.RememberHostFor(host, engine.NetworkUDP, candidate.Tag)
+		recordDialFeedback(s.Tag(), candidate.Tag, "udp", true, elapsed, "")
 		s.selected = candidate.Tag
 		return s.interruptGroup.NewPacketConn(conn, interrupt.IsExternalConnectionFromContext(ctx)), nil
 	}
@@ -227,6 +239,22 @@ func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return nil, lastErr
 	}
 	return nil, E.New("smart: no usable outbound for packet")
+}
+
+func classifyDialError(err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	}
+	var networkError net.Error
+	if errors.As(err, &networkError) && networkError.Timeout() {
+		return "timeout"
+	}
+	return "network"
 }
 
 func (s *Outbound) NewConnectionEx(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {

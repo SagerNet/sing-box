@@ -114,14 +114,17 @@ jobs:
           echo "should_build=$should_build" >> "$GITHUB_OUTPUT"
           echo "stable=$stable_tag version=$version build=$should_build sha=$(git rev-parse --short HEAD)"
 
-      - name: Verify Dart Smart is present
+      - name: Verify Dart Smart and feedback API are present
         if: steps.version.outputs.should_build == 'true'
         run: |
           set -euo pipefail
           test -f protocol/group/smart/outbound.go
+          test -f protocol/group/smart/feedback.go
           test -d protocol/group/smart/engine
+          test -f experimental/clashapi/dial_feedback.go
           grep -Fq 'TypeSmart = "smart"' constant/proxy.go
           grep -Fq 'smart.RegisterOutbound(registry)' include/registry.go
+          grep -Fq 'r.Get("/dart/dial-feedback", getDialFeedback)' experimental/clashapi/server.go
 
       - name: Setup Go
         if: steps.version.outputs.should_build == 'true'
@@ -169,7 +172,7 @@ jobs:
           STABLE_TAG: ${{ steps.version.outputs.stable_tag }}
         run: |
           set -euo pipefail
-          notes="Dart-maintained Windows amd64 build based on upstream stable $STABLE_TAG ($(git rev-parse --short HEAD)). Includes Dart Smart outbound + HTTP Clash API latency-test patch."
+          notes="Dart-maintained Windows amd64 build based on upstream stable $STABLE_TAG ($(git rev-parse --short HEAD)). Includes Dart Smart outbound, privacy-preserving dial feedback API, and HTTP Clash API latency-test patch."
           if gh release view "$DART_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$DART_TAG" \
               "dist/$ARCHIVE" \

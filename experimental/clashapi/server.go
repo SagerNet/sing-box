@@ -118,6 +118,7 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		r.Get("/logs", getLogs(s.ctx, logFactory))
 		r.Get("/traffic", traffic(s.ctx, trafficManager))
 		r.Get("/version", version)
+		r.Get("/dart/dial-feedback", getDialFeedback)
 		r.Mount("/configs", configRouter(s, logFactory))
 		r.Mount("/proxies", proxyRouter(s, s.router))
 		r.Mount("/rules", ruleRouter(s.router))
