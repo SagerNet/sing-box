@@ -106,6 +106,18 @@ func extractNegativeTTL(response *dns.Msg) (uint32, bool) {
 	return 0, false
 }
 
+func stripDNSPadding(response *dns.Msg) {
+	for _, record := range response.Extra {
+		opt, isOpt := record.(*dns.OPT)
+		if !isOpt {
+			continue
+		}
+		opt.Option = common.Filter(opt.Option, func(it dns.EDNS0) bool {
+			return it.Option() != dns.EDNS0PADDING
+		})
+	}
+}
+
 func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, message *dns.Msg, options adapter.DNSQueryOptions, responseChecker func(responseAddrs []netip.Addr) bool) (*dns.Msg, error) {
 	if len(message.Question) == 0 {
 		if c.logger != nil {
@@ -198,6 +210,8 @@ func (c *Client) Exchange(ctx context.Context, transport adapter.DNSTransport, m
 		} else {
 			return nil, err
 		}
+	} else {
+		stripDNSPadding(response)
 	}
 	/*if question.Qtype == dns.TypeA || question.Qtype == dns.TypeAAAA {
 		validResponse := response
