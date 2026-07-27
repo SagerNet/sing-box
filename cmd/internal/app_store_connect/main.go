@@ -289,7 +289,7 @@ func prepareAppStore(ctx context.Context) error {
 			return err
 		}
 		if len(builds.Data) == 0 {
-			log.Fatal(platform, " ", tag, " no build found")
+			log.Fatal(string(platform), " ", tag, " no build found")
 		}
 		buildID := common.Ptr(builds.Data[0].ID)
 		if version.ID == "" {
