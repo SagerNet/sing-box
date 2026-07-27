@@ -114,6 +114,7 @@ func (s *LocalRuleSet) reloadFile(path string) error {
 		if err != nil {
 			return err
 		}
+		defer setFile.Close()
 		ruleSet, err = srs.Read(setFile, false)
 		if err != nil {
 			return err
