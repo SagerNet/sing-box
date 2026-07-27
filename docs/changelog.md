@@ -2,11 +2,384 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-beta.3
+
+* Fixes and improvements
+
 #### 1.13.15
 
 * Fixes and improvements
 
+#### 1.14.0-beta.2
+
+* Add [JSON Schema](/configuration/schema/) support **1**
+* Fixes and improvements
+
+**1**:
+
+sing-box now provides a JSON Schema for its configuration, enabling completion
+and validation in compatible editors. The schema published with the
+documentation can be selected with the new top-level `$schema` field, while
+the new `sing-box schema` command generates a schema matching the current
+binary and its build tags.
+
+We have also improved the JSON editor experience in the graphical clients on
+macOS, Android, Windows, and Linux, and added schema-based completion support.
+
+#### 1.14.0-beta.1
+
+* Correct undefined rule-set matching semantics **1**
+* Add search domain rule items **2**
+* Add parallel DNS response evaluation support **3**
+* Fixes and improvements
+
+**1**:
+
+Rule-set matching has always been described as merged matching: fields of
+rule-set rules are considered merged into the referencing rule. However, this
+description is only intuitive when a rule-set contains only a single `default`
+rule without `invert`. Merged matching is now limited to exactly this case;
+any other referenced rule-set is matched as an `other field`, which matches
+when any of its rules matches on its own.
+Since the previous behavior in the corrected cases was effectively undefined,
+counterintuitive, and hard to understand, we do not consider this a breaking
+change — except for configurations that worked without their author
+understanding why.
+
+**2**:
+
+The new DNS rule items
+[`domain_label_count`](/configuration/dns/rule/#domain_label_count) and
+[`search_domain_available`](/configuration/dns/rule/#search_domain_available)
+match the number of labels in the query name and whether a DNS server
+currently holds search domains; combined with `racing`, they allow unqualified
+name queries to race a server that can expand them against a public resolver.
+Additionally, [`preferred_by`](/configuration/dns/rule/#preferred_by) now
+matches search domain suffixes and supports `local` and `dhcp` servers.
+
+**3**:
+
+The [`evaluate`](/configuration/dns/rule_action/#evaluate) action can now assign
+a `tag` to each response, allowing multiple evaluated responses to coexist and
+be selected through tagged
+[`match_response`](/configuration/dns/rule/#match_response) rules. The new
+[`race`](/configuration/dns/rule_action/#race) field allows response-dependent
+rules to compete in parallel, with the first matching rule taking effect and
+the remaining queries canceled. The new `speculative` option can start
+`evaluate` and `route` queries while race rules are still pending, reducing
+latency at the cost of potentially unused queries.
+
+#### 1.14.0-alpha.50
+
+* Improve OpenVPN interoperability **1**
+* Improve OpenConnect interoperability **2**
+* Add Fortinet host check support **3**
+* Fixes and improvements
+
+**1**:
+
+The OpenVPN client and server now interoperate with more existing deployments
+through static-key mode, additional legacy ciphers and digests, and
+OpenVPN-compatible certificate purpose, key usage, extended key usage, and
+certificate profile checks. They also support more OpenVPN options for tunnel
+addressing, MSS calculation, replay windows, timers, and TLS renegotiation. The
+new [OpenVPN DNS server](/configuration/dns/server/openvpn/) can use both modern
+and legacy DNS options pushed by OpenVPN servers, while the sing-box server can
+push both forms.
+
+**2**:
+
+The OpenConnect client now supports existing authentication sessions, OIDC
+Bearer authentication, additional platform and AnyConnect mobile identity
+fields, AnyConnect compression, and controls for MTU, DPD and reconnect timing,
+TCP keep alive, and TLS trust and certificate pinning. The new
+[OpenConnect DNS server](/configuration/dns/server/openconnect/) can use pushed
+split-DNS resolvers and, when enabled, general pushed resolvers.
+
+**3**:
+
+The [OpenConnect Client](/configuration/endpoint/openconnect/) endpoint can now
+submit Fortinet host check results using the new
+[`fortinet_host_check`](/configuration/endpoint/openconnect/#fortinet_host_check)
+option. This behavior is modeled after openfortivpn and is not an OpenConnect
+feature. sing-box only submits explicitly configured values when requested by
+the Fortinet server and does not collect system information automatically.
+
+#### 1.14.0-alpha.48
+
+* Add SSO support for AnyConnect **1**
+* Add Linux support for the [desktop client application](/clients/desktop/) **2**
+* Fixes and improvements
+
+**1**:
+
+The [OpenConnect Client](/configuration/endpoint/openconnect/) endpoint now
+supports SSO (single sign-on) authentication for Cisco AnyConnect servers,
+available through the sing-box graphical clients.
+
+**2**:
+
+The [sing-box for Desktop](/clients/desktop/) client is now available for Linux
+(x64 / arm64 / armv7l) from
+[GitHub Releases](https://github.com/SagerNet/sing-box/releases).
+
+#### 1.14.0-alpha.47
+
+* Add OpenVPN client and server support **1**
+* Add OpenConnect client support **2**
+* Fixes and improvements
+
+**1**:
+
+The new [OpenVPN Client](/configuration/endpoint/openvpn-client/) and
+[OpenVPN Server](/configuration/endpoint/openvpn-server/) endpoints are
+compatible with standard OpenVPN clients and servers. Interactive client
+authentication is available through the sing-box graphical clients and
+[Dashboard](https://github.com/SagerNet/sing-box-dashboard).
+
+**2**:
+
+The new [OpenConnect Client](/configuration/endpoint/openconnect/) endpoint
+supports Cisco AnyConnect, GlobalProtect, Fortinet, F5, Pulse Connect Secure,
+and Juniper Network Connect VPN servers. Interactive authentication is
+available through the sing-box graphical clients and
+[Dashboard](https://github.com/SagerNet/sing-box-dashboard).
+
+#### 1.14.0-alpha.46
+
+* Add multiple tags support to rule-sets **1**
+* Add new UDP NAT options **2**
+* Fixes and improvements
+
+**1**:
+
+The rule-set [`tag`](/configuration/rule-set/#tag) field now accepts a list of
+tags to define multiple rule-sets sharing other options at once, with the
+`{tag}` placeholder in `path` or `url` replaced by each tag.
+
+**2**:
+
+The new [UDP NAT](/configuration/shared/udp-nat/) fields
+[`udp_mapping`](/configuration/shared/udp-nat/#udp_mapping),
+[`udp_filtering`](/configuration/shared/udp-nat/#udp_filtering) and
+[`udp_nat_max`](/configuration/shared/udp-nat/#udp_nat_max) configure the NAT
+mapping and filtering behaviors and the maximum number of UDP NAT sessions for
+TUN and TProxy inbounds and the WireGuard endpoint.
+
+#### 1.14.0-alpha.45
+
+* Improve the Windows client application **1**
+* Fixes and improvements
+
+**1**:
+
+The [Windows client](/clients/desktop/) now includes an updater, adds support
+for Windows native sharing of sing-box profile and JSON files, and fixes the
+Tailscale SSH terminal. The
+[Tailscale SSH server](/configuration/endpoint/tailscale/#ssh_server) can now
+open sessions for any local user in the graphical client, while the command
+line client remains limited to the user sing-box runs as. Additionally,
+configurations that use privileges unrelated to networking are now rejected by
+default; an insecure mode is available to allow them.
+
+#### 1.14.0-alpha.44
+
+* Introducing our [new Windows client application](/clients/desktop/) **1**
+* Fixes and improvements
+
+**1**:
+
+The new [Windows client](/clients/desktop/) provides an experience equal to
+other standard sing-box graphical clients, is available for Windows 10+
+(x64 / x86 / arm64), and is distributed as an installer from
+[GitHub Releases](https://github.com/SagerNet/sing-box/releases)
+(`SFW-<version>-<architecture>.exe`).
+
+#### 1.14.0-alpha.43
+
+* Add network namespace support **1**
+* Fixes and improvements
+
+**1**:
+
+The new [`network_namespaces`](/configuration/network-namespace/) option defines
+Linux network namespaces for inbounds and outbounds, referenced by tag from the
+new tun [`netns`](/configuration/inbound/tun/#netns) field and the existing
+[Listen](/configuration/shared/listen/#netns) and
+[Dial](/configuration/shared/dial/#netns) `netns` fields.
+
+The [`unshare`](/configuration/network-namespace/unshare/) type creates the
+namespace at startup without requiring root privileges: a rootless sing-box can
+provide a tun (including `auto_route` and `auto_redirect`) inside a namespace,
+which can be entered with `nsenter`.
+
+#### 1.14.0-alpha.42
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.41
+
+* Add windows bridge **1**
+* Add `preferred_by` support for bridge **2**
+* Add hysteria2 realm IP version restriction **3**
+* Add hysteria2 realm port mapping **4**
+* Fixes and improvements
+
+**1**:
+
+The [`bridge`](/configuration/outbound/bridge/) outbound is now supported on
+Windows, implemented via WinDivert and requiring Administrator privileges.
+
+**2**:
+
+The [`bridge`](/configuration/outbound/bridge/) outbound now works with the
+[`preferred_by`](/configuration/route/rule/#preferred_by) route rule item.
+It is recommended to use `preferred_by` as a gate in the `route` rule: it only
+matches in [pre-match](/configuration/shared/pre-match/) and excludes local
+addresses that cannot be routed.
+
+**3**:
+
+The new [`realm.ip_version`](/configuration/outbound/hysteria2/#realmip_version)
+inbound and outbound field restricts realm connections (STUN, hole punching,
+and the resulting QUIC path) to a single IP version.
+
+**4**:
+
+The new [`realm.port_mapping`](/configuration/outbound/hysteria2/#realmport_mapping)
+inbound and outbound field maintains a UDP port mapping on the local gateway
+via UPnP or NAT-PMP, improving hole-punching reliability behind gateways that
+support it.
+
+#### 1.14.0-alpha.40
+
+* Add bridge outbound **1**
+* Fixes and improvements
+
+**1**:
+
+The new `bridge` outbound is the L3 counterpart of `direct`: it forwards L3
+traffic (TCP, UDP and ICMP) from a TUN or other L3 endpoints directly out of a
+network interface, without going through L3 to L4 translation. It requires
+privileges and is supported on Linux, macOS, rooted Android, and jailbroken iOS.
+
+See [Bridge](/configuration/outbound/bridge/).
+
+#### 1.14.0-alpha.39
+
+* Add L3 forwarding support **1**
+* Fixes and improvements
+
+**1**:
+
+Building on the ICMP proxy support introduced in sing-box 1.13.0, TCP and UDP
+traffic from L3 inbounds (TUN, WireGuard, and Tailscale) can now be forwarded
+directly to WireGuard and Tailscale endpoints at L3, without going through
+L3 to L4 translation.
+
+See [Pre-match](/configuration/shared/pre-match/).
+
+#### 1.14.0-alpha.38
+
+* Add Snell protocol support **1**
+* Fixes and improvements
+
+**1**:
+
+Surge believes that being closed-source and not proliferated can keep
+[Snell](https://kb.nssurge.com/surge-knowledge-base/release-notes/snell)
+covert, but this is already impossible in 2026; considering that Snell still
+has advantages that other random-traffic protocols do not possess, such as
+multiplexing support with complete TCP semantics and traffic-characteristic
+diversity, we [implemented it in Go](https://github.com/SagerNet/sing-snell)
+instead of reinventing the wheel, with all features except the v5 QUIC proxy,
+behavior as consistent with the official implementation as possible, and
+performance at least on par with it.
+
+See [Snell Inbound](/configuration/inbound/snell/) and
+[Snell Outbound](/configuration/outbound/snell/).
+
 #### 1.13.14
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.33
+
+* Add iOS jailbreak release **1**
+* Fixes and improvements
+
+**1**:
+
+A new jailbreak build of the iOS [sing-box for Apple](/clients/apple/) client is
+available, distributed as a `.deb` for rootless iOS 15.0+ from
+[GitHub Releases](https://github.com/SagerNet/sing-box/releases)
+(`SFI-iphoneos-arm64.deb`). Unlike the App Store and TestFlight builds, it can run
+a [Tailscale SSH server](/configuration/endpoint/tailscale/#ssh_server) on the
+device and supports [process matching](/configuration/route/rule/#process_name)
+(`process_name`, `process_path`, `user`, and so on) in route and DNS rules.
+
+#### 1.14.0-alpha.32
+
+* Add dashboard support for the API service **1**
+* Add USB/IP service **2**
+* Fixes and improvements
+
+**1**:
+
+The [sing-box API service](/configuration/service/api/) can now download, update
+and serve [sing-box-dashboard](https://github.com/SagerNet/sing-box-dashboard)
+directly over its listener, configured via the new
+[`dashboard`](/configuration/service/api/#dashboard) option.
+
+**2**:
+
+New [USB/IP Server](/configuration/service/usbip-server/) and
+[USB/IP Client](/configuration/service/usbip-client/) services export and import
+USB devices over the [USB/IP](https://usbip.sourceforge.net/) protocol, built on
+[sing-usbip](https://github.com/SagerNet/sing-usbip), which adds hotplug while
+staying interoperable with standard USB/IP. Exporting config-selected local
+devices (`provider: default`) runs via the CLI on Linux, Windows, and macOS and
+requires elevated privileges (macOS additionally needs a CGO build and disabled
+System Integrity Protection). With `provider: dynamic`, devices are instead
+supplied at runtime through the API service by the graphical clients on macOS and
+Android, or the [sing-box Dashboard](https://github.com/SagerNet/sing-box-dashboard).
+
+#### 1.14.0-alpha.31
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.30
+
+* Introducing sing-box API service **1**
+* Apple/Android: Introducing remote control **2**
+* Introducing sing-box Dashboard **3**
+* Fixes and improvements
+
+**1**:
+
+The new [sing-box API service](/configuration/service/api/) is a gRPC
+server for observing and controlling the running sing-box instance,
+exposing the same interface the graphical clients use locally: service
+status, logs, outbound groups (selection and URL tests), Clash mode,
+connection tracking, and tools such as network quality tests, STUN
+tests, and Tailscale operations.
+
+**2**:
+
+The graphical clients for Apple platforms and Android can now control
+remote sing-box instances running the API service. Remote servers (URL
+and secret) are managed in settings; the dashboard, logs, connections,
+groups, and tools pages can then switch between the local service and
+remote instances.
+
+**3**:
+
+[sing-box Dashboard](https://github.com/SagerNet/sing-box-dashboard) is
+a new web client for the API service, providing almost the same
+experience as the graphical clients. A public instance is available at
+http://sing-box-dashboard.sagernet.org (shortcut: dash.sing-box.app).
+
+#### 1.14.0-alpha.29
 
 * Fixes and improvements
 
@@ -14,22 +387,278 @@ icon: material/alert-decagram
 
 * Fixes and improvements
 
+#### 1.14.0-alpha.27
+
+* Add Tailscale SSH server **1**
+* Fixes and improvements
+
+**1**:
+
+Adds an [`ssh_server`](/configuration/endpoint/tailscale/#ssh_server) field to
+[Tailscale](/configuration/endpoint/tailscale/) endpoints, running a Tailscale SSH
+server on tailnet port 22. Access is controlled by the SSH ACL in the Tailscale
+admin console, which maps each connection to a local user (behavior varies by
+platform; iOS and tvOS are not yet supported). The value may be `true` (equivalent
+to `{ "enabled": true }`), or an object that additionally sets
+[`disable_pty`](/configuration/endpoint/tailscale/#ssh_serverdisable_pty),
+[`disable_sftp`](/configuration/endpoint/tailscale/#ssh_serverdisable_sftp), and
+[`disable_forwarding`](/configuration/endpoint/tailscale/#ssh_serverdisable_forwarding).
+
+#### 1.14.0-alpha.26
+
+* Add gecko obfs for Hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+Adds `gecko` as a new QUIC traffic obfuscation type for
+[Hysteria2 inbound](/configuration/inbound/hysteria2/#obfstype) and
+[outbound](/configuration/outbound/hysteria2/#obfstype), alongside the
+existing `salamander`. Gecko supports configurable
+[`min_packet_size`](/configuration/inbound/hysteria2/#obfsmin_packet_size)
+(default 512) and
+[`max_packet_size`](/configuration/inbound/hysteria2/#obfsmax_packet_size)
+(default 1200) fields.
+
+#### 1.14.0-alpha.25
+
+* Revert Tailscale endpoint dial fields deprecation and remove `control_http_client` **1**
+* Fixes and improvements
+
+**1**:
+
+The `control_http_client` field on
+[Tailscale](/configuration/endpoint/tailscale/) endpoints introduced in
+`1.14.0-alpha.13` is removed, and the deprecation of
+[Dial Fields](/configuration/endpoint/tailscale/#dial-fields) is reverted.
+
 #### 1.13.12
 
 * Update naiveproxy to v148.0.7778.96-1
 * Fixes and improvements
+
+#### 1.14.0-alpha.22
+
+* Add Hysteria Realm service and Hysteria2 NAT traversal support **1**
+* Fixes and improvements
+
+**1**:
+
+The new [Hysteria Realm service](/configuration/service/hysteria-realm/)
+is a rendezvous service for Hysteria2 NAT traversal. A Hysteria2 server
+behind NAT registers its STUN-discovered public addresses on a stable
+realm endpoint via the new
+[`realm`](/configuration/inbound/hysteria2/#realm) inbound field;
+clients query the realm via the new
+[`realm`](/configuration/outbound/hysteria2/#realm) outbound field to
+learn the server's current addresses and perform UDP hole-punching to
+establish a direct QUIC connection. Once hole-punching succeeds, all
+proxy traffic flows directly between client and server.
+
+#### 1.14.0-alpha.21
+
+* Allow customizing TUN DNS mode and hijack interface DNS by default **1**
+* Add mDNS DNS server **2**
+* Add `preferred_by` DNS rule item **3**
+* Add neighbor-based hostname resolution for the local DNS server **4**
+* Update NaiveProxy to 148.0.7778.96-1
+* Add more TLS spoof methods and route rule action support **5**
+* Fixes and improvements
+
+**1**:
+
+Adds [`dns_mode`](/configuration/inbound/tun/#dns_mode) and
+[`dns_address`](/configuration/inbound/tun/#dns_address) on the TUN inbound.
+The default `hijack` mode now sets the platform's native interface DNS
+(`systemd-resolved` on Linux, per-interface DNS on Windows and Apple) and
+installs platform-level DNS hijacking (an `iproute2` rule on Linux,
+nftables DNAT when `auto_redirect` is enabled, WFP filters on Windows when
+`strict_route` is enabled). Earlier versions did not touch the interface
+DNS or the platform firewall.
+
+**2**:
+
+The new [mDNS DNS server](/configuration/dns/server/mdns/) sends queries via
+multicast on the local network. The default
+[local DNS server](/configuration/dns/server/local/) also routes queries for
+`*.local.` and IPv4/IPv6 link-local reverse zones via mDNS on non-Apple
+platforms (and via the system resolver on Apple), so an explicit `mdns`
+server is only needed to reference it from
+[`preferred_by`](/configuration/dns/rule/#preferred_by) or to use it
+standalone.
+
+**3**:
+
+The new [`preferred_by`](/configuration/dns/rule/#preferred_by) DNS rule
+item matches domains that the listed DNS servers consider their preferred
+names. Supported server types are `hosts`, `local`, `mdns`, `tailscale`, and
+`resolved`. The [Tailscale](/configuration/dns/server/tailscale/),
+[Hosts](/configuration/dns/server/hosts/) and
+[Resolved](/configuration/dns/server/resolved/) example pages have been
+updated to use this rule item in place of the previous `evaluate` +
+`ip_accept_any` + `respond` pattern.
+
+**4**:
+
+Adds [`neighbor_domain`](/configuration/dns/server/local/#neighbor_domain)
+on the local DNS server. Listed suffixes (each starting with `.`) cause
+A/AAAA queries for single-label hosts under those suffixes to be answered
+from the [neighbor resolver](/configuration/shared/neighbor/) instead of
+the upstream (for example `[".", ".lan"]`).
+
+**5**:
+
+Adds `wrong-ack`, `wrong-md5`, and `wrong-timestamp`
+[spoof methods](/configuration/shared/tls/#spoof_method), and adds
+[`tls_spoof`](/configuration/route/rule_action/#tls_spoof) /
+[`tls_spoof_method`](/configuration/route/rule_action/#tls_spoof_method)
+to route rule actions for per-rule TLS spoofing without outbound TLS settings.
+
+#### 1.14.0-alpha.20
+
+** Fixes and improvements
+
+#### 1.14.0-alpha.19
+
+* Preserve comments between formatting
+* Add cipher, MAC, and key exchange algorithm options for SSH outbound **1**
+* Add DNS query timeout options **2**
+** Fixes and improvements
+
+**1**:
+
+See [SSH](/configuration/outbound/ssh/#cipher).
+
+**2**:
+
+Adds [`dns.timeout`](/configuration/dns/#timeout), with per-query
+overrides via [DNS rule action](/configuration/dns/rule_action/#timeout)
+and [`resolve` route rule action](/configuration/route/rule_action/#timeout),
+and a `timeout` field on
+[`domain_resolver`](/configuration/shared/dial/#domain_resolver).
+
+#### 1.14.0-alpha.18
+
+* Add Windows TLS engine **1**
+* Fixes and improvements
+
+**1**:
+
+The new `windows` value for outbound TLS
+[`engine`](/configuration/shared/tls/#engine) routes the TLS handshake
+through Schannel via SSPI. Only available on Windows build 17763 or
+later (Windows 10 version 1809, Windows Server 2019, or newer); TLS 1.3
+is only negotiated on Windows 11 or Windows Server 2022 and newer.
 
 #### 1.13.11
 
 * Fix process searcher failure introduced in 1.13.9
 * Fixes and improvements
 
+#### 1.14.0-alpha.16
+
+* Add ACME profile support for IP address certificates **1**
+* Fixes and improvements
+
+**1**:
+
+See [ACME Certificate Provider](/configuration/shared/certificate-provider/acme/#profile).
+
 #### 1.13.10
 
 * Fix process searcher failure introduced in 1.13.9
 
+#### 1.14.0-alpha.15
+
+* Add search domain support for Tailscale DNS **1**
+* Fixes and improvements
+
+**1**:
+
+See [Tailscale DNS Server](/configuration/dns/server/tailscale/#accept_search_domain).
+
 #### 1.13.9
 
+* Fixes and improvements
+
+#### 1.14.0-alpha.13
+
+* Unify HTTP client **1**
+* Add Apple HTTP and TLS engines **2**
+* Unify HTTP/2 and QUIC parameters **3**
+* Add TLS spoof **4**
+* Fixes and improvements
+
+**1**:
+
+The new top-level [`http_clients`](/configuration/shared/http-client/)
+option defines reusable HTTP clients (engine, version, dialer, TLS,
+HTTP/2 and QUIC parameters). Components that make outbound HTTP requests
+— remote rule-sets, ACME and Cloudflare Origin CA certificate providers,
+DERP `verify_client_url`, and the Tailscale `control_http_client` — now
+accept an inline HTTP client object or the tag of an `http_clients`
+entry, replacing the dial and TLS fields previously inlined in each
+component. When the field is omitted, ACME, Cloudflare Origin CA, DERP
+and Tailscale dial direct (their existing default).
+
+Remote rule-sets are the only HTTP-using component whose default for an
+omitted `http_client` has historically resolved to the default outbound,
+not to direct, and a typical configuration contains many of them. To
+avoid repeating the same `http_client` block in every rule-set,
+[`route.default_http_client`](/configuration/route/#default_http_client)
+selects a default rule-set client by tag and is the only field that
+consults it. If `default_http_client` is empty and `http_clients` is
+non-empty, the first entry is used automatically. The legacy fallback
+(use the default outbound when `http_clients` is empty altogether) is
+preserved with a deprecation warning and will be removed in sing-box
+1.16.0, together with the legacy `download_detour` remote rule-set
+option and the legacy dialer fields on Tailscale endpoints.
+
+**2**:
+
+A new `apple` engine is available on Apple platforms in two independent
+places:
+
+* [HTTP client `engine`](/configuration/shared/http-client/#engine) —
+  routes HTTP requests through `NSURLSession`.
+* Outbound TLS [`engine`](/configuration/shared/tls/#engine) — routes
+  the TLS handshake through `Network.framework` for direct TCP TLS
+  client connections.
+
+The default remains `go`. Both engines come with additional CGO and
+framework memory overhead and platform restrictions documented on each
+field.
+
+**3**:
+
+[HTTP/2](/configuration/shared/http2/) and
+[QUIC](/configuration/shared/quic/) parameters
+(`idle_timeout`, `keep_alive_period`, `stream_receive_window`,
+`connection_receive_window`, `max_concurrent_streams`,
+`initial_packet_size`, `disable_path_mtu_discovery`) are now shared
+across QUIC-based outbounds
+([Hysteria](/configuration/outbound/hysteria/),
+[Hysteria2](/configuration/outbound/hysteria2/),
+[TUIC](/configuration/outbound/tuic/)) and HTTP clients running HTTP/2
+or HTTP/3.
+
+This deprecates the Hysteria v1 tuning fields `recv_window_conn`,
+`recv_window`, `recv_window_client`, `max_conn_client` and
+`disable_mtu_discovery`; they will be removed in sing-box 1.16.0.
+
+**4**:
+
+Added outbound TLS [`spoof`](/configuration/shared/tls/#spoof) and
+[`spoof_method`](/configuration/shared/tls/#spoof_method) fields. When
+enabled, a forged ClientHello carrying a whitelisted SNI is sent before
+the real handshake to fool SNI-filtering middleboxes. Requires
+`CAP_NET_RAW` + `CAP_NET_ADMIN` or root on Linux and macOS, and
+Administrator privileges on Windows (ARM64 is not supported). IP-literal
+server names are rejected.
+
+#### 1.14.0-alpha.12
+
+* Fix fake-ip DNS server should return SUCCESS when address type is not configured
 * Fixes and improvements
 
 #### 1.13.8
@@ -38,21 +667,127 @@ icon: material/alert-decagram
 * Fix fake-ip DNS server should return SUCCESS when address type is not configured
 * Fixes and improvements
 
+#### 1.14.0-alpha.11
+
+* Add optimistic DNS cache **1**
+* Update NaiveProxy to 147.0.7727.49
+* Fixes and improvements
+
+**1**:
+
+Optimistic DNS cache returns an expired cached response immediately while
+refreshing it in the background, reducing tail latency for repeated
+queries. Enabled via [`optimistic`](/configuration/dns/#optimistic)
+in DNS options, and can be persisted across restarts with the new
+[`store_dns`](/configuration/experimental/cache-file/#store_dns) cache
+file option. A per-query
+[`disable_optimistic_cache`](/configuration/dns/rule_action/#disable_optimistic_cache)
+field is also available on DNS rule actions and the `resolve` route rule
+action.
+
+This deprecates the `independent_cache` DNS option (the DNS cache now
+always keys by transport) and the `store_rdrc` cache file option
+(replaced by `store_dns`); both will be removed in sing-box 1.16.0.
+See [Migration](/migration/#migrate-independent-dns-cache).
+
+#### 1.14.0-alpha.10
+
+* Add `evaluate` DNS rule action and Response Match Fields **1**
+* `ip_version` and `query_type` now also take effect on internal DNS lookups **2**
+* Add `package_name_regex` route, DNS and headless rule item **3**
+* Add cloudflared inbound **4**
+* Fixes and improvements
+
+**1**:
+
+Response Match Fields
+([`response_rcode`](/configuration/dns/rule/#response_rcode),
+[`response_answer`](/configuration/dns/rule/#response_answer),
+[`response_ns`](/configuration/dns/rule/#response_ns),
+and [`response_extra`](/configuration/dns/rule/#response_extra))
+match the evaluated DNS response. They are gated by the new
+[`match_response`](/configuration/dns/rule/#match_response) field and
+populated by a preceding
+[`evaluate`](/configuration/dns/rule_action/#evaluate) DNS rule action;
+the evaluated response can also be returned directly by a
+[`respond`](/configuration/dns/rule_action/#respond) action.
+
+This deprecates the Legacy Address Filter Fields (`ip_cidr`,
+`ip_is_private` without `match_response`) in DNS rules, the Legacy
+`strategy` DNS rule action option, and the Legacy
+`rule_set_ip_cidr_accept_empty` DNS rule item; all three will be removed
+in sing-box 1.16.0.
+See [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
+
+**2**:
+
+`ip_version` and `query_type` in DNS rules, together with `query_type` in
+referenced rule-sets, now take effect on every DNS rule evaluation,
+including matches from internal domain resolutions that do not target a
+specific DNS server (for example a `resolve` route rule action without
+`server` set). In earlier versions they were silently ignored in that
+path. Combining these fields with any of the legacy DNS fields deprecated
+in **1** in the same DNS configuration is no longer supported and is
+rejected at startup.
+See [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules).
+
+**3**:
+
+See [Route Rule](/configuration/route/rule/#package_name_regex),
+[DNS Rule](/configuration/dns/rule/#package_name_regex) and
+[Headless Rule](/configuration/rule-set/headless-rule/#package_name_regex).
+
+**4**:
+
+See [Cloudflared](/configuration/inbound/cloudflared/).
+
 #### 1.13.7
 
-* Fixes and improvements
+* Fixes and improvement
 
 #### 1.13.6
 
 * Fixes and improvements
 
+#### 1.14.0-alpha.8
+
+* Add BBR profile and hop interval randomization for Hysteria2 **1**
+* Fixes and improvements
+
+**1**:
+
+See [Hysteria2 Inbound](/configuration/inbound/hysteria2/#bbr_profile) and [Hysteria2 Outbound](/configuration/outbound/hysteria2/#bbr_profile).
+
 #### 1.13.5
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.7
 
 * Fixes and improvements
 
 #### 1.13.4
 
 * Fixes and improvements
+
+#### 1.14.0-alpha.4
+
+* Refactor ACME support to certificate provider system **1**
+* Add Cloudflare Origin CA certificate provider **2**
+* Add Tailscale certificate provider **3**
+* Fixes and improvements
+
+**1**:
+
+See [Certificate Provider](/configuration/shared/certificate-provider/) and [Migration](/migration/#migrate-inline-acme-to-certificate-provider).
+
+**2**:
+
+See [Cloudflare Origin CA](/configuration/shared/certificate-provider/cloudflare-origin-ca).
+
+**3**:
+
+See [Tailscale](/configuration/shared/certificate-provider/tailscale).
 
 #### 1.13.3
 
@@ -77,6 +812,59 @@ from [SagerNet/go](https://github.com/SagerNet/go).
 **3**:
 
 See [OCM](/configuration/service/ocm).
+
+#### 1.12.24
+
+* Fixes and improvements
+
+#### 1.14.0-alpha.2
+
+* Add OpenWrt and Alpine APK packages to release **1**
+* Backport to macOS 10.13 High Sierra **2**
+* OCM service: Add WebSocket support for Responses API **3**
+* Fixes and improvements
+
+**1**:
+
+Alpine APK files use `linux` in the filename to distinguish from OpenWrt APKs which use the `openwrt` prefix:
+
+- OpenWrt: `sing-box_{version}_openwrt_{architecture}.apk`
+- Alpine: `sing-box_{version}_linux_{architecture}.apk`
+
+**2**:
+
+Legacy macOS binaries (with `-legacy-macos-10.13` suffix) now support
+macOS 10.13 High Sierra, built using Go 1.25 with patches
+from [SagerNet/go](https://github.com/SagerNet/go).
+
+**3**:
+
+See [OCM](/configuration/service/ocm).
+
+#### 1.14.0-alpha.1
+
+* Add `source_mac_address` and `source_hostname` rule items **1**
+* Add `include_mac_address` and `exclude_mac_address` TUN options **2**
+* Update NaiveProxy to 145.0.7632.159 **3**
+* Fixes and improvements
+
+**1**:
+
+New rule items for matching LAN devices by MAC address and hostname via neighbor resolution.
+Supported on Linux, macOS, or in graphical clients on Android and macOS.
+
+See [Route Rule](/configuration/route/rule/#source_mac_address), [DNS Rule](/configuration/dns/rule/#source_mac_address) and [Neighbor Resolution](/configuration/shared/neighbor/).
+
+**2**:
+
+Limit or exclude devices from TUN routing by MAC address.
+Only supported on Linux with `auto_route` and `auto_redirect` enabled.
+
+See [TUN](/configuration/inbound/tun/#include_mac_address).
+
+**3**:
+
+This is not an official update from NaiveProxy. Instead, it's a Chromium codebase update maintained by Project S.
 
 #### 1.13.2
 
