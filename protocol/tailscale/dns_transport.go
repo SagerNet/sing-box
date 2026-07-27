@@ -283,7 +283,7 @@ func (t *DNSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.M
 		}
 	}
 	for domainSuffix, transports := range routes {
-		if strings.HasSuffix(question.Name, domainSuffix) {
+		if mDNS.IsSubDomain(domainSuffix, question.Name) {
 			if len(transports) == 0 {
 				return &mDNS.Msg{
 					MsgHdr: mDNS.MsgHdr{
