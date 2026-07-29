@@ -194,6 +194,7 @@ jobs:
         run: |-
           set -xeuo pipefail
           sudo gem install fpm
+          echo '%_rpmformat 4' > "$HOME/.rpmmacros"
           cp .fpm_systemd .fpm
           fpm -t rpm \
             --name "${NAME}" \
