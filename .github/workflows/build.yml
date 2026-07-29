@@ -1138,6 +1138,7 @@ jobs:
           set -euo pipefail
           sudo apt-get update || true
           sudo apt-get install -y debsigs libarchive-tools rpm zstd
+          echo '%_rpmformat 4' > "$HOME/.rpmmacros"
       - name: Install dependencies
         run: |-
           pnpm -C clients/desktop install
