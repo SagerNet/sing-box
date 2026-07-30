@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -30,17 +31,29 @@ import (
 )
 
 type Endpoint struct {
-	options        EndpointOptions
-	peers          []peerConfig
-	ipcConf        string
-	allowedAddress []netip.Prefix
-	tunDevice      Device
-	natDevice      NatDevice
-	device         *device.Device
-	allowedIPs     *device.AllowedIPs
-	pause          pause.Manager
-	pauseCallback  *list.Element[pause.Callback]
+	options          EndpointOptions
+	peers            []peerConfig
+	ipcConf          string
+	allowedAddress   []netip.Prefix
+	tunDevice        Device
+	natDevice        NatDevice
+	device           *device.Device
+	allowedIPs       *device.AllowedIPs
+	pause            pause.Manager
+	pauseCallback    *list.Element[pause.Callback]
+	bind             *runtimeBind
+	ipcSet           func(string) error
+	dnsRefresh       chan struct{}
+	dnsRefreshDone   chan struct{}
+	dnsRefreshCancel context.CancelFunc
 }
+
+const (
+	// wireGuardHandshakeRetryLog is emitted by wireguard-go's expiredRetransmitHandshake.
+	// wireguard-go does not expose a typed callback for this event.
+	wireGuardHandshakeRetryLog = "%s - Handshake did not complete after %d seconds, retrying (try %d)"
+	dnsRefreshInterval         = 10 * time.Second
+)
 
 func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 	if options.PrivateKey == "" {
@@ -145,32 +158,38 @@ func (e *Endpoint) Start(resolve bool) error {
 			if peer.endpoint.IsValid() || !peer.destination.IsDomain() {
 				continue
 			}
-			destinationAddress, err := e.options.ResolvePeer(peer.destination.Fqdn)
+			destinationAddresses, err := e.options.ResolvePeer(e.options.Context, peer.destination.Fqdn, false)
 			if err != nil {
 				return E.Cause(err, "resolve endpoint domain for peer[", peerIndex, "]: ", peer.destination)
+			}
+			destinationAddress, loaded := firstValidAddress(destinationAddresses)
+			if !loaded {
+				return E.New("no addresses found for peer[", peerIndex, "]: ", peer.destination)
 			}
 			e.peers[peerIndex].endpoint = netip.AddrPortFrom(destinationAddress, peer.destination.Port)
 		}
 	} else if resolve {
 		return nil
 	}
-	var bind conn.Bind
+	var rawBind conn.Bind
 	wgListener, isWgListener := common.Cast[dialer.WireGuardListener](e.options.Dialer)
 	if isWgListener {
-		bind = conn.NewStdNetBind(wgListener.WireGuardControl())
+		rawBind = conn.NewStdNetBind(wgListener.WireGuardControl())
 	} else {
 		var (
 			isConnect   bool
 			connectAddr netip.AddrPort
 			reserved    [3]uint8
 		)
-		if len(e.peers) == 1 && e.peers[0].endpoint.IsValid() {
+		if len(e.peers) == 1 && e.peers[0].endpoint.IsValid() && !e.peers[0].destination.IsDomain() {
 			isConnect = true
 			connectAddr = e.peers[0].endpoint
 			reserved = e.peers[0].reserved
 		}
-		bind = NewClientBind(e.options.Context, e.options.Logger, e.options.Dialer, isConnect, connectAddr, reserved)
+		rawBind = NewClientBind(e.options.Context, e.options.Logger, e.options.Dialer, isConnect, connectAddr, reserved)
 	}
+	bind := &runtimeBind{Bind: rawBind}
+	e.bind = bind
 	if isWgListener || len(e.peers) > 1 {
 		for _, peer := range e.peers {
 			if peer.reserved != [3]uint8{} {
@@ -184,6 +203,9 @@ func (e *Endpoint) Start(resolve bool) error {
 	}
 	logger := &device.Logger{
 		Verbosef: func(format string, args ...any) {
+			if isWireGuardHandshakeRetry(format) {
+				e.triggerDNSRefresh()
+			}
 			e.options.Logger.Debug(fmt.Sprintf(strings.ToLower(format), args...))
 		},
 		Errorf: func(format string, args ...any) {
@@ -209,6 +231,8 @@ func (e *Endpoint) Start(resolve bool) error {
 		return E.Cause(err, "setup wireguard: \n", ipcConf.String())
 	}
 	e.device = wgDevice
+	e.ipcSet = wgDevice.IpcSet
+	e.startDNSRefresh()
 	e.pause = service.FromContext[pause.Manager](e.options.Context)
 	if e.pause != nil {
 		e.pauseCallback = e.pause.RegisterCallback(e.onPauseUpdated)
@@ -232,6 +256,7 @@ func (e *Endpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 }
 
 func (e *Endpoint) Close() error {
+	e.stopDNSRefresh()
 	if e.pauseCallback != nil {
 		e.pause.UnregisterCallback(e.pauseCallback)
 		e.pauseCallback = nil
@@ -241,6 +266,7 @@ func (e *Endpoint) Close() error {
 		e.device.Close()
 		e.device = nil
 	}
+	e.ipcSet = nil
 	return nil
 }
 
@@ -265,6 +291,123 @@ func (e *Endpoint) onPauseUpdated(event int) {
 	case pause.EventDeviceWake, pause.EventNetworkWake:
 		e.device.Up()
 	}
+}
+
+func (e *Endpoint) startDNSRefresh() {
+	if !common.Any(e.peers, func(peer peerConfig) bool { return peer.destination.IsDomain() }) {
+		return
+	}
+	refreshCtx, cancel := context.WithCancel(e.options.Context)
+	e.dnsRefresh = make(chan struct{}, 1)
+	e.dnsRefreshDone = make(chan struct{})
+	e.dnsRefreshCancel = cancel
+	go func() {
+		defer close(e.dnsRefreshDone)
+		var lastRefresh time.Time
+		for {
+			select {
+			case <-refreshCtx.Done():
+				return
+			case <-e.dnsRefresh:
+				if time.Since(lastRefresh) < dnsRefreshInterval {
+					continue
+				}
+				e.refreshPeerEndpoints(refreshCtx)
+				lastRefresh = time.Now()
+			}
+		}
+	}()
+}
+
+func (e *Endpoint) stopDNSRefresh() {
+	if e.dnsRefreshCancel == nil {
+		return
+	}
+	e.dnsRefreshCancel()
+	<-e.dnsRefreshDone
+	e.dnsRefreshCancel = nil
+}
+
+func (e *Endpoint) triggerDNSRefresh() {
+	if e.dnsRefresh == nil {
+		return
+	}
+	select {
+	case e.dnsRefresh <- struct{}{}:
+	default:
+	}
+}
+
+func (e *Endpoint) refreshPeerEndpoints(ctx context.Context) {
+	if e.ipcSet == nil {
+		return
+	}
+	for peerIndex := range e.peers {
+		peer := &e.peers[peerIndex]
+		if !peer.destination.IsDomain() {
+			continue
+		}
+		addresses, err := e.options.ResolvePeer(ctx, peer.destination.Fqdn, true)
+		if err != nil {
+			e.options.Logger.Warn(E.Cause(err, "resolve WireGuard peer endpoint: ", peer.destination.Fqdn))
+			continue
+		}
+		newAddress, loaded := firstDifferentAddress(addresses, peer.endpoint.Addr())
+		if !loaded {
+			continue
+		}
+		oldEndpoint := peer.endpoint
+		newEndpoint := netip.AddrPortFrom(newAddress, peer.destination.Port)
+		if peer.reserved != [3]uint8{} && e.bind != nil {
+			e.bind.SetReservedForEndpoint(newEndpoint, peer.reserved)
+		}
+		ipcConf := "public_key=" + peer.publicKeyHex + "\nupdate_only=true\nendpoint=" + newEndpoint.String()
+		if err = e.ipcSet(ipcConf); err != nil {
+			e.options.Logger.Warn(E.Cause(err, "update WireGuard peer endpoint: ", peer.destination.Fqdn))
+			continue
+		}
+		peer.endpoint = newEndpoint
+		e.options.Logger.Info("updated WireGuard peer endpoint for ", peer.destination.Fqdn, ": ", oldEndpoint, " -> ", newEndpoint)
+	}
+}
+
+func firstValidAddress(addresses []netip.Addr) (netip.Addr, bool) {
+	for _, address := range addresses {
+		if address.IsValid() {
+			return address, true
+		}
+	}
+	return netip.Addr{}, false
+}
+
+func firstDifferentAddress(addresses []netip.Addr, current netip.Addr) (netip.Addr, bool) {
+	for _, address := range addresses {
+		if address.IsValid() && address != current {
+			return address, true
+		}
+	}
+	return netip.Addr{}, false
+}
+
+func isWireGuardHandshakeRetry(format string) bool {
+	return format == wireGuardHandshakeRetryLog
+}
+
+type runtimeBind struct {
+	conn.Bind
+	access sync.RWMutex
+}
+
+func (b *runtimeBind) Send(buffers [][]byte, endpoint conn.Endpoint, offset int) error {
+	b.access.RLock()
+	defer b.access.RUnlock()
+	return b.Bind.Send(buffers, endpoint, offset)
+}
+
+func (b *runtimeBind) SetReservedForEndpoint(destination netip.AddrPort, reserved [3]byte) {
+	b.access.Lock()
+	defer b.access.Unlock()
+	b.Bind.SetReservedForEndpoint(destination, reserved)
 }
 
 type peerConfig struct {
