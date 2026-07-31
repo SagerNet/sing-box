@@ -21,6 +21,7 @@ import (
 type fakeDNSTransport struct {
 	tag         string
 	delay       time.Duration
+	immediate   bool
 	rcode       int
 	address     netip.Addr
 	exchangeErr error
@@ -75,6 +76,10 @@ func (t *fakeDNSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mD
 }
 
 func (t *fakeDNSTransport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	if t.immediate {
+		callback(t.Exchange(ctx, message))
+		return
+	}
 	go func() {
 		callback(t.Exchange(ctx, message))
 	}()
@@ -269,6 +274,86 @@ func TestDNSRaceFastestWins(t *testing.T) {
 	require.NoError(t, result.err)
 	require.Equal(t, netip.MustParseAddr("192.0.2.2"), responseAddress(t, result.response))
 	require.Less(t, time.Since(startTime), 400*time.Millisecond)
+}
+
+// A race rule whose response completed synchronously (cache hit) before its
+// rule is scanned must commit immediately instead of being blocked by an
+// earlier armed race rule.
+func TestDNSRaceImmediateLaterResponseWins(t *testing.T) {
+	t.Parallel()
+	transportX := &fakeDNSTransport{tag: "x", delay: 200 * time.Millisecond, rcode: mDNS.RcodeSuccess, address: netip.MustParseAddr("192.0.2.1")}
+	transportY := &fakeDNSTransport{tag: "y", immediate: true, rcode: mDNS.RcodeSuccess, address: netip.MustParseAddr("192.0.2.2")}
+	router := raceTestRouter(t, transportX, transportY)
+	rules := raceTestRules(t, []option.DNSRule{
+		evaluateRule("x", "x", false),
+		evaluateRule("y", "y", false),
+		respondRule("x", true, true),
+		respondRule("y", true, true),
+	})
+	startTime := time.Now()
+	result := raceTestExchange(router, rules)
+	require.NoError(t, result.err)
+	require.Equal(t, netip.MustParseAddr("192.0.2.2"), responseAddress(t, result.response))
+	require.Less(t, time.Since(startTime), 100*time.Millisecond)
+}
+
+// A synchronously completed race rule that misses disarms in place and rule
+// scanning continues; the remaining race rule wins once its response arrives.
+func TestDNSRaceImmediateMissContinues(t *testing.T) {
+	t.Parallel()
+	transportX := &fakeDNSTransport{tag: "x", delay: 100 * time.Millisecond, rcode: mDNS.RcodeSuccess, address: netip.MustParseAddr("192.0.2.1")}
+	transportY := &fakeDNSTransport{tag: "y", immediate: true, rcode: mDNS.RcodeNameError}
+	router := raceTestRouter(t, transportX, transportY)
+	rules := raceTestRules(t, []option.DNSRule{
+		evaluateRule("x", "x", false),
+		evaluateRule("y", "y", false),
+		respondRule("y", true, true),
+		respondRule("x", true, true),
+	})
+	startTime := time.Now()
+	result := raceTestExchange(router, rules)
+	require.NoError(t, result.err)
+	require.Equal(t, netip.MustParseAddr("192.0.2.1"), responseAddress(t, result.response))
+	require.GreaterOrEqual(t, time.Since(startTime), 90*time.Millisecond)
+}
+
+// A race route rule whose binding completed synchronously must commit its
+// route immediately instead of being blocked by an earlier armed race rule.
+func TestDNSRaceImmediateRouteCommits(t *testing.T) {
+	t.Parallel()
+	transportX := &fakeDNSTransport{tag: "x", delay: 200 * time.Millisecond, rcode: mDNS.RcodeSuccess, address: netip.MustParseAddr("192.0.2.1")}
+	transportY := &fakeDNSTransport{tag: "y", immediate: true, rcode: mDNS.RcodeSuccess, address: netip.MustParseAddr("192.0.2.2")}
+	transportFinal := &fakeDNSTransport{tag: "final", delay: 10 * time.Millisecond, rcode: mDNS.RcodeSuccess, address: netip.MustParseAddr("192.0.2.9")}
+	router := raceTestRouter(t, transportX, transportY, transportFinal)
+	successRcode := option.DNSRCode(mDNS.RcodeSuccess)
+	raceRouteRule := option.DNSRule{
+		Type: "",
+		DefaultOptions: option.DefaultDNSRule{
+			RawDefaultDNSRule: option.RawDefaultDNSRule{
+				MatchResponse: &option.DNSRuleMatchResponse{Enabled: true, Tag: "y"},
+				ResponseRcode: &successRcode,
+			},
+			DNSRuleAction: option.DNSRuleAction{
+				Action: C.RuleActionTypeRoute,
+				RouteOptions: option.DNSRouteActionOptions{
+					Server: "final",
+				},
+				Race: true,
+			},
+		},
+	}
+	rules := raceTestRules(t, []option.DNSRule{
+		evaluateRule("x", "x", false),
+		evaluateRule("y", "y", false),
+		respondRule("x", true, true),
+		raceRouteRule,
+	})
+	startTime := time.Now()
+	result := raceTestExchange(router, rules)
+	require.NoError(t, result.err)
+	require.Equal(t, netip.MustParseAddr("192.0.2.9"), responseAddress(t, result.response))
+	require.Equal(t, int32(1), transportFinal.queryCount.Load())
+	require.Less(t, time.Since(startTime), 100*time.Millisecond)
 }
 
 // Without race, rule order decides even when a later response arrives first.
