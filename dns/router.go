@@ -589,33 +589,42 @@ func (r *Router) walkDNSRules(ctx context.Context, rules []adapter.DNSRule, mess
 				}
 				if len(pendingFutures) > 0 {
 					r.logger.DebugContext(ctx, "armed[", state.ruleIndex, "] ", currentRule, " => ", currentRule.Action())
-					state.armedRules = append(state.armedRules, &dnsArmedRule{
-						ruleIndex:       state.ruleIndex,
-						rule:            currentRule,
-						futures:         pendingFutures,
-						anonymousFuture: anonymousFuture,
-						bindsAnonymous:  bindsAnonymous,
-						options:         state.effectiveOptions,
-					})
-					continue
 				}
-			} else {
-				var awaitFuture *dnsEvaluatedFuture
-				for _, responseTag := range currentRule.MatchResponseTags() {
-					future := state.namedFutures[responseTag]
-					if future != nil && !future.resolved() {
-						awaitFuture = future
-						break
+				state.armedRules = append(state.armedRules, &dnsArmedRule{
+					ruleIndex:       state.ruleIndex,
+					rule:            currentRule,
+					futures:         pendingFutures,
+					anonymousFuture: anonymousFuture,
+					bindsAnonymous:  bindsAnonymous,
+					options:         state.effectiveOptions,
+				})
+				if len(pendingFutures) == 0 {
+					sweepResult, sweepPending, committed := r.sweepArmedDNSRules(ctx, message, state, allowFakeIP)
+					if committed {
+						if sweepPending != nil {
+							state.armedRules = nil
+							return exchangeWithRulesResult{}, &dnsWalkSuspension{pending: sweepPending}
+						}
+						return sweepResult, nil
 					}
 				}
-				if awaitFuture == nil && currentRule.MatchResponseAnonymous() {
-					if future := state.anonymousFuture; future != nil && !future.resolved() {
-						awaitFuture = future
-					}
+				continue
+			}
+			var awaitFuture *dnsEvaluatedFuture
+			for _, responseTag := range currentRule.MatchResponseTags() {
+				future := state.namedFutures[responseTag]
+				if future != nil && !future.resolved() {
+					awaitFuture = future
+					break
 				}
-				if awaitFuture != nil {
-					return exchangeWithRulesResult{}, &dnsWalkSuspension{await: awaitFuture}
+			}
+			if awaitFuture == nil && currentRule.MatchResponseAnonymous() {
+				if future := state.anonymousFuture; future != nil && !future.resolved() {
+					awaitFuture = future
 				}
+			}
+			if awaitFuture != nil {
+				return exchangeWithRulesResult{}, &dnsWalkSuspension{await: awaitFuture}
 			}
 		}
 		metadata.ResetRuleCache()
