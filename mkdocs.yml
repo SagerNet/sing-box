@@ -75,6 +75,7 @@ nav:
           - Hysteria 2: manual/proxy-protocol/hysteria2.md
       - Misc:
           - TunnelVision: manual/misc/tunnelvision.md
+          - AnyTLS client metadata: manual/misc/anytls-client-metadata.md
   - Configuration:
       - configuration/index.md
       - Log:

@@ -17,6 +17,7 @@ icon: material/new-box
   "idle_session_check_interval": "30s",
   "idle_session_timeout": "30s",
   "min_idle_session": 5,
+  "client_metadata": "",
   "tls": {},
 
   ... // Dial Fields
@@ -54,6 +55,12 @@ In the check, close sessions that have been idle for longer than this. Default: 
 #### min_idle_session
 
 In the check, at least the first `n` idle sessions are kept open. Default value: `n`=0
+
+#### client_metadata
+
+!!! question "Since sing-box 1.13.16"
+
+Check [AnyTLS client metadata](/manual/misc/anytls-client-metadata/).
 
 #### tls
 
