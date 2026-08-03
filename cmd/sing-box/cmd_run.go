@@ -130,6 +130,10 @@ func mergeOptionsList(optionsList []*OptionsEntry) (option.Options, error) {
 }
 
 func create(options option.Options) (*box.Box, context.CancelFunc, error) {
+	err := initializeTailscaleCOM(options)
+	if err != nil {
+		log.Warn(E.Cause(err, "initialize COM runtime for Tailscale system interface"))
+	}
 	if disableColor {
 		if options.Log == nil {
 			options.Log = &option.LogOptions{}

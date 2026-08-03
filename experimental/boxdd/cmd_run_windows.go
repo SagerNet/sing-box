@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 
@@ -27,6 +28,10 @@ func runService() (bool, error) {
 	isWindowsService, err := svc.IsWindowsService()
 	if err != nil {
 		return true, E.Cause(err, "check windows service")
+	}
+	err = initializeTailscaleCOMRuntime(isWindowsService)
+	if err != nil {
+		log.Warn(E.Cause(err, "initialize COM runtime for Tailscale"))
 	}
 	if !isWindowsService {
 		return false, nil
