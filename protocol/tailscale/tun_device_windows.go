@@ -11,6 +11,9 @@ import (
 	singTun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/logger"
 	wgTun "github.com/sagernet/wireguard-go/tun"
+
+	"github.com/dblohm7/wingoes/com"
+	"golang.org/x/sys/windows/svc"
 )
 
 type tunDeviceAdapter struct {
@@ -21,7 +24,23 @@ type tunDeviceAdapter struct {
 	closeOnce sync.Once
 }
 
-func newTunDeviceAdapter(tun singTun.Tun, mtu int, _ logger.ContextLogger) (wgTun.Device, error) {
+var comRuntimeOnce sync.Once
+
+func newTunDeviceAdapter(tun singTun.Tun, mtu int, contextLogger logger.ContextLogger) (wgTun.Device, error) {
+	// wgengine/router/osrouter/ifconfig_windows.go setPrivateNetwork assumes COM
+	// is initialized process-wide, which upstream performs only in tailscaled's
+	// main package; library consumers must do it themselves.
+	comRuntimeOnce.Do(func() {
+		processType := com.ConsoleApp
+		isService, serviceErr := svc.IsWindowsService()
+		if serviceErr == nil && isService {
+			processType = com.Service
+		}
+		err := com.StartRuntime(processType)
+		if err != nil {
+			contextLogger.Warn("initialize COM runtime: ", err)
+		}
+	})
 	winTun, ok := tun.(singTun.WinTun)
 	if !ok {
 		return nil, errors.New("not a windows tun device")
