@@ -2,6 +2,19 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.16
+
+* Remove client metadata from AnyTLS requests by default **1**
+* Fixes and improvements
+
+**1**:
+
+We found that the AnyTLS client implementation uploads metadata that is
+**not used by the open-source server**, and there are reports of vendors using
+it to profile and discriminate against users. We now leave it empty by default
+and allow you to customize it, see
+[AnyTLS client metadata](/manual/misc/anytls-client-metadata/).
+
 #### 1.13.15
 
 * Fixes and improvements
