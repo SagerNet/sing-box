@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -189,27 +188,17 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else {
 		udpTimeout = C.UDPTimeout
 	}
-	var remoteIsDomain bool
-	if options.ControlURL != "" {
-		controlURL, err := url.Parse(options.ControlURL)
-		if err != nil {
-			return nil, E.Cause(err, "parse control URL")
-		}
-		remoteIsDomain = M.ParseSocksaddr(controlURL.Hostname()).IsDomain()
-	} else {
-		// controlplane.tailscale.com
-		remoteIsDomain = true
-	}
 	outboundDialer, err := dialer.NewWithOptions(dialer.Options{
 		Context:          ctx,
 		Options:          options.DialerOptions,
-		RemoteIsDomain:   remoteIsDomain,
+		RemoteIsDomain:   true,
 		ResolverOnDetour: true,
 		NewDialer:        true,
 	})
 	if err != nil {
 		return nil, err
 	}
+	dialerQueryOptions := outboundDialer.(dialer.ResolveDialer).QueryOptions()
 	dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
 	server := &tsnet.Server{
 		Dir:      stateDirectory,
@@ -226,7 +215,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		AdvertiseTags: options.AdvertiseTags,
 		Dialer:        &endpointDialer{Dialer: outboundDialer, logger: logger},
 		LookupHook: func(ctx context.Context, host string) ([]netip.Addr, error) {
-			return dnsRouter.Lookup(ctx, host, outboundDialer.(dialer.ResolveDialer).QueryOptions())
+			return dnsRouter.Lookup(ctx, host, dialerQueryOptions)
 		},
 		DNS: &dnsConfigurtor{},
 		HTTPClient: &http.Client{
@@ -247,7 +236,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		ctx:                        ctx,
 		router:                     router,
 		logger:                     logger,
-		queryOptions:               outboundDialer.(dialer.ResolveDialer).QueryOptions(),
+		queryOptions:               dialerQueryOptions,
 		dnsRouter:                  dnsRouter,
 		network:                    service.FromContext[adapter.NetworkManager](ctx),
 		platformInterface:          service.FromContext[adapter.PlatformInterface](ctx),
