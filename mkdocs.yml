@@ -154,6 +154,7 @@ nav:
       - Endpoint:
           - configuration/endpoint/index.md
           - WireGuard: configuration/endpoint/wireguard.md
+          - Geph5: configuration/endpoint/geph.md
           - Tailscale: configuration/endpoint/tailscale.md
           - OpenConnect Client: configuration/endpoint/openconnect.md
           - OpenVPN Client: configuration/endpoint/openvpn-client.md

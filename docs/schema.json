@@ -3430,6 +3430,36 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "geph"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "executable_path": {
+              "type": "string"
+            },
+            "config_path": {
+              "type": "string"
+            },
+            "extra_args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "startup_timeout": {
+              "$ref": "#/$defs/Duration"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "openconnect"
             },
             "tag": {
