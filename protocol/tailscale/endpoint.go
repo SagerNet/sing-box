@@ -93,6 +93,7 @@ type Endpoint struct {
 	onReconfigHook    wgengine.ReconfigListener
 
 	cfg           *wgcfg.Config
+	routerCfg     *router.Config
 	dnsCfg        *tsDNS.Config
 	routeDomains  common.TypedValue[map[string]bool]
 	routePrefixes atomic.Pointer[netipx.IPSet]
@@ -799,7 +800,9 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 	if cfg == nil || dnsCfg == nil {
 		return
 	}
-	if (t.cfg != nil && reflect.DeepEqual(t.cfg, cfg)) && (t.dnsCfg != nil && reflect.DeepEqual(t.dnsCfg, dnsCfg)) {
+	if t.cfg != nil && reflect.DeepEqual(t.cfg, cfg) &&
+		t.routerCfg != nil && reflect.DeepEqual(t.routerCfg, routerCfg) &&
+		t.dnsCfg != nil && reflect.DeepEqual(t.dnsCfg, dnsCfg) {
 		return
 	}
 	var inet4Address, inet6Address netip.Addr
@@ -812,6 +815,7 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 	}
 	t.icmpForwarder.SetLocalAddresses(inet4Address, inet6Address)
 	t.cfg = cfg
+	t.routerCfg = routerCfg
 	t.dnsCfg = dnsCfg
 
 	routeDomains := make(map[string]bool)
