@@ -10805,6 +10805,9 @@
             },
             "min_idle_session": {
               "type": "integer"
+            },
+            "client_metadata": {
+              "type": "string"
             }
           },
           "required": [
