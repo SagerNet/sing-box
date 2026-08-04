@@ -150,6 +150,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		},
 		UDPDisabled:  !common.Contains(networkList, N.NetworkUDP),
 		BBRProfile:   options.BBRProfile,
+		ChromeParrot: !options.DisableChromeParrot,
 		RealmOptions: realmOptions,
 	})
 	if err != nil {
