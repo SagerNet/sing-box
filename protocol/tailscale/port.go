@@ -41,8 +41,8 @@ func (t *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination n
 	if destination.Addr() == inet4Address || destination.Addr() == inet6Address {
 		return tun.FlowVerdict{Action: tun.ActionAccept}
 	}
-	if t.filter != nil {
-		tsFilter := t.filter.Load()
+	if t.started.Load() {
+		tsFilter := t.wgEngine.GetFilter()
 		if tsFilter != nil {
 			var (
 				ipProto         ipproto.Proto

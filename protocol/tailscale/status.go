@@ -5,6 +5,7 @@ package tailscale
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/tailscale/ipn"
@@ -15,25 +16,60 @@ var _ adapter.TailscaleEndpoint = (*Endpoint)(nil)
 
 func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapter.TailscaleEndpointStatus)) error {
 	localBackend := t.server.ExportLocalBackend()
-	sendStatus := func() {
-		status := localBackend.Status()
-		result := convertTailscaleStatus(status)
-		result.KeyAuth = t.keyAuth
-		fn(result)
-	}
-	sendStatus()
-	localBackend.WatchNotifications(ctx, ipn.NotifyInitialState|ipn.NotifyInitialNetMap|ipn.NotifyRateLimit, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
+	// The notification callback must stay cheap and non-blocking: a
+	// watcher whose queue fills is disconnected by the IPN bus, so
+	// status collection and delivery (which blocks on the subscriber)
+	// run on a separate coalescing goroutine.
+	updateSignal := make(chan struct{}, 1)
+	scheduleUpdate := func() {
 		select {
-		case <-ctx.Done():
-			return false
+		case updateSignal <- struct{}{}:
 		default:
 		}
-		if roNotify.State != nil || roNotify.NetMap != nil || roNotify.BrowseToURL != nil || roNotify.Prefs != nil {
-			sendStatus()
+	}
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-updateSignal:
+			}
+			status := localBackend.Status()
+			result := convertTailscaleStatus(status)
+			result.KeyAuth = t.keyAuth
+			fn(result)
 		}
-		return true
-	})
-	return ctx.Err()
+	}()
+	scheduleUpdate()
+	for {
+		var busError string
+		localBackend.WatchNotifications(ctx, ipn.NotifyInitialState|ipn.NotifyPeerPatches, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
+			if roNotify.ErrMessage != nil {
+				busError = *roNotify.ErrMessage
+				return false
+			}
+			if roNotify.State != nil || roNotify.SelfChange != nil ||
+				len(roNotify.PeersChanged) > 0 || len(roNotify.PeersRemoved) > 0 || len(roNotify.PeerChangedPatch) > 0 ||
+				roNotify.BrowseToURL != nil || roNotify.Prefs != nil {
+				scheduleUpdate()
+			}
+			return true
+		})
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if busError != "" {
+			t.logger.Warn("restarting status watcher: ", busError)
+		} else {
+			t.logger.Warn("status watcher stopped unexpectedly, restarting")
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+		scheduleUpdate()
+	}
 }
 
 func convertTailscaleStatus(status *ipnstate.Status) *adapter.TailscaleEndpointStatus {
@@ -78,25 +114,27 @@ func convertTailscaleStatus(status *ipnstate.Status) *adapter.TailscaleEndpointS
 			return 0
 		})
 	}
-	if status.ExitNodeStatus != nil {
-		for _, peerKey := range status.Peers() {
-			peer := status.Peer[peerKey]
-			if peer.ID == status.ExitNodeStatus.ID {
-				result.ExitNode = convertTailscalePeer(peer)
-				break
-			}
+	// status.ExitNodeStatus is populated from the cached netmap Peers
+	// slice, which incremental deltas do not update; the live peer map
+	// behind status.Peer sets PeerStatus.ExitNode delta-correctly, so it
+	// is the primary source.
+	for _, peerKey := range status.Peers() {
+		peer := status.Peer[peerKey]
+		if peer.ExitNode {
+			result.ExitNode = convertTailscalePeer(peer)
+			break
 		}
-		if result.ExitNode == nil {
-			ips := make([]string, 0, len(status.ExitNodeStatus.TailscaleIPs))
-			for _, prefix := range status.ExitNodeStatus.TailscaleIPs {
-				ips = append(ips, prefix.Addr().String())
-			}
-			result.ExitNode = &adapter.TailscalePeer{
-				StableID:     string(status.ExitNodeStatus.ID),
-				TailscaleIPs: ips,
-				Online:       status.ExitNodeStatus.Online,
-				ExitNode:     true,
-			}
+	}
+	if result.ExitNode == nil && status.ExitNodeStatus != nil {
+		ips := make([]string, 0, len(status.ExitNodeStatus.TailscaleIPs))
+		for _, prefix := range status.ExitNodeStatus.TailscaleIPs {
+			ips = append(ips, prefix.Addr().String())
+		}
+		result.ExitNode = &adapter.TailscalePeer{
+			StableID:     string(status.ExitNodeStatus.ID),
+			TailscaleIPs: ips,
+			Online:       status.ExitNodeStatus.Online,
+			ExitNode:     true,
 		}
 	}
 	return result
