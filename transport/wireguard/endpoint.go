@@ -257,7 +257,7 @@ func (e *Endpoint) Lookup(address netip.Addr) *device.Peer {
 	if e.allowedIPs == nil {
 		return nil
 	}
-	return e.allowedIPs.Lookup(address.AsSlice())
+	return e.allowedIPs.LookupFromPacket(netip.Addr{}, address, nil)
 }
 
 func (e *Endpoint) BindUpdate() error {
