@@ -834,6 +834,9 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 	var builder netipx.IPSetBuilder
 	for _, peer := range cfg.Peers {
 		for _, allowedIP := range peer.AllowedIPs {
+			if allowedIP.Bits() == 0 {
+				continue
+			}
 			builder.AddPrefix(allowedIP)
 		}
 	}
