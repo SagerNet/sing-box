@@ -11612,6 +11612,9 @@
             "brutal_debug": {
               "type": "boolean"
             },
+            "disable_chrome_parrot": {
+              "type": "boolean"
+            },
             "realm": {
               "$ref": "#/$defs/Hysteria2Realm"
             }
