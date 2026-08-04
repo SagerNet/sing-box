@@ -22,13 +22,15 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 		fn(result)
 	}
 	sendStatus()
-	localBackend.WatchNotifications(ctx, ipn.NotifyInitialState|ipn.NotifyInitialNetMap|ipn.NotifyRateLimit, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
+	localBackend.WatchNotifications(ctx, ipn.NotifyInitialState|ipn.NotifyPeerPatches|ipn.NotifyRateLimit, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
 		select {
 		case <-ctx.Done():
 			return false
 		default:
 		}
-		if roNotify.State != nil || roNotify.NetMap != nil || roNotify.BrowseToURL != nil || roNotify.Prefs != nil {
+		if roNotify.State != nil || roNotify.SelfChange != nil ||
+			len(roNotify.PeersChanged) > 0 || len(roNotify.PeersRemoved) > 0 || len(roNotify.PeerChangedPatch) > 0 ||
+			roNotify.BrowseToURL != nil || roNotify.Prefs != nil {
 			sendStatus()
 		}
 		return true

@@ -491,20 +491,28 @@ func (t *Endpoint) postStart() error {
 
 func (t *Endpoint) watchState() {
 	localBackend := t.server.ExportLocalBackend()
+	updateRoutePrefixes := func() {
+		netMap := localBackend.NetMapWithPeers()
+		if netMap == nil {
+			return
+		}
+		var builder netipx.IPSetBuilder
+		for _, peer := range netMap.Peers {
+			for _, allowedIP := range peer.AllowedIPs().All() {
+				if allowedIP.Bits() == 0 {
+					continue
+				}
+				builder.AddPrefix(allowedIP)
+			}
+		}
+		t.routePrefixes.Store(common.Must1(builder.IPSet()))
+	}
+	updateRoutePrefixes()
 	var reportedAuthURL string
 	exitNodePending := t.exitNode != ""
-	localBackend.WatchNotifications(t.ctx, ipn.NotifyInitialState|ipn.NotifyInitialNetMap, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
-		if roNotify.NetMap != nil {
-			var builder netipx.IPSetBuilder
-			for _, peer := range roNotify.NetMap.Peers {
-				for _, allowedIP := range peer.AllowedIPs().All() {
-					if allowedIP.Bits() == 0 {
-						continue
-					}
-					builder.AddPrefix(allowedIP)
-				}
-			}
-			t.routePrefixes.Store(common.Must1(builder.IPSet()))
+	localBackend.WatchNotifications(t.ctx, ipn.NotifyInitialState|ipn.NotifyPeerChanges, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
+		if len(roNotify.PeersChanged) > 0 || len(roNotify.PeersRemoved) > 0 {
+			updateRoutePrefixes()
 		}
 		if roNotify.State == nil && roNotify.BrowseToURL == nil {
 			return true
