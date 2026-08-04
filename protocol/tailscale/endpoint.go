@@ -57,12 +57,10 @@ import (
 	"github.com/sagernet/tailscale/types/nettype"
 	"github.com/sagernet/tailscale/version"
 	"github.com/sagernet/tailscale/wgengine"
-	"github.com/sagernet/tailscale/wgengine/filter"
 	"github.com/sagernet/tailscale/wgengine/router"
 	"github.com/sagernet/tailscale/wgengine/wgcfg"
 
 	mDNS "github.com/miekg/dns"
-	"go4.org/netipx"
 )
 
 var (
@@ -92,7 +90,6 @@ type Endpoint struct {
 	server            *tsnet.Server
 	stack             *stack.Stack
 	icmpForwarder     *tun.ICMPForwarder
-	filter            *atomic.Pointer[filter.Filter]
 	returnAccess      sync.Mutex
 	returnPath        tun.Return
 	wgEngine          wgengine.ExportedUserspaceEngine
@@ -105,7 +102,6 @@ type Endpoint struct {
 	routeDomains  common.TypedValue[map[string]bool]
 	routeSuffixes common.TypedValue[[]string]
 	searchDomains atomic.Bool
-	routePrefixes atomic.Pointer[netipx.IPSet]
 
 	acceptRoutes               bool
 	exitNode                   string
@@ -330,7 +326,7 @@ func (t *Endpoint) start() error {
 		}
 		t.systemTun = systemTun
 		t.systemDialer = systemDialer
-		t.server.TunDevice = wgTunDevice
+		t.server.Tun = wgTunDevice
 	}
 	if t.network.AutoRedirectOutputMark() != 0 {
 		netns.SetControlFunc(t.network.AutoRedirectOutputMarkFunc())
@@ -467,12 +463,10 @@ func (t *Endpoint) postStart() error {
 			t.logger.Warn("SSH server degraded: ", degraded)
 		}
 	}
-	localBackend := t.server.ExportLocalBackend()
 	err = t.editPrefs(sshEnabled)
 	if err != nil {
 		return err
 	}
-	t.filter = localBackend.ExportFilter()
 	if sshEnabled {
 		sshServer, err := tailssh.New(t.ctx, t.server, t.platformInterface, t.sshServerOptions, t.logger)
 		if err != nil {
@@ -494,48 +488,76 @@ func (t *Endpoint) watchState() {
 	localBackend := t.server.ExportLocalBackend()
 	var reportedAuthURL string
 	exitNodePending := t.exitNode != ""
-	localBackend.WatchNotifications(t.ctx, ipn.NotifyInitialState, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
-		if roNotify.State == nil && roNotify.BrowseToURL == nil {
-			return true
+	running := false
+	tryApplyExitNode := func() {
+		err := t.applyExitNode()
+		if err != nil {
+			t.logger.Error("set exit node: ", err)
+		} else {
+			exitNodePending = false
 		}
-		status := localBackend.StatusWithoutPeers()
-		switch status.BackendState {
-		case ipn.NoState.String(), ipn.NeedsLogin.String():
-			if t.exitNode != "" {
-				exitNodePending = true
+	}
+	for {
+		var busError string
+		localBackend.WatchNotifications(t.ctx, ipn.NotifyInitialState|ipn.NotifyPeerPatches, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
+			if roNotify.ErrMessage != nil {
+				busError = *roNotify.ErrMessage
+				return false
 			}
-			authURL := status.AuthURL
-			if authURL == "" || authURL == reportedAuthURL {
+			if running && exitNodePending && len(roNotify.PeersChanged) > 0 {
+				tryApplyExitNode()
+			}
+			if roNotify.State == nil && roNotify.BrowseToURL == nil {
 				return true
 			}
-			reportedAuthURL = authURL
-			t.logger.Info("Waiting for authentication: ", authURL)
-			if t.platformInterface != nil && t.platformInterface.UsePlatformNotification() {
-				err := t.platformInterface.SendNotification(&adapter.Notification{
-					Identifier: "tailscale-authentication",
-					TypeName:   "Tailscale Authentication Notifications",
-					TypeID:     10,
-					Title:      "Tailscale Authentication",
-					Body:       F.ToString("Tailscale outbound[", t.Tag(), "] is waiting for authentication."),
-					OpenURL:    authURL,
-				})
-				if err != nil {
-					t.logger.Error("send authentication notification: ", err)
+			status := localBackend.StatusWithoutPeers()
+			running = status.BackendState == ipn.Running.String()
+			switch status.BackendState {
+			case ipn.NoState.String(), ipn.NeedsLogin.String():
+				if t.exitNode != "" {
+					exitNodePending = true
+				}
+				authURL := status.AuthURL
+				if authURL == "" || authURL == reportedAuthURL {
+					return true
+				}
+				reportedAuthURL = authURL
+				t.logger.Info("Waiting for authentication: ", authURL)
+				if t.platformInterface != nil && t.platformInterface.UsePlatformNotification() {
+					err := t.platformInterface.SendNotification(&adapter.Notification{
+						Identifier: "tailscale-authentication",
+						TypeName:   "Tailscale Authentication Notifications",
+						TypeID:     10,
+						Title:      "Tailscale Authentication",
+						Body:       F.ToString("Tailscale outbound[", t.Tag(), "] is waiting for authentication."),
+						OpenURL:    authURL,
+					})
+					if err != nil {
+						t.logger.Error("send authentication notification: ", err)
+					}
+				}
+			case ipn.Running.String():
+				reportedAuthURL = ""
+				if exitNodePending {
+					tryApplyExitNode()
 				}
 			}
-		case ipn.Running.String():
-			reportedAuthURL = ""
-			if exitNodePending {
-				err := t.applyExitNode()
-				if err != nil {
-					t.logger.Error("set exit node: ", err)
-				} else {
-					exitNodePending = false
-				}
-			}
+			return true
+		})
+		if t.ctx.Err() != nil {
+			return
 		}
-		return true
-	})
+		if busError != "" {
+			t.logger.Warn("restarting state watcher: ", busError)
+		} else {
+			t.logger.Warn("state watcher stopped unexpectedly, restarting")
+		}
+		select {
+		case <-t.ctx.Done():
+			return
+		case <-time.After(time.Second):
+		}
+	}
 }
 
 func (t *Endpoint) editPrefs(sshEnabled bool) error {
@@ -895,6 +917,12 @@ func (t *Endpoint) PreferredDomain(metadata *adapter.InboundContext, domain stri
 	if routeDomains[domain] {
 		return true
 	}
+	if t.started.Load() {
+		magicHosts := t.server.ExportLocalBackend().ExportMagicDNSHosts()
+		if _, found := lookupHosts(nil, magicHosts, domain); found {
+			return true
+		}
+	}
 	for _, suffix := range t.routeSuffixes.Load() {
 		if mDNS.IsSubDomain(suffix, domain) {
 			return true
@@ -904,11 +932,11 @@ func (t *Endpoint) PreferredDomain(metadata *adapter.InboundContext, domain stri
 }
 
 func (t *Endpoint) PreferredAddress(metadata *adapter.InboundContext, address netip.Addr) bool {
-	routePrefixes := t.routePrefixes.Load()
-	if routePrefixes == nil {
+	if !t.started.Load() {
 		return false
 	}
-	return routePrefixes.Contains(address)
+	peer, found := t.server.ExportLocalBackend().PeerForIP(address)
+	return found && !peer.IsSelf && peer.Route.Bits() > 0
 }
 
 func (t *Endpoint) Server() *tsnet.Server {
@@ -918,6 +946,12 @@ func (t *Endpoint) Server() *tsnet.Server {
 func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCfg *tsDNS.Config) {
 	if cfg == nil || dnsCfg == nil {
 		return
+	}
+	// The engine invokes the listener on every Reconfig call, including
+	// unchanged ones: SSH policy lives only in the netmap, outside the
+	// three configs, so the SSH hook must run before the change check.
+	if t.sshReconfigHook != nil {
+		t.sshReconfigHook(cfg, routerCfg, dnsCfg)
 	}
 	if t.cfg != nil && reflect.DeepEqual(t.cfg, cfg) &&
 		t.routerCfg != nil && reflect.DeepEqual(t.routerCfg, routerCfg) &&
@@ -943,22 +977,8 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 	t.routeSuffixes.Store(routeSuffixes)
 	t.searchDomains.Store(len(dnsCfg.SearchDomains) > 0)
 
-	var builder netipx.IPSetBuilder
-	for _, peer := range cfg.Peers {
-		for _, allowedIP := range peer.AllowedIPs {
-			if allowedIP.Bits() == 0 {
-				continue
-			}
-			builder.AddPrefix(allowedIP)
-		}
-	}
-	t.routePrefixes.Store(common.Must1(builder.IPSet()))
-
 	if t.onReconfigHook != nil {
 		t.onReconfigHook(cfg, routerCfg, dnsCfg)
-	}
-	if t.sshReconfigHook != nil {
-		t.sshReconfigHook(cfg, routerCfg, dnsCfg)
 	}
 }
 
