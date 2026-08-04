@@ -262,8 +262,12 @@ func (t *DNSTransport) PreferredDomain(domain string) bool {
 	t.access.RLock()
 	hosts := t.hosts
 	routes := t.routes
+	searchDomains := t.searchDomains
 	t.access.RUnlock()
 	if _, loaded := hosts[domain]; loaded {
+		return true
+	}
+	if t.acceptSearchDomain && len(searchDomains) > 0 && mDNS.CountLabel(domain) == 1 {
 		return true
 	}
 	for suffix := range routes {
