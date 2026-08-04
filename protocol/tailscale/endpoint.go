@@ -498,6 +498,9 @@ func (t *Endpoint) watchState() {
 			var builder netipx.IPSetBuilder
 			for _, peer := range roNotify.NetMap.Peers {
 				for _, allowedIP := range peer.AllowedIPs().All() {
+					if allowedIP.Bits() == 0 {
+						continue
+					}
 					builder.AddPrefix(allowedIP)
 				}
 			}
