@@ -19,7 +19,7 @@ import (
 	aTLS "github.com/sagernet/sing/common/tls"
 
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
+	"golang.org/x/net/http2/h2c" //nolint:staticcheck
 	"google.golang.org/grpc"
 )
 
@@ -83,6 +83,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		}
 	}
 	s.httpServer = &http.Server{
+		//nolint:staticcheck
 		Handler: h2c.NewHandler(newHTTPHandler(s.logger, s.grpcServer, s.options, s.dashboard), new(http2.Server)),
 		BaseContext: func(net.Listener) context.Context {
 			return s.ctx

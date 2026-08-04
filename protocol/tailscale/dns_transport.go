@@ -27,6 +27,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/service"
 	nDNS "github.com/sagernet/tailscale/net/dns"
+	nDNSResolver "github.com/sagernet/tailscale/net/dns/resolver"
 	"github.com/sagernet/tailscale/types/dnstype"
 	"github.com/sagernet/tailscale/util/dnsname"
 	"github.com/sagernet/tailscale/wgengine/router"
@@ -55,6 +56,7 @@ type DNSTransport struct {
 	routePrefixes          []netip.Prefix
 	routes                 map[string][]adapter.DNSTransport
 	hosts                  map[string][]netip.Addr
+	magicHosts             nDNSResolver.MagicDNSHosts
 	searchDomains          []string
 	defaultResolvers       []adapter.DNSTransport
 }
@@ -150,6 +152,7 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 	t.routePrefixes = routePrefixes
 	t.routes = routes
 	t.hosts = hosts
+	t.magicHosts = t.endpoint.server.ExportLocalBackend().ExportMagicDNSHosts()
 	t.searchDomains = searchDomains
 	t.defaultResolvers = defaultResolvers
 	t.access.Unlock()
@@ -241,6 +244,7 @@ func (t *DNSTransport) Close() error {
 	t.routePrefixes = nil
 	t.routes = nil
 	t.hosts = nil
+	t.magicHosts = nil
 	t.defaultResolvers = nil
 	t.access.Unlock()
 
@@ -261,9 +265,14 @@ func (t *DNSTransport) Raw() bool {
 func (t *DNSTransport) PreferredDomain(domain string) bool {
 	t.access.RLock()
 	hosts := t.hosts
+	magicHosts := t.magicHosts
 	routes := t.routes
+	searchDomains := t.searchDomains
 	t.access.RUnlock()
-	if _, loaded := hosts[domain]; loaded {
+	if _, loaded := lookupHosts(hosts, magicHosts, domain); loaded {
+		return true
+	}
+	if t.acceptSearchDomain && len(searchDomains) > 0 && mDNS.CountLabel(domain) == 1 {
 		return true
 	}
 	for suffix := range routes {
@@ -351,30 +360,20 @@ func (t *DNSTransport) exchangeOnce(ctx context.Context, message *mDNS.Msg, allo
 
 	t.access.RLock()
 	hosts := t.hosts
+	magicHosts := t.magicHosts
 	routes := t.routes
 	defaultResolvers := t.defaultResolvers
 	t.access.RUnlock()
 
-	addresses, hostsLoaded := hosts[question.Name]
+	addresses, hostsLoaded := lookupHosts(hosts, magicHosts, question.Name)
 	if hostsLoaded {
 		switch question.Qtype {
-		case mDNS.TypeA:
-			addresses4 := common.Filter(addresses, func(addr netip.Addr) bool {
-				return addr.Is4()
-			})
-			if len(addresses4) > 0 {
-				callback(dns.FixedResponse(message.Id, question, addresses4, C.DefaultDNSTTL), nil)
-				return
-			}
-		case mDNS.TypeAAAA:
-			addresses6 := common.Filter(addresses, func(addr netip.Addr) bool {
-				return addr.Is6()
-			})
-			if len(addresses6) > 0 {
-				callback(dns.FixedResponse(message.Id, question, addresses6, C.DefaultDNSTTL), nil)
-				return
-			}
+		case mDNS.TypeA, mDNS.TypeAAAA:
+			callback(dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil)
+		default:
+			callback(dns.FixedResponseStatus(message, mDNS.RcodeSuccess), nil)
 		}
+		return
 	}
 	for domainSuffix, transports := range routes {
 		if mDNS.IsSubDomain(domainSuffix, question.Name) {
@@ -402,6 +401,30 @@ func (t *DNSTransport) exchangeOnce(ctx context.Context, message *mDNS.Msg, allo
 		return
 	}
 	callback(nil, dns.RcodeNameError)
+}
+
+func lookupHosts(hosts map[string][]netip.Addr, magicHosts nDNSResolver.MagicDNSHosts, name string) ([]netip.Addr, bool) {
+	addresses, loaded := hosts[name]
+	if loaded {
+		return addresses, true
+	}
+	if magicHosts == nil {
+		return nil, false
+	}
+	fqdn, err := dnsname.ToFQDN(name)
+	if err != nil {
+		return nil, false
+	}
+	addresses, loaded = magicHosts.LookupHost(fqdn)
+	if loaded {
+		return addresses, true
+	}
+	for parent := fqdn.Parent(); parent != ""; parent = parent.Parent() {
+		if magicHosts.SubdomainHost(parent) {
+			return magicHosts.LookupHost(parent)
+		}
+	}
+	return nil, false
 }
 
 func resolverExchangers(resolvers []adapter.DNSTransport, message *mDNS.Msg) []transport.AsyncExchanger {
