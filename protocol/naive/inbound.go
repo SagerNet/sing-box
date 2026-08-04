@@ -26,7 +26,7 @@ import (
 	sHttp "github.com/sagernet/sing/protocol/http"
 
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
+	"golang.org/x/net/http2/h2c" //nolint:staticcheck
 )
 
 var (
@@ -102,6 +102,7 @@ func (n *Inbound) Start(stage adapter.StartStage) error {
 			return err
 		}
 		n.httpServer = &http.Server{
+			//nolint:staticcheck
 			Handler: h2c.NewHandler(n, &http2.Server{}),
 			BaseContext: func(listener net.Listener) context.Context {
 				return n.ctx
