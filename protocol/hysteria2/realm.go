@@ -24,7 +24,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
+	"golang.org/x/net/http2/h2c" //nolint:staticcheck
 )
 
 func RegisterRealmService(registry *boxService.Registry) {
@@ -98,6 +98,7 @@ func NewRealmService(ctx context.Context, logger log.ContextLogger, tag string, 
 			Listen:  options.ListenOptions,
 		}),
 		httpServer: &http.Server{
+			//nolint:staticcheck
 			Handler: h2c.NewHandler(chiRouter, &http2.Server{
 				IdleTimeout:                  time.Duration(options.IdleTimeout),
 				ReadIdleTimeout:              time.Duration(options.KeepAlivePeriod),

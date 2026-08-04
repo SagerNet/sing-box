@@ -22,7 +22,7 @@ import (
 	sHttp "github.com/sagernet/sing/protocol/http"
 
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
+	"golang.org/x/net/http2/h2c" //nolint:staticcheck
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -56,6 +56,7 @@ func NewServer(ctx context.Context, logger logger.ContextLogger, options option.
 			return log.ContextWithNewID(ctx)
 		},
 	}
+	//nolint:staticcheck
 	server.h2cHandler = h2c.NewHandler(server, server.h2Server)
 	return server, nil
 }
