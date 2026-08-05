@@ -24,34 +24,34 @@ func buildNeighborMatchers(domains []string) ([]string, error) {
 	return suffixes, nil
 }
 
-func (t *Transport) lookupNeighbor(message *mDNS.Msg) *mDNS.Msg {
-	if t.neighborResolver == nil {
+func (r *PreferredDomainResolver) lookupNeighbor(message *mDNS.Msg) *mDNS.Msg {
+	if r.neighborResolver == nil {
 		return nil
 	}
 	question := message.Question[0]
 	if question.Qtype != mDNS.TypeA && question.Qtype != mDNS.TypeAAAA {
 		return nil
 	}
-	host := extractNeighborHost(mDNS.CanonicalName(question.Name), t.neighborSuffixes)
+	host := extractNeighborHost(mDNS.CanonicalName(question.Name), r.neighborSuffixes)
 	if host == "" {
 		return nil
 	}
-	addresses := t.neighborResolver.LookupAddresses(host)
+	addresses := r.neighborResolver.LookupAddresses(host)
 	if len(addresses) == 0 {
 		return nil
 	}
 	return dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL)
 }
 
-func (t *Transport) hasNeighborHost(domain string) bool {
-	if t.neighborResolver == nil {
+func (r *PreferredDomainResolver) hasNeighborHost(domain string) bool {
+	if r.neighborResolver == nil {
 		return false
 	}
-	host := extractNeighborHost(domain, t.neighborSuffixes)
+	host := extractNeighborHost(domain, r.neighborSuffixes)
 	if host == "" {
 		return false
 	}
-	return len(t.neighborResolver.LookupAddresses(host)) > 0
+	return len(r.neighborResolver.LookupAddresses(host)) > 0
 }
 
 func extractNeighborHost(canonical string, suffixes []string) string {
