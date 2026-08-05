@@ -10,7 +10,6 @@ import (
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
 	box "github.com/sagernet/sing-box"
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -28,7 +27,16 @@ func initializeHTTP3Client(instance *box.Box) error {
 				if dErr != nil {
 					return nil, dErr
 				}
-				return quic.DialEarly(ctx, bufio.NewUnbindPacketConn(udpConn), udpConn.RemoteAddr(), tlsCfg, cfg)
+				quicConn, dErr := quic.DialEarlyConn(ctx, udpConn, tlsCfg, cfg)
+				if dErr != nil {
+					udpConn.Close()
+					return nil, dErr
+				}
+				go func() {
+					<-quicConn.Context().Done()
+					udpConn.Close()
+				}()
+				return quicConn, nil
 			},
 		},
 	}
