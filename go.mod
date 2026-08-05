@@ -25,7 +25,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/libdns/libdns v1.1.1
 	github.com/logrusorgru/aurora v2.0.3+incompatible
-	github.com/mdlayher/netlink v1.9.0
+	github.com/mdlayher/netlink v1.11.2
 	github.com/metacubex/utls v1.8.7
 	github.com/mholt/acmez/v3 v3.1.6
 	github.com/miekg/dns v1.1.72
@@ -40,7 +40,7 @@ require (
 	github.com/sagernet/fswatch v0.1.2
 	github.com/sagernet/gliderssh v0.3.4-0.20260531100337-2194faca5648
 	github.com/sagernet/gomobile v0.1.12
-	github.com/sagernet/gvisor v0.0.0-20250811.0-sing-box-mod.1
+	github.com/sagernet/gvisor v0.0.0-20260727.0-sing-box-mod.1
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a
 	github.com/sagernet/nftables v0.3.0-mod.4
 	github.com/sagernet/quic-go v0.61.0-sing-box-mod.1
@@ -54,7 +54,7 @@ require (
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1
 	github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73
-	github.com/sagernet/sing-tun v0.8.12-0.20260729054528-2d9b8aed5fe2
+	github.com/sagernet/sing-tun v0.8.12-0.20260805001200-da24acaf4de3
 	github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
@@ -70,7 +70,7 @@ require (
 	golang.org/x/crypto v0.54.0
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
 	golang.org/x/mod v0.37.0
-	golang.org/x/net v0.56.0
+	golang.org/x/net v0.57.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.40.0
@@ -100,7 +100,7 @@ require (
 	github.com/dgryski/go-camellia v0.0.0-20191119043421-69a8a13fb23d // indirect
 	github.com/dgryski/go-metro v0.0.0-20180109044635-280f6062b5bc // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
-	github.com/florianl/go-nfqueue/v2 v2.0.2 // indirect
+	github.com/florianl/go-nfqueue/v2 v2.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/gaissmai/bart v0.26.1 // indirect
@@ -128,7 +128,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/libp2p/go-nat v1.0.1-0.20250821073202-01afc089f138 // indirect
 	github.com/libp2p/go-netroute v0.2.1 // indirect
-	github.com/mdlayher/socket v0.5.1 // indirect
+	github.com/mdlayher/socket v0.6.0 // indirect
 	github.com/mitchellh/go-ps v1.0.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.26 // indirect
