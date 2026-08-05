@@ -15,7 +15,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 )
@@ -72,17 +71,16 @@ func (c *Client) offerNew() (*quic.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	packetConn := bufio.NewUnbindPacketConn(udpConn)
-	quicConn, err := qtls.Dial(c.ctx, packetConn, udpConn.RemoteAddr(), c.tlsConfig, c.quicConfig)
+	quicConn, err := qtls.Dial(c.ctx, udpConn, c.tlsConfig, c.quicConfig)
 	if err != nil {
-		packetConn.Close()
+		udpConn.Close()
 		return nil, err
 	}
-	// quic-go does not take ownership of the packet conn passed to Dial:
+	// quic-go does not take ownership of the conn passed to Dial:
 	// when the connection ends it only stops reading.
 	go func() {
 		<-quicConn.Context().Done()
-		packetConn.Close()
+		udpConn.Close()
 	}()
 	c.conn.Store(quicConn)
 	c.rawConn = udpConn
