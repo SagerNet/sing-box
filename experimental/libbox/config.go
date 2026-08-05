@@ -30,7 +30,7 @@ func baseContext(platformInterface PlatformInterface) context.Context {
 	if platformInterface != nil {
 		if localTransport := platformInterface.LocalDNSTransport(); localTransport != nil {
 			dns.RegisterTransport[option.LocalDNSServerOptions](dnsRegistry, C.DNSTypeLocal, func(ctx context.Context, logger log.ContextLogger, tag string, options option.LocalDNSServerOptions) (adapter.DNSTransport, error) {
-				return newPlatformTransport(localTransport, tag, options), nil
+				return newPlatformTransport(ctx, logger, localTransport, tag, options)
 			})
 		}
 	}
