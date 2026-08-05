@@ -17,7 +17,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	sQUIC "github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -109,8 +108,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 			}
 			earlyConnection, err := sQUIC.DialEarly(
 				ctx,
-				bufio.NewUnbindPacketConn(rawConn),
-				t.serverAddr.UDPAddr(),
+				rawConn,
 				t.tlsConfig,
 				nil,
 			)
