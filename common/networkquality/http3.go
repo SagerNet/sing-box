@@ -10,6 +10,7 @@ import (
 
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
+	qtls "github.com/sagernet/sing-quic"
 	sBufio "github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -40,13 +41,17 @@ func NewHTTP3MeasurementClientFactory(dialer N.Dialer) (MeasurementClientFactory
 				wrappedConn := udpConn
 				if len(readCounters) > 0 || len(writeCounters) > 0 {
 					wrappedConn = sBufio.NewCounterConn(udpConn, readCounters, writeCounters)
+					qtls.SetDesiredBufferSizes(udpConn)
 				}
-				packetConn := sBufio.NewUnbindPacketConn(wrappedConn)
-				quicConn, dialErr := quic.DialEarly(ctx, packetConn, udpConn.RemoteAddr(), tlsCfg, cfg)
+				quicConn, dialErr := quic.DialEarlyConn(ctx, wrappedConn, tlsCfg, cfg)
 				if dialErr != nil {
 					udpConn.Close()
 					return nil, dialErr
 				}
+				go func() {
+					<-quicConn.Context().Done()
+					udpConn.Close()
+				}()
 				return quicConn, nil
 			},
 		}
