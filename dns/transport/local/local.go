@@ -8,7 +8,6 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
-	"github.com/sagernet/sing-box/dns/transport/hosts"
 	"github.com/sagernet/sing-box/dns/transport/mdns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -33,21 +32,18 @@ var (
 
 type Transport struct {
 	dns.TransportAdapter
-	ctx             context.Context
-	logger          logger.ContextLogger
-	hosts           *hosts.File
-	dialer          N.Dialer
-	preferGo        bool
-	fallback        bool
-	resolved        ResolvedResolver
-	mdnsTransport   adapter.DNSTransport
-	dhcpTransport   dhcpTransport
-	system          systemResolver
-	serverSet       atomic.Pointer[localServerSet]
-	serverSetAccess sync.Mutex
-
-	neighborResolver adapter.NeighborResolver
-	neighborSuffixes []string
+	ctx               context.Context
+	logger            logger.ContextLogger
+	preferredResolver *PreferredDomainResolver
+	dialer            N.Dialer
+	preferGo          bool
+	fallback          bool
+	resolved          ResolvedResolver
+	mdnsTransport     adapter.DNSTransport
+	dhcpTransport     dhcpTransport
+	system            systemResolver
+	serverSet         atomic.Pointer[localServerSet]
+	serverSetAccess   sync.Mutex
 }
 
 type dhcpTransport interface {
@@ -60,29 +56,24 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	if err != nil {
 		return nil, err
 	}
-	suffixes, err := buildNeighborMatchers(options.NeighborDomain)
+	preferredResolver, err := NewPreferredDomainResolver(ctx, logger, options)
 	if err != nil {
 		return nil, err
 	}
 	return &Transport{
-		TransportAdapter: dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
-		ctx:              ctx,
-		logger:           logger,
-		dialer:           transportDialer,
-		preferGo:         options.PreferGo,
-		neighborSuffixes: suffixes,
+		TransportAdapter:  dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
+		ctx:               ctx,
+		logger:            logger,
+		preferredResolver: preferredResolver,
+		dialer:            transportDialer,
+		preferGo:          options.PreferGo,
 	}, nil
 }
 
 func (t *Transport) Start(stage adapter.StartStage) error {
+	t.preferredResolver.Start(stage)
 	switch stage {
 	case adapter.StartStateInitialize:
-		defaultHosts, err := hosts.NewDefault()
-		if err != nil {
-			t.logger.Warn(err)
-		} else {
-			t.hosts = defaultHosts
-		}
 		if !t.preferGo && isSystemdResolvedManaged() {
 			resolvedResolver, err := NewResolvedResolver(t.ctx, t.logger)
 			if err == nil {
@@ -108,10 +99,6 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 			}
 		} else {
 			t.mdnsTransport = mdns.NewRawTransport(t.TransportAdapter, t.ctx, t.logger)
-		}
-		router := service.FromContext[adapter.Router](t.ctx)
-		if router != nil {
-			t.neighborResolver = router.NeighborResolver()
 		}
 		fallthrough
 	default:
@@ -160,12 +147,7 @@ func (t *Transport) Reset() {
 }
 
 func (t *Transport) PreferredDomain(domain string) bool {
-	if t.hosts != nil {
-		if len(t.hosts.Lookup(dns.FqdnToDomain(domain))) > 0 {
-			return true
-		}
-	}
-	return t.hasNeighborHost(domain) || mdns.IsLocalDomain(domain)
+	return t.preferredResolver.PreferredDomain(domain)
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
@@ -185,14 +167,7 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 
 func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
 	question := message.Question[0]
-	if t.hosts != nil && (question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA) {
-		addresses := t.hosts.Lookup(dns.FqdnToDomain(question.Name))
-		if len(addresses) > 0 {
-			callback(dns.FixedResponse(message.Id, question, addresses, C.DefaultDNSTTL), nil)
-			return
-		}
-	}
-	response := t.lookupNeighbor(message)
+	response := t.preferredResolver.Lookup(message)
 	if response != nil {
 		callback(response, nil)
 		return
