@@ -22,7 +22,7 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 		fn(result)
 	}
 	sendStatus()
-	localBackend.WatchNotifications(ctx, ipn.NotifyInitialState|ipn.NotifyPeerPatches|ipn.NotifyRateLimit, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
+	localBackend.WatchNotifications(ctx, ipn.NotifyInitialState|ipn.NotifyPeerPatches, nil, func(roNotify *ipn.Notify) (keepGoing bool) {
 		select {
 		case <-ctx.Done():
 			return false
