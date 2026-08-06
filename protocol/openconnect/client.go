@@ -83,6 +83,24 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 	} else if options.TCPKeepAlive == 0 && options.TCPKeepAliveInterval == 0 {
 		options.TCPKeepAliveSystemDefaults = true
 	}
+	if options.CSD != nil && options.CSD.WrapperPath != "" {
+		err := adapter.CheckSecurityFeature(ctx, "OpenConnect `csd.wrapper_path`")
+		if err != nil {
+			return nil, err
+		}
+	}
+	if options.HIP != nil && options.HIP.WrapperPath != "" {
+		err := adapter.CheckSecurityFeature(ctx, "OpenConnect `hip.wrapper_path`")
+		if err != nil {
+			return nil, err
+		}
+	}
+	if options.TNCC != nil && options.TNCC.WrapperPath != "" {
+		err := adapter.CheckSecurityFeature(ctx, "OpenConnect `tncc.wrapper_path`")
+		if err != nil {
+			return nil, err
+		}
+	}
 	options.UDPBindPort = options.DTLSLocalPort
 	loopContext, cancelLoop := context.WithCancel(ctx)
 	openConnectEndpoint := &Endpoint{
