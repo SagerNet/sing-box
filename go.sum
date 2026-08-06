@@ -314,8 +314,8 @@ github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a h1:ObwtHN2VpqE0ZN
 github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
 github.com/sagernet/nftables v0.3.0-mod.4 h1:vnOtcDYeSXv2e5RoRuGH0lrpttQFJ8iC4ICS2nhlDSo=
 github.com/sagernet/nftables v0.3.0-mod.4/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
-github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806044350-c0d5e4de6ba1 h1:XtmbHmUUBHgYfH2mQ1ROXMPujfrNNMs841B8yQLT/4U=
-github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806044350-c0d5e4de6ba1/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
+github.com/sagernet/quic-go v0.61.0-sing-box-mod.2 h1:8zQx33XNtuPuDwEA9+u/juPfquyWL7PqMDhWQFqlDbs=
+github.com/sagernet/quic-go v0.61.0-sing-box-mod.2/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
 github.com/sagernet/sing v0.9.0-beta.3 h1:DH9B94S82daJyJHz2oeirLwa/zh03AJ3xiXLJrM95Fo=
 github.com/sagernet/sing v0.9.0-beta.3/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3 h1:3y6++yIa8XlDhxPkpR4p+7RUHVY2KTP9CPIGnWmOlO8=
@@ -326,8 +326,8 @@ github.com/sagernet/sing-openconnect v0.0.0-20260722140139-e0c977659ca2 h1:IOzb7
 github.com/sagernet/sing-openconnect v0.0.0-20260722140139-e0c977659ca2/go.mod h1:4AKZLVcvY3r54UaK2Gbnm7aN8pOwdLz+y4EP0QFZ5Eg=
 github.com/sagernet/sing-openvpn v0.0.0-20260729104525-103eb5fe5eb6 h1:ZAvhkor0prJ8KEX9EmTEH+gJ1WlA3ffjS8GZT6KKq9c=
 github.com/sagernet/sing-openvpn v0.0.0-20260729104525-103eb5fe5eb6/go.mod h1:PWX7WygD8jpwfqfaGNySXpJYTn0SOwjBI1BKHHC2+Bw=
-github.com/sagernet/sing-quic v0.6.5-0.20260806031751-735cc76896e2 h1:TFSDcPU6iHPuC+PhHgDyPunC2m0pqo0VQzWXpOQuCCk=
-github.com/sagernet/sing-quic v0.6.5-0.20260806031751-735cc76896e2/go.mod h1:Zg65Tkn/cHzVG/s0vDUcf3HTEQsRBtVVji9DWWNgF60=
+github.com/sagernet/sing-quic v0.7.0-beta.1 h1:KJ5AMcDCeV5Hev9IIYNcFFu//xnZMidSGzV+ov+0TnU=
+github.com/sagernet/sing-quic v0.7.0-beta.1/go.mod h1:mMnl/y15jeOS/D5s9tQQ53na9q8Wg2KUVU/NkLo4g9k=
 github.com/sagernet/sing-shadowsocks v0.2.8 h1:PURj5PRoAkqeHh2ZW205RWzN9E9RtKCVCzByXruQWfE=
 github.com/sagernet/sing-shadowsocks v0.2.8/go.mod h1:lo7TWEMDcN5/h5B8S0ew+r78ZODn6SwVaFhvB6H+PTI=
 github.com/sagernet/sing-shadowsocks2 v0.2.1 h1:dWV9OXCeFPuYGHb6IRqlSptVnSzOelnqqs2gQ2/Qioo=
