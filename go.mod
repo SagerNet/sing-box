@@ -43,13 +43,13 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20260727.0-sing-box-mod.1
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a
 	github.com/sagernet/nftables v0.3.0-mod.4
-	github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806044350-c0d5e4de6ba1
+	github.com/sagernet/quic-go v0.61.0-sing-box-mod.2
 	github.com/sagernet/sing v0.9.0-beta.2
 	github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3
 	github.com/sagernet/sing-mux v0.3.5
 	github.com/sagernet/sing-openconnect v0.0.0-20260722140139-e0c977659ca2
 	github.com/sagernet/sing-openvpn v0.0.0-20260729104525-103eb5fe5eb6
-	github.com/sagernet/sing-quic v0.6.5-0.20260806031751-735cc76896e2
+	github.com/sagernet/sing-quic v0.7.0-beta.1
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1
