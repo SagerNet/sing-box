@@ -45,6 +45,10 @@ type Outbound struct {
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TorOutboundOptions) (adapter.Outbound, error) {
+	err := adapter.CheckSecurityFeature(ctx, "Tor outbound")
+	if err != nil {
+		return nil, err
+	}
 	var startConf tor.StartConf
 	startConf.DataDir = os.ExpandEnv(options.DataDirectory)
 	if startConf.DataDir != "" {
@@ -74,10 +78,6 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	startConf.ExtraArgs = options.ExtraArgs
 	if options.ExecutablePath != "" {
-		err := adapter.CheckSecurityFeature(ctx, "Tor `executable_path`")
-		if err != nil {
-			return nil, err
-		}
 		startConf.ExePath = options.ExecutablePath
 		startConf.ProcessCreator = nil
 		startConf.UseEmbeddedControlConn = false
