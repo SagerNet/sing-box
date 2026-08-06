@@ -314,8 +314,8 @@ github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a h1:ObwtHN2VpqE0ZN
 github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
 github.com/sagernet/nftables v0.3.0-mod.4 h1:vnOtcDYeSXv2e5RoRuGH0lrpttQFJ8iC4ICS2nhlDSo=
 github.com/sagernet/nftables v0.3.0-mod.4/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
-github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806031718-a7bffd4a4f4b h1:MqirCxiM6A2RWKZIdmoMjtBdhp3q4z3GYdcEgmycO0o=
-github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806031718-a7bffd4a4f4b/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
+github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806044350-c0d5e4de6ba1 h1:XtmbHmUUBHgYfH2mQ1ROXMPujfrNNMs841B8yQLT/4U=
+github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806044350-c0d5e4de6ba1/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
 github.com/sagernet/sing v0.9.0-beta.2 h1:JZ6bF5cEobx1FjptNvSLfKXP66nU1U21AuEDnebg8u8=
 github.com/sagernet/sing v0.9.0-beta.2/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3 h1:3y6++yIa8XlDhxPkpR4p+7RUHVY2KTP9CPIGnWmOlO8=
@@ -346,8 +346,8 @@ github.com/sagernet/smux v1.5.50-sing-box-mod.1 h1:XkJcivBC9V4wBjiGXIXZ229aZCU1h
 github.com/sagernet/smux v1.5.50-sing-box-mod.1/go.mod h1:NjhsCEWedJm7eFLyhuBgIEzwfhRmytrUoiLluxs5Sk8=
 github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.2 h1:JXYUrqxvIYGVVvTz0xzYR6DufhLBfnV5wh5lwhbdJVM=
 github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.2/go.mod h1:WLUSOPmTcf7VN9gLCe01qUSIvD+/cKC177neENyZPkI=
-github.com/sagernet/wireguard-go v0.0.5-0.20260805042941-f39689ad3562 h1:dhvhMpGaa+enzCS6FKozBwvPseiIOrGrmBCsAgCwoSY=
-github.com/sagernet/wireguard-go v0.0.5-0.20260805042941-f39689ad3562/go.mod h1:er10sELpmzLXq7S7Pbc1Zsbyapcr+/gxNAHKTo6fzVA=
+github.com/sagernet/wireguard-go v0.0.5-0.20260806044357-aace29bc2c2d h1:7Ba2tyILg/iMwnqltbdSnGR0J9OQ27RpFi35/Gqgu8k=
+github.com/sagernet/wireguard-go v0.0.5-0.20260806044357-aace29bc2c2d/go.mod h1:er10sELpmzLXq7S7Pbc1Zsbyapcr+/gxNAHKTo6fzVA=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
 github.com/smallstep/pkcs7 v0.1.1 h1:x+rPdt2W088V9Vkjho4KtoggyktZJlMduZAtRHm68LU=
