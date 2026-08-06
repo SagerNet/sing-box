@@ -43,7 +43,7 @@ require (
 	github.com/sagernet/gvisor v0.0.0-20260727.0-sing-box-mod.1
 	github.com/sagernet/netlink v0.0.0-20240612041022-b9a21c07ac6a
 	github.com/sagernet/nftables v0.3.0-mod.4
-	github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806031718-a7bffd4a4f4b
+	github.com/sagernet/quic-go v0.61.0-sing-box-mod.1.0.20260806044350-c0d5e4de6ba1
 	github.com/sagernet/sing v0.9.0-beta.2
 	github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3
 	github.com/sagernet/sing-mux v0.3.5
@@ -59,7 +59,7 @@ require (
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
 	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.2
-	github.com/sagernet/wireguard-go v0.0.5-0.20260805042941-f39689ad3562
+	github.com/sagernet/wireguard-go v0.0.5-0.20260806044357-aace29bc2c2d
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
