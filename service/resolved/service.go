@@ -173,7 +173,7 @@ func (i *Service) exchangePacket0(ctx context.Context, buffer *buf.Buffer, oob [
 	if err != nil {
 		return err
 	}
-	responseBuffer, err := dns.TruncateDNSMessage(&message, response, 0)
+	responseBuffer, err := dns.TruncateDNSMessage(&message, response, 0, 0)
 	if err != nil {
 		return err
 	}
