@@ -6,7 +6,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-func TruncateDNSMessage(request *dns.Msg, response *dns.Msg, headroom int) (*buf.Buffer, error) {
+func TruncateDNSMessage(request *dns.Msg, response *dns.Msg, frontHeadroom int, rearHeadroom int) (*buf.Buffer, error) {
 	maxLen := 512
 	if edns0Option := request.IsEdns0(); edns0Option != nil {
 		if udpSize := int(edns0Option.UDPSize()); udpSize > 512 {
@@ -18,8 +18,8 @@ func TruncateDNSMessage(request *dns.Msg, response *dns.Msg, headroom int) (*buf
 		response = response.Copy()
 		response.Truncate(maxLen)
 	}
-	buffer := buf.NewSize(headroom*2 + 1 + responseLen)
-	buffer.Resize(headroom, 0)
+	buffer := buf.NewSize(frontHeadroom + responseLen + 1 + rearHeadroom)
+	buffer.Resize(frontHeadroom, 0)
 	rawMessage, err := response.PackBuffer(buffer.FreeBytes())
 	if err != nil {
 		buffer.Release()
