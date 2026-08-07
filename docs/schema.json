@@ -3438,6 +3438,9 @@
             "executable_path": {
               "type": "string"
             },
+            "control_address": {
+              "type": "string"
+            },
             "config_path": {
               "type": "string"
             },
