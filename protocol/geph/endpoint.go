@@ -3,6 +3,7 @@ package geph
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -34,6 +35,12 @@ func NewEndpoint(ctx context.Context, _ adapter.Router, logger log.ContextLogger
 	if options.ConfigPath == "" {
 		return nil, E.New("missing Geph `config_path`")
 	}
+	if options.ControlAddress == "" {
+		return nil, E.New("missing Geph `control_address`")
+	}
+	if err := validateGephControlAddress(options.ControlAddress); err != nil {
+		return nil, err
+	}
 	executable := options.ExecutablePath
 	if executable == "" {
 		executable = defaultExecutable
@@ -41,12 +48,26 @@ func NewEndpoint(ctx context.Context, _ adapter.Router, logger log.ContextLogger
 	if err := validateExtraArgs(options.ExtraArgs); err != nil {
 		return nil, err
 	}
-	p := newGephProcess(ctx, executable, options.ConfigPath, options.ExtraArgs, time.Duration(options.StartupTimeout))
+	p := newGephProcess(ctx, executable, options.ConfigPath, options.ControlAddress, options.ExtraArgs, time.Duration(options.StartupTimeout))
 	return &Endpoint{
 		Adapter: endpoint.NewAdapter(C.TypeGeph, tag, []string{N.NetworkTCP, N.NetworkUDP}, nil),
 		logger:  logger,
 		proc:    p,
 	}, nil
+}
+
+func validateGephControlAddress(address string) error {
+	addressPort, err := netip.ParseAddrPort(address)
+	if err != nil {
+		return E.New("invalid Geph `control_address`: ", err)
+	}
+	if !addressPort.Addr().IsLoopback() {
+		return E.New("`control_address` must be loopback IP: ", address)
+	}
+	if addressPort.Port() == 0 {
+		return E.New("invalid Geph `control_address` port: ", address)
+	}
+	return nil
 }
 
 func validateExtraArgs(args []string) error {
