@@ -1,21 +1,19 @@
-// Package windivert provides a pure-Go binding to the WinDivert kernel
-// driver on Windows (amd64 and 386). User-mode WinDivert calls are
-// reimplemented in Go; only the signed kernel driver is embedded as an
-// asset, since SCM-installed drivers must live on disk. The on-disk copy
-// is verified byte-for-byte against the embedded asset on every install
-// and held open deny-write while the kernel loads it.
-//
-// Administrator is required for the first Open in a process so SCM can
-// load the driver. Upstream: https://github.com/basil00/WinDivert v2.2.2,
-// redistributed under its LGPL v3 option; see assets/LICENSE.txt.
+// Upstream: https://github.com/basil00/WinDivert v2.2.2, redistributed
+// under its LGPL v3 option; see assets/LICENSE.txt.
 package windivert
 
 import "unsafe"
 
 const AssetVersion = "2.2.2"
 
-// MTUMax is WINDIVERT_MTU_MAX from windivert.h (40 + 0xFFFF). Suitable as
-// a single-packet receive buffer size.
+const (
+	Asset64Name   = "WinDivert64.sys"
+	Asset32Name   = "WinDivert32.sys"
+	Asset64SHA256 = "8da085332782708d8767bcace5327a6ec7283c17cfb85e40b03cd2323a90ddc2"
+	Asset32SHA256 = "2f43f4251be4d72dd56c91bf6cce475d379eb9ba6c4dda2be3022ea633d5e807"
+)
+
+// WINDIVERT_MTU_MAX from windivert.h.
 const MTUMax = 40 + 0xFFFF
 
 type Layer uint32
@@ -25,11 +23,7 @@ const LayerNetwork Layer = 0
 type Flag uint64
 
 const (
-	// FlagSniff opens a passive observer: the driver copies matching packets
-	// to userspace without removing them from the network stack. Send is not
-	// required (and not allowed) on a sniffing handle.
-	FlagSniff Flag = 0x0001
-	// FlagSendOnly opens a write-only injection handle; Recv is not allowed.
+	FlagSniff    Flag = 0x0001
 	FlagSendOnly Flag = 0x0008
 )
 
@@ -38,13 +32,9 @@ const (
 	PriorityLowest  int16 = -30000
 )
 
-// Address mirrors WINDIVERT_ADDRESS from windivert.h (80 bytes,
-// little-endian on both amd64 and 386):
-//
-//	 0: INT64  Timestamp
-//	 8: UINT32 bitfield: Layer:8 | Event:8 | flags | Reserved1:8
-//	12: UINT32 Reserved2
-//	16: 64 bytes union (WINDIVERT_DATA_NETWORK / FLOW / SOCKET / REFLECT)
+// WINDIVERT_ADDRESS from windivert.h: bits packs Layer:8 | Event:8 | flags |
+// Reserved1:8, and the trailing 64 bytes are a union of
+// WINDIVERT_DATA_NETWORK / FLOW / SOCKET / REFLECT.
 type Address struct {
 	Timestamp int64
 	bits      uint32
@@ -54,7 +44,6 @@ type Address struct {
 
 var _ [80]byte = [unsafe.Sizeof(Address{})]byte{}
 
-// Bit positions inside the Address's packed flags word.
 const (
 	addrBitOutbound    = 17
 	addrBitIPv6        = 20
@@ -73,9 +62,6 @@ func setFlagBit(bits uint32, pos uint, v bool) uint32 {
 
 func (a *Address) IPv6() bool { return getFlagBit(a.bits, addrBitIPv6) }
 
-// SetIPv6 declares the address family of a packet built for injection. The
-// driver reads it to select the IPv6 network layer; a received address
-// already carries it, but a from-scratch injection address must set it.
 func (a *Address) SetIPv6(v bool) {
 	a.bits = setFlagBit(a.bits, addrBitIPv6, v)
 }
