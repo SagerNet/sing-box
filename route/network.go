@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -55,7 +56,7 @@ type NetworkManager struct {
 	wifiMonitor            settings.WIFIMonitor
 	wifiState              adapter.WIFIState
 	wifiStateMutex         sync.RWMutex
-	started                bool
+	started                atomic.Bool
 }
 
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*NetworkManager, error) {
@@ -203,7 +204,7 @@ func (r *NetworkManager) Start(stage adapter.StartStage) error {
 				}
 			}
 		}
-		r.started = true
+		r.started.Store(true)
 	}
 	return nil
 }
@@ -480,7 +481,7 @@ func (r *NetworkManager) ResetNetwork() {
 
 func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
 	if defaultInterface == nil {
-		if r.started {
+		if r.started.Load() {
 			r.pauseManager.NetworkPause()
 		}
 		r.logger.Error("missing default interface")
@@ -517,7 +518,7 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 	r.logger.Info("updated default interface ", defaultInterface.Name, ", ", strings.Join(options, ", "))
 	r.UpdateWIFIState()
 
-	if !r.started {
+	if !r.started.Load() {
 		return
 	}
 	r.ResetNetwork()
