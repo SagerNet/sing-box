@@ -739,10 +739,7 @@ func (s *StartedService) URLTest(ctx context.Context, request *URLTestRequest) (
 			if err != nil {
 				historyStorage.DeleteURLTestHistory(outboundTag)
 			} else {
-				historyStorage.StoreURLTestHistory(outboundTag, &adapter.URLTestHistory{
-					Time:  time.Now(),
-					Delay: t,
-				})
+				historyStorage.StoreURLTestDelay(outboundTag, t)
 			}
 		}()
 	}

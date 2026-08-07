@@ -13498,6 +13498,9 @@
             },
             "interrupt_exist_connections": {
               "type": "boolean"
+            },
+            "bandwidth_test": {
+              "$ref": "#/$defs/URLTestBandwidthTestOptions"
             }
           },
           "required": [
@@ -17084,6 +17087,46 @@
           "pattern": "^[-+]?(((\\d+(\\.\\d*)?|\\.\\d+)(ns|us|µs|μs|ms|s|m|h|d))+|0)$"
         }
       ]
+    },
+    "URLTestBandwidthTestOptions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "url": {
+          "type": "string"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "timeout": {
+          "$ref": "#/$defs/Duration"
+        },
+        "interval": {
+          "$ref": "#/$defs/Duration"
+        },
+        "concurrency": {
+          "type": "integer"
+        },
+        "strategy": {
+          "type": "string"
+        },
+        "latency_floor": {
+          "$ref": "#/$defs/Duration"
+        },
+        "throughput_tolerance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "samples": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
     },
     "USBIPDeviceMatch": {
       "type": "object",
