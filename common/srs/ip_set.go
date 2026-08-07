@@ -2,7 +2,6 @@ package srs
 
 import (
 	"encoding/binary"
-	"io"
 	"net/netip"
 	"os"
 	"unsafe"
@@ -37,15 +36,14 @@ func readIPSet(reader varbin.Reader) (*netipx.IPSet, error) {
 		return nil, err
 	}
 	mySet := &myIPSet{
-		rr: make([]myIPRange, length),
+		rr: make([]myIPRange, 0, min(length, 64)),
 	}
-	for i := range mySet.rr {
+	for i := uint64(0); i < length; i++ {
 		fromLen, err := binary.ReadUvarint(reader)
 		if err != nil {
 			return nil, err
 		}
-		fromBytes := make([]byte, fromLen)
-		_, err = io.ReadFull(reader, fromBytes)
+		fromBytes, err := readBytes(reader, fromLen)
 		if err != nil {
 			return nil, err
 		}
@@ -53,13 +51,14 @@ func readIPSet(reader varbin.Reader) (*netipx.IPSet, error) {
 		if err != nil {
 			return nil, err
 		}
-		toBytes := make([]byte, toLen)
-		_, err = io.ReadFull(reader, toBytes)
+		toBytes, err := readBytes(reader, toLen)
 		if err != nil {
 			return nil, err
 		}
-		mySet.rr[i].from = M.AddrFromIP(fromBytes)
-		mySet.rr[i].to = M.AddrFromIP(toBytes)
+		mySet.rr = append(mySet.rr, myIPRange{
+			from: M.AddrFromIP(fromBytes),
+			to:   M.AddrFromIP(toBytes),
+		})
 	}
 	return (*netipx.IPSet)(unsafe.Pointer(mySet)), nil
 }

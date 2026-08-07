@@ -2,7 +2,6 @@ package srs
 
 import (
 	"encoding/binary"
-	"io"
 	"net/netip"
 
 	M "github.com/sagernet/sing/common/metadata"
@@ -14,8 +13,7 @@ func readPrefix(reader varbin.Reader) (netip.Prefix, error) {
 	if err != nil {
 		return netip.Prefix{}, err
 	}
-	addrSlice := make([]byte, addrLen)
-	_, err = io.ReadFull(reader, addrSlice)
+	addrSlice, err := readBytes(reader, addrLen)
 	if err != nil {
 		return netip.Prefix{}, err
 	}

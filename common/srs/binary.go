@@ -2,6 +2,7 @@ package srs
 
 import (
 	"bufio"
+	"bytes"
 	"compress/zlib"
 	"encoding/binary"
 	"io"
@@ -50,6 +51,24 @@ const (
 	ruleItemFinal uint8 = 0xFF
 )
 
+// readBytes reads exactly length bytes without pre-allocating an untrusted length. io.CopyN
+// grows the buffer only as bytes actually arrive, so a crafted rule-set that declares a huge
+// length hits io.ErrUnexpectedEOF instead of OOMing the process on make([]byte, length).
+func readBytes(reader io.Reader, length uint64) ([]byte, error) {
+	if length == 0 {
+		return nil, nil
+	}
+	var buffer bytes.Buffer
+	_, err := io.CopyN(&buffer, reader, int64(length))
+	if err != nil {
+		return nil, err
+	}
+	if uint64(buffer.Len()) != length {
+		return nil, io.ErrUnexpectedEOF
+	}
+	return buffer.Bytes(), nil
+}
+
 func Read(reader io.Reader, recover bool) (ruleSetCompat option.PlainRuleSetCompat, err error) {
 	var magicBytes [3]byte
 	_, err = io.ReadFull(reader, magicBytes[:])
@@ -78,14 +97,20 @@ func Read(reader io.Reader, recover bool) (ruleSetCompat option.PlainRuleSetComp
 		return
 	}
 	ruleSetCompat.Version = version
-	ruleSetCompat.Options.Rules = make([]option.HeadlessRule, length)
-	for i := range length {
-		ruleSetCompat.Options.Rules[i], err = readRule(bReader, recover)
+	// length is an untrusted uvarint; do not pre-allocate it (a crafted rule-set can declare a
+	// huge count and OOM the process on make). Cap the initial capacity and grow via append; a
+	// bogus length simply hits EOF in readRule after the real rules.
+	rules := make([]option.HeadlessRule, 0, min(length, 64))
+	for i := uint64(0); i < length; i++ {
+		var rule option.HeadlessRule
+		rule, err = readRule(bReader, recover)
 		if err != nil {
 			err = E.Cause(err, "read rule[", i, "]")
 			return
 		}
+		rules = append(rules, rule)
 	}
+	ruleSetCompat.Options.Rules = rules
 	return
 }
 
@@ -522,18 +547,17 @@ func readRuleItemString(reader varbin.Reader) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := make([]string, length)
-	for i := range result {
+	result := make([]string, 0, min(length, 64))
+	for i := uint64(0); i < length; i++ {
 		strLen, err := binary.ReadUvarint(reader)
 		if err != nil {
 			return nil, err
 		}
-		buf := make([]byte, strLen)
-		_, err = io.ReadFull(reader, buf)
+		buf, err := readBytes(reader, strLen)
 		if err != nil {
 			return nil, err
 		}
-		result[i] = string(buf)
+		result = append(result, string(buf))
 	}
 	return result, nil
 }
@@ -565,12 +589,11 @@ func readRuleItemUint8[E ~uint8](reader varbin.Reader) ([]E, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := make([]E, length)
-	_, err = io.ReadFull(reader, *(*[]byte)(unsafe.Pointer(&result)))
+	buf, err := readBytes(reader, length)
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return *(*[]E)(unsafe.Pointer(&buf)), nil
 }
 
 func writeRuleItemUint8[E ~uint8](writer varbin.Writer, itemType uint8, value []E) error {
@@ -591,10 +614,14 @@ func readRuleItemUint16(reader varbin.Reader) ([]uint16, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := make([]uint16, length)
-	err = binary.Read(reader, binary.BigEndian, result)
-	if err != nil {
-		return nil, err
+	result := make([]uint16, 0, min(length, 64))
+	for i := uint64(0); i < length; i++ {
+		var value uint16
+		err = binary.Read(reader, binary.BigEndian, &value)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
 	}
 	return result, nil
 }
@@ -655,13 +682,15 @@ func readLogicalRule(reader varbin.Reader, recovery bool) (logicalRule option.Lo
 	if err != nil {
 		return
 	}
-	logicalRule.Rules = make([]option.HeadlessRule, length)
-	for i := range length {
-		logicalRule.Rules[i], err = readRule(reader, recovery)
+	logicalRule.Rules = make([]option.HeadlessRule, 0, min(length, 64))
+	for i := uint64(0); i < length; i++ {
+		var rule option.HeadlessRule
+		rule, err = readRule(reader, recovery)
 		if err != nil {
 			err = E.Cause(err, "read logical rule [", i, "]")
 			return
 		}
+		logicalRule.Rules = append(logicalRule.Rules, rule)
 	}
 	err = binary.Read(reader, binary.BigEndian, &logicalRule.Invert)
 	if err != nil {
