@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"os"
 	"os/exec"
@@ -9,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
+	"github.com/sagernet/sing-box/common/windivert"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -93,6 +97,53 @@ func build() error {
 	if err != nil {
 		return E.Cause(err, "build sing-box daemon")
 	}
+	if operatingSystem == "windows" {
+		err = stageWinDivertDriver(architecture, filepath.Dir(absoluteOutputPath))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stageWinDivertDriver(architecture string, outputDirectory string) error {
+	var assetName, assetDigest string
+	switch architecture {
+	case "amd64":
+		assetName, assetDigest = windivert.Asset64Name, windivert.Asset64SHA256
+	case "386":
+		assetName, assetDigest = windivert.Asset32Name, windivert.Asset32SHA256
+	}
+	for _, name := range []string{windivert.Asset64Name, windivert.Asset32Name} {
+		if name == assetName {
+			continue
+		}
+		err := os.Remove(filepath.Join(outputDirectory, name))
+		if err != nil && !os.IsNotExist(err) {
+			return E.Cause(err, "remove stale ", name)
+		}
+	}
+	if assetName == "" {
+		return nil
+	}
+	assetDirectory := filepath.Join("common", "windivert", "assets")
+	content, err := os.ReadFile(filepath.Join(assetDirectory, assetName))
+	if err != nil {
+		return E.Cause(err, "read ", assetName)
+	}
+	checksum := sha256.Sum256(content)
+	if hex.EncodeToString(checksum[:]) != assetDigest {
+		return E.New(assetName, " does not match the digest declared in common/windivert")
+	}
+	targetPath := filepath.Join(outputDirectory, assetName)
+	staged, err := os.ReadFile(targetPath)
+	if err == nil && bytes.Equal(staged, content) {
+		return nil
+	}
+	err = os.WriteFile(targetPath, content, 0o644)
+	if err != nil {
+		return E.Cause(err, "write ", assetName)
+	}
 	return nil
 }
 
@@ -112,6 +163,9 @@ func buildTags(operatingSystem string, architecture string, cgoEnabled bool) ([]
 		return nil, E.Cause(err, "read build tags")
 	}
 	tags := strings.Split(strings.TrimSpace(string(content)), ",")
+	if operatingSystem == "windows" {
+		tags = append(tags, "with_external_windivert")
+	}
 	if debugEnabled {
 		tags = append(tags, "debug")
 	}
