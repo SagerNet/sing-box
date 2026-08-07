@@ -80,7 +80,8 @@ jobs:
           CRONET_GO_VERSION=$(cat .github/CRONET_GO_VERSION)
           git init ~/cronet-go
           git -C ~/cronet-go remote add origin https://github.com/sagernet/cronet-go.git
-          git -C ~/cronet-go fetch --depth=1 origin "$CRONET_GO_VERSION"
+          git -C ~/cronet-go sparse-checkout set --no-cone '/*' '!/lib'
+          git -C ~/cronet-go fetch --depth=1 --filter=blob:none origin "$CRONET_GO_VERSION"
           git -C ~/cronet-go checkout FETCH_HEAD
           git -C ~/cronet-go submodule update --init --recursive --depth=1
       - name: Regenerate Debian keyring
