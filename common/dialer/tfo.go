@@ -156,10 +156,6 @@ func (c *slowOpenConn) WriterReplaceable() bool {
 	return c.conn.Load() != nil
 }
 
-func (c *slowOpenConn) LazyHeadroom() bool {
-	return c.conn.Load() == nil
-}
-
 func (c *slowOpenConn) NeedHandshake() bool {
 	return c.conn.Load() == nil
 }
