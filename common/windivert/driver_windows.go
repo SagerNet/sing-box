@@ -4,6 +4,7 @@ package windivert
 
 import (
 	"errors"
+	"os"
 	"runtime"
 	"time"
 
@@ -73,7 +74,7 @@ func installAndOpenDevice() (windows.Handle, error) {
 		return 0, fatalErr
 	}
 
-	sysPath, sysFile, err := extractVerified()
+	sysPath, sysFile, err := openVerifiedDriver()
 	if err != nil {
 		return 0, err
 	}
@@ -130,11 +131,8 @@ func tryInstallService(manager windows.Handle, serviceNameW, sysPathW *uint16) e
 
 	err = windows.StartService(service, 0, nil)
 	if err == nil {
-		// Mark for deletion so the driver unregisters when the last handle
-		// closes or on next reboot. Matches the upstream DLL's behavior:
-		// only the process that actually started the service takes on the
-		// cleanup responsibility. If another process already started it,
-		// we leave DeleteService to them.
+		// Upstream WinDivert.dll marks the service for deletion only in the
+		// process whose StartService succeeded.
 		_ = windows.DeleteService(service)
 		return nil
 	}
@@ -142,9 +140,8 @@ func tryInstallService(manager windows.Handle, serviceNameW, sysPathW *uint16) e
 		return nil
 	}
 	if errors.Is(err, windows.ERROR_SERVICE_DISABLED) {
-		// The disabled check precedes the running check: a running service
-		// marked for deletion reports ERROR_SERVICE_DISABLED instead of
-		// ERROR_SERVICE_ALREADY_RUNNING. The device is nonetheless up.
+		// StartService on a running service that is marked for deletion
+		// reports ERROR_SERVICE_DISABLED, not ERROR_SERVICE_ALREADY_RUNNING.
 		var status windows.SERVICE_STATUS
 		queryErr := windows.QueryServiceStatus(service, &status)
 		if queryErr == nil && status.CurrentState == windows.SERVICE_RUNNING {
@@ -157,6 +154,18 @@ func tryInstallService(manager windows.Handle, serviceNameW, sysPathW *uint16) e
 func openOrCreateService(manager windows.Handle, serviceNameW, sysPathW *uint16) (windows.Handle, error) {
 	service, err := windows.OpenService(manager, serviceNameW, windows.SERVICE_ALL_ACCESS)
 	if err == nil {
+		err = windows.ChangeServiceConfig(
+			service,
+			windows.SERVICE_NO_CHANGE,
+			windows.SERVICE_NO_CHANGE,
+			windows.SERVICE_NO_CHANGE,
+			sysPathW,
+			nil, nil, nil, nil, nil, nil,
+		)
+		if err != nil {
+			windows.CloseServiceHandle(service)
+			return 0, E.Cause(err, "windivert: point service at ", driverAssetName)
+		}
 		return service, nil
 	}
 	service, err = windows.CreateService(
@@ -187,4 +196,24 @@ func wrapDriverInstallError(err error) error {
 		return E.Cause(err, "windivert: installing the kernel driver requires Administrator privileges")
 	}
 	return E.Cause(err, "windivert: create service")
+}
+
+func openDriverFile(path string) (*os.File, error) {
+	pathW, err := windows.UTF16PtrFromString(path)
+	if err != nil {
+		return nil, err
+	}
+	handle, err := windows.CreateFile(
+		pathW,
+		windows.GENERIC_READ,
+		windows.FILE_SHARE_READ,
+		nil,
+		windows.OPEN_EXISTING,
+		windows.FILE_ATTRIBUTE_NORMAL,
+		0,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return os.NewFile(uintptr(handle), path), nil
 }
