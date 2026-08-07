@@ -2,9 +2,7 @@
 
 package windivert
 
-import _ "embed"
-
-//go:embed assets/WinDivert32.sys
-var sysBytes []byte
-
-func driverSysName() string { return "WinDivert32.sys" }
+const (
+	driverAssetName   = Asset32Name
+	driverAssetDigest = Asset32SHA256
+)
