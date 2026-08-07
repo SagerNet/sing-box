@@ -66,6 +66,8 @@ func writeStreamResponse(conn net.Conn, response *mDNS.Msg) {
 
 func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn N.PacketConn, cachedPackets []*N.PacketBuffer, metadata adapter.InboundContext) error {
 	metadata.Destination = M.Socksaddr{}
+	frontHeadroom := N.CalculateFrontHeadroom(conn)
+	rearHeadroom := N.CalculateRearHeadroom(conn)
 	var reader N.PacketReader = conn
 	var counters []N.CountFunc
 	cachedPackets = common.Reverse(cachedPackets)
@@ -131,7 +133,7 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 					return
 				}
 				timeout.Update()
-				responseBuffer, truncateErr := dns.TruncateDNSMessage(&message, response, 1024)
+				responseBuffer, truncateErr := dns.TruncateDNSMessage(&message, response, frontHeadroom, rearHeadroom)
 				if truncateErr != nil {
 					cancel(truncateErr)
 					return
@@ -150,6 +152,8 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 }
 
 func newDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn N.PacketConn, readWaiter N.PacketReadWaiter, readCounters []N.CountFunc, cached []*N.PacketBuffer, metadata adapter.InboundContext) error {
+	frontHeadroom := N.CalculateFrontHeadroom(conn)
+	rearHeadroom := N.CalculateRearHeadroom(conn)
 	fastClose, cancel := context.WithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
 	var group task.Group
@@ -199,7 +203,7 @@ func newDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 					return
 				}
 				timeout.Update()
-				responseBuffer, truncateErr := dns.TruncateDNSMessage(&message, response, 1024)
+				responseBuffer, truncateErr := dns.TruncateDNSMessage(&message, response, frontHeadroom, rearHeadroom)
 				if truncateErr != nil {
 					cancel(truncateErr)
 					return
