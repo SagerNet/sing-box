@@ -60,32 +60,24 @@ const (
 )
 
 type filterInst struct {
-	field   uint16 // 11 bits used
-	test    uint8  //  5 bits used
+	field   uint16
+	test    uint8
 	success uint16
 	failure uint16
 	neg     bool
 	arg     [4]uint32
 }
 
-// Filter is a typed specification of packets to capture. It replaces
-// WinDivert's filter string language.
-//
-// Zero value = "reject all" (match nothing), suitable for send-only handles.
 type Filter struct {
 	insts    []filterInst
-	anyInsts []filterInst // trailing OR block: any match accepts
-	flags    uint64       // filter flags for STARTUP ioctl
+	anyInsts []filterInst
+	flags    uint64
 }
 
-// reject returns a filter that matches no packet. The empty insts slice
-// is encoded as a single rejecting instruction by encode().
 func reject() *Filter {
 	return &Filter{}
 }
 
-// OutboundTCP returns a filter matching outbound TCP packets on the given
-// 5-tuple. Both addresses must share an address family (IPv4 or IPv6).
 func OutboundTCP(src, dst netip.AddrPort) (*Filter, error) {
 	if !src.IsValid() || !dst.IsValid() {
 		return nil, E.New("windivert: filter: invalid address port")
@@ -96,8 +88,6 @@ func OutboundTCP(src, dst netip.AddrPort) (*Filter, error) {
 	f := &Filter{
 		flags: filterFlagOutbound,
 	}
-	// Insts chain as AND: each test's failure = REJECT, success = next inst.
-	// The final inst's success = ACCEPT.
 	f.add(fieldOutbound, testEQ, argUint32(1))
 	if src.Addr().Is4() {
 		f.flags |= filterFlagIP
@@ -214,21 +204,17 @@ func (f *Filter) addAny(field uint16, test uint8, arg [4]uint32) {
 
 func argUint32(v uint32) [4]uint32 { return [4]uint32{v, 0, 0, 0} }
 
-// argIPv4 encodes an IPv4 address for IP_SRCADDR/IP_DSTADDR. The driver
-// compares against an IPv4-mapped-IPv6 form: {host_order_u32, 0x0000FFFF,
-// 0, 0} (see sys/windivert.c windivert_get_ipv4_addr and the IPv4_SRCADDR
-// val-word construction). Omitting the 0x0000FFFF marker causes the EQ
-// test to fail for every packet.
+// The driver compares IP_SRCADDR/IP_DSTADDR against an IPv4-mapped-IPv6
+// form: {host_order_u32, 0x0000FFFF, 0, 0} (sys/windivert.c
+// windivert_get_ipv4_addr).
 func argIPv4(addr netip.Addr) [4]uint32 {
 	b := addr.As4()
 	return [4]uint32{binary.BigEndian.Uint32(b[:]), 0x0000FFFF, 0, 0}
 }
 
-// argIPv6 encodes an IPv6 address for IPV6_SRCADDR/IPV6_DSTADDR. The
-// driver stores the address as four host-order uint32s in REVERSED word
-// order: val[0]=low (bytes 12..15), val[3]=high (bytes 0..3). See
-// sys/windivert.c windivert_outbound_network_v6_classify val-word
-// construction.
+// The driver stores IPV6_SRCADDR/IPV6_DSTADDR as four host-order uint32s in
+// reversed word order: val[0]=low (bytes 12..15), val[3]=high (bytes 0..3)
+// (sys/windivert.c windivert_outbound_network_v6_classify).
 func argIPv6(addr netip.Addr) [4]uint32 {
 	b := addr.As16()
 	return [4]uint32{
@@ -239,15 +225,9 @@ func argIPv6(addr netip.Addr) [4]uint32 {
 	}
 }
 
-// encode serializes the Filter to the on-wire WINDIVERT_FILTER[] format
-// plus the filter_flags for STARTUP ioctl. insts chain as AND (failure
-// rejects); anyInsts follow as an OR block (success accepts, failure falls
-// through to the next alternative).
 func (f *Filter) encode() ([]byte, uint64, error) {
 	total := len(f.insts) + len(f.anyInsts)
 	if total == 0 {
-		// "Reject all" — one instruction, ZERO == 0 is always true, but we
-		// invert by setting both success and failure to REJECT.
 		return encodeInst(filterInst{
 			field:   fieldZero,
 			test:    testEQ,
