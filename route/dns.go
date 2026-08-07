@@ -61,7 +61,7 @@ func (r *Router) HijackDNSPacket(ctx context.Context, payload []byte, writer N.P
 }
 
 func (r *Router) writeDNSPacketResponse(message *mDNS.Msg, response *mDNS.Msg, writer N.PacketWriter, destination M.Socksaddr) error {
-	responseBuffer, err := dns.TruncateDNSMessage(message, response, 1024)
+	responseBuffer, err := dns.TruncateDNSMessage(message, response, N.CalculateFrontHeadroom(writer), N.CalculateRearHeadroom(writer))
 	if err != nil {
 		return err
 	}
