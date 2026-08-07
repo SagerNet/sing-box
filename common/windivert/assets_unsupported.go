@@ -2,6 +2,7 @@
 
 package windivert
 
-var sysBytes []byte
-
-func driverSysName() string { return "" }
+const (
+	driverAssetName   = ""
+	driverAssetDigest = ""
+)
