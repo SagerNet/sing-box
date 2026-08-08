@@ -2,10 +2,11 @@
 
 set -euo pipefail
 
-VERSION="1.25.12"
+VERSION="1.26.5"
 PATCH_COMMITS=(
-  "afe69d3cec1c6dcf0f1797b20546795730850070"
-  "1ed289b0cf87dc5aae9c6fe1aa5f200a83412938"
+  "f080b0c6346eb690c0dc82497b35925f385b35ac"
+  "2d9c12887c342fb9051d231aa5388743cb7e9cb6"
+  "367663849c656612fc3c8875ef6e7f6b0c93dbd0"
 )
 CURL_ARGS=(
   -fL
@@ -25,12 +26,13 @@ tar -xzf "go${VERSION}.darwin-arm64.tar.gz"
 mv go go_osx
 cd go_osx
 
-# these patch URLs only work on golang1.25.x
-# that means after golang1.26 release it must be changed
-# see: https://github.com/SagerNet/go/commits/release-branch.go1.25/
+# these patch URLs only work on golang1.26.x
+# that means after golang1.27 release it must be changed
+# see: https://github.com/SagerNet/go/commits/release-branch.go1.26/
 # revert:
 # 33d3f603c1: "cmd/link/internal/ld: use 12.0.0 OS/SDK versions for macOS linking"
 # 937368f84e: "crypto/x509: change how we retrieve chains on darwin"
+# d90a57ffe8: "cmd/link/internal/ld: unify OS/SDK versions for macOS linking"
 
 for patch_commit in "${PATCH_COMMITS[@]}"; do
   curl "${CURL_ARGS[@]}" "https://github.com/SagerNet/go/commit/${patch_commit}.diff" | patch --verbose -p 1
