@@ -175,24 +175,25 @@ jobs:
         with:
           ndk-version: r28
       - name: Clone cronet-go
-        if: matrix.naive
+        if: matrix.naive && matrix.variant != 'purego'
         run: |
           set -xeuo pipefail
           CRONET_GO_VERSION=$(cat .github/CRONET_GO_VERSION)
           git init ~/cronet-go
           git -C ~/cronet-go remote add origin https://github.com/sagernet/cronet-go.git
-          git -C ~/cronet-go fetch --depth=1 origin "$CRONET_GO_VERSION"
+          git -C ~/cronet-go sparse-checkout set --no-cone '/*' '!/lib'
+          git -C ~/cronet-go fetch --depth=1 --filter=blob:none origin "$CRONET_GO_VERSION"
           git -C ~/cronet-go checkout FETCH_HEAD
           git -C ~/cronet-go submodule update --init --recursive --depth=1
       - name: Regenerate Debian keyring
-        if: matrix.naive
+        if: matrix.naive && matrix.variant != 'purego'
         run: |
           set -xeuo pipefail
           rm -f ~/cronet-go/naiveproxy/src/build/linux/sysroot_scripts/keyring.gpg
           cd ~/cronet-go
           GPG_TTY=/dev/null ./naiveproxy/src/build/linux/sysroot_scripts/generate_keyring.sh
       - name: Download Chromium toolchain
-        if: matrix.naive
+        if: matrix.naive && matrix.variant != 'purego'
         run: |
           set -xeuo pipefail
           cd ~/cronet-go
@@ -202,7 +203,7 @@ jobs:
             go run ./cmd/build-naive --target=linux/${{ matrix.arch }} download-toolchain
           fi
       - name: Set Chromium toolchain environment
-        if: matrix.naive
+        if: matrix.naive && matrix.variant != 'purego'
         run: |
           set -xeuo pipefail
           cd ~/cronet-go
@@ -252,9 +253,15 @@ jobs:
       - name: Extract libcronet.so
         if: matrix.variant == 'purego' && matrix.naive
         run: |
-          cd ~/cronet-go
-          CGO_ENABLED=0 go build -v -o "$RUNNER_TEMP/build-naive" ./cmd/build-naive
-          GOPROXY=direct GOSUMDB=off "$RUNNER_TEMP/build-naive" extract-lib --target ${{ matrix.os }}/${{ matrix.arch }} -o $GITHUB_WORKSPACE/dist
+          set -xeuo pipefail
+          CRONET_GO_VERSION=$(cat .github/CRONET_GO_VERSION)
+          LIBRARY_PATH="lib/${{ matrix.os }}_${{ matrix.arch }}/libcronet.so"
+          git init "$RUNNER_TEMP/cronet-go-lib"
+          git -C "$RUNNER_TEMP/cronet-go-lib" remote add origin https://github.com/sagernet/cronet-go.git
+          git -C "$RUNNER_TEMP/cronet-go-lib" sparse-checkout set --no-cone "/$LIBRARY_PATH"
+          git -C "$RUNNER_TEMP/cronet-go-lib" fetch --depth=1 --filter=blob:none origin "$CRONET_GO_VERSION"
+          git -C "$RUNNER_TEMP/cronet-go-lib" checkout FETCH_HEAD
+          cp "$RUNNER_TEMP/cronet-go-lib/$LIBRARY_PATH" dist/
       - name: Build (glibc)
         if: matrix.variant == 'glibc'
         run: |
@@ -621,15 +628,13 @@ jobs:
         if: matrix.naive
         run: |
           $CRONET_GO_VERSION = Get-Content .github/CRONET_GO_VERSION
-          git init "$env:RUNNER_TEMP/cronet-go"
-          git -C "$env:RUNNER_TEMP/cronet-go" remote add origin https://github.com/sagernet/cronet-go.git
-          git -C "$env:RUNNER_TEMP/cronet-go" fetch --depth=1 origin "$CRONET_GO_VERSION"
-          git -C "$env:RUNNER_TEMP/cronet-go" checkout FETCH_HEAD
-          $env:CGO_ENABLED = "0"
-          go -C "$env:RUNNER_TEMP/cronet-go" build -v -o "$env:RUNNER_TEMP/build-naive.exe" ./cmd/build-naive
-          $env:GOPROXY = "direct"
-          $env:GOSUMDB = "off"
-          & "$env:RUNNER_TEMP/build-naive.exe" extract-lib --target windows/${{ matrix.arch }} -o dist
+          $LIBRARY_PATH = "lib/windows_${{ matrix.arch }}/libcronet.dll"
+          git init "$env:RUNNER_TEMP/cronet-go-lib"
+          git -C "$env:RUNNER_TEMP/cronet-go-lib" remote add origin https://github.com/sagernet/cronet-go.git
+          git -C "$env:RUNNER_TEMP/cronet-go-lib" sparse-checkout set --no-cone "/$LIBRARY_PATH"
+          git -C "$env:RUNNER_TEMP/cronet-go-lib" fetch --depth=1 --filter=blob:none origin "$CRONET_GO_VERSION"
+          git -C "$env:RUNNER_TEMP/cronet-go-lib" checkout FETCH_HEAD
+          Copy-Item "$env:RUNNER_TEMP/cronet-go-lib/$LIBRARY_PATH" dist
       - name: Archive
         if: matrix.naive
         run: |
