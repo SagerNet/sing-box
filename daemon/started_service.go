@@ -188,6 +188,47 @@ func (s *StartedService) waitForStarted(ctx context.Context) error {
 	}
 }
 
+func (s *StartedService) followInstance(ctx context.Context, run func(ctx context.Context, instance *Instance) error) error {
+	statusSubscription, statusDone, err := s.serviceStatusObserver.Subscribe()
+	if err != nil {
+		return err
+	}
+	defer s.serviceStatusObserver.UnSubscribe(statusSubscription)
+	for {
+		s.serviceAccess.RLock()
+		instance := s.instance
+		if s.serviceStatus.Status != ServiceStatus_STARTED {
+			instance = nil
+		}
+		s.serviceAccess.RUnlock()
+		runCtx, cancel := context.WithCancel(ctx)
+		runResult := make(chan error, 1)
+		go func() {
+			runResult <- run(runCtx, instance)
+		}()
+		select {
+		case <-statusSubscription:
+			cancel()
+			<-runResult
+		case err = <-runResult:
+			cancel()
+			return err
+		case <-ctx.Done():
+			cancel()
+			<-runResult
+			return ctx.Err()
+		case <-s.ctx.Done():
+			cancel()
+			<-runResult
+			return s.ctx.Err()
+		case <-statusDone:
+			cancel()
+			<-runResult
+			return nil
+		}
+	}
+}
+
 func (s *StartedService) StartOrReloadService(ctx context.Context, profileContent string, options *OverrideOptions) error {
 	s.serviceAccess.Lock()
 	switch s.serviceStatus.Status {
@@ -1226,48 +1267,47 @@ type endpointStatusProvider interface {
 	StatusUpdated() <-chan struct{}
 }
 
-func subscribeEndpointStatus[T endpointStatusProvider](ctx context.Context, endpointManager adapter.EndpointManager, endpointType string, endpointName string, send func([]T) error) error {
-	var endpoints []T
-	for _, endpoint := range endpointManager.Endpoints() {
-		if endpoint.Type() == endpointType {
-			endpoints = append(endpoints, endpoint.(T))
-		}
-	}
-	if len(endpoints) == 0 {
-		return status.Error(codes.NotFound, "no "+endpointName+" endpoint found")
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	updated := make(chan struct{}, 1)
-	for _, endpoint := range endpoints {
-		go func(provider T) {
-			for {
-				statusUpdated := provider.StatusUpdated()
-				select {
-				case updated <- struct{}{}:
-				default:
-				}
-				select {
-				case <-statusUpdated:
-				case <-ctx.Done():
-					return
+func subscribeEndpointStatus[T endpointStatusProvider](ctx context.Context, startedService *StartedService, endpointType string, send func([]T) error) error {
+	return startedService.followInstance(ctx, func(runCtx context.Context, instance *Instance) error {
+		var endpoints []T
+		if instance != nil {
+			for _, endpoint := range instance.endpointManager.Endpoints() {
+				if endpoint.Type() == endpointType {
+					endpoints = append(endpoints, endpoint.(T))
 				}
 			}
-		}(endpoint)
-	}
+		}
+		updated := make(chan struct{}, 1)
+		updated <- struct{}{}
+		for _, endpoint := range endpoints {
+			go func(provider T) {
+				for {
+					statusUpdated := provider.StatusUpdated()
+					select {
+					case updated <- struct{}{}:
+					default:
+					}
+					select {
+					case <-statusUpdated:
+					case <-runCtx.Done():
+						return
+					}
+				}
+			}(endpoint)
+		}
 
-	for {
-		select {
-		case <-updated:
-		case <-ctx.Done():
-			return nil
+		for {
+			select {
+			case <-updated:
+			case <-runCtx.Done():
+				return nil
+			}
+			err := send(endpoints)
+			if err != nil {
+				return err
+			}
 		}
-		err := send(endpoints)
-		if err != nil {
-			return err
-		}
-	}
+	})
 }
 
 func (s *StartedService) StartNetworkQualityTest(
@@ -1360,84 +1400,83 @@ func (s *StartedService) SubscribeTailscaleStatus(
 	if err != nil {
 		return err
 	}
-	s.serviceAccess.RLock()
-	boxService := s.instance
-	s.serviceAccess.RUnlock()
-
-	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
-	if endpointManager == nil {
-		return status.Error(codes.FailedPrecondition, "endpoint manager not available")
-	}
-
-	type tailscaleEndpoint struct {
-		tag      string
-		provider adapter.TailscaleEndpoint
-	}
-	var endpoints []tailscaleEndpoint
-	for _, endpoint := range endpointManager.Endpoints() {
-		if endpoint.Type() != C.TypeTailscale {
-			continue
-		}
-		provider, loaded := endpoint.(adapter.TailscaleEndpoint)
-		if !loaded {
-			continue
-		}
-		endpoints = append(endpoints, tailscaleEndpoint{
-			tag:      endpoint.Tag(),
-			provider: provider,
-		})
-	}
-	if len(endpoints) == 0 {
-		return status.Error(codes.NotFound, "no Tailscale endpoint found")
-	}
-
-	type taggedStatus struct {
-		tag    string
-		status *adapter.TailscaleEndpointStatus
-	}
-	updates := make(chan taggedStatus, len(endpoints))
-	ctx, cancel := context.WithCancel(server.Context())
-	defer cancel()
-
-	var waitGroup sync.WaitGroup
-	for _, endpoint := range endpoints {
-		waitGroup.Add(1)
-		go func(tag string, provider adapter.TailscaleEndpoint) {
-			defer waitGroup.Done()
-			_ = provider.SubscribeTailscaleStatus(ctx, func(endpointStatus *adapter.TailscaleEndpointStatus) {
-				select {
-				case updates <- taggedStatus{tag: tag, status: endpointStatus}:
-				case <-ctx.Done():
-				}
-			})
-		}(endpoint.tag, endpoint.provider)
-	}
-
-	go func() {
-		waitGroup.Wait()
-		close(updates)
-	}()
-
-	var tags []string
-	statuses := make(map[string]*adapter.TailscaleEndpointStatus, len(endpoints))
 	selectedLocale := locale.FromContext(server.Context())
-	for update := range updates {
-		if _, exists := statuses[update.tag]; !exists {
-			tags = append(tags, update.tag)
+	return s.followInstance(server.Context(), func(ctx context.Context, instance *Instance) error {
+		type tailscaleEndpoint struct {
+			tag      string
+			provider adapter.TailscaleEndpoint
 		}
-		statuses[update.tag] = update.status
-		protoEndpoints := make([]*TailscaleEndpointStatus, 0, len(statuses))
-		for _, tag := range tags {
-			protoEndpoints = append(protoEndpoints, tailscaleEndpointStatusToProto(tag, statuses[tag], selectedLocale))
+		var endpoints []tailscaleEndpoint
+		if instance != nil {
+			for _, endpoint := range instance.endpointManager.Endpoints() {
+				if endpoint.Type() != C.TypeTailscale {
+					continue
+				}
+				provider, loaded := endpoint.(adapter.TailscaleEndpoint)
+				if !loaded {
+					continue
+				}
+				endpoints = append(endpoints, tailscaleEndpoint{
+					tag:      endpoint.Tag(),
+					provider: provider,
+				})
+			}
 		}
-		sendErr := server.Send(&TailscaleStatusUpdate{
-			Endpoints: protoEndpoints,
-		})
-		if sendErr != nil {
-			return sendErr
+		if len(endpoints) == 0 {
+			sendErr := server.Send(&TailscaleStatusUpdate{})
+			if sendErr != nil {
+				return sendErr
+			}
+			<-ctx.Done()
+			return nil
 		}
-	}
-	return nil
+
+		type taggedStatus struct {
+			tag    string
+			status *adapter.TailscaleEndpointStatus
+		}
+		updates := make(chan taggedStatus, len(endpoints))
+
+		var waitGroup sync.WaitGroup
+		for _, endpoint := range endpoints {
+			waitGroup.Add(1)
+			go func(tag string, provider adapter.TailscaleEndpoint) {
+				defer waitGroup.Done()
+				_ = provider.SubscribeTailscaleStatus(ctx, func(endpointStatus *adapter.TailscaleEndpointStatus) {
+					select {
+					case updates <- taggedStatus{tag: tag, status: endpointStatus}:
+					case <-ctx.Done():
+					}
+				})
+			}(endpoint.tag, endpoint.provider)
+		}
+
+		go func() {
+			waitGroup.Wait()
+			close(updates)
+		}()
+
+		var tags []string
+		statuses := make(map[string]*adapter.TailscaleEndpointStatus, len(endpoints))
+		for update := range updates {
+			if _, exists := statuses[update.tag]; !exists {
+				tags = append(tags, update.tag)
+			}
+			statuses[update.tag] = update.status
+			protoEndpoints := make([]*TailscaleEndpointStatus, 0, len(statuses))
+			for _, tag := range tags {
+				protoEndpoints = append(protoEndpoints, tailscaleEndpointStatusToProto(tag, statuses[tag], selectedLocale))
+			}
+			sendErr := server.Send(&TailscaleStatusUpdate{
+				Endpoints: protoEndpoints,
+			})
+			if sendErr != nil {
+				return sendErr
+			}
+		}
+		<-ctx.Done()
+		return nil
+	})
 }
 
 func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStatus, selectedLocale *locale.Locale) *TailscaleEndpointStatus {
@@ -1606,13 +1645,8 @@ func (s *StartedService) SubscribeOpenConnectStatus(
 	if err != nil {
 		return err
 	}
-	s.serviceAccess.RLock()
-	boxService := s.instance
-	s.serviceAccess.RUnlock()
-
-	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
 	selectedLocale := locale.FromContext(server.Context())
-	return subscribeEndpointStatus(server.Context(), endpointManager, C.TypeOpenConnect, "OpenConnect client", func(endpoints []adapter.OpenConnectEndpoint) error {
+	return subscribeEndpointStatus(server.Context(), s, C.TypeOpenConnect, func(endpoints []adapter.OpenConnectEndpoint) error {
 		return server.Send(&OpenConnectStatusUpdate{
 			Endpoints: common.Map(endpoints, func(endpoint adapter.OpenConnectEndpoint) *OpenConnectEndpointStatus {
 				return openConnectEndpointStatusToProto(endpoint.Tag(), endpoint.OpenConnectStatus(), selectedLocale)
@@ -1736,13 +1770,8 @@ func (s *StartedService) SubscribeOpenVPNStatus(
 	if err != nil {
 		return err
 	}
-	s.serviceAccess.RLock()
-	boxService := s.instance
-	s.serviceAccess.RUnlock()
-
-	endpointManager := service.FromContext[adapter.EndpointManager](boxService.ctx)
 	selectedLocale := locale.FromContext(server.Context())
-	return subscribeEndpointStatus(server.Context(), endpointManager, C.TypeOpenVPNClient, "OpenVPN client", func(endpoints []adapter.OpenVPNEndpoint) error {
+	return subscribeEndpointStatus(server.Context(), s, C.TypeOpenVPNClient, func(endpoints []adapter.OpenVPNEndpoint) error {
 		return server.Send(&OpenVPNStatusUpdate{
 			Endpoints: common.Map(endpoints, func(endpoint adapter.OpenVPNEndpoint) *OpenVPNEndpointStatus {
 				return openVPNEndpointStatusToProto(endpoint.Tag(), endpoint.OpenVPNStatus(), selectedLocale)
