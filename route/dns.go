@@ -18,6 +18,7 @@ import (
 )
 
 func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
+	r.searchProcessInfo(ctx, &metadata)
 	metadata.Destination = M.Socksaddr{}
 	for {
 		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
@@ -33,6 +34,7 @@ func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata ad
 }
 
 func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
+	r.searchProcessInfo(ctx, &metadata)
 	err := dnsOutbound.NewDNSPacketConnection(ctx, r.dns, conn, packetBuffers, metadata)
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil && !E.IsClosedOrCanceled(err) {
@@ -48,6 +50,7 @@ func (r *Router) HijackDNSPacket(ctx context.Context, payload []byte, writer N.P
 		r.logger.ErrorContext(ctx, E.Cause(err, "process DNS packet: unpack request"))
 		return
 	}
+	r.searchProcessInfo(ctx, &metadata)
 	destination := metadata.Destination
 	metadata.Destination = M.Socksaddr{}
 	r.dns.ExchangeAsync(adapter.WithContext(ctx, &metadata), &message, adapter.DNSQueryOptions{}, func(response *mDNS.Msg, exchangeErr error) {
