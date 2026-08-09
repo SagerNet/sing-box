@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+#### 1.13.18
+
+* Update naiveproxy to v150.0.7871.63-1
+* Fixes and improvements
+
 #### 1.13.16
 
 * Remove client metadata from AnyTLS requests by default **1**
