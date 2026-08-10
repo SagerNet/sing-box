@@ -32,7 +32,7 @@ type EndpointOptions struct {
 	Address           []netip.Prefix
 	PrivateKey        string
 	ListenPort        uint16
-	ResolvePeer       func(domain string) (netip.Addr, error)
+	ResolvePeer       func(domain string) ([]netip.Addr, error)
 	Peers             []PeerOptions
 	Workers           int
 }

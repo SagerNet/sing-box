@@ -27,6 +27,7 @@ type ClientBind struct {
 	bindCtx             context.Context
 	bindDone            context.CancelFunc
 	dialer              N.Dialer
+	reservedAccess      sync.RWMutex
 	reservedForEndpoint map[netip.AddrPort][3]uint8
 	connAccess          sync.Mutex
 	conn                *wireConn
@@ -175,7 +176,9 @@ func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint, offset int) error {
 			buf = buf[offset:]
 		}
 		if len(buf) > 3 {
+			c.reservedAccess.RLock()
 			reserved, loaded := c.reservedForEndpoint[destination]
+			c.reservedAccess.RUnlock()
 			if !loaded {
 				reserved = c.reserved
 			}
@@ -203,7 +206,9 @@ func (c *ClientBind) BatchSize() int {
 }
 
 func (c *ClientBind) SetReservedForEndpoint(destination netip.AddrPort, reserved [3]byte) {
+	c.reservedAccess.Lock()
 	c.reservedForEndpoint[destination] = reserved
+	c.reservedAccess.Unlock()
 }
 
 type wireConn struct {
