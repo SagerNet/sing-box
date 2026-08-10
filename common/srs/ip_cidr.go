@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net/netip"
+	"os"
 
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/varbin"
@@ -14,8 +15,11 @@ func readPrefix(reader varbin.Reader) (netip.Prefix, error) {
 	if err != nil {
 		return netip.Prefix{}, err
 	}
-	addrSlice := make([]byte, addrLen)
-	_, err = io.ReadFull(reader, addrSlice)
+	if addrLen != 4 && addrLen != 16 {
+		return netip.Prefix{}, os.ErrInvalid
+	}
+	var addrBytes [16]byte
+	_, err = io.ReadFull(reader, addrBytes[:addrLen])
 	if err != nil {
 		return netip.Prefix{}, err
 	}
@@ -23,7 +27,7 @@ func readPrefix(reader varbin.Reader) (netip.Prefix, error) {
 	if err != nil {
 		return netip.Prefix{}, err
 	}
-	return netip.PrefixFrom(M.AddrFromIP(addrSlice), int(prefixBits)), nil
+	return netip.PrefixFrom(M.AddrFromIP(addrBytes[:addrLen]), int(prefixBits)), nil
 }
 
 func writePrefix(writer varbin.Writer, prefix netip.Prefix) error {
