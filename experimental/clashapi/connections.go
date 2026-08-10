@@ -18,10 +18,10 @@ import (
 	"github.com/gofrs/uuid/v5"
 )
 
-func connectionRouter(ctx context.Context, router adapter.Router, trafficManager *trafficontrol.Manager) http.Handler {
+func connectionRouter(ctx context.Context, network adapter.NetworkManager, trafficManager *trafficontrol.Manager) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getConnections(ctx, trafficManager))
-	r.Delete("/", closeAllConnections(router, trafficManager))
+	r.Delete("/", closeAllConnections(network, trafficManager))
 	r.Delete("/{id}", closeConnection(trafficManager))
 	return r
 }
@@ -96,13 +96,13 @@ func closeConnection(trafficManager *trafficontrol.Manager) func(w http.Response
 	}
 }
 
-func closeAllConnections(router adapter.Router, trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
+func closeAllConnections(network adapter.NetworkManager, trafficManager *trafficontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		snapshot := trafficManager.Snapshot()
 		for _, c := range snapshot.Connections {
 			c.Close()
 		}
-		router.ResetNetwork()
+		network.ResetNetwork()
 		render.NoContent(w, r)
 	}
 }

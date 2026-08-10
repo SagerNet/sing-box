@@ -19,7 +19,7 @@ const (
 
 type adaptiveTimer struct {
 	logger            log.ContextLogger
-	router            adapter.Router
+	network           adapter.NetworkManager
 	memoryLimit       uint64
 	safetyMargin      uint64
 	minInterval       time.Duration
@@ -42,10 +42,10 @@ type timerConfig struct {
 	useAvailable      bool
 }
 
-func newAdaptiveTimer(logger log.ContextLogger, router adapter.Router, config timerConfig) *adaptiveTimer {
+func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, config timerConfig) *adaptiveTimer {
 	return &adaptiveTimer{
 		logger:            logger,
-		router:            router,
+		network:           network,
 		memoryLimit:       config.memoryLimit,
 		safetyMargin:      config.safetyMargin,
 		minInterval:       config.minInterval,
@@ -121,7 +121,7 @@ func (t *adaptiveTimer) poll() {
 
 	if triggered {
 		t.logger.Error("memory threshold reached, usage: ", usage/(1024*1024), " MiB, resetting network")
-		t.router.ResetNetwork()
+		t.network.ResetNetwork()
 		runtimeDebug.FreeOSMemory()
 	}
 
