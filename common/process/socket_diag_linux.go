@@ -1,6 +1,5 @@
 //go:build linux
 
-//nolint:unused
 package process
 
 import (
@@ -8,18 +7,11 @@ import (
 	"errors"
 	"net/netip"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
-	"time"
-	"unicode"
 
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/contrab/freelru"
-	"github.com/sagernet/sing/contrab/maphash"
 )
 
 const (
@@ -27,7 +19,6 @@ const (
 	sizeOfSocketDiagRequest     = syscall.SizeofNlMsghdr + sizeOfSocketDiagRequestData
 	socketDiagResponseMinSize   = 72
 	socketDiagByFamily          = 20
-	pathProc                    = "/proc"
 )
 
 type socketDiagConn struct {
@@ -35,22 +26,6 @@ type socketDiagConn struct {
 	family   uint8
 	protocol uint8
 	fd       int
-}
-
-type uidProcessPathCache struct {
-	cache *freelru.Cache[uint32, *uidProcessPaths]
-}
-
-type uidProcessPaths struct {
-	entries map[uint32]string
-}
-
-func newSocketDiagConn(family, protocol uint8) *socketDiagConn {
-	return &socketDiagConn{
-		family:   family,
-		protocol: protocol,
-		fd:       -1,
-	}
 }
 
 func socketDiagConnIndex(family, protocol uint8) int {
@@ -84,30 +59,6 @@ func socketDiagSettings(network string, source netip.AddrPort) (family, protocol
 	return family, protocol, nil
 }
 
-func newUIDProcessPathCache(ttl time.Duration) *uidProcessPathCache {
-	cache := common.Must1(freelru.New[uint32, *uidProcessPaths](64, maphash.NewHasher[uint32]().Hash32, true))
-	cache.SetLifetime(ttl)
-	return &uidProcessPathCache{cache: cache}
-}
-
-func (c *uidProcessPathCache) findProcessPath(targetInode, uid uint32) (string, error) {
-	if cached, ok := c.cache.Get(uid); ok {
-		if processPath, found := cached.entries[targetInode]; found {
-			return processPath, nil
-		}
-	}
-	processPaths, err := buildProcessPathByUIDCache(uid)
-	if err != nil {
-		return "", err
-	}
-	c.cache.Add(uid, &uidProcessPaths{entries: processPaths})
-	processPath, found := processPaths[targetInode]
-	if !found {
-		return "", E.New("process of uid(", uid, "), inode(", targetInode, ") not found")
-	}
-	return processPath, nil
-}
-
 func (c *socketDiagConn) Close() error {
 	c.access.Lock()
 	defer c.access.Unlock()
@@ -126,9 +77,6 @@ func (c *socketDiagConn) query(source netip.AddrPort, destination netip.AddrPort
 		inode, uid, err = querySocketDiag(c.fd, request)
 		if err == nil || errors.Is(err, ErrNotFound) {
 			return inode, uid, err
-		}
-		if !shouldRetrySocketDiag(err) {
-			return 0, 0, err
 		}
 		_ = c.closeLocked()
 	}
@@ -298,87 +246,4 @@ func unpackSocketDiagError(msg *syscall.NetlinkMessage) error {
 	default:
 		return E.New("netlink message: ", sysErr)
 	}
-}
-
-func shouldRetrySocketDiag(err error) bool {
-	return err != nil && !errors.Is(err, ErrNotFound)
-}
-
-func buildProcessPathByUIDCache(uid uint32) (map[uint32]string, error) {
-	files, err := os.ReadDir(pathProc)
-	if err != nil {
-		return nil, err
-	}
-	buffer := make([]byte, syscall.PathMax)
-	processPaths := make(map[uint32]string)
-	for _, file := range files {
-		if !file.IsDir() || !isPid(file.Name()) {
-			continue
-		}
-		info, err := file.Info()
-		if err != nil {
-			if isIgnorableProcError(err) {
-				continue
-			}
-			return nil, err
-		}
-		if info.Sys().(*syscall.Stat_t).Uid != uid {
-			continue
-		}
-		processPath := filepath.Join(pathProc, file.Name())
-		fdPath := filepath.Join(processPath, "fd")
-		exePath, err := os.Readlink(filepath.Join(processPath, "exe"))
-		if err != nil {
-			if isIgnorableProcError(err) {
-				continue
-			}
-			return nil, err
-		}
-		fds, err := os.ReadDir(fdPath)
-		if err != nil {
-			continue
-		}
-		for _, fd := range fds {
-			n, err := syscall.Readlink(filepath.Join(fdPath, fd.Name()), buffer)
-			if err != nil {
-				continue
-			}
-			inode, ok := parseSocketInode(buffer[:n])
-			if !ok {
-				continue
-			}
-			if _, loaded := processPaths[inode]; !loaded {
-				processPaths[inode] = exePath
-			}
-		}
-	}
-	return processPaths, nil
-}
-
-func isIgnorableProcError(err error) bool {
-	return os.IsNotExist(err) || os.IsPermission(err)
-}
-
-func parseSocketInode(link []byte) (uint32, bool) {
-	const socketPrefix = "socket:["
-	if len(link) <= len(socketPrefix) || string(link[:len(socketPrefix)]) != socketPrefix || link[len(link)-1] != ']' {
-		return 0, false
-	}
-	var inode uint64
-	for _, char := range link[len(socketPrefix) : len(link)-1] {
-		if char < '0' || char > '9' {
-			return 0, false
-		}
-		inode = inode*10 + uint64(char-'0')
-		if inode > uint64(^uint32(0)) {
-			return 0, false
-		}
-	}
-	return uint32(inode), true
-}
-
-func isPid(s string) bool {
-	return strings.IndexFunc(s, func(r rune) bool {
-		return !unicode.IsDigit(r)
-	}) == -1
 }
