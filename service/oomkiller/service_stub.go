@@ -22,7 +22,7 @@ func RegisterService(registry *boxService.Registry) {
 type Service struct {
 	boxService.Adapter
 	logger        log.ContextLogger
-	router        adapter.Router
+	network       adapter.NetworkManager
 	adaptiveTimer *adaptiveTimer
 	timerConfig   timerConfig
 	hasTimerMode  bool
@@ -34,7 +34,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	s := &Service{
 		Adapter: boxService.NewAdapter(boxConstant.TypeOOMKiller, tag),
 		logger:  logger,
-		router:  service.FromContext[adapter.Router](ctx),
+		network: service.FromContext[adapter.NetworkManager](ctx),
 	}
 
 	if options.MemoryLimit != nil {
@@ -63,7 +63,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	if !s.hasTimerMode {
 		return E.New("memory pressure monitoring is not available on this platform without memory_limit")
 	}
-	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.router, s.timerConfig)
+	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.network, s.timerConfig)
 	s.adaptiveTimer.start(false)
 	if s.useAvailable {
 		s.logger.Info("started memory monitor with available memory detection")
