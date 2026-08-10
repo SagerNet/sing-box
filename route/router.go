@@ -224,6 +224,5 @@ func (r *Router) NeedFindProcess() bool {
 }
 
 func (r *Router) ResetNetwork() {
-	r.network.ResetNetwork()
 	r.dns.ResetNetwork()
 }
