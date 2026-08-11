@@ -1,6 +1,6 @@
 //go:build !windows && !(darwin && cgo)
 
-package local
+package systemconfig
 
 import (
 	"bufio"
@@ -20,30 +20,30 @@ import (
 
 const resolvConfPath = "/etc/resolv.conf"
 
-type systemConfigSource struct {
+type Source struct {
 	updateAccess sync.Mutex
 	lastChecked  time.Time
 	current      atomic.Pointer[resolvConfig]
 }
 
 type resolvConfig struct {
-	config   *dnsConfig
+	config   *Config
 	mtime    time.Time
 	noReload bool
 }
 
-func newSystemConfigSource(_ context.Context) *systemConfigSource {
-	source := &systemConfigSource{lastChecked: time.Now()}
-	source.current.Store(dnsReadConfig(resolvConfPath))
+func NewSource(_ context.Context) *Source {
+	source := &Source{lastChecked: time.Now()}
+	source.current.Store(readResolvConfig(resolvConfPath))
 	return source
 }
 
-func (s *systemConfigSource) Configuration() *dnsConfig {
+func (s *Source) Configuration() *Config {
 	s.tryUpdate()
 	return s.current.Load().config
 }
 
-func (s *systemConfigSource) tryUpdate() {
+func (s *Source) tryUpdate() {
 	if s.current.Load().noReload {
 		return
 	}
@@ -65,41 +65,41 @@ func (s *systemConfigSource) tryUpdate() {
 	if mtime.Equal(current.mtime) {
 		return
 	}
-	updated := dnsReadConfig(resolvConfPath)
-	if updated.config.equal(current.config) {
+	updated := readResolvConfig(resolvConfPath)
+	if updated.config.Equal(current.config) {
 		updated.config = current.config
 	}
 	s.current.Store(updated)
 }
 
-func (s *systemConfigSource) Reset() {
+func (s *Source) Reset() {
 	s.updateAccess.Lock()
 	s.lastChecked = time.Time{}
 	s.updateAccess.Unlock()
 }
 
-func (s *systemConfigSource) Close() error {
+func (s *Source) Close() error {
 	return nil
 }
 
-func dnsReadConfig(path string) *resolvConfig {
-	config := &dnsConfig{
-		ndots:    1,
-		timeout:  5 * time.Second,
-		attempts: 2,
+func readResolvConfig(path string) *resolvConfig {
+	config := &Config{
+		Ndots:    1,
+		Timeout:  5 * time.Second,
+		Attempts: 2,
 	}
 	result := &resolvConfig{config: config}
 	file, err := os.Open(path)
 	if err != nil {
-		config.servers = defaultNS
-		config.search = dnsDefaultSearch()
+		config.Servers = defaultServers
+		config.Search = defaultSearch()
 		return result
 	}
 	defer file.Close()
 	fileInfo, err := file.Stat()
 	if err != nil {
-		config.servers = defaultNS
-		config.search = dnsDefaultSearch()
+		config.Servers = defaultServers
+		config.Search = defaultSearch()
 		return result
 	}
 	result.mtime = fileInfo.ModTime()
@@ -115,24 +115,24 @@ func dnsReadConfig(path string) *resolvConfig {
 		}
 		switch fields[0] {
 		case "nameserver":
-			if len(fields) > 1 && len(config.servers) < 3 {
+			if len(fields) > 1 && len(config.Servers) < 3 {
 				serverAddr, parseErr := netip.ParseAddr(fields[1])
 				if parseErr == nil {
-					config.servers = append(config.servers, M.SocksaddrFrom(serverAddr, 53))
+					config.Servers = append(config.Servers, M.SocksaddrFrom(serverAddr, 53))
 				}
 			}
 		case "domain":
 			if len(fields) > 1 {
-				config.search = []string{mDNS.Fqdn(fields[1])}
+				config.Search = []string{mDNS.Fqdn(fields[1])}
 			}
 		case "search":
-			config.search = make([]string, 0, len(fields)-1)
+			config.Search = make([]string, 0, len(fields)-1)
 			for _, searchDomain := range fields[1:] {
 				name := mDNS.Fqdn(searchDomain)
 				if name == "." {
 					continue
 				}
-				config.search = append(config.search, name)
+				config.Search = append(config.Search, name)
 			}
 		case "options":
 			for _, option := range fields[1:] {
@@ -140,37 +140,37 @@ func dnsReadConfig(path string) *resolvConfig {
 				case strings.HasPrefix(option, "ndots:"):
 					value, parseErr := strconv.Atoi(option[len("ndots:"):])
 					if parseErr == nil {
-						config.ndots = min(max(value, 0), 15)
+						config.Ndots = min(max(value, 0), 15)
 					}
 				case strings.HasPrefix(option, "timeout:"):
 					value, parseErr := strconv.Atoi(option[len("timeout:"):])
 					if parseErr == nil {
-						config.timeout = time.Duration(max(value, 1)) * time.Second
+						config.Timeout = time.Duration(max(value, 1)) * time.Second
 					}
 				case strings.HasPrefix(option, "attempts:"):
 					value, parseErr := strconv.Atoi(option[len("attempts:"):])
 					if parseErr == nil {
-						config.attempts = max(value, 1)
+						config.Attempts = max(value, 1)
 					}
 				case option == "rotate":
-					config.rotate = true
+					config.Rotate = true
 				case option == "single-request" || option == "single-request-reopen":
-					config.singleRequest = true
+					config.SingleRequest = true
 				case option == "use-vc" || option == "usevc" || option == "tcp":
-					config.useTCP = true
+					config.UseTCP = true
 				case option == "trust-ad":
-					config.trustAD = true
+					config.TrustAD = true
 				case option == "no-reload":
 					result.noReload = true
 				}
 			}
 		}
 	}
-	if len(config.servers) == 0 {
-		config.servers = defaultNS
+	if len(config.Servers) == 0 {
+		config.Servers = defaultServers
 	}
-	if len(config.search) == 0 {
-		config.search = dnsDefaultSearch()
+	if len(config.Search) == 0 {
+		config.Search = defaultSearch()
 	}
 	return result
 }
