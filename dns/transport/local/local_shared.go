@@ -8,7 +8,6 @@ import (
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/dns/transport"
 	E "github.com/sagernet/sing/common/exceptions"
-	M "github.com/sagernet/sing/common/metadata"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -36,11 +35,7 @@ func (t *Transport) serverSetFor(systemConfig *dnsConfig) (*localServerSet, erro
 		return serverSet, nil
 	}
 	transports := make([]adapter.DNSTransport, 0, len(systemConfig.servers))
-	for _, server := range systemConfig.servers {
-		serverAddr := M.ParseSocksaddr(server)
-		if serverAddr.Port == 0 {
-			serverAddr.Port = 53
-		}
+	for _, serverAddr := range systemConfig.servers {
 		var serverTransport adapter.DNSTransport
 		if systemConfig.useTCP {
 			serverTransport = transport.NewTCPRaw(dns.NewTransportAdapter(C.DNSTypeTCP, "", nil), t.dialer, serverAddr)
@@ -68,7 +63,7 @@ func (t *Transport) serverSetFor(systemConfig *dnsConfig) (*localServerSet, erro
 }
 
 func (t *Transport) exchangeAsync(ctx context.Context, message *mDNS.Msg, domain string, callback func(response *mDNS.Msg, err error)) {
-	systemConfig := getSystemDNSConfig(t.ctx)
+	systemConfig := t.configSource.Configuration()
 	serverSet, err := t.serverSetFor(systemConfig)
 	if err != nil {
 		callback(nil, err)
