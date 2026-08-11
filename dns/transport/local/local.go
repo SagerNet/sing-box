@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/dns/transport/local/systemconfig"
 	"github.com/sagernet/sing-box/dns/transport/mdns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -26,6 +27,7 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 var (
 	_ adapter.DNSTransport                    = (*Transport)(nil)
 	_ adapter.DNSTransportWithPreferredDomain = (*Transport)(nil)
+	_ adapter.DNSTransportWithEnvironment     = (*Transport)(nil)
 )
 
 type Transport struct {
@@ -37,7 +39,7 @@ type Transport struct {
 	preferGo          bool
 	resolved          ResolvedResolver
 	mdnsTransport     adapter.DNSTransport
-	configSource      *systemConfigSource
+	configSource      *systemconfig.Source
 	system            systemResolver
 	serverSet         atomic.Pointer[localServerSet]
 	serverSetAccess   sync.Mutex
@@ -59,7 +61,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		preferredResolver: preferredResolver,
 		dialer:            transportDialer,
 		preferGo:          options.PreferGo,
-		configSource:      newSystemConfigSource(ctx),
+		configSource:      systemconfig.NewSource(ctx),
 	}, nil
 }
 
@@ -122,6 +124,13 @@ func (t *Transport) Reset() {
 
 func (t *Transport) PreferredDomain(domain string) bool {
 	return t.preferredResolver.PreferredDomain(domain)
+}
+
+func (t *Transport) Environment() []string {
+	if t.resolved != nil {
+		return t.resolved.Environment()
+	}
+	return t.configSource.Configuration().Signature()
 }
 
 func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
