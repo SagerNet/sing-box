@@ -1,4 +1,4 @@
-package local
+package systemconfig
 
 import (
 	"context"
@@ -22,16 +22,16 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-type systemConfigSource struct {
+type Source struct {
 	interfaceMonitor tun.DefaultInterfaceMonitor
 	access           sync.Mutex
 	updateCallback   *list.Element[tun.DefaultInterfaceUpdateCallback]
 	stale            bool
-	config           *dnsConfig
+	config           *Config
 }
 
-func newSystemConfigSource(ctx context.Context) *systemConfigSource {
-	source := &systemConfigSource{}
+func NewSource(ctx context.Context) *Source {
+	source := &Source{}
 	interfaceMonitor := service.FromContext[adapter.NetworkManager](ctx).InterfaceMonitor()
 	if interfaceMonitor != nil {
 		source.interfaceMonitor = interfaceMonitor
@@ -40,7 +40,7 @@ func newSystemConfigSource(ctx context.Context) *systemConfigSource {
 	return source
 }
 
-func (s *systemConfigSource) Configuration() *dnsConfig {
+func (s *Source) Configuration() *Config {
 	s.access.Lock()
 	defer s.access.Unlock()
 	if s.config != nil && !s.stale && s.updateCallback != nil {
@@ -48,26 +48,26 @@ func (s *systemConfigSource) Configuration() *dnsConfig {
 	}
 	s.stale = false
 	config := s.readConfig()
-	if s.config != nil && config.equal(s.config) {
+	if s.config != nil && config.Equal(s.config) {
 		return s.config
 	}
 	s.config = config
 	return config
 }
 
-func (s *systemConfigSource) interfaceUpdated(defaultInterface *control.Interface, flags int) {
+func (s *Source) interfaceUpdated(defaultInterface *control.Interface, flags int) {
 	s.access.Lock()
 	s.stale = true
 	s.access.Unlock()
 }
 
-func (s *systemConfigSource) Reset() {
+func (s *Source) Reset() {
 	s.access.Lock()
 	s.stale = true
 	s.access.Unlock()
 }
 
-func (s *systemConfigSource) Close() error {
+func (s *Source) Close() error {
 	s.access.Lock()
 	updateCallback := s.updateCallback
 	s.updateCallback = nil
@@ -78,18 +78,18 @@ func (s *systemConfigSource) Close() error {
 	return nil
 }
 
-func (s *systemConfigSource) readConfig() *dnsConfig {
-	config := &dnsConfig{
-		ndots:    1,
-		timeout:  5 * time.Second,
-		attempts: 2,
+func (s *Source) readConfig() *Config {
+	config := &Config{
+		Ndots:    1,
+		Timeout:  5 * time.Second,
+		Attempts: 2,
 	}
 	defer func() {
-		if len(config.servers) == 0 {
-			config.servers = defaultNS
+		if len(config.Servers) == 0 {
+			config.Servers = defaultServers
 		}
-		if len(config.search) == 0 {
-			config.search = dnsDefaultSearch()
+		if len(config.Search) == 0 {
+			config.Search = defaultSearch()
 		}
 	}()
 	addresses, err := adapterAddresses()
@@ -149,7 +149,7 @@ func (s *systemConfigSource) readConfig() *dnsConfig {
 		}
 		servers = append(servers, M.SocksaddrFrom(address.Addr, 53))
 	}
-	config.servers = common.Uniq(servers)
+	config.Servers = common.Uniq(servers)
 	return config
 }
 
