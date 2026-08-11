@@ -6,6 +6,8 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"slices"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,6 +36,7 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 var (
 	_ adapter.DNSTransport                    = (*Transport)(nil)
 	_ adapter.DNSTransportWithPreferredDomain = (*Transport)(nil)
+	_ adapter.DNSTransportWithEnvironment     = (*Transport)(nil)
 )
 
 type Transport struct {
@@ -120,6 +123,48 @@ func (t *Transport) Reset() {
 			server.Reset()
 		}
 	}
+}
+
+func (t *Transport) Environment() []string {
+	if t.service == nil {
+		return nil
+	}
+	t.service.linkAccess.RLock()
+	defer t.service.linkAccess.RUnlock()
+	linkIndexes := make([]int32, 0, len(t.service.links))
+	for linkIndex := range t.service.links {
+		linkIndexes = append(linkIndexes, linkIndex)
+	}
+	slices.Sort(linkIndexes)
+	var environment []string
+	for _, linkIndex := range linkIndexes {
+		link := t.service.links[linkIndex]
+		linkEntry := "link:" + strconv.Itoa(int(linkIndex))
+		if link.dnsOverTLS {
+			linkEntry += ":tls"
+		}
+		environment = append(environment, linkEntry)
+		for _, address := range link.address {
+			serverAddr, ok := netip.AddrFromSlice(address.Address)
+			if ok {
+				environment = append(environment, serverAddr.String())
+			}
+		}
+		for _, address := range link.addressEx {
+			serverAddr, ok := netip.AddrFromSlice(address.Address)
+			if ok {
+				environment = append(environment, M.SocksaddrFrom(serverAddr, address.Port).String()+"/"+address.Name)
+			}
+		}
+		for _, domain := range link.domain {
+			if domain.RoutingOnly {
+				environment = append(environment, "routing-only:"+domain.Domain)
+			} else {
+				environment = append(environment, domain.Domain)
+			}
+		}
+	}
+	return environment
 }
 
 func (t *Transport) updateTransports(link *TransportLink) error {

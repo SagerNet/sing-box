@@ -1,6 +1,6 @@
 //go:build cgo
 
-package local
+package systemconfig
 
 /*
 #include <dlfcn.h>
@@ -132,18 +132,18 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-type systemConfigSource struct {
+type Source struct {
 	interfaceMonitor tun.DefaultInterfaceMonitor
 	access           sync.Mutex
 	notifyToken      C.int
 	notifyValid      bool
 	stale            bool
 	interfaceIndex   int
-	config           *dnsConfig
+	config           *Config
 }
 
-func newSystemConfigSource(ctx context.Context) *systemConfigSource {
-	source := &systemConfigSource{
+func NewSource(ctx context.Context) *Source {
+	source := &Source{
 		interfaceMonitor: service.FromContext[adapter.NetworkManager](ctx).InterfaceMonitor(),
 	}
 	if C.box_dnsinfo_load() != 0 {
@@ -156,7 +156,7 @@ func newSystemConfigSource(ctx context.Context) *systemConfigSource {
 	return source
 }
 
-func (s *systemConfigSource) Configuration() *dnsConfig {
+func (s *Source) Configuration() *Config {
 	interfaceIndex := s.defaultInterfaceIndex()
 	s.access.Lock()
 	defer s.access.Unlock()
@@ -175,14 +175,14 @@ func (s *systemConfigSource) Configuration() *dnsConfig {
 		return s.config
 	}
 	config := systemInfo.build(interfaceIndex)
-	if s.config != nil && config.equal(s.config) {
+	if s.config != nil && config.Equal(s.config) {
 		return s.config
 	}
 	s.config = config
 	return config
 }
 
-func (s *systemConfigSource) changedLocked() bool {
+func (s *Source) changedLocked() bool {
 	if !s.notifyValid {
 		return true
 	}
@@ -194,13 +194,13 @@ func (s *systemConfigSource) changedLocked() bool {
 	return changed != 0
 }
 
-func (s *systemConfigSource) Reset() {
+func (s *Source) Reset() {
 	s.access.Lock()
 	s.stale = true
 	s.access.Unlock()
 }
 
-func (s *systemConfigSource) Close() error {
+func (s *Source) Close() error {
 	s.access.Lock()
 	defer s.access.Unlock()
 	if s.notifyValid {
@@ -210,7 +210,7 @@ func (s *systemConfigSource) Close() error {
 	return nil
 }
 
-func (s *systemConfigSource) defaultInterfaceIndex() int {
+func (s *Source) defaultInterfaceIndex() int {
 	if s.interfaceMonitor == nil {
 		return 0
 	}
@@ -234,7 +234,7 @@ type dnsInfoConfig struct {
 	scopedResolvers []dnsInfoResolver
 }
 
-func (c *dnsInfoConfig) build(interfaceIndex int) *dnsConfig {
+func (c *dnsInfoConfig) build(interfaceIndex int) *Config {
 	var selected dnsInfoResolver
 	if interfaceIndex != 0 {
 		selected = common.Find(c.scopedResolvers, func(it dnsInfoResolver) bool {
@@ -246,24 +246,24 @@ func (c *dnsInfoConfig) build(interfaceIndex int) *dnsConfig {
 			return it.domain == "" && len(it.servers) > 0
 		})
 	}
-	config := &dnsConfig{
-		ndots:    1,
-		timeout:  5 * time.Second,
-		attempts: 2,
+	config := &Config{
+		Ndots:    1,
+		Timeout:  5 * time.Second,
+		Attempts: 2,
 	}
 	if len(selected.servers) == 0 {
-		config.servers = defaultNS
-		config.search = dnsDefaultSearch()
+		config.Servers = defaultServers
+		config.Search = defaultSearch()
 		return config
 	}
-	config.servers = selected.servers
+	config.Servers = selected.servers
 	if len(selected.search) > 0 {
-		config.search = selected.search
+		config.Search = selected.search
 	} else {
-		config.search = dnsDefaultSearch()
+		config.Search = defaultSearch()
 	}
 	if selected.timeout > 0 {
-		config.timeout = selected.timeout
+		config.Timeout = selected.timeout
 	}
 	return config
 }
