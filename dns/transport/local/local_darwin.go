@@ -372,7 +372,7 @@ func buildQueryRequest(queryId uint64, name string, qtype uint16, qclass uint16)
 	message = binary.BigEndian.AppendUint32(message, mdnsResponderFlagShareConnection|mdnsResponderFlagReturnIntermediates|mdnsResponderFlagTimeout)
 	message = binary.BigEndian.AppendUint32(message, 0) // interfaceIndex
 	message = append(message, name...)
-	message = append(message, 0) // C string terminator
+	message = append(message, 0)
 	message = binary.BigEndian.AppendUint16(message, qtype)
 	message = binary.BigEndian.AppendUint16(message, qclass)
 	return message
