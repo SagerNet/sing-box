@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/service"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -29,6 +30,7 @@ type platformTransport struct {
 	dns.TransportAdapter
 	iif               LocalDNSTransport
 	preferredResolver *local.PreferredDomainResolver
+	networkManager    adapter.NetworkManager
 }
 
 func newPlatformTransport(ctx context.Context, logger log.ContextLogger, iif LocalDNSTransport, tag string, options option.LocalDNSServerOptions) (*platformTransport, error) {
@@ -40,6 +42,7 @@ func newPlatformTransport(ctx context.Context, logger log.ContextLogger, iif Loc
 		TransportAdapter:  dns.NewTransportAdapterWithLocalOptions(C.DNSTypeLocal, tag, options),
 		iif:               iif,
 		preferredResolver: preferredResolver,
+		networkManager:    service.FromContext[adapter.NetworkManager](ctx),
 	}, nil
 }
 
@@ -57,6 +60,17 @@ func (p *platformTransport) Reset() {
 
 func (p *platformTransport) PreferredDomain(domain string) bool {
 	return p.preferredResolver.PreferredDomain(domain)
+}
+
+func (p *platformTransport) Environment() []string {
+	if p.networkManager == nil {
+		return nil
+	}
+	defaultInterface := p.networkManager.DefaultNetworkInterface()
+	if defaultInterface == nil {
+		return nil
+	}
+	return defaultInterface.DNSServers
 }
 
 func (p *platformTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
@@ -170,4 +184,5 @@ func (c *ExchangeContext) ErrnoCode(code int32) {
 var (
 	_ adapter.DNSTransport                    = (*platformTransport)(nil)
 	_ adapter.DNSTransportWithPreferredDomain = (*platformTransport)(nil)
+	_ adapter.DNSTransportWithEnvironment     = (*platformTransport)(nil)
 )
