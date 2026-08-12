@@ -310,15 +310,9 @@ func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callba
 		callback(nil, E.New("invalid domain: ", question.Name))
 		return
 	}
-	nameExchangers := make([]transport.AsyncExchanger, 0, len(names))
-	for _, fqdn := range names {
-		nameExchangers = append(nameExchangers, t.newNameExchanger(servers, message, fqdn))
-	}
-	if question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA {
-		transport.ExchangeRace(ctx, nameExchangers, callback)
-	} else {
-		transport.ExchangeSequential(ctx, nameExchangers, nil, callback)
-	}
+	transport.ExchangeNames(ctx, names, question, func(fqdn string) transport.AsyncExchanger {
+		return t.newNameExchanger(servers, message, fqdn)
+	}, callback)
 }
 
 func (t *Transport) newNameExchanger(servers *LinkServers, message *mDNS.Msg, fqdn string) transport.AsyncExchanger {
