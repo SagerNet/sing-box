@@ -11,7 +11,7 @@ icon: material/new-box
     Requires privileges. Supported on Linux, macOS, Windows, rooted Android, and jailbroken iOS.
 
     For graphical clients: on macOS, only available in the standalone version and requires the
-    Root Helper; on Android, requires root permission; on iOS, requires jailbreak.
+    Helper Service; on Android, requires root permission; on iOS, requires jailbreak.
 
 `bridge` is the L3 counterpart of the `direct` outbound: it forwards L3 connections
 (TCP, UDP and ICMP) directly out of a network interface. Route L3 traffic to it from a TUN
