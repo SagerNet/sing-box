@@ -75,16 +75,9 @@ func (t *Transport) exchangeAsync(ctx context.Context, message *mDNS.Msg, domain
 		callback(nil, E.New("invalid domain: ", domain))
 		return
 	}
-	nameExchangers := make([]transport.AsyncExchanger, 0, len(names))
-	for _, fqdn := range names {
-		nameExchangers = append(nameExchangers, newNameExchanger(systemConfig, serverSet, message, fqdn))
-	}
-	question := message.Question[0]
-	if systemConfig.SingleRequest || !(question.Qtype == mDNS.TypeA || question.Qtype == mDNS.TypeAAAA) {
-		transport.ExchangeSequential(ctx, nameExchangers, nil, callback)
-	} else {
-		transport.ExchangeRace(ctx, nameExchangers, callback)
-	}
+	transport.ExchangeNames(ctx, names, message.Question[0], func(fqdn string) transport.AsyncExchanger {
+		return newNameExchanger(systemConfig, serverSet, message, fqdn)
+	}, callback)
 }
 
 func newNameExchanger(systemConfig *systemconfig.Config, serverSet *localServerSet, message *mDNS.Msg, fqdn string) transport.AsyncExchanger {
