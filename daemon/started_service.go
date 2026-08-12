@@ -36,6 +36,8 @@ import (
 
 const APIVersion = 3
 
+const urlTestPushMinInterval = 250 * time.Millisecond
+
 var _ StartedServiceServer = (*StartedService)(nil)
 
 type StartedService struct {
@@ -488,6 +490,7 @@ func (s *StartedService) SubscribeGroups(empty *emptypb.Empty, server grpc.Serve
 		return err
 	}
 	defer s.serviceStatusObserver.UnSubscribe(statusSubscription)
+	var lastSendTime time.Time
 	for {
 		s.serviceAccess.RLock()
 		var groups *Groups
@@ -501,6 +504,7 @@ func (s *StartedService) SubscribeGroups(empty *emptypb.Empty, server grpc.Serve
 		if err != nil {
 			return err
 		}
+		lastSendTime = time.Now()
 		select {
 		case <-subscription:
 		case <-statusSubscription:
@@ -512,6 +516,34 @@ func (s *StartedService) SubscribeGroups(empty *emptypb.Empty, server grpc.Serve
 			return nil
 		case <-statusDone:
 			return nil
+		}
+		throttleDelay := urlTestPushMinInterval - time.Since(lastSendTime)
+		if throttleDelay <= 0 {
+			continue
+		}
+		throttleTimer := time.NewTimer(throttleDelay)
+		select {
+		case <-throttleTimer.C:
+		case <-s.ctx.Done():
+			throttleTimer.Stop()
+			return s.ctx.Err()
+		case <-server.Context().Done():
+			throttleTimer.Stop()
+			return server.Context().Err()
+		case <-done:
+			throttleTimer.Stop()
+			return nil
+		case <-statusDone:
+			throttleTimer.Stop()
+			return nil
+		}
+		select {
+		case <-subscription:
+		default:
+		}
+		select {
+		case <-statusSubscription:
+		default:
 		}
 	}
 }
@@ -1122,6 +1154,7 @@ func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.Server
 		return err
 	}
 	defer s.serviceStatusObserver.UnSubscribe(statusSubscription)
+	var lastSendTime time.Time
 	for {
 		s.serviceAccess.RLock()
 		boxService := s.instance
@@ -1157,6 +1190,7 @@ func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.Server
 		if err != nil {
 			return err
 		}
+		lastSendTime = time.Now()
 		select {
 		case <-subscription:
 		case <-statusSubscription:
@@ -1168,6 +1202,34 @@ func (s *StartedService) SubscribeOutbounds(_ *emptypb.Empty, server grpc.Server
 			return nil
 		case <-statusDone:
 			return nil
+		}
+		throttleDelay := urlTestPushMinInterval - time.Since(lastSendTime)
+		if throttleDelay <= 0 {
+			continue
+		}
+		throttleTimer := time.NewTimer(throttleDelay)
+		select {
+		case <-throttleTimer.C:
+		case <-s.ctx.Done():
+			throttleTimer.Stop()
+			return s.ctx.Err()
+		case <-server.Context().Done():
+			throttleTimer.Stop()
+			return server.Context().Err()
+		case <-done:
+			throttleTimer.Stop()
+			return nil
+		case <-statusDone:
+			throttleTimer.Stop()
+			return nil
+		}
+		select {
+		case <-subscription:
+		default:
+		}
+		select {
+		case <-statusSubscription:
+		default:
 		}
 	}
 }
