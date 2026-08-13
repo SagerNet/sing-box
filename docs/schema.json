@@ -4534,6 +4534,11 @@
                 }
               ]
             },
+            "listen_port": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
             "relay_server_port": {
               "type": "integer",
               "minimum": 0,
