@@ -2,6 +2,9 @@ package dns
 
 import (
 	"net/netip"
+	"slices"
+
+	"github.com/sagernet/sing/common"
 
 	"github.com/miekg/dns"
 )
@@ -25,10 +28,35 @@ func clientSubnetFromMessage(message *dns.Msg) netip.Prefix {
 			if !addressLoaded {
 				return netip.Prefix{}
 			}
-			return netip.PrefixFrom(address, int(subnetOption.SourceNetmask))
+			return netip.PrefixFrom(address.Unmap(), int(subnetOption.SourceNetmask))
 		}
 	}
 	return netip.Prefix{}
+}
+
+func removeClientSubnet(message *dns.Msg) *dns.Msg {
+	if !slices.ContainsFunc(message.Extra, func(record dns.RR) bool {
+		optRecord, isOPTRecord := record.(*dns.OPT)
+		if !isOPTRecord {
+			return false
+		}
+		return slices.ContainsFunc(optRecord.Option, func(option dns.EDNS0) bool {
+			return option.Option() == dns.EDNS0SUBNET
+		})
+	}) {
+		return message
+	}
+	message = message.Copy()
+	for _, record := range message.Extra {
+		optRecord, isOPTRecord := record.(*dns.OPT)
+		if !isOPTRecord {
+			continue
+		}
+		optRecord.Option = common.Filter(optRecord.Option, func(option dns.EDNS0) bool {
+			return option.Option() != dns.EDNS0SUBNET
+		})
+	}
+	return message
 }
 
 func setClientSubnet(message *dns.Msg, clientSubnet netip.Prefix, clone bool) *dns.Msg {

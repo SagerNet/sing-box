@@ -94,6 +94,8 @@ type InboundContext struct {
 	SourceMACAddress                    net.HardwareAddr
 	SourceHostname                      string
 	QueryType                           uint16
+	QueryClientSubnet                   netip.Prefix
+	QueryDNSSEC                         bool
 	FakeIP                              bool
 	PreMatch                            bool
 

@@ -10,7 +10,8 @@ icon: material/new-box
     :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)  
     :material-plus: [timeout](#timeout)  
     :material-plus: [race](#race)  
-    :material-plus: [speculative](#speculative)
+    :material-plus: [speculative](#speculative)  
+    :material-plus: [remove_client_subnet](#remove_client_subnet)
 
 !!! quote "Changes in sing-box 1.12.0"
 
@@ -68,7 +69,8 @@ matched. The result may therefore depend on server speed only among race rules.
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "timeout": "",
-  "client_subnet": null
+  "client_subnet": null,
+  "remove_client_subnet": false
 }
 ```
 
@@ -135,6 +137,14 @@ If value is an IP address instead of prefix, `/32` or `/128` will be appended au
 
 Will override `dns.client_subnet`.
 
+#### remove_client_subnet
+
+!!! question "Since sing-box 1.14.0"
+
+Remove the `edns0-subnet` OPT extra record from the query, and suppress `dns.client_subnet`.
+
+Conflict with `client_subnet`.
+
 ### evaluate
 
 !!! question "Since sing-box 1.14.0"
@@ -149,7 +159,8 @@ Will override `dns.client_subnet`.
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "timeout": "",
-  "client_subnet": null
+  "client_subnet": null,
+  "remove_client_subnet": false
 }
 ```
 
@@ -217,6 +228,14 @@ If value is an IP address instead of prefix, `/32` or `/128` will be appended au
 
 Will override `dns.client_subnet`.
 
+#### remove_client_subnet
+
+!!! question "Since sing-box 1.14.0"
+
+Remove the `edns0-subnet` OPT extra record from the query, and suppress `dns.client_subnet`.
+
+Conflict with `client_subnet`.
+
 ### respond
 
 !!! question "Since sing-box 1.14.0"
@@ -242,7 +261,8 @@ Only allowed after a preceding top-level `evaluate` rule. If the action is reach
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "timeout": "",
-  "client_subnet": null
+  "client_subnet": null,
+  "remove_client_subnet": false
 }
 ```
 

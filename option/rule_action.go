@@ -230,6 +230,7 @@ type AbstractDNSRouteActionOptions struct {
 	DisableOptimisticCache bool                  `json:"disable_optimistic_cache,omitempty"`
 	RewriteTTL             *uint32               `json:"rewrite_ttl,omitempty"`
 	ClientSubnet           *badoption.Prefixable `json:"client_subnet,omitempty"`
+	RemoveClientSubnet     bool                  `json:"remove_client_subnet,omitempty"`
 }
 
 type DNSRouteOptionsActionOptions AbstractDNSRouteActionOptions

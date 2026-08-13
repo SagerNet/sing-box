@@ -10,7 +10,8 @@ icon: material/new-box
     :material-plus: [disable_optimistic_cache](#disable_optimistic_cache)  
     :material-plus: [timeout](#timeout)  
     :material-plus: [race](#race)  
-    :material-plus: [speculative](#speculative)
+    :material-plus: [speculative](#speculative)  
+    :material-plus: [remove_client_subnet](#remove_client_subnet)
 
 !!! quote "sing-box 1.12.0 中的更改"
 
@@ -61,7 +62,8 @@ icon: material/new-box
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "timeout": "",
-  "client_subnet": null
+  "client_subnet": null,
+  "remove_client_subnet": false
 }
 ```
 
@@ -125,6 +127,14 @@ icon: material/new-box
 
 将覆盖 `dns.client_subnet`.
 
+#### remove_client_subnet
+
+!!! question "自 sing-box 1.14.0 起"
+
+移除查询中的 `edns0-subnet` OPT 附加记录，并抑制 `dns.client_subnet`。
+
+与 `client_subnet` 冲突。
+
 ### evaluate
 
 !!! question "自 sing-box 1.14.0 起"
@@ -139,7 +149,8 @@ icon: material/new-box
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "timeout": "",
-  "client_subnet": null
+  "client_subnet": null,
+  "remove_client_subnet": false
 }
 ```
 
@@ -203,6 +214,14 @@ icon: material/new-box
 
 将覆盖 `dns.client_subnet`.
 
+#### remove_client_subnet
+
+!!! question "自 sing-box 1.14.0 起"
+
+移除查询中的 `edns0-subnet` OPT 附加记录，并抑制 `dns.client_subnet`。
+
+与 `client_subnet` 冲突。
+
 ### respond
 
 !!! question "自 sing-box 1.14.0 起"
@@ -228,7 +247,8 @@ icon: material/new-box
   "disable_optimistic_cache": false,
   "rewrite_ttl": null,
   "timeout": "",
-  "client_subnet": null
+  "client_subnet": null,
+  "remove_client_subnet": false
 }
 ```
 
