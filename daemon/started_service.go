@@ -1372,6 +1372,107 @@ func subscribeEndpointStatus[T endpointStatusProvider](ctx context.Context, star
 	})
 }
 
+type taggedStatusSource[T any] struct {
+	tag       string
+	subscribe func(ctx context.Context, listener func(T))
+}
+
+func streamTaggedStatus[T any](ctx context.Context, sources []taggedStatusSource[T], send func(statuses map[string]T) error) error {
+	type subscription struct {
+		tag      string
+		latest   chan T
+		finished chan struct{}
+	}
+	var waitGroup sync.WaitGroup
+	subscriptions := make([]subscription, 0, len(sources))
+	for _, source := range sources {
+		current := subscription{
+			tag:      source.tag,
+			latest:   make(chan T, 1),
+			finished: make(chan struct{}),
+		}
+		subscriptions = append(subscriptions, current)
+		waitGroup.Go(func() {
+			defer close(current.finished)
+			source.subscribe(ctx, func(status T) {
+				storeLatestStatus(current.latest, status)
+			})
+		})
+	}
+
+	statuses := make(map[string]T, len(sources))
+	for _, current := range subscriptions {
+		select {
+		case status := <-current.latest:
+			statuses[current.tag] = status
+		case <-current.finished:
+			select {
+			case status := <-current.latest:
+				statuses[current.tag] = status
+			default:
+			}
+		case <-ctx.Done():
+			return nil
+		}
+	}
+	err := send(statuses)
+	if err != nil {
+		return err
+	}
+
+	type taggedStatus struct {
+		tag    string
+		status T
+	}
+	updates := make(chan taggedStatus, len(sources))
+	for _, current := range subscriptions {
+		waitGroup.Go(func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case status := <-current.latest:
+					select {
+					case updates <- taggedStatus{tag: current.tag, status: status}:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		})
+	}
+	go func() {
+		waitGroup.Wait()
+		close(updates)
+	}()
+
+	for update := range updates {
+		statuses[update.tag] = update.status
+		err = send(statuses)
+		if err != nil {
+			return err
+		}
+	}
+	<-ctx.Done()
+	return nil
+}
+
+func storeLatestStatus[T any](slot chan T, status T) {
+	select {
+	case slot <- status:
+		return
+	default:
+	}
+	select {
+	case <-slot:
+	default:
+	}
+	select {
+	case slot <- status:
+	default:
+	}
+}
+
 func (s *StartedService) StartNetworkQualityTest(
 	request *NetworkQualityTestRequest,
 	server grpc.ServerStreamingServer[NetworkQualityTestProgress],
@@ -1484,60 +1585,27 @@ func (s *StartedService) SubscribeTailscaleStatus(
 				})
 			}
 		}
-		if len(endpoints) == 0 {
-			sendErr := server.Send(&TailscaleStatusUpdate{})
-			if sendErr != nil {
-				return sendErr
+		sources := common.Map(endpoints, func(endpoint tailscaleEndpoint) taggedStatusSource[*adapter.TailscaleEndpointStatus] {
+			return taggedStatusSource[*adapter.TailscaleEndpointStatus]{
+				tag: endpoint.tag,
+				subscribe: func(subscribeCtx context.Context, listener func(*adapter.TailscaleEndpointStatus)) {
+					_ = endpoint.provider.SubscribeTailscaleStatus(subscribeCtx, listener)
+				},
 			}
-			<-ctx.Done()
-			return nil
-		}
-
-		type taggedStatus struct {
-			tag    string
-			status *adapter.TailscaleEndpointStatus
-		}
-		updates := make(chan taggedStatus, len(endpoints))
-
-		var waitGroup sync.WaitGroup
-		for _, endpoint := range endpoints {
-			waitGroup.Add(1)
-			go func(tag string, provider adapter.TailscaleEndpoint) {
-				defer waitGroup.Done()
-				_ = provider.SubscribeTailscaleStatus(ctx, func(endpointStatus *adapter.TailscaleEndpointStatus) {
-					select {
-					case updates <- taggedStatus{tag: tag, status: endpointStatus}:
-					case <-ctx.Done():
-					}
-				})
-			}(endpoint.tag, endpoint.provider)
-		}
-
-		go func() {
-			waitGroup.Wait()
-			close(updates)
-		}()
-
-		var tags []string
-		statuses := make(map[string]*adapter.TailscaleEndpointStatus, len(endpoints))
-		for update := range updates {
-			if _, exists := statuses[update.tag]; !exists {
-				tags = append(tags, update.tag)
+		})
+		return streamTaggedStatus(ctx, sources, func(statuses map[string]*adapter.TailscaleEndpointStatus) error {
+			protoEndpoints := make([]*TailscaleEndpointStatus, 0, len(endpoints))
+			for _, endpoint := range endpoints {
+				endpointStatus, found := statuses[endpoint.tag]
+				if !found {
+					continue
+				}
+				protoEndpoints = append(protoEndpoints, tailscaleEndpointStatusToProto(endpoint.tag, endpointStatus, selectedLocale))
 			}
-			statuses[update.tag] = update.status
-			protoEndpoints := make([]*TailscaleEndpointStatus, 0, len(statuses))
-			for _, tag := range tags {
-				protoEndpoints = append(protoEndpoints, tailscaleEndpointStatusToProto(tag, statuses[tag], selectedLocale))
-			}
-			sendErr := server.Send(&TailscaleStatusUpdate{
+			return server.Send(&TailscaleStatusUpdate{
 				Endpoints: protoEndpoints,
 			})
-			if sendErr != nil {
-				return sendErr
-			}
-		}
-		<-ctx.Done()
-		return nil
+		})
 	})
 }
 
