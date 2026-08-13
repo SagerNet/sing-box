@@ -106,6 +106,7 @@ type NetworkInterface struct {
 
 	Type      int32
 	DNSServer StringIterator
+	Gateway   StringIterator
 	Metered   bool
 }
 
