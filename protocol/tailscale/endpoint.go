@@ -202,6 +202,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 			Ephemeral:     options.Ephemeral,
 			AuthKey:       options.AuthKey,
 			ControlURL:    options.ControlURL,
+			Port:          options.ListenPort,
 			AdvertiseTags: options.AdvertiseTags,
 			Dialer:        &endpointDialer{Dialer: outboundDialer, logger: logger},
 			LookupHook: func(ctx context.Context, host string) ([]netip.Addr, error) {
