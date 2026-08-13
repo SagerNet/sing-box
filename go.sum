@@ -44,6 +44,8 @@ github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XL
 github.com/cilium/ebpf v0.16.0 h1:+BiEnHL6Z7lXnlGUsXQPPAE7+kenAd4ES8MQ5min0Ok=
 github.com/cilium/ebpf v0.16.0/go.mod h1:L7u2Blt2jMM/vLAVgjxluxtBKlz3/GWjB0dMOEngfwE=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
+github.com/clipperhouse/uax29/v2 v2.2.0 h1:ChwIKnQN3kcZteTXMgb1wztSgaU+ZemkgWdohwgs8tY=
+github.com/clipperhouse/uax29/v2 v2.2.0/go.mod h1:EFJ2TJMRUaplDxHKj1qAEhCtQPW2tJSwu5BF98AuoVM=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
 github.com/coder/websocket v1.8.14 h1:9L0p0iKiNOibykf283eHkKUHHrpG7f65OE3BhhO7v9g=
 github.com/coder/websocket v1.8.14/go.mod h1:NX3SzP+inril6yawo5CQXx8+fk145lPDC6pumgx0mVg=
@@ -193,6 +195,8 @@ github.com/libp2p/go-netroute v0.2.1 h1:V8kVrpD8GK0Riv15/7VN6RbUQ3URNZVosw7H2v9t
 github.com/libp2p/go-netroute v0.2.1/go.mod h1:hraioZr0fhBjG0ZRXJJ6Zj2IVEVNx6tDTFQfSmcq7mQ=
 github.com/logrusorgru/aurora v2.0.3+incompatible h1:tOpm7WcpBTn4fjmVfgpQq0EfczGlG91VSDkswnjF5A8=
 github.com/logrusorgru/aurora v2.0.3+incompatible/go.mod h1:7rIyQOR62GCctdiQpZ/zOJlFyk6y+94wXzv6RNZgaR4=
+github.com/mattn/go-runewidth v0.0.27 h1:Feg/Oou5zI/wnpgDF6omIU0OokC9GxLC/WRknhVlIR0=
+github.com/mattn/go-runewidth v0.0.27/go.mod h1:3qAiGCV4Koz/yuveO58qUefmUTRm8r0IGEXZ9jeHp/8=
 github.com/mdlayher/netlink v1.11.2 h1:HKh2jqe+omdSWcQ88nrT7INE61B0NXfiSPFdgL4YbNI=
 github.com/mdlayher/netlink v1.11.2/go.mod h1:uT2Yc/QLaZubzDpZIBi9d4GoeLwtp3x1AMeqSRrK2sA=
 github.com/mdlayher/socket v0.6.0 h1:ScZPaAGyO1icQnbFrhPM8mnXyMu9qukC1K4ZoM2IQKU=
@@ -338,8 +342,8 @@ github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73 h1:Iyhoka9XutV
 github.com/sagernet/sing-snell v0.0.0-20260727093646-7cb813e07b73/go.mod h1:et8Lws4f5QbOrY65DmjevHGup3mijJkhswkto6cwciM=
 github.com/sagernet/sing-tun v0.9.0-beta.2 h1:wCo8vtXw7ShxhFWU79Tdh/8F5et08qob++Tvh8BtyZA=
 github.com/sagernet/sing-tun v0.9.0-beta.2/go.mod h1:3EgPst7agntRO7D6GOsiZ1l9FoqdLeuWmKT5TnWkmf0=
-github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb h1:KEMbfexD4DvrQGYWwx6r+AwH9Veh8z6cnBZmtCS2G+0=
-github.com/sagernet/sing-usbip v0.0.0-20260616101517-efb91521eddb/go.mod h1:D4CnJX3MNAAANhbQUxfIRgBdnvlTEaV7h6ojedcs+pw=
+github.com/sagernet/sing-usbip v0.0.0-20260813125128-908a3a2fa917 h1:aTUWExMVkwFCQFTo+uFD7JCO5m7J0xGqymr94/t3eJs=
+github.com/sagernet/sing-usbip v0.0.0-20260813125128-908a3a2fa917/go.mod h1:D4CnJX3MNAAANhbQUxfIRgBdnvlTEaV7h6ojedcs+pw=
 github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1 h1:aSwUNYUkVyVvdmBSufR8/nRFonwJeKSIROxHcm5br9o=
 github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1/go.mod h1:P11scgTxMxVVQ8dlM27yNm3Cro40mD0+gHbnqrNGDuY=
 github.com/sagernet/smux v1.5.50-sing-box-mod.1 h1:XkJcivBC9V4wBjiGXIXZ229aZCU1hzcbp6kSkkyQ478=
