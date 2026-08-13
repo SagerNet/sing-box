@@ -4,6 +4,7 @@ icon: material/new-box
 
 !!! quote "sing-box 1.14.0 中的更改"
 
+    :material-plus: [listen_port](#listen_port)  
     :material-plus: [ssh_server](#ssh_server)
 
 !!! quote "sing-box 1.13.0 中的更改"
@@ -34,6 +35,7 @@ icon: material/new-box
   "advertise_routes": [],
   "advertise_exit_node": false,
   "advertise_tags": [],
+  "listen_port": 0,
   "relay_server_port": 0,
   "relay_server_static_endpoints": [],
   "system_interface": false,
@@ -119,6 +121,14 @@ icon: material/new-box
 为此节点通告的标签，用于 ACL 执行。
 
 示例：`["tag:server"]`
+
+#### listen_port
+
+!!! question "自 sing-box 1.14.0 起"
+
+监听 WireGuard 和点对点流量的 UDP 端口。
+
+默认自动选择端口。
 
 #### relay_server_port
 

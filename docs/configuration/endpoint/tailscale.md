@@ -4,6 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
+    :material-plus: [listen_port](#listen_port)  
     :material-plus: [ssh_server](#ssh_server)
 
 !!! quote "Changes in sing-box 1.13.0"
@@ -34,6 +35,7 @@ icon: material/new-box
   "advertise_routes": [],
   "advertise_exit_node": false,
   "advertise_tags": [],
+  "listen_port": 0,
   "relay_server_port": 0,
   "relay_server_static_endpoints": [],
   "system_interface": false,
@@ -120,6 +122,14 @@ Indicates whether the node should advertise itself as an exit node.
 Tags to advertise for this node, for ACL enforcement purposes.
 
 Example: `["tag:server"]`
+
+#### listen_port
+
+!!! question "Since sing-box 1.14.0"
+
+The UDP port to listen on for WireGuard and peer-to-peer traffic.
+
+A port is automatically selected by default.
 
 #### relay_server_port
 
