@@ -34,29 +34,32 @@ import (
 var _ adapter.NetworkManager = (*NetworkManager)(nil)
 
 type NetworkManager struct {
-	ctx                    context.Context
-	logger                 logger.ContextLogger
-	router                 adapter.Router
-	interfaceFinder        *control.DefaultInterfaceFinder
-	networkInterfaces      common.TypedValue[[]adapter.NetworkInterface]
-	autoDetectInterface    bool
-	defaultOptions         adapter.NetworkOptions
-	autoRedirectOutputMark uint32
-	networkMonitor         tun.NetworkUpdateMonitor
-	interfaceMonitor       tun.DefaultInterfaceMonitor
-	packageManager         tun.PackageManager
-	powerListener          winpowrprof.EventListener
-	pauseManager           pause.Manager
-	platformInterface      adapter.PlatformInterface
-	connectionManager      adapter.ConnectionManager
-	endpoint               adapter.EndpointManager
-	inbound                adapter.InboundManager
-	outbound               adapter.OutboundManager
-	needWIFIState          bool
-	wifiMonitor            settings.WIFIMonitor
-	wifiState              adapter.WIFIState
-	wifiStateMutex         sync.RWMutex
-	started                bool
+	ctx                     context.Context
+	logger                  logger.ContextLogger
+	router                  adapter.Router
+	interfaceFinder         *control.DefaultInterfaceFinder
+	networkInterfaces       common.TypedValue[[]adapter.NetworkInterface]
+	autoDetectInterface     bool
+	defaultOptions          adapter.NetworkOptions
+	autoRedirectOutputMark  uint32
+	networkMonitor          tun.NetworkUpdateMonitor
+	interfaceMonitor        tun.DefaultInterfaceMonitor
+	packageManager          tun.PackageManager
+	powerListener           winpowrprof.EventListener
+	pauseManager            pause.Manager
+	platformInterface       adapter.PlatformInterface
+	connectionManager       adapter.ConnectionManager
+	endpoint                adapter.EndpointManager
+	inbound                 adapter.InboundManager
+	outbound                adapter.OutboundManager
+	needWIFIState           bool
+	wifiMonitor             settings.WIFIMonitor
+	wifiState               adapter.WIFIState
+	networkEnvironment      uint64
+	stateAccess             sync.RWMutex
+	environmentUpdateAccess sync.Mutex
+	environmentUpdateTimer  *time.Timer
+	started                 bool
 }
 
 func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options option.RouteOptions, dnsOptions option.DNSOptions) (*NetworkManager, error) {
@@ -117,6 +120,7 @@ func NewNetworkManager(ctx context.Context, logger logger.ContextLogger, options
 				return nil, E.Cause(err, "create network monitor")
 			}
 			nm.networkMonitor = networkMonitor
+			networkMonitor.RegisterCallback(nm.postUpdateNetworkEnvironment)
 			interfaceMonitor, err := tun.NewDefaultInterfaceMonitor(nm.networkMonitor, logger, tun.DefaultInterfaceMonitorOptions{
 				InterfaceFinder:       nm.interfaceFinder,
 				OverrideAndroidVPN:    options.OverrideAndroidVPN,
@@ -254,6 +258,11 @@ func (r *NetworkManager) Close() error {
 		})
 		monitor.Finish()
 	}
+	r.environmentUpdateAccess.Lock()
+	if r.environmentUpdateTimer != nil {
+		r.environmentUpdateTimer.Stop()
+	}
+	r.environmentUpdateAccess.Unlock()
 	if r.wifiMonitor != nil {
 		monitor.Start("close WIFI monitor")
 		err = E.Append(err, r.wifiMonitor.Close(), func(err error) error {
@@ -269,6 +278,7 @@ func (r *NetworkManager) InterfaceFinder() control.InterfaceFinder {
 }
 
 func (r *NetworkManager) UpdateInterfaces() error {
+	defer r.updateNetworkEnvironment()
 	if r.platformInterface == nil || !r.platformInterface.UsePlatformNetworkInterfaces() {
 		return r.interfaceFinder.Update()
 	} else {
@@ -423,24 +433,25 @@ func (r *NetworkManager) NeedWIFIState() bool {
 }
 
 func (r *NetworkManager) WIFIState() adapter.WIFIState {
-	r.wifiStateMutex.RLock()
-	defer r.wifiStateMutex.RUnlock()
+	r.stateAccess.RLock()
+	defer r.stateAccess.RUnlock()
 	return r.wifiState
 }
 
 func (r *NetworkManager) onWIFIStateChanged(state adapter.WIFIState) {
 	state.BSSID = adapter.NormalizeWIFIBSSID(state.BSSID)
-	r.wifiStateMutex.Lock()
+	r.stateAccess.Lock()
 	if state != r.wifiState {
 		r.wifiState = state
-		r.wifiStateMutex.Unlock()
+		r.stateAccess.Unlock()
+		r.postUpdateNetworkEnvironment()
 		if state.SSID != "" {
 			r.logger.Info("WIFI state changed: SSID=", state.SSID, ", BSSID=", state.BSSID)
 		} else {
 			r.logger.Info("WIFI disconnected")
 		}
 	} else {
-		r.wifiStateMutex.Unlock()
+		r.stateAccess.Unlock()
 	}
 }
 
@@ -521,6 +532,7 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 	}
 	r.logger.Info("updated default interface ", defaultInterface.Name, ", ", strings.Join(options, ", "))
 	r.UpdateWIFIState()
+	r.updateNetworkEnvironment()
 
 	if !r.started {
 		return

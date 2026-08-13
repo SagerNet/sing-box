@@ -3,6 +3,7 @@ package adapter
 import (
 	"encoding/hex"
 	"net"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ type NetworkManager interface {
 	UpdateInterfaces() error
 	DefaultNetworkInterface() *NetworkInterface
 	NetworkInterfaces() []NetworkInterface
+	NetworkEnvironment() uint64
 	AutoDetectInterface() bool
 	AutoDetectInterfaceFunc() control.Func
 	ProtectFunc() control.Func
@@ -76,6 +78,7 @@ type NetworkInterface struct {
 	control.Interface
 	Type        C.InterfaceType
 	DNSServers  []string
+	Gateways    []netip.Addr
 	Expensive   bool
 	Constrained bool
 }
