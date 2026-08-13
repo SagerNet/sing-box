@@ -139,6 +139,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 				DisableOptimisticCache: action.RouteOptions.DisableOptimisticCache,
 				RewriteTTL:             action.RouteOptions.RewriteTTL,
 				ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.RouteOptions.ClientSubnet)),
+				RemoveClientSubnet:     action.RouteOptions.RemoveClientSubnet,
 			},
 		}
 	case C.RuleActionTypeEvaluate:
@@ -153,6 +154,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 				DisableOptimisticCache: action.EvaluateOptions.DisableOptimisticCache,
 				RewriteTTL:             action.EvaluateOptions.RewriteTTL,
 				ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.EvaluateOptions.ClientSubnet)),
+				RemoveClientSubnet:     action.EvaluateOptions.RemoveClientSubnet,
 			},
 		}
 	case C.RuleActionTypeRespond:
@@ -165,6 +167,7 @@ func NewDNSRuleAction(logger logger.ContextLogger, action option.DNSRuleAction) 
 			DisableOptimisticCache: action.RouteOptionsOptions.DisableOptimisticCache,
 			RewriteTTL:             action.RouteOptionsOptions.RewriteTTL,
 			ClientSubnet:           netip.Prefix(common.PtrValueOrDefault(action.RouteOptionsOptions.ClientSubnet)),
+			RemoveClientSubnet:     action.RouteOptionsOptions.RemoveClientSubnet,
 		}
 	case C.RuleActionTypeReject:
 		return &RuleActionReject{
@@ -349,6 +352,9 @@ func formatDNSRouteAction(action string, server string, speculative bool, option
 	if options.ClientSubnet.IsValid() {
 		descriptions = append(descriptions, F.ToString("client-subnet=", options.ClientSubnet))
 	}
+	if options.RemoveClientSubnet {
+		descriptions = append(descriptions, "remove-client-subnet")
+	}
 	return F.ToString(action, "(", strings.Join(descriptions, ","), ")")
 }
 
@@ -359,6 +365,7 @@ type RuleActionDNSRouteOptions struct {
 	DisableOptimisticCache bool
 	RewriteTTL             *uint32
 	ClientSubnet           netip.Prefix
+	RemoveClientSubnet     bool
 }
 
 func (r *RuleActionDNSRouteOptions) Type() string {
@@ -381,6 +388,9 @@ func (r *RuleActionDNSRouteOptions) String() string {
 	}
 	if r.ClientSubnet.IsValid() {
 		descriptions = append(descriptions, F.ToString("client-subnet=", r.ClientSubnet))
+	}
+	if r.RemoveClientSubnet {
+		descriptions = append(descriptions, "remove-client-subnet")
 	}
 	return F.ToString("route-options(", strings.Join(descriptions, ","), ")")
 }
