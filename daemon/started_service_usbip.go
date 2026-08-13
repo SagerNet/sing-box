@@ -10,6 +10,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-usbip"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
 
@@ -132,94 +133,32 @@ func (s *StartedService) SubscribeUSBIPServerStatus(
 				servers = append(servers, usbipServer{tag: serverService.Tag(), provider: provider})
 			}
 		}
-		if len(servers) == 0 {
-			sendErr := server.Send(&USBIPServerStatusUpdate{})
-			if sendErr != nil {
-				return sendErr
+		// sing-usbip invokes the SubscribeDevices listener with the current snapshot
+		// before registration returns, and later invocations happen while the ledger's
+		// broadcast lock is held, so the listener must never block.
+		sources := common.Map(servers, func(serverService usbipServer) taggedStatusSource[[]usbip.ControlDeviceInfo] {
+			return taggedStatusSource[[]usbip.ControlDeviceInfo]{
+				tag: serverService.tag,
+				subscribe: func(subscribeCtx context.Context, listener func([]usbip.ControlDeviceInfo)) {
+					serverService.provider.SubscribeDevices(subscribeCtx, listener)
+				},
 			}
-			<-ctx.Done()
-			return nil
-		}
-
-		type taggedStatus struct {
-			tag     string
-			devices []usbip.ControlDeviceInfo
-		}
-		updates := make(chan taggedStatus, len(servers))
-
-		var waitGroup sync.WaitGroup
-		for _, srv := range servers {
-			// sing-usbip invokes the SubscribeDevices listener while holding the
-			// ledger's broadcast lock, so it must never block.
-			latest := make(chan []usbip.ControlDeviceInfo, 1)
-			waitGroup.Add(1)
-			go func(provider adapter.USBIPDynamicServer) {
-				defer waitGroup.Done()
-				provider.SubscribeDevices(ctx, func(devices []usbip.ControlDeviceInfo) {
-					sendLatestUSBSnapshot(latest, devices)
-				})
-			}(srv.provider)
-			waitGroup.Add(1)
-			go func(tag string) {
-				defer waitGroup.Done()
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case devices := <-latest:
-						select {
-						case updates <- taggedStatus{tag: tag, devices: devices}:
-						case <-ctx.Done():
-							return
-						}
-					}
+		})
+		return streamTaggedStatus(ctx, sources, func(deviceStates map[string][]usbip.ControlDeviceInfo) error {
+			protoServers := make([]*USBIPServerStatus, 0, len(servers))
+			for _, serverService := range servers {
+				devices, found := deviceStates[serverService.tag]
+				if !found {
+					continue
 				}
-			}(srv.tag)
-		}
-
-		go func() {
-			waitGroup.Wait()
-			close(updates)
-		}()
-
-		var tags []string
-		deviceStates := make(map[string][]usbip.ControlDeviceInfo, len(servers))
-		for update := range updates {
-			if _, exists := deviceStates[update.tag]; !exists {
-				tags = append(tags, update.tag)
-			}
-			deviceStates[update.tag] = update.devices
-			protoServers := make([]*USBIPServerStatus, 0, len(deviceStates))
-			for _, tag := range tags {
 				protoServers = append(protoServers, &USBIPServerStatus{
-					ServerTag: tag,
-					Devices:   usbSharedDevicesToProto(deviceStates[tag]),
+					ServerTag: serverService.tag,
+					Devices:   usbSharedDevicesToProto(devices),
 				})
 			}
-			sendErr := server.Send(&USBIPServerStatusUpdate{Servers: protoServers})
-			if sendErr != nil {
-				return sendErr
-			}
-		}
-		<-ctx.Done()
-		return nil
+			return server.Send(&USBIPServerStatusUpdate{Servers: protoServers})
+		})
 	})
-}
-
-func sendLatestUSBSnapshot(slot chan []usbip.ControlDeviceInfo, devices []usbip.ControlDeviceInfo) {
-	select {
-	case slot <- devices:
-		return
-	default:
-	}
-	select {
-	case <-slot:
-	default:
-	}
-	select {
-	case slot <- devices:
-	default:
-	}
 }
 
 func usbSharedDevicesToProto(devices []usbip.ControlDeviceInfo) []*USBSharedDevice {
