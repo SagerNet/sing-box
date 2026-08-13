@@ -14,6 +14,8 @@ icon: material/alert-decagram
     :material-plus: [response_ns](#response_ns)  
     :material-plus: [response_extra](#response_extra)  
     :material-plus: [package_name_regex](#package_name_regex)  
+    :material-plus: [query_client_subnet](#query_client_subnet)  
+    :material-plus: [query_dnssec](#query_dnssec)  
     :material-alert: [ip_version](#ip_version)  
     :material-alert: [query_type](#query_type)
 
@@ -77,6 +79,11 @@ icon: material/alert-decagram
           "HTTPS",
           32768
         ],
+        "query_client_subnet": [
+          "10.0.0.0/24",
+          "192.168.0.1"
+        ],
+        "query_dnssec": false,
         "network": "tcp",
         "auth_user": [
           "usera",
@@ -291,6 +298,22 @@ Not limited if empty.
     action and [`match_response`](#match_response).
 
 DNS query type. Values can be integers or type name strings.
+
+#### query_client_subnet
+
+!!! question "Since sing-box 1.14.0"
+
+Match the `edns0-subnet` OPT extra record (EDNS Client Subnet) in the query.
+
+A listed prefix matches when it is no more specific than the received client subnet and contains its address.
+
+If value is an IP address instead of prefix, `/32` or `/128` will be appended automatically.
+
+#### query_dnssec
+
+!!! question "Since sing-box 1.14.0"
+
+Match queries with the DNSSEC OK (`DO`) bit set.
 
 #### network
 
