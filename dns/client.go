@@ -107,12 +107,15 @@ func (k dnsCacheKey) persistentName() string {
 }
 
 func (c *Client) newCacheKey(transport adapter.DNSTransport, question dns.Question, message *dns.Msg, options adapter.DNSQueryOptions) dnsCacheKey {
-	clientSubnet := options.ClientSubnet
-	if !clientSubnet.IsValid() {
-		clientSubnet = c.clientSubnet
-	}
-	if !clientSubnet.IsValid() {
-		clientSubnet = clientSubnetFromMessage(message)
+	var clientSubnet netip.Prefix
+	if !options.RemoveClientSubnet {
+		clientSubnet = options.ClientSubnet
+		if !clientSubnet.IsValid() {
+			clientSubnet = c.clientSubnet
+		}
+		if !clientSubnet.IsValid() {
+			clientSubnet = clientSubnetFromMessage(message)
+		}
 	}
 	return dnsCacheKey{
 		Question:     question,
@@ -679,6 +682,9 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, key dnsCac
 }
 
 func (c *Client) prepareExchangeMessage(message *dns.Msg, options adapter.DNSQueryOptions) *dns.Msg {
+	if options.RemoveClientSubnet {
+		return removeClientSubnet(message)
+	}
 	clientSubnet := options.ClientSubnet
 	if !clientSubnet.IsValid() {
 		clientSubnet = c.clientSubnet
