@@ -38,6 +38,7 @@ type PlatformInterface interface {
 
 	UsePlatformNotification() bool
 	SendNotification(notification *Notification) error
+	CancelNotification(identifier string, typeID int32) error
 
 	MyInterfaceAddress() []netip.Addr
 

@@ -48,6 +48,7 @@ func convertPingResult(result *ipnstate.PingResult) *adapter.TailscalePingResult
 		LatencyMs:      result.LatencySeconds * 1000,
 		IsDirect:       result.Endpoint != "",
 		Endpoint:       result.Endpoint,
+		PeerRelay:      result.PeerRelay,
 		DERPRegionID:   int32(result.DERPRegionID),
 		DERPRegionCode: result.DERPRegionCode,
 		Error:          result.Err,
