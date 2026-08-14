@@ -4588,6 +4588,9 @@
                   "additionalProperties": false
                 }
               ]
+            },
+            "taildrop_directory": {
+              "type": "string"
             }
           },
           "required": [
