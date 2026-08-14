@@ -79,7 +79,10 @@ func runAPITailscalePing(selector string) error {
 	}()
 	timer := time.NewTimer(commandAPITailscalePingTimeout)
 	defer timer.Stop()
-	var pongCount int
+	var (
+		pongCount     int
+		lastPeerRelay string
+	)
 	for pongCount < commandAPITailscalePingCount {
 		var (
 			response *daemon.TailscalePingResponse
@@ -109,16 +112,23 @@ func runAPITailscalePing(selector string) error {
 		if response.GetEndpoint() != "" {
 			return nil
 		}
+		lastPeerRelay = response.GetPeerRelay()
 		timer.Reset(commandAPITailscalePingTimeout)
 	}
-	os.Stdout.WriteString("direct connection not established\n")
+	if lastPeerRelay != "" {
+		os.Stdout.WriteString(F.ToString("direct connection not established, relayed by peer relay ", lastPeerRelay, "\n"))
+	} else {
+		os.Stdout.WriteString("direct connection not established\n")
+	}
 	return nil
 }
 
 func formatTailscalePong(peerName string, peerAddress string, response *daemon.TailscalePingResponse) string {
 	via := response.GetEndpoint()
 	if via == "" {
-		if response.GetDerpRegionCode() != "" {
+		if response.GetPeerRelay() != "" {
+			via = F.ToString("peer relay ", response.GetPeerRelay())
+		} else if response.GetDerpRegionCode() != "" {
 			via = F.ToString("DERP(", response.GetDerpRegionCode(), ")")
 		} else {
 			via = F.ToString("DERP(", response.GetDerpRegionID(), ")")

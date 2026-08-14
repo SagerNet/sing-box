@@ -33,6 +33,7 @@ type TailscaleEndpointOptions struct {
 	SystemInterfaceMTU         uint32                     `json:"system_interface_mtu,omitempty"`
 	UDPTimeout                 UDPTimeoutCompat           `json:"udp_timeout,omitempty"`
 	SSHServer                  *TailscaleSSHServerOptions `json:"ssh_server,omitempty"`
+	TaildropDirectory          string                     `json:"taildrop_directory,omitempty"`
 }
 
 type _TailscaleSSHServerOptions struct {

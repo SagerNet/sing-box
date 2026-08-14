@@ -40,6 +40,7 @@ type Daemon struct {
 }
 
 func newDaemon() (*Daemon, error) {
+	restoreLocale()
 	ctx := include.Context(context.Background())
 	d := &Daemon{
 		ctx:                     ctx,

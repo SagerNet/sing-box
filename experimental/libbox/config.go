@@ -147,6 +147,10 @@ func (s *platformInterfaceStub) SendNotification(notification *adapter.Notificat
 	return nil
 }
 
+func (s *platformInterfaceStub) CancelNotification(identifier string, typeID int32) error {
+	return nil
+}
+
 func (s *platformInterfaceStub) MyInterfaceAddress() []netip.Addr {
 	return nil
 }
