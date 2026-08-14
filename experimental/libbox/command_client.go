@@ -108,6 +108,7 @@ const (
 	commandClientDialAttempts  = 10
 	commandClientDialBaseDelay = 100 * time.Millisecond
 	commandClientDialStepDelay = 50 * time.Millisecond
+	commandClientProbeTimeout  = 2 * time.Second
 )
 
 func commandClientDialDelay(attempt int) time.Duration {
@@ -167,14 +168,33 @@ func (c *CommandClient) establishConnection() (*grpc.ClientConn, daemon.StartedS
 		return c.dialRemote()
 	}
 	target, contextDialer := dialTarget()
-	return c.dialWithRetry(target, localDialOptions(contextDialer), true)
+	return c.dialWithRetry(target, localDialOptions(contextDialer), !c.standalone)
 }
 
-// dialWithRetry connects to the local command server. The retry loop exists to
-// wait out the server starting up: WaitForReady keeps the probe redialing and
-// the loop reissues it with a growing delay, so a freshly launched extension is
-// picked up without surfacing a transient "unavailable" to the UI.
+// dialWithRetry connects to the local command server. For a handler-bound
+// client the retry loop waits out the server starting up: WaitForReady keeps
+// the probe redialing and the loop reissues it with a growing delay, so a
+// freshly launched extension is picked up without surfacing a transient
+// "unavailable" to the UI. A standalone client issues a single fail-fast
+// probe instead: it serves a query from a UI that does not own the service
+// lifecycle, and a server that is not running is reported immediately.
 func (c *CommandClient) dialWithRetry(target string, dialOptions []grpc.DialOption, retryDial bool) (*grpc.ClientConn, daemon.StartedServiceClient, error) {
+	if !retryDial {
+		connection, err := grpc.NewClient(target, dialOptions...)
+		if err != nil {
+			return nil, nil, E.Cause(err, "create command client")
+		}
+		client := daemon.NewStartedServiceClient(connection)
+		ctx, cancel := context.WithTimeout(context.Background(), commandClientProbeTimeout)
+		_, err = client.GetStartedAt(ctx, &emptypb.Empty{}, grpc.WaitForReady(false))
+		cancel()
+		if err != nil {
+			connection.Close()
+			return nil, nil, E.Cause(err, "probe command server")
+		}
+		return connection, client, nil
+	}
+
 	var connection *grpc.ClientConn
 	var client daemon.StartedServiceClient
 	var lastError error
@@ -185,9 +205,6 @@ func (c *CommandClient) dialWithRetry(target string, dialOptions []grpc.DialOpti
 			connection, err = grpc.NewClient(target, dialOptions...)
 			if err != nil {
 				lastError = err
-				if !retryDial {
-					return nil, nil, E.Cause(err, "create command client")
-				}
 				time.Sleep(commandClientDialDelay(attempt))
 				continue
 			}
@@ -1303,4 +1320,232 @@ func (c *CommandClient) ProvideUSBDevices(handler USBProviderHandler) (*USBProvi
 	}()
 
 	return session, nil
+}
+
+func (c *CommandClient) SubscribeTaildropInbox(endpointTag string, handler TaildropInboxHandler) (*TaildropInboxSubscription, error) {
+	session := new(TaildropInboxSubscription)
+	err := subscribeStatus(c, &session.streamSession, "taildrop inbox", func(ctx context.Context, client daemon.StartedServiceClient) (grpc.ServerStreamingClient[daemon.TaildropInbox], error) {
+		return client.SubscribeTaildropInbox(ctx, &daemon.SubscribeTaildropInboxRequest{EndpointTag: endpointTag})
+	}, func(update *daemon.TaildropInbox) {
+		handler.OnInboxUpdate(taildropInboxFromGRPC(update))
+	}, handler.OnError)
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+func (c *CommandClient) SendTaildropFiles(options *TaildropSendOptions, handler TaildropSendHandler) (*TaildropSendSession, error) {
+	client, parentCtx, err := c.getClientForCall()
+	if err != nil {
+		return nil, E.Cause(err, "send taildrop files")
+	}
+
+	streamCtx, cancel := context.WithCancel(parentCtx)
+	failStart := func(cause error, message string) (*TaildropSendSession, error) {
+		cancel()
+		if c.standalone {
+			c.closeConnection()
+		}
+		return nil, E.Cause(cause, message)
+	}
+
+	stream, err := client.SendTaildropFiles(streamCtx)
+	if err != nil {
+		return failStart(err, "send taildrop files")
+	}
+
+	sendErr := stream.Send(&daemon.TaildropSendClientMessage{
+		Message: &daemon.TaildropSendClientMessage_Start{Start: &daemon.TaildropSendStart{
+			EndpointTag:  options.EndpointTag,
+			PeerStableID: options.PeerStableID,
+			Files:        options.files,
+		}},
+	})
+	if sendErr != nil {
+		return failStart(sendErr, "send taildrop start")
+	}
+	session := &TaildropSendSession{
+		streamSession: streamSession{
+			ctx:       streamCtx,
+			cancel:    cancel,
+			closeDone: make(chan struct{}),
+		},
+		stream: stream,
+	}
+
+	standalone := c.standalone
+	go func() {
+		defer func() {
+			close(session.closeDone)
+			if standalone {
+				c.closeConnection()
+			}
+		}()
+		for {
+			message, recvErr := stream.Recv()
+			if recvErr != nil {
+				switch {
+				case recvErr == io.EOF:
+					handler.OnFinish("")
+				case streamCtx.Err() == nil:
+					handler.OnFinish(E.Cause(recvErr, "taildrop send").Error())
+				}
+				cancel()
+				return
+			}
+			progress := message.GetProgress()
+			if progress == nil {
+				continue
+			}
+			if progress.FileCompleted {
+				handler.OnFileCompleted(progress.FileIndex, progress.SentBytes)
+			} else {
+				handler.OnProgress(progress.FileIndex, progress.SentBytes)
+			}
+		}
+	}()
+
+	return session, nil
+}
+
+func (c *CommandClient) DownloadTaildropFile(endpointTag string, name string, destinationPath string, handler TaildropDownloadHandler) (*TaildropDownloadSession, error) {
+	client, parentCtx, err := c.getClientForCall()
+	if err != nil {
+		return nil, E.Cause(err, "download taildrop file")
+	}
+
+	streamCtx, cancel := context.WithCancel(parentCtx)
+	failStart := func(cause error, message string) (*TaildropDownloadSession, error) {
+		cancel()
+		if c.standalone {
+			c.closeConnection()
+		}
+		return nil, E.Cause(cause, message)
+	}
+
+	stream, err := client.DownloadTaildropFile(streamCtx, &daemon.DownloadTaildropFileRequest{
+		EndpointTag: endpointTag,
+		Name:        name,
+	})
+	if err != nil {
+		return failStart(err, "download taildrop file")
+	}
+	firstChunk, err := stream.Recv()
+	if err != nil {
+		return failStart(err, "download taildrop file")
+	}
+	destinationFile, err := os.Create(destinationPath)
+	if err != nil {
+		return failStart(err, "download taildrop file")
+	}
+
+	session := &TaildropDownloadSession{
+		streamSession: streamSession{
+			ctx:       streamCtx,
+			cancel:    cancel,
+			closeDone: make(chan struct{}),
+		},
+	}
+
+	standalone := c.standalone
+	go func() {
+		defer func() {
+			close(session.closeDone)
+			if standalone {
+				c.closeConnection()
+			}
+		}()
+		totalSize := firstChunk.Size
+		var (
+			downloaded   int64
+			lastProgress time.Time
+		)
+		writeChunk := func(data []byte) error {
+			if len(data) == 0 {
+				return nil
+			}
+			_, writeErr := destinationFile.Write(data)
+			if writeErr != nil {
+				return writeErr
+			}
+			downloaded += int64(len(data))
+			now := time.Now()
+			if downloaded == totalSize || now.Sub(lastProgress) >= daemon.TaildropProgressMinInterval {
+				lastProgress = now
+				handler.OnProgress(downloaded, totalSize)
+			}
+			return nil
+		}
+		downloadErr := writeChunk(firstChunk.Data)
+		for downloadErr == nil {
+			var chunk *daemon.DownloadTaildropFileChunk
+			chunk, downloadErr = stream.Recv()
+			if downloadErr == io.EOF {
+				downloadErr = nil
+				break
+			}
+			if downloadErr != nil {
+				downloadErr = E.Cause(downloadErr, "download taildrop file")
+				break
+			}
+			downloadErr = writeChunk(chunk.Data)
+		}
+		if downloadErr == nil {
+			downloadErr = destinationFile.Close()
+		} else {
+			destinationFile.Close()
+		}
+		if downloadErr != nil {
+			os.Remove(destinationPath)
+			if streamCtx.Err() == nil {
+				handler.OnFinish(downloadErr.Error())
+			}
+			cancel()
+			return
+		}
+		handler.OnFinish("")
+		cancel()
+	}()
+
+	return session, nil
+}
+
+func (c *CommandClient) DeleteTaildropFile(endpointTag string, name string) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.DeleteTaildropFile(ctx, &daemon.DeleteTaildropFileRequest{
+			EndpointTag: endpointTag,
+			Name:        name,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "delete taildrop file")
+	}
+	return nil
+}
+
+func (c *CommandClient) CancelTaildropReceiving(endpointTag string, senderID string, name string) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.CancelTaildropReceiving(ctx, &daemon.CancelTaildropReceivingRequest{
+			EndpointTag: endpointTag,
+			SenderID:    senderID,
+			Name:        name,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "cancel taildrop receiving")
+	}
+	return nil
+}
+
+func (c *CommandClient) MarkTaildropInboxRead(endpointTag string) error {
+	_, err := callWithResult(c, func(ctx context.Context, client daemon.StartedServiceClient) (*emptypb.Empty, error) {
+		return client.MarkTaildropInboxRead(ctx, &daemon.MarkTaildropInboxReadRequest{
+			EndpointTag: endpointTag,
+		})
+	})
+	if err != nil {
+		return E.Cause(err, "mark taildrop inbox read")
+	}
+	return nil
 }

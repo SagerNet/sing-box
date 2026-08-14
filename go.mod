@@ -59,7 +59,7 @@ require (
 	github.com/sagernet/sing-usbip v0.0.0-20260813125128-908a3a2fa917
 	github.com/sagernet/sing-vmess v0.2.8-0.20250909125414-3aed155119a1
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
-	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.2
+	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.3
 	github.com/sagernet/wireguard-go v0.0.5-0.20260810121456-c6c8a831ef70
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.10.2

@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [listen_port](#listen_port)  
-    :material-plus: [ssh_server](#ssh_server)
+    :material-plus: [ssh_server](#ssh_server)  
+    :material-plus: [taildrop_directory](#taildrop_directory)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -43,6 +44,7 @@ icon: material/new-box
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
   "ssh_server": false,
+  "taildrop_directory": "",
 
   ... // Dial Fields
 }
@@ -210,6 +212,23 @@ Refuse the SFTP subsystem.
 #### ssh_server.disable_forwarding
 
 Refuse local and remote TCP and Unix-socket forwarding, including SSH agent forwarding.
+
+#### taildrop_directory
+
+!!! question "Since sing-box 1.14.0"
+
+The directory where files received from tailnet peers are stored, created with permissions 0700.
+
+Relative paths are resolved against the working directory, as [state_directory](#state_directory)
+is.
+
+`Taildrop` is used by default.
+
+Sending and receiving files also require the node capability
+`https://tailscale.com/cap/file-sharing`, which the Tailscale admin console grants when file
+sharing is enabled for the tailnet. Peers of another user may send files to this node when the
+tailnet policy file grants them `https://tailscale.com/cap/file-send`, and may be sent files when
+the policy file grants this node `https://tailscale.com/cap/file-sharing-target` for them.
 
 ### Dial Fields
 

@@ -37,9 +37,36 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 			status := localBackend.Status()
 			result := convertTailscaleStatus(status)
 			result.KeyAuth = t.keyAuth
+			canShareFiles, taildropTargets := t.taildropTargets()
+			result.CanShareFiles = canShareFiles
+			result.WaitingFileCount = t.taildrop.waitingFileCount()
+			result.ReceivingFileCount = t.taildrop.receivingFileCount()
+			result.UnreadFileCount = t.taildrop.unreadFileCount()
+			if len(taildropTargets) > 0 {
+				for _, group := range result.UserGroups {
+					for _, peer := range group.Peers {
+						peer.CanReceiveFiles = taildropTargets[peer.StableID]
+					}
+				}
+			}
 			fn(result)
 		}
 	}()
+	fileSignal := make(chan struct{}, 1)
+	watchErr := t.taildrop.watch(t.taildrop.fileWatchers, fileSignal)
+	if watchErr == nil {
+		defer t.taildrop.unwatch(t.taildrop.fileWatchers, fileSignal)
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-fileSignal:
+					scheduleUpdate()
+				}
+			}
+		}()
+	}
 	scheduleUpdate()
 	for {
 		var busError string
