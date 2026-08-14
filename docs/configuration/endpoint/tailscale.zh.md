@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [listen_port](#listen_port)  
-    :material-plus: [ssh_server](#ssh_server)
+    :material-plus: [ssh_server](#ssh_server)  
+    :material-plus: [taildrop_directory](#taildrop_directory)
 
 !!! quote "sing-box 1.13.0 中的更改"
 
@@ -43,6 +44,7 @@ icon: material/new-box
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
   "ssh_server": false,
+  "taildrop_directory": "",
 
   ... // 拨号字段
 }
@@ -209,6 +211,16 @@ UDP NAT 过期时间。
 #### ssh_server.disable_forwarding
 
 拒绝本地和远程的 TCP 与 Unix 套接字转发，包括 SSH agent 转发。
+
+#### taildrop_directory
+
+!!! question "自 sing-box 1.14.0 起"
+
+存储从 tailnet 对等节点接收到的文件的目录。
+
+相对路径基于工作目录解析，与 [state_directory](#state_directory) 相同。
+
+默认使用 `Taildrop`。
 
 ### 拨号字段
 

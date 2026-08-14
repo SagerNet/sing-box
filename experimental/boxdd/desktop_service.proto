@@ -28,6 +28,7 @@ service DesktopService {
   rpc InstallUpdate(InstallUpdateRequest) returns (InstallUpdateResponse) {}
   rpc GetSecuritySettings(google.protobuf.Empty) returns (SecuritySettings) {}
   rpc SetInsecureModeEnabled(SetInsecureModeEnabledRequest) returns (google.protobuf.Empty) {}
+  rpc SetLocale(SetLocaleRequest) returns (google.protobuf.Empty) {}
 }
 
 service ApplicationService {
@@ -183,6 +184,10 @@ message SecuritySettings {
 
 message SetInsecureModeEnabledRequest {
   bool enabled = 1;
+}
+
+message SetLocaleRequest {
+  string locale = 1;
 }
 
 message InstallUpdateRequest {

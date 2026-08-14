@@ -36,6 +36,12 @@ service StartedService {
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
   rpc TailscaleLogout(TailscaleLogoutRequest) returns (google.protobuf.Empty) {}
   rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
+  rpc SubscribeTaildropInbox(SubscribeTaildropInboxRequest) returns (stream TaildropInbox) {}
+  rpc MarkTaildropInboxRead(MarkTaildropInboxReadRequest) returns (google.protobuf.Empty) {}
+  rpc SendTaildropFiles(stream TaildropSendClientMessage) returns (stream TaildropSendServerMessage) {}
+  rpc DownloadTaildropFile(DownloadTaildropFileRequest) returns (stream DownloadTaildropFileChunk) {}
+  rpc DeleteTaildropFile(DeleteTaildropFileRequest) returns (google.protobuf.Empty) {}
+  rpc CancelTaildropReceiving(CancelTaildropReceivingRequest) returns (google.protobuf.Empty) {}
   rpc ProvideUSBDevices(stream USBProviderMessage) returns (stream USBServerMessage) {}
   rpc SubscribeUSBIPServerStatus(google.protobuf.Empty) returns (stream USBIPServerStatusUpdate) {}
   rpc SubscribeOpenConnectStatus(google.protobuf.Empty) returns (stream OpenConnectStatusUpdate) {}
@@ -44,6 +50,7 @@ service StartedService {
   rpc SubscribeOpenVPNStatus(google.protobuf.Empty) returns (stream OpenVPNStatusUpdate) {}
   rpc SubmitOpenVPNChallengeResponse(OpenVPNChallengeSubmission) returns (google.protobuf.Empty) {}
   rpc CancelOpenVPNChallenge(OpenVPNChallengeCancel) returns (google.protobuf.Empty) {}
+  rpc SubscribeNotifications(google.protobuf.Empty) returns (stream NotificationEvent) {}
 }
 
 message Version {
@@ -282,6 +289,10 @@ message TailscaleEndpointStatus {
   repeated TailscaleUserGroup userGroups = 8;
   TailscalePeer exitNode = 9;
   bool keyAuth = 10;
+  bool canShareFiles = 11;
+  int32 waitingFileCount = 12;
+  int32 receivingFileCount = 13;
+  int32 unreadFileCount = 14;
 }
 
 message TailscaleUserGroup {
@@ -309,6 +320,7 @@ message TailscalePeer {
   repeated string sshHostKeys = 14;
   bool shareeNode = 15;
   int64 lastSeen = 16;
+  bool canReceiveFiles = 17;
 }
 
 message TailscalePingRequest {
@@ -323,6 +335,7 @@ message TailscalePingResponse {
   int32 derpRegionID = 4;
   string derpRegionCode = 5;
   string error = 6;
+  string peerRelay = 7;
 }
 
 message SetTailscaleExitNodeRequest {
@@ -395,6 +408,94 @@ message TailscaleSSHExit {
 
 message TailscaleSSHError {
   string message = 1;
+}
+
+message SubscribeTaildropInboxRequest {
+  string endpointTag = 1;
+}
+
+message MarkTaildropInboxReadRequest {
+  string endpointTag = 1;
+}
+
+message TaildropInbox {
+  string endpointTag = 1;
+  repeated TaildropFile files = 2;
+  repeated TaildropReceivingFile receiving = 3;
+}
+
+message TaildropFile {
+  string name = 1;
+  int64 size = 2;
+  string senderName = 3;
+  int64 modifiedAt = 4;
+}
+
+message TaildropReceivingFile {
+  string name = 1;
+  int64 size = 2;
+  int64 receivedBytes = 3;
+  string senderID = 4;
+  string senderName = 5;
+}
+
+message TaildropSendClientMessage {
+  oneof message {
+    TaildropSendStart start = 1;
+    TaildropFileChunk chunk = 2;
+    TaildropFileDone fileDone = 3;
+  }
+}
+
+message TaildropSendStart {
+  string endpointTag = 1;
+  string peerStableID = 2;
+  repeated TaildropOutgoingFile files = 3;
+}
+
+message TaildropOutgoingFile {
+  string name = 1;
+  int64 size = 2;
+}
+
+message TaildropFileChunk {
+  bytes data = 1;
+}
+
+message TaildropFileDone {}
+
+message TaildropSendServerMessage {
+  oneof message {
+    TaildropSendProgress progress = 1;
+    int64 receivedBytes = 2;
+  }
+}
+
+message TaildropSendProgress {
+  int32 fileIndex = 1;
+  int64 sentBytes = 2;
+  bool fileCompleted = 3;
+}
+
+message DownloadTaildropFileRequest {
+  string endpointTag = 1;
+  string name = 2;
+}
+
+message DownloadTaildropFileChunk {
+  int64 size = 1;
+  bytes data = 2;
+}
+
+message DeleteTaildropFileRequest {
+  string endpointTag = 1;
+  string name = 2;
+}
+
+message CancelTaildropReceivingRequest {
+  string endpointTag = 1;
+  string senderID = 2;
+  string name = 3;
 }
 
 message USBProviderMessage {
@@ -669,4 +770,26 @@ message OpenVPNChallengeSubmission {
 message OpenVPNChallengeCancel {
   string endpointTag = 1;
   string challengeID = 2;
+}
+
+message NotificationEvent {
+  oneof event {
+    Notification send = 1;
+    NotificationCancel cancel = 2;
+  }
+}
+
+message Notification {
+  string identifier = 1;
+  string typeName = 2;
+  int32 typeID = 3;
+  string title = 4;
+  string subtitle = 5;
+  string body = 6;
+  string openURL = 7;
+}
+
+message NotificationCancel {
+  string identifier = 1;
+  int32 typeID = 2;
 }

@@ -93,7 +93,9 @@ func serviceSetInsecureMode(value string) error {
 	if err != nil {
 		return E.Cause(err, "validate working directory")
 	}
-	return saveSecuritySettings(directory, securitySettings{InsecureModeEnabled: enabled})
+	return updateDaemonSettings(directory, func(settings *daemonSettings) {
+		settings.InsecureModeEnabled = enabled
+	})
 }
 
 func installedServiceWorkingDirectory() (string, error) {

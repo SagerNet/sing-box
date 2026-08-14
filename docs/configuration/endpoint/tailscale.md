@@ -5,7 +5,8 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [listen_port](#listen_port)  
-    :material-plus: [ssh_server](#ssh_server)
+    :material-plus: [ssh_server](#ssh_server)  
+    :material-plus: [taildrop_directory](#taildrop_directory)
 
 !!! quote "Changes in sing-box 1.13.0"
 
@@ -43,6 +44,7 @@ icon: material/new-box
   "system_interface_mtu": 0,
   "udp_timeout": "5m",
   "ssh_server": false,
+  "taildrop_directory": "",
 
   ... // Dial Fields
 }
@@ -210,6 +212,17 @@ Refuse the SFTP subsystem.
 #### ssh_server.disable_forwarding
 
 Refuse local and remote TCP and Unix-socket forwarding, including SSH agent forwarding.
+
+#### taildrop_directory
+
+!!! question "Since sing-box 1.14.0"
+
+The directory where files received from tailnet peers are stored.
+
+Relative paths are resolved against the working directory, as [state_directory](#state_directory)
+is.
+
+`Taildrop` is used by default.
 
 ### Dial Fields
 
