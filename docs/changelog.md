@@ -2,6 +2,29 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-beta.15
+
+* Add `api` command **1**
+* Add Taildrop support **2**
+* Add `listen_port` option to Tailscale endpoint
+* Fixes and improvements
+
+**1**:
+
+The new `sing-box api` command is a CLI client for the
+[API service](/configuration/service/api/), providing the same operations
+available in graphical clients and the Dashboard.
+
+**2**:
+
+[Tailscale](/configuration/endpoint/tailscale/) endpoints now support
+[Taildrop](https://tailscale.com/kb/1106/taildrop), the Tailscale file
+sharing feature. Received files are stored in the directory configured by
+the new
+[`taildrop_directory`](/configuration/endpoint/tailscale/#taildrop_directory)
+option (`Taildrop` by default). Files can be sent and managed through the
+graphical clients, the Dashboard, or the new `sing-box api` command.
+
 #### 1.14.0-beta.14
 
 * Fixes and improvements
