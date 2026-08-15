@@ -1380,16 +1380,10 @@ jobs:
         if: matrix.if && matrix.type != 'jailbreak'
         run: |-
           PROFILES_ZIP_PATH=$RUNNER_TEMP/AppleProvisioningProfiles.zip
-          printf '%s%s%s%s%s%s%s%s' \
-            "$PROVISIONING_PROFILES_1" \
-            "$PROVISIONING_PROFILES_2" \
-            "$PROVISIONING_PROFILES_3" \
-            "$PROVISIONING_PROFILES_4" \
-            "$PROVISIONING_PROFILES_5" \
-            "$PROVISIONING_PROFILES_6" \
-            "$PROVISIONING_PROFILES_7" \
-            "$PROVISIONING_PROFILES_8" \
-            | base64 --decode -o $PROFILES_ZIP_PATH
+          for index in $(seq 1 16); do
+            variable="PROVISIONING_PROFILES_$index"
+            printf '%s' "${!variable}"
+          done | base64 --decode -o $PROFILES_ZIP_PATH
           PROFILES_PATH="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
           mkdir -p "$PROFILES_PATH"
           unzip -q $PROFILES_ZIP_PATH -d "$PROFILES_PATH"
@@ -1402,6 +1396,14 @@ jobs:
           PROVISIONING_PROFILES_6: ${{ secrets.APPLE_PROVISIONING_PROFILES_6 }}
           PROVISIONING_PROFILES_7: ${{ secrets.APPLE_PROVISIONING_PROFILES_7 }}
           PROVISIONING_PROFILES_8: ${{ secrets.APPLE_PROVISIONING_PROFILES_8 }}
+          PROVISIONING_PROFILES_9: ${{ secrets.APPLE_PROVISIONING_PROFILES_9 }}
+          PROVISIONING_PROFILES_10: ${{ secrets.APPLE_PROVISIONING_PROFILES_10 }}
+          PROVISIONING_PROFILES_11: ${{ secrets.APPLE_PROVISIONING_PROFILES_11 }}
+          PROVISIONING_PROFILES_12: ${{ secrets.APPLE_PROVISIONING_PROFILES_12 }}
+          PROVISIONING_PROFILES_13: ${{ secrets.APPLE_PROVISIONING_PROFILES_13 }}
+          PROVISIONING_PROFILES_14: ${{ secrets.APPLE_PROVISIONING_PROFILES_14 }}
+          PROVISIONING_PROFILES_15: ${{ secrets.APPLE_PROVISIONING_PROFILES_15 }}
+          PROVISIONING_PROFILES_16: ${{ secrets.APPLE_PROVISIONING_PROFILES_16 }}
       - name: Setup Apple Development certificate
         if: matrix.if && matrix.type != 'jailbreak'
         run: |-
