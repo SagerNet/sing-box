@@ -120,7 +120,6 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 			} else {
 				bindFunc := networkManager.AutoDetectInterfaceFunc()
 				dialer.Control = control.Append(dialer.Control, bindFunc)
-				listener.Control = control.Append(listener.Control, bindFunc)
 				autoDetectBindFunc = bindFunc
 			}
 		}
@@ -335,9 +334,12 @@ func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	if d.networkStrategy == nil {
 		return d.trackPacketConn(listener.ListenNetworkNamespace[net.PacketConn](ctx, d.netns, func() (net.PacketConn, error) {
 			listenConfig := d.udpListener
-			if d.autoDetectBindFunc != nil && destination.Addr.IsValid() {
+			if d.autoDetectBindFunc != nil {
 				listenConfig.Control = control.Append(listenConfig.Control, func(network, address string, conn syscall.RawConn) error {
-					return d.autoDetectBindFunc(network, destination.String(), conn)
+					if destination.Addr.IsValid() {
+						return d.autoDetectBindFunc(network, destination.String(), conn)
+					}
+					return d.autoDetectBindFunc(network, address, conn)
 				})
 			}
 			if destination.IsIPv6() {
@@ -397,8 +399,8 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 func (d *DefaultDialer) UDPListenerControl() (control.Func, bool) {
 	egressEnabled := d.autoDetectBindFunc != nil && d.netns == ""
 	listenerControl := d.udpListener.Control
-	if egressEnabled && d.networkManager.AutoRedirectOutputMark() != 0 {
-		listenerControl = control.Append(listenerControl, control.UnbindFromInterface())
+	if egressEnabled && d.networkManager.AutoRedirectOutputMark() == 0 {
+		listenerControl = control.Append(listenerControl, d.autoDetectBindFunc)
 	}
 	return listenerControl, egressEnabled
 }
