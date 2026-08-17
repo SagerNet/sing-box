@@ -9,11 +9,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/cmd/internal/build_shared"
 	"github.com/sagernet/sing-box/common/windivert"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing-usbip/driverassets"
 	E "github.com/sagernet/sing/common/exceptions"
 )
 
@@ -102,6 +104,67 @@ func build() error {
 		if err != nil {
 			return err
 		}
+		err = stageUSBIPDrivers(architecture, filepath.Dir(absoluteOutputPath))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func stageUSBIPDrivers(architecture string, outputDirectory string) error {
+	driverPackages := []struct {
+		assets   map[string]driverassets.Package
+		assetDir string
+	}{
+		{driverassets.VBoxUSB, filepath.Join("internal", "vboxusb", "assets")},
+		{driverassets.VHCI, filepath.Join("internal", "usbipvhci", "assets")},
+	}
+	var moduleDirectory string
+	for _, driverPackage := range driverPackages {
+		staged := driverPackage.assets[architecture]
+		for _, architecturePackage := range driverPackage.assets {
+			for _, file := range architecturePackage.Files {
+				if slices.ContainsFunc(staged.Files, func(stagedFile driverassets.File) bool {
+					return stagedFile.Name == file.Name
+				}) {
+					continue
+				}
+				err := os.Remove(filepath.Join(outputDirectory, file.Name))
+				if err != nil && !os.IsNotExist(err) {
+					return E.Cause(err, "remove stale ", file.Name)
+				}
+			}
+		}
+		if len(staged.Files) == 0 {
+			continue
+		}
+		if moduleDirectory == "" {
+			listOutput, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/sagernet/sing-usbip").Output()
+			if err != nil {
+				return E.Cause(err, "locate sing-usbip module directory")
+			}
+			moduleDirectory = strings.TrimSpace(string(listOutput))
+		}
+		for _, file := range staged.Files {
+			content, err := os.ReadFile(filepath.Join(moduleDirectory, driverPackage.assetDir, architecture, file.Name))
+			if err != nil {
+				return E.Cause(err, "read ", file.Name)
+			}
+			checksum := sha256.Sum256(content)
+			if hex.EncodeToString(checksum[:]) != file.SHA256 {
+				return E.New(file.Name, " does not match the digest declared in sing-usbip/driverassets")
+			}
+			targetPath := filepath.Join(outputDirectory, file.Name)
+			stagedContent, err := os.ReadFile(targetPath)
+			if err == nil && bytes.Equal(stagedContent, content) {
+				continue
+			}
+			err = os.WriteFile(targetPath, content, 0o644)
+			if err != nil {
+				return E.Cause(err, "write ", file.Name)
+			}
+		}
 	}
 	return nil
 }
@@ -164,7 +227,7 @@ func buildTags(operatingSystem string, architecture string, cgoEnabled bool) ([]
 	}
 	tags := strings.Split(strings.TrimSpace(string(content)), ",")
 	if operatingSystem == "windows" {
-		tags = append(tags, "with_external_windivert")
+		tags = append(tags, "with_external_windivert", "with_external_usbip_drivers")
 	}
 	if debugEnabled {
 		tags = append(tags, "debug")
