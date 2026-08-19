@@ -325,7 +325,7 @@ func (s *conptyShellSession) Write(p []byte) (int, error) {
 	return s.input.Write(p)
 }
 
-func (s *conptyShellSession) Resize(rows, cols uint16) error {
+func (s *conptyShellSession) Resize(rows, cols, _, _ uint16) error {
 	return s.console.Resize(windows.Coord{X: clampConsoleDimension(cols), Y: clampConsoleDimension(rows)})
 }
 
@@ -451,7 +451,7 @@ func (s *pipeShellSession) Write(p []byte) (int, error) {
 	return s.stdin.Write(p)
 }
 
-func (s *pipeShellSession) Resize(_, _ uint16) error {
+func (s *pipeShellSession) Resize(_, _, _, _ uint16) error {
 	return nil
 }
 
