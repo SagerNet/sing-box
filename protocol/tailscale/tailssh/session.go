@@ -14,12 +14,14 @@ type shellBackend interface {
 }
 
 type shellRequest struct {
-	User    *adapter.PlatformUser
-	Command string
-	Env     []string
-	Term    string
-	Rows    uint16
-	Cols    uint16
+	User         *adapter.PlatformUser
+	Command      string
+	Env          []string
+	Term         string
+	Rows         uint16
+	Cols         uint16
+	WidthPixels  uint16
+	HeightPixels uint16
 }
 
 type shellSession interface {
@@ -27,7 +29,7 @@ type shellSession interface {
 	// CloseWrite signals EOF on the child's stdin without tearing down the
 	// session, so programs that read stdin to EOF can finish normally.
 	CloseWrite() error
-	Resize(rows, cols uint16) error
+	Resize(rows, cols, widthPixels, heightPixels uint16) error
 	Signal(sig int) error
 	Wait() (exitStatus uint32, err error)
 }

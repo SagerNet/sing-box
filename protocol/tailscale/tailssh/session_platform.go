@@ -25,11 +25,15 @@ func (b *platformShellBackend) OpenSession(request shellRequest) (shellSession, 
 		return nil, err
 	}
 	master := os.NewFile(uintptr(dupFd), "pty-master")
-	return &platformShellSession{
+	shellSession := &platformShellSession{
 		session: session,
 		master:  master,
 		isPty:   request.Term != "",
-	}, nil
+	}
+	if shellSession.isPty && (request.WidthPixels > 0 || request.HeightPixels > 0) {
+		_ = SetWinsize(int(master.Fd()), request.Rows, request.Cols, request.WidthPixels, request.HeightPixels)
+	}
+	return shellSession, nil
 }
 
 func (b *platformShellBackend) Close() error {
@@ -61,8 +65,17 @@ func (s *platformShellSession) CloseWrite() error {
 	return syscall.Shutdown(int(s.master.Fd()), syscall.SHUT_WR)
 }
 
-func (s *platformShellSession) Resize(rows, cols uint16) error {
-	return s.session.Resize(int32(rows), int32(cols))
+func (s *platformShellSession) Resize(rows, cols, widthPixels, heightPixels uint16) error {
+	err := s.session.Resize(int32(rows), int32(cols))
+	if err != nil {
+		return err
+	}
+	// The platform interface carries no pixel dimensions; set them directly
+	// on the duplicated pty master.
+	if s.isPty && (widthPixels > 0 || heightPixels > 0) {
+		return SetWinsize(int(s.master.Fd()), rows, cols, widthPixels, heightPixels)
+	}
+	return nil
 }
 
 func (s *platformShellSession) Signal(sig int) error {
