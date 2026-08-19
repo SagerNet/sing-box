@@ -13,8 +13,8 @@ type Shell struct {
 	isPty  bool
 }
 
-func OpenPtyShell(shell string, args, env []string, dir string, uid, gid int, groups []int, rows, cols uint16) (*Shell, error) {
-	master, process, err := StartPtyProcess(shell, args, env, dir, uid, gid, groups, rows, cols)
+func OpenPtyShell(shell string, args, env []string, dir string, uid, gid int, groups []int, rows, cols, widthPixels, heightPixels uint16) (*Shell, error) {
+	master, process, err := StartPtyProcess(shell, args, env, dir, uid, gid, groups, rows, cols, widthPixels, heightPixels)
 	if err != nil {
 		return nil, err
 	}
@@ -52,11 +52,11 @@ func (s *Shell) Write(p []byte) (int, error) {
 	return s.master.Write(p)
 }
 
-func (s *Shell) Resize(rows, cols uint16) error {
+func (s *Shell) Resize(rows, cols, widthPixels, heightPixels uint16) error {
 	if !s.isPty {
 		return nil
 	}
-	return SetWinsize(int(s.master.Fd()), rows, cols)
+	return SetWinsize(int(s.master.Fd()), rows, cols, widthPixels, heightPixels)
 }
 
 func (s *Shell) Signal(sig int) error {

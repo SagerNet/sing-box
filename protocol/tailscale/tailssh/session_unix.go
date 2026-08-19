@@ -45,7 +45,7 @@ func (b *directShellBackend) OpenSession(request shellRequest) (shellSession, er
 		args = []string{"-" + filepath.Base(shell)}
 	}
 	if request.Term != "" {
-		return OpenPtyShell(shell, args, request.Env, request.User.HomeDir, request.User.Uid, request.User.Gid, request.User.Groups, request.Rows, request.Cols)
+		return OpenPtyShell(shell, args, request.Env, request.User.HomeDir, request.User.Uid, request.User.Gid, request.User.Groups, request.Rows, request.Cols, request.WidthPixels, request.HeightPixels)
 	}
 	return OpenSocketpairShell(shell, args, request.Env, request.User.HomeDir, request.User.Uid, request.User.Gid, request.User.Groups)
 }
