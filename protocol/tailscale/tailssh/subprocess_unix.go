@@ -14,7 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func StartPtyProcess(shell string, args, env []string, dir string, uid, gid int, groups []int, rows, cols uint16) (*os.File, *os.Process, error) {
+func StartPtyProcess(shell string, args, env []string, dir string, uid, gid int, groups []int, rows, cols, widthPixels, heightPixels uint16) (*os.File, *os.Process, error) {
 	cmd := exec.Command(shell)
 	cmd.Args = args
 	cmd.Dir = dir
@@ -27,7 +27,7 @@ func StartPtyProcess(shell string, args, env []string, dir string, uid, gid int,
 	setCredential(attrs, uid, gid, groups)
 	var size *pty.Winsize
 	if rows > 0 && cols > 0 {
-		size = &pty.Winsize{Rows: rows, Cols: cols}
+		size = &pty.Winsize{Rows: rows, Cols: cols, X: widthPixels, Y: heightPixels}
 	}
 	master, err := pty.StartWithAttrs(cmd, size, attrs)
 	if err != nil {
@@ -94,6 +94,11 @@ func setCredential(attr *syscall.SysProcAttr, uid, gid int, groups []int) {
 	attr.Credential = cred
 }
 
-func SetWinsize(fd int, rows, cols uint16) error {
-	return unix.IoctlSetWinsize(fd, unix.TIOCSWINSZ, &unix.Winsize{Row: rows, Col: cols})
+func SetWinsize(fd int, rows, cols, widthPixels, heightPixels uint16) error {
+	return unix.IoctlSetWinsize(fd, unix.TIOCSWINSZ, &unix.Winsize{
+		Row:    rows,
+		Col:    cols,
+		Xpixel: widthPixels,
+		Ypixel: heightPixels,
+	})
 }
