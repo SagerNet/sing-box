@@ -25,7 +25,6 @@ SFA provides an unprivileged TUN implementation through Android VpnService.
 | `inet6_route_address`         | :material-check: | /                  |
 | `inet4_route_exclude_address` | :material-check: | /                  |
 | `inet6_route_exclude_address` | :material-check: | /                  |
-| `endpoint_independent_nat`    | :material-check: | /                  |
 | `stack`                       | :material-check: | /                  |
 | `include_interface`           | :material-close: | No permission      |
 | `exclude_interface`           | :material-close: | No permission      |

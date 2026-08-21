@@ -1175,6 +1175,44 @@ WireGuard outbound is deprecated and can be replaced by endpoint.
     }
     ```
 
+### Migrate endpoint-independent NAT option
+
+Endpoint-independent NAT has been enabled by default since sing-box 1.11.0,
+making `endpoint_independent_nat` unnecessary. Simply remove the field.
+
+Since sing-box 1.14.0, use [UDP NAT fields](/configuration/shared/udp-nat/)
+to customize the mapping and filtering behavior.
+
+!!! info "References"
+
+    [TUN](/configuration/inbound/tun/) /
+    [UDP NAT Fields](/configuration/shared/udp-nat/)
+
+=== ":material-card-remove: Deprecated"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "tun",
+          "endpoint_independent_nat": true
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: New"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "tun"
+        }
+      ]
+    }
+    ```
+
 ## 1.10.0
 
 ### TUN address fields are merged

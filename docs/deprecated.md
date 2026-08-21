@@ -129,6 +129,12 @@ GSO has no advantages for transparent proxy scenarios, is deprecated and no long
 
 Old fields were removed in sing-box 1.13.0.
 
+#### Endpoint-independent NAT option in TUN
+
+Endpoint-independent NAT has been enabled by default since sing-box 1.11.0.
+The `endpoint_independent_nat` option is deprecated and no longer has any effect,
+check [Migration](../migration/#migrate-endpoint-independent-nat-option).
+
 ## 1.10.0
 
 #### TUN address fields are merged
