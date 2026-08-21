@@ -115,6 +115,10 @@ func (s *URLTest) CheckOutbounds() {
 	s.group.CheckOutbounds(true)
 }
 
+func (s *URLTest) PerformUpdateCheck() {
+	s.group.performUpdateCheck()
+}
+
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	s.group.Touch()
 	var outbound adapter.Outbound
@@ -202,6 +206,7 @@ type URLTestGroup struct {
 	interruptGroup               *interrupt.Group
 	interruptExternalConnections bool
 	access                       sync.Mutex
+	updateAccess                 sync.Mutex
 	ticker                       *time.Ticker
 	close                        chan struct{}
 	started                      bool
@@ -362,6 +367,11 @@ func (g *URLTestGroup) URLTest(ctx context.Context) (map[string]uint16, error) {
 	return g.urlTest(ctx, false)
 }
 
+type urlTestResult struct {
+	delay uint16
+	err   error
+}
+
 func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint16, error) {
 	result := make(map[string]uint16)
 	if g.checking.Swap(true) {
@@ -389,18 +399,28 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 		b.Go(realTag, func() (any, error) {
 			testCtx, cancel := context.WithTimeout(g.ctx, C.TCPTimeout)
 			defer cancel()
-			t, err := urltest.URLTest(testCtx, g.link, p)
-			if err != nil {
-				g.logger.Debug("outbound ", tag, " unavailable: ", err)
+			testChan := make(chan urlTestResult, 1)
+			go func() {
+				delay, testErr := urltest.URLTest(testCtx, g.link, p)
+				testChan <- urlTestResult{delay, testErr}
+			}()
+			var testResult urlTestResult
+			select {
+			case testResult = <-testChan:
+			case <-testCtx.Done():
+				testResult.err = testCtx.Err()
+			}
+			if testResult.err != nil {
+				g.logger.Debug("outbound ", tag, " unavailable: ", testResult.err)
 				g.history.DeleteURLTestHistory(realTag)
 			} else {
-				g.logger.Debug("outbound ", tag, " available: ", t, "ms")
+				g.logger.Debug("outbound ", tag, " available: ", testResult.delay, "ms")
 				g.history.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
 					Time:  time.Now(),
-					Delay: t,
+					Delay: testResult.delay,
 				})
 				resultAccess.Lock()
-				result[tag] = t
+				result[tag] = testResult.delay
 				resultAccess.Unlock()
 			}
 			return nil, nil
@@ -412,6 +432,8 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 }
 
 func (g *URLTestGroup) performUpdateCheck() {
+	g.updateAccess.Lock()
+	defer g.updateAccess.Unlock()
 	var updated bool
 	if outbound, exists := g.Select(N.NetworkTCP); outbound != nil && (g.selectedOutboundTCP == nil || (exists && outbound != g.selectedOutboundTCP)) {
 		if g.selectedOutboundTCP != nil {
