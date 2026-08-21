@@ -146,15 +146,13 @@ type tproxyPacketWriter struct {
 
 func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	if w.listener.ListenOptions().NetNs == "" {
-		conn := w.conn
-		if w.destination == destination && conn != nil {
-			_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
-			if err != nil {
-				w.conn = nil
-			}
-			return err
+	conn := w.conn
+	if w.destination == destination && conn != nil {
+		_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
+		if err != nil {
+			w.conn = nil
 		}
+		return err
 	}
 	var listenConfig net.ListenConfig
 	listenConfig.Control = control.Append(listenConfig.Control, control.ReuseAddr())
@@ -164,7 +162,7 @@ func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socks
 		return err
 	}
 	udpConn := packetConn.(*net.UDPConn)
-	if w.listener.ListenOptions().NetNs == "" && w.destination == destination {
+	if w.destination == destination {
 		w.conn = udpConn
 	} else {
 		defer udpConn.Close()
