@@ -71,9 +71,9 @@ func (o Hysteria2Obfs) MarshalJSON() ([]byte, error) {
 		return nil, E.New("unknown obfs type: ", o.Type)
 	}
 	if v == nil {
-		return json.Marshal((_Hysteria2Obfs)(o))
+		return json.Marshal(_Hysteria2Obfs(o))
 	}
-	return badjson.MarshallObjects((_Hysteria2Obfs)(o), v)
+	return badjson.MarshallObjects(_Hysteria2Obfs(o), v)
 }
 
 func (o *Hysteria2Obfs) UnmarshalJSON(bytes []byte) error {
@@ -131,7 +131,7 @@ func (m Hysteria2Masquerade) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown masquerade type: ", m.Type)
 	}
-	return badjson.MarshallObjects((_Hysteria2Masquerade)(m), v)
+	return badjson.MarshallObjects(_Hysteria2Masquerade(m), v)
 }
 
 func (m *Hysteria2Masquerade) UnmarshalJSON(bytes []byte) error {

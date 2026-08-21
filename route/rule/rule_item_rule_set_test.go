@@ -57,12 +57,18 @@ type countingRuleSet struct {
 	refs atomic.Int32
 }
 
-func (s *countingRuleSet) Name() string                                                  { return s.name }
+func (s *countingRuleSet) Name() string { return s.name }
+
 func (s *countingRuleSet) StartContext(context.Context, *adapter.HTTPStartContext) error { return nil }
-func (s *countingRuleSet) PostStart() error                                              { return nil }
-func (s *countingRuleSet) Metadata() adapter.RuleSetMetadata                             { return adapter.RuleSetMetadata{} }
-func (s *countingRuleSet) ExtractIPSet() []*netipx.IPSet                                 { return nil }
-func (s *countingRuleSet) IncRef()                                                       { s.refs.Add(1) }
+
+func (s *countingRuleSet) PostStart() error { return nil }
+
+func (s *countingRuleSet) Metadata() adapter.RuleSetMetadata { return adapter.RuleSetMetadata{} }
+
+func (s *countingRuleSet) ExtractIPSet() []*netipx.IPSet { return nil }
+
+func (s *countingRuleSet) IncRef() { s.refs.Add(1) }
+
 func (s *countingRuleSet) DecRef() {
 	if s.refs.Add(-1) < 0 {
 		panic("rule-set: negative refs")
@@ -74,9 +80,12 @@ func (s *countingRuleSet) RegisterCallback(adapter.RuleSetUpdateCallback) *list.
 }
 func (s *countingRuleSet) UnregisterCallback(*list.Element[adapter.RuleSetUpdateCallback]) {}
 func (s *countingRuleSet) Close() error                                                    { return nil }
-func (s *countingRuleSet) Match(*adapter.InboundContext) bool                              { return true }
-func (s *countingRuleSet) String() string                                                  { return s.name }
-func (s *countingRuleSet) RefCount() int32                                                 { return s.refs.Load() }
+
+func (s *countingRuleSet) Match(*adapter.InboundContext) bool { return true }
+
+func (s *countingRuleSet) String() string { return s.name }
+
+func (s *countingRuleSet) RefCount() int32 { return s.refs.Load() }
 
 func TestRuleSetItemCloseReleasesRefs(t *testing.T) {
 	t.Parallel()
