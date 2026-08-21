@@ -250,16 +250,16 @@ func (e remoteEndpoint) SrcToString() string {
 }
 
 func (e remoteEndpoint) DstToString() string {
-	return (netip.AddrPort)(e).String()
+	return netip.AddrPort(e).String()
 }
 
 func (e remoteEndpoint) DstToBytes() []byte {
-	b, _ := (netip.AddrPort)(e).MarshalBinary()
+	b, _ := netip.AddrPort(e).MarshalBinary()
 	return b
 }
 
 func (e remoteEndpoint) DstIP() netip.Addr {
-	return (netip.AddrPort)(e).Addr()
+	return netip.AddrPort(e).Addr()
 }
 
 func (e remoteEndpoint) SrcIP() netip.Addr {

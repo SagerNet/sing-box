@@ -18,7 +18,7 @@ type _ResolvedServiceOptions struct {
 type ResolvedServiceOptions _ResolvedServiceOptions
 
 func (r ResolvedServiceOptions) MarshalJSONContext(ctx context.Context) ([]byte, error) {
-	if r.Listen != nil && netip.Addr(*r.Listen) == (netip.AddrFrom4([4]byte{127, 0, 0, 53})) {
+	if r.Listen != nil && netip.Addr(*r.Listen) == netip.AddrFrom4([4]byte{127, 0, 0, 53}) {
 		r.Listen = nil
 	}
 	if r.ListenPort == 53 {
