@@ -1,9 +1,13 @@
 package settings
 
-import "github.com/sagernet/sing-box/adapter"
+import (
+	"context"
+
+	"github.com/sagernet/sing-box/adapter"
+)
 
 type WIFIMonitor interface {
-	ReadWIFIState() adapter.WIFIState
+	ReadWIFIState(ctx context.Context) adapter.WIFIState
 	Start() error
 	Close() error
 }

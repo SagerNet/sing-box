@@ -55,6 +55,10 @@ func (p *AndroidSystemProxy) Enable() error {
 	return nil
 }
 
+func (p *AndroidSystemProxy) Close() error {
+	return nil
+}
+
 func (p *AndroidSystemProxy) Disable() error {
 	err := p.runAndroidShell("settings", "put", "global", "http_proxy", ":0")
 	if err != nil {

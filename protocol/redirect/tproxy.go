@@ -85,7 +85,7 @@ func (t *TProxy) Start(stage adapter.StartStage) error {
 	return err
 }
 
-func (t *TProxy) InterfaceUpdated() {
+func (t *TProxy) InterfaceUpdated(ctx context.Context) {
 	t.udpNat.Purge()
 }
 

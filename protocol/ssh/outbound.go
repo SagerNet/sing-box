@@ -194,7 +194,7 @@ func (s *Outbound) connect() (*ssh.Client, error) {
 	return client, nil
 }
 
-func (s *Outbound) InterfaceUpdated() {
+func (s *Outbound) InterfaceUpdated(ctx context.Context) {
 	common.Close(s.clientConn)
 }
 

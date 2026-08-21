@@ -740,7 +740,7 @@ func (t *Endpoint) Close() error {
 	return err
 }
 
-func (t *Endpoint) InterfaceUpdated() {
+func (t *Endpoint) InterfaceUpdated(ctx context.Context) {
 	if !t.started.Load() {
 		return
 	}

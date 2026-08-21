@@ -121,7 +121,7 @@ func (h *Outbound) fetchMyAddresses() {
 	h.myAddresses.Store(myAddresses)
 }
 
-func (h *Outbound) InterfaceUpdated() {
+func (h *Outbound) InterfaceUpdated(ctx context.Context) {
 	h.fetchMyAddresses()
 	if h.icmpPort != nil {
 		h.icmpPort.Close()

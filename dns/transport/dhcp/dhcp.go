@@ -55,6 +55,8 @@ type Transport struct {
 	platformInterface adapter.PlatformInterface
 	interfaceName     string
 	interfaceCallback *list.Element[tun.DefaultInterfaceUpdateCallback]
+	updateAccess      sync.Mutex
+	updateCancel      context.CancelFunc
 	refreshAccess     sync.Mutex
 	savedState        atomic.Pointer[transportState]
 	ndots             int
@@ -125,6 +127,13 @@ func (t *Transport) Start(stage adapter.StartStage) error {
 func (t *Transport) Close() error {
 	if t.interfaceCallback != nil {
 		t.networkManager.InterfaceMonitor().UnregisterCallback(t.interfaceCallback)
+	}
+	t.updateAccess.Lock()
+	updateCancel := t.updateCancel
+	t.updateCancel = nil
+	t.updateAccess.Unlock()
+	if updateCancel != nil {
+		updateCancel()
 	}
 	t.refreshAccess.Lock()
 	defer t.refreshAccess.Unlock()
@@ -243,7 +252,7 @@ func (t *Transport) fetch() error {
 			return nil
 		}
 	}
-	return t.updateServersLocked()
+	return t.updateServersLocked(t.ctx)
 }
 
 func (t *Transport) startRefresh() {
@@ -256,7 +265,7 @@ func (t *Transport) startRefresh() {
 		if state != nil && time.Since(state.updatedAt) < C.DHCPTTL {
 			return
 		}
-		err := t.updateServersLocked()
+		err := t.updateServersLocked(t.ctx)
 		if err != nil {
 			if errors.Is(err, errInterfaceIsCellular) && t.optional {
 				t.logger.Debug(E.Cause(err, "dhcp: refresh DNS servers"))
@@ -293,17 +302,20 @@ func (t *Transport) fetchInterface() (*control.Interface, error) {
 	}
 }
 
-func (t *Transport) updateServersLocked() error {
+func (t *Transport) updateServersLocked(ctx context.Context) error {
 	iface, err := t.fetchInterface()
 	if err != nil {
 		t.storeFailureLocked(err)
 		return E.Cause(err, "prepare interface")
 	}
 	t.logger.Info("dhcp: query DNS servers on ", iface.Name)
-	fetchCtx, cancel := context.WithTimeout(t.ctx, C.DHCPTimeout)
+	fetchCtx, cancel := context.WithTimeout(ctx, C.DHCPTimeout)
 	err = t.fetchServers0(fetchCtx, iface)
 	cancel()
 	if err != nil {
+		if ctx.Err() != nil {
+			return err
+		}
 		t.storeFailureLocked(err)
 		return err
 	}
@@ -331,16 +343,28 @@ func (t *Transport) storeFailureLocked(err error) {
 }
 
 func (t *Transport) interfaceUpdated(defaultInterface *control.Interface, flags int) {
-	t.refreshAccess.Lock()
-	err := t.updateServersLocked()
-	t.refreshAccess.Unlock()
-	if err != nil {
+	updateContext, updateCancel := context.WithCancel(t.ctx)
+	t.updateAccess.Lock()
+	previousCancel := t.updateCancel
+	t.updateCancel = updateCancel
+	t.updateAccess.Unlock()
+	if previousCancel != nil {
+		previousCancel()
+	}
+	go func() {
+		defer updateCancel()
+		t.refreshAccess.Lock()
+		err := t.updateServersLocked(updateContext)
+		t.refreshAccess.Unlock()
+		if err == nil || updateContext.Err() != nil {
+			return
+		}
 		if errors.Is(err, errInterfaceIsCellular) && t.optional {
 			t.logger.Debug(E.Cause(errInterfaceIsCellular, "dhcp: update DNS servers"))
 		} else {
 			t.logger.Error("dhcp: update DNS servers: ", err)
 		}
-	}
+	}()
 }
 
 func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface) error {
@@ -356,11 +380,15 @@ func (t *Transport) fetchServers0(ctx context.Context, iface *control.Interface)
 		err        error
 	)
 	for range 5 {
-		packetConn, err = listener.ListenPacket(t.ctx, "udp4", listenAddr)
+		packetConn, err = listener.ListenPacket(ctx, "udp4", listenAddr)
 		if err == nil || !errors.Is(err, syscall.EADDRINUSE) {
 			break
 		}
-		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
 	}
 	if err != nil {
 		return err

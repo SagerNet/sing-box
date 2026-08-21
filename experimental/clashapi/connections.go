@@ -24,7 +24,7 @@ import (
 func connectionRouter(ctx context.Context, network adapter.NetworkManager, trafficManager *trafficcontrol.Manager) http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", getConnections(ctx, trafficManager))
-	r.Delete("/", closeAllConnections(network, trafficManager))
+	r.Delete("/", closeAllConnections(ctx, network, trafficManager))
 	r.Delete("/{id}", closeConnection(trafficManager))
 	return r
 }
@@ -170,10 +170,10 @@ func closeConnection(trafficManager *trafficcontrol.Manager) func(w http.Respons
 	}
 }
 
-func closeAllConnections(network adapter.NetworkManager, trafficManager *trafficcontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
+func closeAllConnections(ctx context.Context, network adapter.NetworkManager, trafficManager *trafficcontrol.Manager) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		trafficManager.CloseAllConnections()
-		network.ResetNetwork()
+		network.ResetNetwork(ctx)
 		render.NoContent(w, r)
 	}
 }

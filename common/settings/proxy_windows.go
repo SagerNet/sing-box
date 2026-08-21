@@ -36,6 +36,10 @@ func (p *WindowsSystemProxy) Enable() error {
 	return nil
 }
 
+func (p *WindowsSystemProxy) Close() error {
+	return nil
+}
+
 func (p *WindowsSystemProxy) Disable() error {
 	err := wininet.ClearSystemProxy()
 	if err != nil {
