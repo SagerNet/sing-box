@@ -37,7 +37,11 @@ func (r *NetworkManager) updateNetworkEnvironment() {
 	if r.interfaceMonitor != nil {
 		defaultInterface = r.DefaultNetworkInterface()
 	}
-	var environment []string
+	var (
+		gatewayStrings  []string
+		hardwareStrings []string
+		wifiSSID        string
+	)
 	if defaultInterface != nil {
 		gateways := defaultInterface.Gateways
 		if len(gateways) == 0 {
@@ -45,27 +49,35 @@ func (r *NetworkManager) updateNetworkEnvironment() {
 		}
 		gateways = common.Uniq(gateways)
 		slices.SortFunc(gateways, netip.Addr.Compare)
-		for _, gateway := range gateways {
-			environment = append(environment, "gateway:"+gateway.String())
-		}
+		gatewayStrings = common.Map(gateways, netip.Addr.String)
 		wifiState := r.WIFIState()
 		if wifiState.SSID != "" {
-			environment = append(environment, "ssid:"+wifiState.SSID)
+			wifiSSID = wifiState.SSID
 		} else if len(gateways) > 0 {
 			hardwareAddresses := systemNeighborHardwareAddresses(defaultInterface.Interface.Index, gateways)
 			for _, gateway := range gateways {
 				hardwareAddress := hardwareAddresses[gateway]
 				if len(hardwareAddress) > 0 {
-					environment = append(environment, "gateway_mac:"+hardwareAddress.String())
+					hardwareStrings = append(hardwareStrings, hardwareAddress.String())
 				}
 			}
 		}
 	}
+	var options []string
+	if len(gatewayStrings) > 0 {
+		options = append(options, "gateway "+formatEnvironmentValues(gatewayStrings))
+	}
+	if wifiSSID != "" {
+		options = append(options, "ssid "+wifiSSID)
+	}
+	if len(hardwareStrings) > 0 {
+		options = append(options, "gateway_mac "+formatEnvironmentValues(hardwareStrings))
+	}
 	var environmentHash uint64
-	if len(environment) > 0 {
+	if len(options) > 0 {
 		digest := fnv.New64a()
-		for _, entry := range environment {
-			digest.Write([]byte(entry))
+		for _, option := range options {
+			digest.Write([]byte(option))
 			digest.Write([]byte{0})
 		}
 		environmentHash = digest.Sum64()
@@ -74,11 +86,15 @@ func (r *NetworkManager) updateNetworkEnvironment() {
 	changed := environmentHash != r.networkEnvironment
 	r.networkEnvironment = environmentHash
 	r.stateAccess.Unlock()
-	if changed {
-		if len(environment) > 0 {
-			r.logger.Info("updated network environment: ", strings.Join(environment, ", "))
-		} else {
-			r.logger.Info("updated network environment: empty")
-		}
+	if !changed || len(options) == 0 {
+		return
 	}
+	r.logger.Info("updated network environment: ", strings.Join(options, ", "))
+}
+
+func formatEnvironmentValues(values []string) string {
+	if len(values) == 1 {
+		return values[0]
+	}
+	return "[" + strings.Join(values, " ") + "]"
 }
