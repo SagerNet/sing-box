@@ -30,7 +30,7 @@ func (o NetworkNamespace) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown network namespace type: ", o.Type)
 	}
-	return badjson.MarshallObjects((_NetworkNamespace)(o), v)
+	return badjson.MarshallObjects(_NetworkNamespace(o), v)
 }
 
 func (o *NetworkNamespace) UnmarshalJSON(content []byte) error {

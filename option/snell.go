@@ -55,7 +55,7 @@ func (o SnellInboundOptions) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("snell: unsupported version: ", o.Version)
 	}
-	return badjson.MarshallObjects((_SnellInboundOptions)(o), versionOptions)
+	return badjson.MarshallObjects(_SnellInboundOptions(o), versionOptions)
 }
 
 func (o SnellInboundOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
@@ -116,7 +116,7 @@ func (o SnellOutboundOptions) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("snell: unsupported version: ", o.Version)
 	}
-	return badjson.MarshallObjects((_SnellOutboundOptions)(o), versionOptions)
+	return badjson.MarshallObjects(_SnellOutboundOptions(o), versionOptions)
 }
 
 func (o SnellOutboundOptions) DescribeSchema(builder schema.Builder) (*schema.Node, error) {
