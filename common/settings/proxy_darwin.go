@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-tun"
@@ -16,11 +17,14 @@ import (
 )
 
 type DarwinSystemProxy struct {
+	ctx           context.Context
 	monitor       tun.DefaultInterfaceMonitor
 	interfaceName string
 	element       *list.Element[tun.DefaultInterfaceUpdateCallback]
 	serverAddr    M.Socksaddr
 	supportSOCKS  bool
+	access        sync.Mutex
+	updateCancel  context.CancelFunc
 	isEnabled     bool
 }
 
@@ -30,6 +34,7 @@ func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bo
 		return nil, E.New("missing interface monitor")
 	}
 	proxy := &DarwinSystemProxy{
+		ctx:          ctx,
 		monitor:      interfaceMonitor,
 		serverAddr:   serverAddr,
 		supportSOCKS: supportSOCKS,
@@ -39,14 +44,36 @@ func NewSystemProxy(ctx context.Context, serverAddr M.Socksaddr, supportSOCKS bo
 }
 
 func (p *DarwinSystemProxy) IsEnabled() bool {
+	p.access.Lock()
+	defer p.access.Unlock()
 	return p.isEnabled
 }
 
 func (p *DarwinSystemProxy) Enable() error {
-	return p.update0()
+	p.access.Lock()
+	defer p.access.Unlock()
+	return p.updateLocked(p.ctx)
 }
 
 func (p *DarwinSystemProxy) Disable() error {
+	p.access.Lock()
+	defer p.access.Unlock()
+	return p.disableLocked()
+}
+
+func (p *DarwinSystemProxy) Close() error {
+	p.access.Lock()
+	updateCancel := p.updateCancel
+	p.updateCancel = nil
+	p.access.Unlock()
+	if updateCancel != nil {
+		updateCancel()
+	}
+	p.monitor.UnregisterCallback(p.element)
+	return nil
+}
+
+func (p *DarwinSystemProxy) disableLocked() error {
 	interfaceDisplayName, err := getInterfaceDisplayName(p.interfaceName)
 	if err != nil {
 		return err
@@ -67,19 +94,35 @@ func (p *DarwinSystemProxy) Disable() error {
 }
 
 func (p *DarwinSystemProxy) routeUpdate(defaultInterface *control.Interface, flags int) {
-	if !p.isEnabled || defaultInterface == nil {
+	if defaultInterface == nil {
 		return
 	}
-	_ = p.update0()
+	updateContext, updateCancel := context.WithCancel(p.ctx)
+	p.access.Lock()
+	previousCancel := p.updateCancel
+	p.updateCancel = updateCancel
+	p.access.Unlock()
+	if previousCancel != nil {
+		previousCancel()
+	}
+	go func() {
+		defer updateCancel()
+		p.access.Lock()
+		defer p.access.Unlock()
+		if !p.isEnabled || updateContext.Err() != nil {
+			return
+		}
+		_ = p.updateLocked(updateContext)
+	}()
 }
 
-func (p *DarwinSystemProxy) update0() error {
+func (p *DarwinSystemProxy) updateLocked(ctx context.Context) error {
 	newInterface := p.monitor.DefaultInterface()
-	if p.interfaceName == newInterface.Name {
+	if newInterface == nil || p.interfaceName == newInterface.Name {
 		return nil
 	}
 	if p.interfaceName != "" {
-		_ = p.Disable()
+		_ = p.disableLocked()
 	}
 	p.interfaceName = newInterface.Name
 	interfaceDisplayName, err := getInterfaceDisplayName(p.interfaceName)
@@ -87,12 +130,24 @@ func (p *DarwinSystemProxy) update0() error {
 		return err
 	}
 	if p.supportSOCKS {
+		err = ctx.Err()
+		if err != nil {
+			return err
+		}
 		err = shell.Exec("networksetup", "-setsocksfirewallproxy", interfaceDisplayName, p.serverAddr.AddrString(), strconv.Itoa(int(p.serverAddr.Port))).Attach().Run()
 	}
 	if err != nil {
 		return err
 	}
+	err = ctx.Err()
+	if err != nil {
+		return err
+	}
 	err = shell.Exec("networksetup", "-setwebproxy", interfaceDisplayName, p.serverAddr.AddrString(), strconv.Itoa(int(p.serverAddr.Port))).Attach().Run()
+	if err != nil {
+		return err
+	}
+	err = ctx.Err()
 	if err != nil {
 		return err
 	}

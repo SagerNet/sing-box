@@ -35,8 +35,8 @@ func newConnManMonitor(callback func(adapter.WIFIState)) (WIFIMonitor, error) {
 	return &connmanMonitor{conn: conn, callback: callback}, nil
 }
 
-func (m *connmanMonitor) ReadWIFIState() adapter.WIFIState {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (m *connmanMonitor) ReadWIFIState(ctx context.Context) adapter.WIFIState {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	cmObj := m.conn.Object("net.connman", "/")
@@ -120,7 +120,7 @@ func (m *connmanMonitor) Start() error {
 		return err
 	}
 
-	state := m.ReadWIFIState()
+	state := m.ReadWIFIState(ctx)
 	go m.monitorSignals(ctx, m.signalChan, state)
 	m.callback(state)
 
@@ -139,7 +139,7 @@ func (m *connmanMonitor) monitorSignals(ctx context.Context, signalChan chan *db
 			// godbus Signal.Name uses "interface.member" format (e.g. "net.connman.Service.PropertyChanged"),
 			// not just the member name. This differs from the D-Bus signal member in the match rule.
 			if signal.Name == "net.connman.Service.PropertyChanged" {
-				state := m.ReadWIFIState()
+				state := m.ReadWIFIState(ctx)
 				if state != lastState {
 					lastState = state
 					m.callback(state)

@@ -127,7 +127,7 @@ func (s *platformInterfaceStub) UsePlatformWIFIMonitor() bool {
 	return false
 }
 
-func (s *platformInterfaceStub) ReadWIFIState() adapter.WIFIState {
+func (s *platformInterfaceStub) ReadWIFIState(ctx context.Context) adapter.WIFIState {
 	return adapter.WIFIState{}
 }
 

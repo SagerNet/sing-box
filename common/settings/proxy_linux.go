@@ -118,6 +118,10 @@ func (p *LinuxSystemProxy) Enable() error {
 	return nil
 }
 
+func (p *LinuxSystemProxy) Close() error {
+	return nil
+}
+
 func (p *LinuxSystemProxy) Disable() error {
 	if p.hasGSettings {
 		err := p.execute("gsettings", "set", "org.gnome.system.proxy", "mode", "none")

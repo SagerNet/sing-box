@@ -45,6 +45,7 @@ type URLTest struct {
 	tolerance                    uint16
 	idleTimeout                  time.Duration
 	group                        *URLTestGroup
+	checkAccess                  sync.Mutex
 	interruptExternalConnections bool
 }
 
@@ -114,14 +115,14 @@ func (s *URLTest) URLTest(ctx context.Context) (map[string]uint16, error) {
 }
 
 func (s *URLTest) CheckOutbounds() {
-	s.group.CheckOutbounds(true)
+	s.group.CheckOutbounds(s.ctx, true)
 }
 
 func (s *URLTest) PerformUpdateCheck() {
 	s.group.performUpdateCheck()
 }
 
-func (s *URLTest) InterfaceUpdated() {
+func (s *URLTest) InterfaceUpdated(ctx context.Context) {
 	group := s.group
 	if group == nil {
 		return
@@ -129,7 +130,14 @@ func (s *URLTest) InterfaceUpdated() {
 	if group.pause.IsDevicePaused() || group.pause.IsNetworkPaused() {
 		return
 	}
-	go group.CheckOutbounds(true)
+	go func() {
+		s.checkAccess.Lock()
+		defer s.checkAccess.Unlock()
+		if ctx.Err() != nil {
+			return
+		}
+		group.CheckOutbounds(ctx, true)
+	}()
 }
 
 func (s *URLTest) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
@@ -250,7 +258,7 @@ func (g *URLTestGroup) PostStart() {
 	defer g.access.Unlock()
 	g.started = true
 	g.lastActive.Store(time.Now())
-	go g.CheckOutbounds(false)
+	go g.CheckOutbounds(g.ctx, false)
 }
 
 func (g *URLTestGroup) Touch() {
@@ -330,7 +338,7 @@ func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 func (g *URLTestGroup) loopCheck(ticker *time.Ticker, closeChan <-chan struct{}) {
 	if time.Since(g.lastActive.Load()) > g.interval {
 		g.lastActive.Store(time.Now())
-		g.CheckOutbounds(false)
+		g.CheckOutbounds(g.ctx, false)
 	}
 	for {
 		select {
@@ -349,12 +357,12 @@ func (g *URLTestGroup) loopCheck(ticker *time.Ticker, closeChan <-chan struct{})
 			g.access.Unlock()
 			return
 		}
-		g.CheckOutbounds(false)
+		g.CheckOutbounds(g.ctx, false)
 	}
 }
 
-func (g *URLTestGroup) CheckOutbounds(force bool) {
-	_, _ = g.urlTest(g.ctx, force)
+func (g *URLTestGroup) CheckOutbounds(ctx context.Context, force bool) {
+	_, _ = g.urlTest(ctx, force)
 }
 
 func (g *URLTestGroup) URLTest(ctx context.Context) (map[string]uint16, error) {
@@ -391,7 +399,7 @@ func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint
 			continue
 		}
 		b.Go(realTag, func() (any, error) {
-			testCtx, cancel := context.WithTimeout(g.ctx, C.TCPTimeout)
+			testCtx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
 			defer cancel()
 			testChan := make(chan urlTestResult, 1)
 			go func() {

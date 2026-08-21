@@ -281,7 +281,7 @@ func (h *Inbound) Start(stage adapter.StartStage) error {
 	return h.service.Start(packetConn)
 }
 
-func (h *Inbound) InterfaceUpdated() {
+func (h *Inbound) InterfaceUpdated(ctx context.Context) {
 	h.service.Reset()
 }
 

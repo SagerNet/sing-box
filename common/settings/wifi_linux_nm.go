@@ -36,8 +36,8 @@ func newNetworkManagerMonitor(callback func(adapter.WIFIState)) (WIFIMonitor, er
 	return &networkManagerMonitor{conn: conn, callback: callback}, nil
 }
 
-func (m *networkManagerMonitor) ReadWIFIState() adapter.WIFIState {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (m *networkManagerMonitor) ReadWIFIState(ctx context.Context) adapter.WIFIState {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	nmObj := m.conn.Object("org.freedesktop.NetworkManager", "/org/freedesktop/NetworkManager")
@@ -119,7 +119,7 @@ func (m *networkManagerMonitor) Start() error {
 		return err
 	}
 
-	state := m.ReadWIFIState()
+	state := m.ReadWIFIState(ctx)
 	go m.monitorSignals(ctx, m.signalChan, state)
 	m.callback(state)
 
@@ -136,7 +136,7 @@ func (m *networkManagerMonitor) monitorSignals(ctx context.Context, signalChan c
 				return
 			}
 			if signal.Name == "org.freedesktop.DBus.Properties.PropertiesChanged" {
-				state := m.ReadWIFIState()
+				state := m.ReadWIFIState(ctx)
 				if state != lastState {
 					lastState = state
 					m.callback(state)

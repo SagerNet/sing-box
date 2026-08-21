@@ -58,6 +58,10 @@ type DBusResolvedResolver struct {
 	interfaceCallback *list.Element[tun.DefaultInterfaceUpdateCallback]
 	systemBus         *dbus.Conn
 	savedServerSet    atomic.Pointer[resolvedServerSet]
+	updateAccess      sync.Mutex
+	updateCancel      context.CancelFunc
+	updateRunAccess   sync.Mutex
+	closed            bool
 	closeOnce         sync.Once
 }
 
@@ -95,7 +99,7 @@ func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (Reso
 }
 
 func (t *DBusResolvedResolver) Start() error {
-	t.updateStatus()
+	t.updateStatus(t.ctx)
 	t.interfaceCallback = t.interfaceMonitor.RegisterCallback(t.updateDefaultInterface)
 	err := t.systemBus.BusObject().AddMatchSignal(
 		"org.freedesktop.DBus",
@@ -122,7 +126,17 @@ func (t *DBusResolvedResolver) Start() error {
 func (t *DBusResolvedResolver) Close() error {
 	var closeErr error
 	t.closeOnce.Do(func() {
+		t.updateAccess.Lock()
+		updateCancel := t.updateCancel
+		t.updateCancel = nil
+		t.updateAccess.Unlock()
+		if updateCancel != nil {
+			updateCancel()
+		}
+		t.updateRunAccess.Lock()
+		t.closed = true
 		serverSet := t.savedServerSet.Swap(nil)
+		t.updateRunAccess.Unlock()
 		if serverSet != nil {
 			closeErr = serverSet.Close()
 		}
@@ -174,7 +188,7 @@ func (t *DBusResolvedResolver) Exchange(ctx context.Context, message *mDNS.Msg) 
 	if err == nil {
 		return response, nil
 	}
-	t.updateStatus()
+	t.updateStatus(t.ctx)
 	refreshedServerSet := t.savedServerSet.Load()
 	if refreshedServerSet == nil || refreshedServerSet == serverSet {
 		return nil, err
@@ -196,7 +210,7 @@ func (t *DBusResolvedResolver) ExchangeAsync(ctx context.Context, message *mDNS.
 			return
 		}
 		go func() {
-			t.updateStatus()
+			t.updateStatus(t.ctx)
 			refreshedServerSet := t.savedServerSet.Load()
 			if refreshedServerSet == nil || refreshedServerSet == serverSet {
 				callback(nil, err)
@@ -240,18 +254,44 @@ func (t *DBusResolvedResolver) loopUpdateStatus() {
 			if !loaded || newOwner == "" {
 				continue
 			}
-			t.updateStatus()
+			t.postUpdateStatus()
 		case "org.freedesktop.DBus.Properties.PropertiesChanged":
 			if !shouldUpdateResolvedServerSet(signal) {
 				continue
 			}
-			t.updateStatus()
+			t.postUpdateStatus()
 		}
 	}
 }
 
-func (t *DBusResolvedResolver) updateStatus() {
-	serverSet, err := t.checkResolved(context.Background())
+func (t *DBusResolvedResolver) postUpdateStatus() {
+	updateContext, updateCancel := context.WithCancel(t.ctx)
+	t.updateAccess.Lock()
+	previousCancel := t.updateCancel
+	t.updateCancel = updateCancel
+	t.updateAccess.Unlock()
+	if previousCancel != nil {
+		previousCancel()
+	}
+	go func() {
+		defer updateCancel()
+		t.updateStatus(updateContext)
+	}()
+}
+
+func (t *DBusResolvedResolver) updateStatus(ctx context.Context) {
+	t.updateRunAccess.Lock()
+	defer t.updateRunAccess.Unlock()
+	if t.closed || ctx.Err() != nil {
+		return
+	}
+	serverSet, err := t.checkResolved(ctx)
+	if t.closed || ctx.Err() != nil {
+		if serverSet != nil {
+			_ = serverSet.Close()
+		}
+		return
+	}
 	oldServerSet := t.savedServerSet.Swap(serverSet)
 	if oldServerSet != nil {
 		_ = oldServerSet.Close()
@@ -291,7 +331,7 @@ func (t *DBusResolvedResolver) exchangeServerSet(ctx context.Context, message *m
 
 func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServerSet, error) {
 	dbusObject := t.systemBus.Object("org.freedesktop.resolve1", "/org/freedesktop/resolve1")
-	err := dbusObject.Call("org.freedesktop.DBus.Peer.Ping", 0).Err
+	err := dbusObject.(*dbus.Object).CallWithContext(ctx, "org.freedesktop.DBus.Peer.Ping", 0).Err
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +361,15 @@ func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServ
 	if err != nil {
 		return nil, err
 	}
+	err = ctx.Err()
+	if err != nil {
+		return nil, err
+	}
 	linkDNSEx, err := loadResolvedLinkDNSEx(linkObject)
+	if err != nil {
+		return nil, err
+	}
+	err = ctx.Err()
 	if err != nil {
 		return nil, err
 	}
@@ -570,5 +618,5 @@ func shouldUpdateResolvedServerSet(signal *dbus.Signal) bool {
 }
 
 func (t *DBusResolvedResolver) updateDefaultInterface(defaultInterface *control.Interface, flags int) {
-	t.updateStatus()
+	t.postUpdateStatus()
 }
