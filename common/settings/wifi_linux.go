@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"context"
+
 	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -27,8 +29,8 @@ func NewWIFIMonitor(callback func(adapter.WIFIState)) (WIFIMonitor, error) {
 	return nil, E.Cause(E.Errors(errors...), "no supported WIFI manager found")
 }
 
-func (m *LinuxWIFIMonitor) ReadWIFIState() adapter.WIFIState {
-	return m.monitor.ReadWIFIState()
+func (m *LinuxWIFIMonitor) ReadWIFIState(ctx context.Context) adapter.WIFIState {
+	return m.monitor.ReadWIFIState(ctx)
 }
 
 func (m *LinuxWIFIMonitor) Start() error {
