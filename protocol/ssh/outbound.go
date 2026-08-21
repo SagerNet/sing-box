@@ -206,7 +206,7 @@ func (s *Outbound) connect(ctx context.Context) (client *ssh.Client, err error) 
 	return client, nil
 }
 
-func (s *Outbound) InterfaceUpdated() {
+func (s *Outbound) InterfaceUpdated(ctx context.Context) {
 	common.Close(s.clientConn)
 }
 

@@ -505,7 +505,7 @@ func (t *Inbound) updateRouteAddressSet(it adapter.RuleSet) {
 	t.routeExcludeAddressSet = nil
 }
 
-func (t *Inbound) InterfaceUpdated() {
+func (t *Inbound) InterfaceUpdated(ctx context.Context) {
 	tunStack := t.tunStack
 	if tunStack != nil {
 		tunStack.ResetNetwork()

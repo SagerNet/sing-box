@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -120,7 +121,7 @@ func (p *linuxPlatformInterface) RequestPermissionForWIFIState() error {
 	return nil
 }
 
-func (p *linuxPlatformInterface) ReadWIFIState() adapter.WIFIState {
+func (p *linuxPlatformInterface) ReadWIFIState(ctx context.Context) adapter.WIFIState {
 	return adapter.WIFIState{}
 }
 

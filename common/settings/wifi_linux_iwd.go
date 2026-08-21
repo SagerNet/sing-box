@@ -35,8 +35,8 @@ func newIWDMonitor(callback func(adapter.WIFIState)) (WIFIMonitor, error) {
 	return &iwdMonitor{conn: conn, callback: callback}, nil
 }
 
-func (m *iwdMonitor) ReadWIFIState() adapter.WIFIState {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (m *iwdMonitor) ReadWIFIState(ctx context.Context) adapter.WIFIState {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	iwdObj := m.conn.Object("net.connman.iwd", "/")
@@ -144,7 +144,7 @@ func (m *iwdMonitor) Start() error {
 		return err
 	}
 
-	state := m.ReadWIFIState()
+	state := m.ReadWIFIState(ctx)
 	go m.monitorSignals(ctx, m.signalChan, state)
 	m.callback(state)
 
@@ -161,7 +161,7 @@ func (m *iwdMonitor) monitorSignals(ctx context.Context, signalChan chan *dbus.S
 				return
 			}
 			if signal.Name == "org.freedesktop.DBus.Properties.PropertiesChanged" {
-				state := m.ReadWIFIState()
+				state := m.ReadWIFIState(ctx)
 				if state != lastState {
 					lastState = state
 					m.callback(state)
