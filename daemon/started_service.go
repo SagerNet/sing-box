@@ -57,7 +57,10 @@ type StartedService struct {
 	// userID           int
 	// groupID          int
 	// systemProxyEnabled      bool
+	lifecycleAccess         sync.Mutex
 	serviceAccess           sync.RWMutex
+	closed                  bool
+	startInterrupted        bool
 	serviceStatus           *ServiceStatus
 	serviceStatusSubscriber *observable.Subscriber[*ServiceStatus]
 	serviceStatusObserver   *observable.Observer[*ServiceStatus]
@@ -149,12 +152,19 @@ func (s *StartedService) updateStatus(newStatus ServiceStatus_Type) {
 	s.serviceStatus = statusObject
 }
 
-func (s *StartedService) updateStatusError(err error) error {
+func (s *StartedService) updateStatusError(err error) {
 	statusObject := &ServiceStatus{Status: ServiceStatus_FATAL, ErrorMessage: err.Error()}
 	s.serviceStatusSubscriber.Emit(statusObject)
 	s.serviceStatus = statusObject
+}
+
+func (s *StartedService) interruptStart() {
+	s.serviceAccess.Lock()
+	if s.serviceStatus.Status == ServiceStatus_STARTING && s.instance != nil {
+		s.startInterrupted = true
+		s.instance.cancel()
+	}
 	s.serviceAccess.Unlock()
-	return err
 }
 
 func (s *StartedService) waitForStarted(ctx context.Context) error {
@@ -239,12 +249,13 @@ func (s *StartedService) followInstance(ctx context.Context, run func(ctx contex
 }
 
 func (s *StartedService) StartOrReloadService(ctx context.Context, profileContent string, options *OverrideOptions) error {
+	s.interruptStart()
+	s.lifecycleAccess.Lock()
+	defer s.lifecycleAccess.Unlock()
 	s.serviceAccess.Lock()
-	switch s.serviceStatus.Status {
-	case ServiceStatus_IDLE, ServiceStatus_STARTED, ServiceStatus_STARTING, ServiceStatus_FATAL:
-	default:
+	if s.closed {
 		s.serviceAccess.Unlock()
-		return os.ErrInvalid
+		return os.ErrClosed
 	}
 	oldInstance := s.instance
 	if oldInstance != nil {
@@ -255,28 +266,41 @@ func (s *StartedService) StartOrReloadService(ctx context.Context, profileConten
 		runtimeDebug.FreeOSMemory()
 		s.serviceAccess.Lock()
 	}
+	s.startInterrupted = false
 	s.updateStatus(ServiceStatus_STARTING)
 	s.resetLogs()
+	s.serviceAccess.Unlock()
 	instance, err := s.newInstance(ctx, profileContent, options)
 	if err != nil {
-		return s.updateStatusError(err)
+		s.serviceAccess.Lock()
+		s.updateStatusError(err)
+		s.serviceAccess.Unlock()
+		return err
 	}
-	s.instance = instance
 	instance.urlTestHistoryStorage.AddUpdateHook(s.urlTestSubscriber)
 	if instance.clashServer != nil {
 		instance.clashServer.AddModeUpdateHook(s.clashModeSubscriber)
 	}
+	s.serviceAccess.Lock()
+	s.instance = instance
 	s.serviceAccess.Unlock()
 	err = instance.Start()
 	s.serviceAccess.Lock()
-	if s.serviceStatus.Status != ServiceStatus_STARTING {
+	if s.startInterrupted {
+		s.startInterrupted = false
+		s.instance = nil
 		s.serviceAccess.Unlock()
+		_ = instance.Close()
+		runtimeDebug.FreeOSMemory()
 		return nil
 	}
 	if err != nil {
 		s.instance = nil
+		s.updateStatusError(err)
+		s.serviceAccess.Unlock()
 		_ = instance.Close()
-		return s.updateStatusError(err)
+		runtimeDebug.FreeOSMemory()
+		return err
 	}
 	s.startedAt = time.Now()
 	s.updateStatus(ServiceStatus_STARTED)
@@ -286,6 +310,9 @@ func (s *StartedService) StartOrReloadService(ctx context.Context, profileConten
 }
 
 func (s *StartedService) Close() {
+	s.serviceAccess.Lock()
+	s.closed = true
+	s.serviceAccess.Unlock()
 	s.serviceStatusSubscriber.Close()
 	s.logSubscriber.Close()
 	s.urlTestSubscriber.Close()
@@ -294,19 +321,22 @@ func (s *StartedService) Close() {
 }
 
 func (s *StartedService) CloseService() error {
+	s.interruptStart()
+	s.lifecycleAccess.Lock()
+	defer s.lifecycleAccess.Unlock()
 	s.serviceAccess.Lock()
-	switch s.serviceStatus.Status {
-	case ServiceStatus_STARTING, ServiceStatus_STARTED:
-	default:
+	instance := s.instance
+	if instance == nil && s.serviceStatus.Status != ServiceStatus_STARTING && s.serviceStatus.Status != ServiceStatus_STARTED {
 		s.serviceAccess.Unlock()
 		return nil
 	}
-	s.updateStatus(ServiceStatus_STOPPING)
-	instance := s.instance
 	s.instance = nil
+	s.updateStatus(ServiceStatus_STOPPING)
+	s.serviceAccess.Unlock()
 	if instance != nil {
 		_ = instance.Close()
 	}
+	s.serviceAccess.Lock()
 	s.startedAt = time.Time{}
 	s.updateStatus(ServiceStatus_IDLE)
 	s.serviceAccess.Unlock()
@@ -317,6 +347,7 @@ func (s *StartedService) CloseService() error {
 func (s *StartedService) SetError(err error) {
 	s.serviceAccess.Lock()
 	s.updateStatusError(err)
+	s.serviceAccess.Unlock()
 	s.WriteMessage(log.LevelError, err.Error())
 }
 
@@ -417,15 +448,12 @@ func (s *StartedService) SubscribeLog(empty *emptypb.Empty, server grpc.ServerSt
 
 func (s *StartedService) GetDefaultLogLevel(ctx context.Context, empty *emptypb.Empty) (*DefaultLogLevel, error) {
 	s.serviceAccess.RLock()
-	switch s.serviceStatus.Status {
-	case ServiceStatus_STARTING, ServiceStatus_STARTED:
-	default:
-		s.serviceAccess.RUnlock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+	if boxService == nil {
 		return nil, os.ErrInvalid
 	}
-	logLevel := s.instance.logFactory.Level()
-	s.serviceAccess.RUnlock()
-	return &DefaultLogLevel{Level: LogLevel(logLevel)}, nil
+	return &DefaultLogLevel{Level: LogLevel(boxService.logFactory.Level())}, nil
 }
 
 func (s *StartedService) ClearLogs(ctx context.Context, empty *emptypb.Empty) (*emptypb.Empty, error) {
@@ -746,14 +774,11 @@ func (s *StartedService) URLTest(ctx context.Context, request *URLTestRequest) (
 
 func (s *StartedService) SelectOutbound(ctx context.Context, request *SelectOutboundRequest) (*emptypb.Empty, error) {
 	s.serviceAccess.RLock()
-	switch s.serviceStatus.Status {
-	case ServiceStatus_STARTING, ServiceStatus_STARTED:
-	default:
-		s.serviceAccess.RUnlock()
-		return nil, os.ErrInvalid
-	}
 	boxService := s.instance
 	s.serviceAccess.RUnlock()
+	if boxService == nil {
+		return nil, os.ErrInvalid
+	}
 	outboundGroup, isLoaded := boxService.outboundManager.Outbound(request.GroupTag)
 	if !isLoaded {
 		return nil, status.Error(codes.NotFound, "selector not found: "+request.GroupTag)
@@ -1080,14 +1105,11 @@ func buildConnectionProto(metadata *trafficcontrol.TrackerMetadata) *Connection 
 
 func (s *StartedService) CloseConnection(ctx context.Context, request *CloseConnectionRequest) (*emptypb.Empty, error) {
 	s.serviceAccess.RLock()
-	switch s.serviceStatus.Status {
-	case ServiceStatus_STARTING, ServiceStatus_STARTED:
-	default:
-		s.serviceAccess.RUnlock()
-		return nil, os.ErrInvalid
-	}
 	boxService := s.instance
 	s.serviceAccess.RUnlock()
+	if boxService == nil {
+		return nil, os.ErrInvalid
+	}
 	if boxService.trafficManager == nil {
 		return nil, status.Error(codes.Unimplemented, "connection tracking not available")
 	}
