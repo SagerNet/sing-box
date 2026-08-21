@@ -31,6 +31,7 @@ linters:
         - -QF1008 # could remove embedded field "<interface>" from selector
         - -ST1003 # should not use ALL_CAPS in Go names; use CamelCase instead
         - -QF1001 # could apply De Morgan's law
+        - -SA4023 # impossible nil comparison, false positive on platform-specific implementations
   exclusions:
     generated: lax
     presets:

@@ -83,7 +83,7 @@ func (b *backendBase) AttachReturn(returnPath tun.Return) error {
 	if slices.Contains(b.returnPaths, returnPath) {
 		return nil
 	}
-	b.returnPaths = append(b.returnPaths[:len(b.returnPaths):len(b.returnPaths)], returnPath)
+	b.returnPaths = append(slices.Clip(b.returnPaths), returnPath)
 	return nil
 }
 
