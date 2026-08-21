@@ -100,7 +100,7 @@ func (h *Outbound) Start(stage adapter.StartStage) error {
 	h.client = client
 	h.sessionClient = sessionClientOf(client)
 	h.uotClient = &uot.Client{
-		Dialer:  (anytlsDialer)(h.createProxy),
+		Dialer:  anytlsDialer(h.createProxy),
 		Version: uot.Version,
 	}
 	return nil

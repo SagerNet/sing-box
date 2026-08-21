@@ -32,7 +32,7 @@ func (r Rule) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule type: " + r.Type)
 	}
-	return badjson.MarshallObjects((_Rule)(r), v)
+	return badjson.MarshallObjects(_Rule(r), v)
 }
 
 func (r *Rule) UnmarshalJSONContext(ctx context.Context, bytes []byte) error {
