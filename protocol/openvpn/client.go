@@ -658,7 +658,7 @@ func (c *ClientEndpoint) Close() error {
 	return err
 }
 
-func (c *ClientEndpoint) InterfaceUpdated() {
+func (c *ClientEndpoint) InterfaceUpdated(ctx context.Context) {
 	c.client.RestartSession()
 }
 

@@ -113,7 +113,7 @@ func (l *Listener) Start() error {
 		}
 		err = systemProxy.Enable()
 		if err != nil {
-			return E.Cause(err, "set system proxy")
+			return E.Errors(E.Cause(err, "set system proxy"), systemProxy.Close())
 		}
 		l.systemProxy = systemProxy
 	}
@@ -123,8 +123,11 @@ func (l *Listener) Start() error {
 func (l *Listener) Close() error {
 	l.shutdown.Store(true)
 	var err error
-	if l.systemProxy != nil && l.systemProxy.IsEnabled() {
-		err = l.systemProxy.Disable()
+	if l.systemProxy != nil {
+		if l.systemProxy.IsEnabled() {
+			err = l.systemProxy.Disable()
+		}
+		err = E.Errors(err, l.systemProxy.Close())
 	}
 	return E.Errors(err, common.Close(
 		l.tcpListener,

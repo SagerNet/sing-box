@@ -135,7 +135,7 @@ func (p *windowsPlatformInterface) RequestPermissionForWIFIState() error {
 	return nil
 }
 
-func (p *windowsPlatformInterface) ReadWIFIState() adapter.WIFIState {
+func (p *windowsPlatformInterface) ReadWIFIState(ctx context.Context) adapter.WIFIState {
 	return adapter.WIFIState{}
 }
 
