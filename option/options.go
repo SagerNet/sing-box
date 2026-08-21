@@ -33,7 +33,7 @@ type _Options struct {
 type Options _Options
 
 func (o Options) MarshalJSONContext(ctx context.Context) ([]byte, error) {
-	return json.MarshalContext(ctx, (_Options)(o))
+	return json.MarshalContext(ctx, _Options(o))
 }
 
 func (o *Options) UnmarshalJSONContext(ctx context.Context, content []byte) error {

@@ -6,6 +6,7 @@ import (
 	unsafe "unsafe"
 
 	daemon "github.com/sagernet/sing-box/daemon"
+
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -1816,9 +1817,9 @@ var (
 	file_experimental_boxdd_desktop_service_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 	file_experimental_boxdd_desktop_service_proto_msgTypes  = make([]protoimpl.MessageInfo, 28)
 	file_experimental_boxdd_desktop_service_proto_goTypes   = []any{
-		(DaemonOwnership)(0),                        // 0: desktop.DaemonOwnership
-		(InstallUpdateResult)(0),                    // 1: desktop.InstallUpdateResult
-		(ProfileContent_Type)(0),                    // 2: desktop.ProfileContent.Type
+		DaemonOwnership(0),                          // 0: desktop.DaemonOwnership
+		InstallUpdateResult(0),                      // 1: desktop.InstallUpdateResult
+		ProfileContent_Type(0),                      // 2: desktop.ProfileContent.Type
 		(*ArchiveReportRequest)(nil),                // 3: desktop.ArchiveReportRequest
 		(*StandaloneNetworkQualityTestRequest)(nil), // 4: desktop.StandaloneNetworkQualityTestRequest
 		(*StandaloneSTUNTestRequest)(nil),           // 5: desktop.StandaloneSTUNTestRequest

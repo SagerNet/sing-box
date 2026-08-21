@@ -32,7 +32,7 @@ func (r DNSRule) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown rule type: " + r.Type)
 	}
-	return badjson.MarshallObjects((_DNSRule)(r), v)
+	return badjson.MarshallObjects(_DNSRule(r), v)
 }
 
 func (r *DNSRule) UnmarshalJSONContext(ctx context.Context, bytes []byte) error {

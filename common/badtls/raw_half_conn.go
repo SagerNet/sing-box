@@ -29,7 +29,7 @@ type RawHalfConn struct {
 
 func NewRawHalfConn(rawHalfConn reflect.Value, methods *Methods) (*RawHalfConn, error) {
 	halfConn := &RawHalfConn{
-		pointer: (unsafe.Pointer)(rawHalfConn.UnsafeAddr()),
+		pointer: unsafe.Pointer(rawHalfConn.UnsafeAddr()),
 		methods: methods,
 	}
 

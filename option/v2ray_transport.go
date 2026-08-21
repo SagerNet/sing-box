@@ -40,7 +40,7 @@ func (o V2RayTransportOptions) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown transport type: " + o.Type)
 	}
-	return badjson.MarshallObjects((_V2RayTransportOptions)(o), v)
+	return badjson.MarshallObjects(_V2RayTransportOptions(o), v)
 }
 
 func (o *V2RayTransportOptions) UnmarshalJSON(bytes []byte) error {

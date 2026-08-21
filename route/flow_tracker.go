@@ -14,7 +14,7 @@ import (
 
 var (
 	_ tun.FlowTracker = (*flowLogger)(nil)
-	_ tun.FlowTracker = (multiFlowTracker)(nil)
+	_ tun.FlowTracker = multiFlowTracker(nil)
 )
 
 type flowLogger struct {

@@ -56,8 +56,7 @@ lint_install:
 
 proto:
 	@go run ./cmd/internal/protogen
-	@gofumpt -l -w .
-	@gofumpt -l -w .
+	@golangci-lint fmt
 
 proto_install:
 	go install -v google.golang.org/protobuf/cmd/protoc-gen-go@latest

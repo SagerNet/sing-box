@@ -59,7 +59,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 
 	service, err := anytls.NewService(anytls.ServiceConfig{
 		Users: common.Map(options.Users, func(it option.AnyTLSUser) anytls.User {
-			return (anytls.User)(it)
+			return anytls.User(it)
 		}),
 		PaddingScheme: paddingScheme,
 		Handler:       (*inboundHandler)(inbound),

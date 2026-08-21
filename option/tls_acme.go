@@ -54,7 +54,7 @@ func (o ACMEDNS01ChallengeOptions) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, E.New("unknown provider type: " + o.Provider)
 	}
-	return badjson.MarshallObjects((_ACMEDNS01ChallengeOptions)(o), v)
+	return badjson.MarshallObjects(_ACMEDNS01ChallengeOptions(o), v)
 }
 
 func (o *ACMEDNS01ChallengeOptions) UnmarshalJSON(bytes []byte) error {

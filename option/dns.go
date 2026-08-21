@@ -81,7 +81,7 @@ func (o OptimisticDNSOptions) MarshalJSON() ([]byte, error) {
 	if o.Timeout == 0 {
 		return json.Marshal(o.Enabled)
 	}
-	return json.Marshal((_OptimisticDNSOptions)(o))
+	return json.Marshal(_OptimisticDNSOptions(o))
 }
 
 func (o *OptimisticDNSOptions) UnmarshalJSON(bytes []byte) error {

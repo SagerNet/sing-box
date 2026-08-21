@@ -151,7 +151,7 @@ func (b UDPNATBehavior) DescribeSchema(builder schema.Builder) (*schema.Node, er
 type UDPTimeoutCompat badoption.Duration
 
 func (c UDPTimeoutCompat) MarshalJSON() ([]byte, error) {
-	return json.Marshal((time.Duration)(c).String())
+	return json.Marshal(time.Duration(c).String())
 }
 
 func (c *UDPTimeoutCompat) UnmarshalJSON(data []byte) error {

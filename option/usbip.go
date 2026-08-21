@@ -24,9 +24,9 @@ type USBIPServerServiceOptions _USBIPServerServiceOptions
 
 func (o USBIPServerServiceOptions) MarshalJSON() ([]byte, error) {
 	if o.Options == nil {
-		return json.Marshal((_USBIPServerServiceOptions)(o))
+		return json.Marshal(_USBIPServerServiceOptions(o))
 	}
-	return badjson.MarshallObjects((_USBIPServerServiceOptions)(o), o.Options)
+	return badjson.MarshallObjects(_USBIPServerServiceOptions(o), o.Options)
 }
 
 func (o *USBIPServerServiceOptions) UnmarshalJSON(content []byte) error {

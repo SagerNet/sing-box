@@ -181,7 +181,7 @@ func (w *platformInterfaceWrapper) ReadWIFIState(ctx context.Context) adapter.WI
 	if wifiState == nil {
 		return adapter.WIFIState{}
 	}
-	return (adapter.WIFIState)(*wifiState)
+	return adapter.WIFIState(*wifiState)
 }
 
 func (w *platformInterfaceWrapper) UsePlatformConnectionOwnerFinder() bool {
