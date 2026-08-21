@@ -70,7 +70,6 @@ func (c *linuxTransportCredentials) ServerHandshake(rawConnection net.Conn) (net
 func (c *linuxTransportCredentials) Info() credentials.ProtocolInfo {
 	return credentials.ProtocolInfo{
 		SecurityProtocol: "linux-local-process",
-		SecurityVersion:  "1",
 	}
 }
 
