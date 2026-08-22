@@ -203,9 +203,9 @@ icon: material/alert-decagram
 !!! note ""
 
     The default rule uses the following matching logic:  
-    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite`) &&  
+    (`domain` || `domain_suffix` || `domain_keyword` || `domain_regex` || `geosite` || `ip_cidr` || `ip_is_private` || `ip_accept_any`) &&  
     (`port` || `port_range`) &&  
-    (`source_geoip` || `source_ip_cidr` ｜｜ `source_ip_is_private`) &&  
+    (`source_geoip` || `source_ip_cidr` || `source_ip_is_private`) &&  
     (`source_port` || `source_port_range`) &&  
     `other fields`
 
