@@ -669,19 +669,24 @@ func TestDNSInvertAddressLimitPreLookupRegression(t *testing.T) {
 			require.True(t, rule.MatchAddressLimit(&unmatchedMetadata))
 		})
 	}
-	t.Run("mixed resolved and deferred fields keep old pre lookup false", func(t *testing.T) {
+	t.Run("mixed resolved and deferred fields defer to response phase", func(t *testing.T) {
 		t.Parallel()
-		metadata := testMetadata("lookup.example")
 		rule := dnsRuleForTest(func(rule *abstractDefaultRule) {
 			rule.invert = true
 			addOtherItem(rule, NewNetworkItem([]string{N.NetworkTCP}))
 			addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
 		})
-		require.False(t, rule.Match(&metadata))
+		preLookupMetadata := testMetadata("lookup.example")
+		require.True(t, rule.Match(&preLookupMetadata))
+		matchedMetadata := testMetadata("lookup.example")
+		matchedMetadata.DestinationAddresses = []netip.Addr{netip.MustParseAddr("203.0.113.1")}
+		require.False(t, rule.MatchAddressLimit(&matchedMetadata))
+		unmatchedMetadata := testMetadata("lookup.example")
+		unmatchedMetadata.DestinationAddresses = []netip.Addr{netip.MustParseAddr("8.8.8.8")}
+		require.True(t, rule.MatchAddressLimit(&unmatchedMetadata))
 	})
-	t.Run("ruleset only deferred fields keep old pre lookup false", func(t *testing.T) {
+	t.Run("ruleset only deferred fields defer to response phase", func(t *testing.T) {
 		t.Parallel()
-		metadata := testMetadata("lookup.example")
 		ruleSet := newLocalRuleSetForTest("dns-ruleset-ipcidr", headlessDefaultRule(t, func(rule *abstractDefaultRule) {
 			addDestinationIPCIDRItem(t, rule, []string{"203.0.113.0/24"})
 		}))
@@ -689,7 +694,14 @@ func TestDNSInvertAddressLimitPreLookupRegression(t *testing.T) {
 			rule.invert = true
 			addRuleSetItem(rule, &RuleSetItem{setList: []adapter.RuleSet{ruleSet}})
 		})
-		require.False(t, rule.Match(&metadata))
+		preLookupMetadata := testMetadata("lookup.example")
+		require.True(t, rule.Match(&preLookupMetadata))
+		matchedMetadata := testMetadata("lookup.example")
+		matchedMetadata.DestinationAddresses = []netip.Addr{netip.MustParseAddr("203.0.113.1")}
+		require.False(t, rule.MatchAddressLimit(&matchedMetadata))
+		unmatchedMetadata := testMetadata("lookup.example")
+		unmatchedMetadata.DestinationAddresses = []netip.Addr{netip.MustParseAddr("8.8.8.8")}
+		require.True(t, rule.MatchAddressLimit(&unmatchedMetadata))
 	})
 }
 

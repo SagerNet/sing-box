@@ -56,7 +56,7 @@ func (r *abstractDefaultRule) Match(metadata *adapter.InboundContext) bool {
 }
 
 func (r *abstractDefaultRule) destinationIPCIDRMatchesSource(metadata *adapter.InboundContext) bool {
-	return !metadata.IgnoreDestinationIPCIDRMatch && metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
+	return metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0
 }
 
 func (r *abstractDefaultRule) destinationIPCIDRMatchesDestination(metadata *adapter.InboundContext) bool {
@@ -77,7 +77,9 @@ func (r *abstractDefaultRule) matchStates(metadata *adapter.InboundContext) rule
 
 func (r *abstractDefaultRule) matchStatesWithBase(metadata *adapter.InboundContext, inheritedBase ruleMatchState) ruleMatchStateSet {
 	if len(r.allItems) == 0 {
-		return emptyRuleMatchState().withBase(inheritedBase)
+		stateSet := emptyRuleMatchState().withBase(inheritedBase)
+		metadata.DefinitiveMatchStates = uint16(stateSet)
+		return stateSet
 	}
 	evaluationBase := inheritedBase
 	if r.invert {
@@ -85,59 +87,58 @@ func (r *abstractDefaultRule) matchStatesWithBase(metadata *adapter.InboundConte
 	}
 	baseState := evaluationBase
 	if len(r.sourceAddressItems) > 0 {
-		metadata.DidMatch = true
 		if matchAnyItem(r.sourceAddressItems, metadata) {
 			baseState |= ruleMatchSourceAddress
 		}
 	}
 	if r.destinationIPCIDRMatchesSource(metadata) && !baseState.has(ruleMatchSourceAddress) {
-		metadata.DidMatch = true
 		if matchAnyItem(r.destinationIPCIDRItems, metadata) {
 			baseState |= ruleMatchSourceAddress
 		}
-	} else if r.destinationIPCIDRMatchesSource(metadata) {
-		metadata.DidMatch = true
 	}
 	if len(r.sourcePortItems) > 0 {
-		metadata.DidMatch = true
 		if matchAnyItem(r.sourcePortItems, metadata) {
 			baseState |= ruleMatchSourcePort
 		}
 	}
 	if len(r.destinationAddressItems) > 0 {
-		metadata.DidMatch = true
 		if matchAnyItem(r.destinationAddressItems, metadata) {
 			baseState |= ruleMatchDestinationAddress
 		}
 	}
 	if r.destinationIPCIDRMatchesDestination(metadata) && !baseState.has(ruleMatchDestinationAddress) {
-		metadata.DidMatch = true
 		if matchAnyItem(r.destinationIPCIDRItems, metadata) {
 			baseState |= ruleMatchDestinationAddress
 		}
-	} else if r.destinationIPCIDRMatchesDestination(metadata) {
-		metadata.DidMatch = true
 	}
 	if len(r.destinationPortItems) > 0 {
-		metadata.DidMatch = true
 		if matchAnyItem(r.destinationPortItems, metadata) {
 			baseState |= ruleMatchDestinationPort
 		}
 	}
+	var deferredGroups ruleMatchState
+	if metadata.IgnoreDestinationIPCIDRMatch && !metadata.IPCIDRMatchSource && len(r.destinationIPCIDRItems) > 0 && len(r.destinationAddressItems) == 0 {
+		deferredGroups |= ruleMatchDestinationAddress
+	}
 	for _, item := range r.items {
-		metadata.DidMatch = true
 		if !item.Match(metadata) {
-			return r.invertedFailure(inheritedBase)
+			return r.invertedFailure(metadata, inheritedBase)
 		}
 	}
-	var stateSet ruleMatchStateSet
+	var stateSet, definitiveStateSet ruleMatchStateSet
 	if r.ruleSetItem != nil {
-		metadata.DidMatch = true
 		stateSet = matchRuleItemStatesWithBase(r.ruleSetItem, metadata, baseState)
+		definitiveStateSet = ruleMatchStateSet(metadata.DefinitiveMatchStates)
 	} else {
 		stateSet = singleRuleMatchState(baseState)
+		definitiveStateSet = stateSet
 	}
-	stateSet = stateSet.filter(func(state ruleMatchState) bool {
+	if deferredGroups != 0 {
+		definitiveStateSet = definitiveStateSet.filter(func(state ruleMatchState) bool {
+			return deferredGroups&^state == 0
+		})
+	}
+	stateFilter := func(state ruleMatchState) bool {
 		if r.requiresSourceAddressMatch(metadata) && !state.has(ruleMatchSourceAddress) {
 			return false
 		}
@@ -151,24 +152,31 @@ func (r *abstractDefaultRule) matchStatesWithBase(metadata *adapter.InboundConte
 			return false
 		}
 		return true
-	})
+	}
+	stateSet = stateSet.filter(stateFilter)
+	definitiveStateSet = definitiveStateSet.filter(stateFilter)
 	if stateSet.isEmpty() {
-		return r.invertedFailure(inheritedBase)
+		return r.invertedFailure(metadata, inheritedBase)
 	}
 	if r.invert {
-		// DNS pre-lookup defers destination address-limit checks until the response phase.
-		if metadata.IgnoreDestinationIPCIDRMatch && stateSet == emptyRuleMatchState() && !metadata.DidMatch && len(r.destinationIPCIDRItems) > 0 {
+		metadata.DefinitiveMatchStates = 0
+		if definitiveStateSet.isEmpty() {
+			// DNS pre-lookup defers destination address-limit checks until the response phase.
 			return emptyRuleMatchState().withBase(inheritedBase)
 		}
 		return 0
 	}
+	metadata.DefinitiveMatchStates = uint16(definitiveStateSet)
 	return stateSet
 }
 
-func (r *abstractDefaultRule) invertedFailure(base ruleMatchState) ruleMatchStateSet {
+func (r *abstractDefaultRule) invertedFailure(metadata *adapter.InboundContext, base ruleMatchState) ruleMatchStateSet {
 	if r.invert {
-		return emptyRuleMatchState().withBase(base)
+		stateSet := emptyRuleMatchState().withBase(base)
+		metadata.DefinitiveMatchStates = uint16(stateSet)
+		return stateSet
 	}
+	metadata.DefinitiveMatchStates = 0
 	return 0
 }
 
@@ -239,37 +247,52 @@ func (r *abstractLogicalRule) matchStatesWithBase(metadata *adapter.InboundConte
 	if r.invert {
 		evaluationBase = 0
 	}
-	var stateSet ruleMatchStateSet
+	var stateSet, definitiveStateSet ruleMatchStateSet
 	if r.mode == C.LogicalTypeAnd {
 		stateSet = emptyRuleMatchState().withBase(evaluationBase)
+		definitiveStateSet = stateSet
 		for _, rule := range r.rules {
 			nestedMetadata := *metadata
 			nestedMetadata.ResetRuleCache()
 			nestedStateSet := matchHeadlessRuleStatesWithBase(rule, &nestedMetadata, evaluationBase)
 			if nestedStateSet.isEmpty() {
 				if r.invert {
-					return emptyRuleMatchState().withBase(base)
+					invertedStateSet := emptyRuleMatchState().withBase(base)
+					metadata.DefinitiveMatchStates = uint16(invertedStateSet)
+					return invertedStateSet
 				}
+				metadata.DefinitiveMatchStates = 0
 				return 0
 			}
 			stateSet = stateSet.combine(nestedStateSet)
+			definitiveStateSet = definitiveStateSet.combine(ruleMatchStateSet(nestedMetadata.DefinitiveMatchStates))
 		}
 	} else {
 		for _, rule := range r.rules {
 			nestedMetadata := *metadata
 			nestedMetadata.ResetRuleCache()
 			stateSet = stateSet.merge(matchHeadlessRuleStatesWithBase(rule, &nestedMetadata, evaluationBase))
+			definitiveStateSet = definitiveStateSet.merge(ruleMatchStateSet(nestedMetadata.DefinitiveMatchStates))
 		}
 		if stateSet.isEmpty() {
 			if r.invert {
-				return emptyRuleMatchState().withBase(base)
+				invertedStateSet := emptyRuleMatchState().withBase(base)
+				metadata.DefinitiveMatchStates = uint16(invertedStateSet)
+				return invertedStateSet
 			}
+			metadata.DefinitiveMatchStates = 0
 			return 0
 		}
 	}
 	if r.invert {
+		metadata.DefinitiveMatchStates = 0
+		if definitiveStateSet.isEmpty() {
+			// DNS pre-lookup defers destination address-limit checks until the response phase.
+			return emptyRuleMatchState().withBase(base)
+		}
 		return 0
 	}
+	metadata.DefinitiveMatchStates = uint16(definitiveStateSet)
 	return stateSet
 }
 

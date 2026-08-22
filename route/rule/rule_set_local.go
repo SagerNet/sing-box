@@ -211,11 +211,13 @@ func (s *LocalRuleSet) matchStates(metadata *adapter.InboundContext) ruleMatchSt
 }
 
 func (s *LocalRuleSet) matchStatesWithBase(metadata *adapter.InboundContext, base ruleMatchState) ruleMatchStateSet {
-	var stateSet ruleMatchStateSet
+	var stateSet, definitiveStateSet ruleMatchStateSet
 	for _, rule := range s.rules {
 		nestedMetadata := *metadata
 		nestedMetadata.ResetRuleMatchCache()
 		stateSet = stateSet.merge(matchHeadlessRuleStatesWithBase(rule, &nestedMetadata, base))
+		definitiveStateSet = definitiveStateSet.merge(ruleMatchStateSet(nestedMetadata.DefinitiveMatchStates))
 	}
+	metadata.DefinitiveMatchStates = uint16(definitiveStateSet)
 	return stateSet
 }
