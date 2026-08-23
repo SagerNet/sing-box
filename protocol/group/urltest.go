@@ -237,6 +237,10 @@ type URLTestGroup struct {
 	bandwidthPauseCallback *list.Element[pause.Callback]
 	bandwidthAccess        sync.Mutex
 	bandwidthHistory       map[string]*bandwidthState
+	// bandwidthEpoch counts resetBandwidth calls. Workers capture it before probing
+	// so a sample measured on a previous network path is dropped instead of written
+	// back into the freshly cleared history (guarded by bandwidthAccess).
+	bandwidthEpoch uint64
 }
 
 // bandwidthState holds the smoothing window for one outbound. Throughput samples are
@@ -583,13 +587,26 @@ func (g *URLTestGroup) loadBandwidth(tag string) uint32 {
 	return 0
 }
 
-// recordBandwidth appends a sample to the smoothing window and returns the new
-// smoothed value. A failed probe is recorded as a zero sample rather than dropped, so
-// that a genuinely broken path decays out of contention while a single transient
-// failure is absorbed by the median.
-func (g *URLTestGroup) recordBandwidth(tag string, throughput uint32) uint32 {
+// currentBandwidthEpoch returns the sample generation counter. A worker captures it
+// before probing and hands it to recordBandwidthChecked, which drops the sample if the
+// generation has since been reset.
+func (g *URLTestGroup) currentBandwidthEpoch() uint64 {
 	g.bandwidthAccess.Lock()
 	defer g.bandwidthAccess.Unlock()
+	return g.bandwidthEpoch
+}
+
+// recordBandwidthChecked appends a sample to the smoothing window and returns the new
+// smoothed value, unless the probe started before the last resetBandwidth — a sample
+// measured on the previous network says nothing about the current one. A failed probe
+// is recorded as a zero sample rather than dropped, so that a genuinely broken path
+// decays out of contention while a single transient failure is absorbed by the median.
+func (g *URLTestGroup) recordBandwidthChecked(epoch uint64, tag string, throughput uint32) (uint32, bool) {
+	g.bandwidthAccess.Lock()
+	defer g.bandwidthAccess.Unlock()
+	if epoch != g.bandwidthEpoch {
+		return 0, false
+	}
 	state := g.bandwidthHistory[tag]
 	if state == nil {
 		state = new(bandwidthState)
@@ -601,7 +618,7 @@ func (g *URLTestGroup) recordBandwidth(tag string, throughput uint32) uint32 {
 	}
 	state.lastTest = time.Now()
 	state.smoothed = medianThroughput(state.samples)
-	return state.smoothed
+	return state.smoothed, true
 }
 
 func (g *URLTestGroup) bandwidthExpired(tag string) bool {
@@ -612,13 +629,15 @@ func (g *URLTestGroup) bandwidthExpired(tag string) bool {
 }
 
 // resetBandwidth discards every sample, so selection falls back to latency until the
-// next bandwidth sweep re-measures the new path.
+// next bandwidth sweep re-measures the new path. Bumping the epoch also invalidates
+// in-flight probes, whose samples belong to the previous path.
 func (g *URLTestGroup) resetBandwidth() {
 	if g.bandwidth == nil {
 		return
 	}
 	g.bandwidthAccess.Lock()
 	clear(g.bandwidthHistory)
+	g.bandwidthEpoch++
 	g.bandwidthAccess.Unlock()
 }
 
@@ -676,6 +695,7 @@ func (g *URLTestGroup) bandwidthTest(ctx context.Context, force bool) {
 	defer g.bandwidthChecking.Store(false)
 	b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](g.bandwidth.concurrency))
 	checked := make(map[string]bool)
+	var workers int
 	for _, detour := range g.outbounds {
 		tag := detour.Tag()
 		realTag := RealTag(g.outbound, detour)
@@ -690,7 +710,9 @@ func (g *URLTestGroup) bandwidthTest(ctx context.Context, force bool) {
 		if !loaded {
 			continue
 		}
+		workers++
 		b.Go(realTag, func() (any, error) {
+			epoch := g.currentBandwidthEpoch()
 			testCtx, cancel := context.WithTimeout(g.ctx, g.bandwidth.timeout)
 			defer cancel()
 			var throughput, readBytes uint32
@@ -705,11 +727,32 @@ func (g *URLTestGroup) bandwidthTest(ctx context.Context, force bool) {
 				readBytes = result.Bytes
 				g.logger.Debug("outbound ", tag, " bandwidth: ", throughput, " B/s over ", readBytes, " bytes")
 			}
-			g.history.StoreURLTestBandwidth(realTag, g.recordBandwidth(realTag, throughput), readBytes)
+			if smoothed, recorded := g.recordBandwidthChecked(epoch, realTag, throughput); recorded {
+				g.history.StoreURLTestBandwidth(realTag, smoothed, readBytes)
+			}
 			return nil, nil
 		})
 	}
-	b.Wait()
+	// Every worker carries its own deadline, but #4255 shows a dialer can park in a
+	// read that ignores both the context deadline and the client timeout. batch.Wait
+	// has no deadline of its own, so one such worker would leave bandwidthChecking
+	// set forever and silently disable every later sweep. Bound the round by the time
+	// the queued workers legitimately need at worst — ceil(workers/concurrency)
+	// timeout-sized waves, plus one wave of slack — and abandon it when even that
+	// expires. The stuck worker's goroutine outlives the round either way; giving up
+	// on it costs one leaked goroutine instead of the whole feature.
+	waves := (workers + g.bandwidth.concurrency - 1) / g.bandwidth.concurrency
+	budget := time.Duration(waves+1) * g.bandwidth.timeout
+	waitDone := make(chan struct{})
+	go func() {
+		b.Wait()
+		close(waitDone)
+	}()
+	select {
+	case <-waitDone:
+	case <-time.After(budget):
+		g.logger.Warn("urltest: bandwidth round exceeded ", budget, "; a probe is ignoring its deadline, abandoning this round")
+	}
 	g.performUpdateCheck()
 }
 
