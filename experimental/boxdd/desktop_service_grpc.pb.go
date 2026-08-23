@@ -35,6 +35,12 @@ const (
 	DesktopService_ExportOOMReport_FullMethodName         = "/desktop.DesktopService/ExportOOMReport"
 	DesktopService_DeleteOOMReport_FullMethodName         = "/desktop.DesktopService/DeleteOOMReport"
 	DesktopService_DeleteAllOOMReports_FullMethodName     = "/desktop.DesktopService/DeleteAllOOMReports"
+	DesktopService_ListPowerReports_FullMethodName        = "/desktop.DesktopService/ListPowerReports"
+	DesktopService_ReadPowerReport_FullMethodName         = "/desktop.DesktopService/ReadPowerReport"
+	DesktopService_MarkPowerReportRead_FullMethodName     = "/desktop.DesktopService/MarkPowerReportRead"
+	DesktopService_ExportPowerReport_FullMethodName       = "/desktop.DesktopService/ExportPowerReport"
+	DesktopService_DeletePowerReport_FullMethodName       = "/desktop.DesktopService/DeletePowerReport"
+	DesktopService_DeleteAllPowerReports_FullMethodName   = "/desktop.DesktopService/DeleteAllPowerReports"
 	DesktopService_InstallUpdate_FullMethodName           = "/desktop.DesktopService/InstallUpdate"
 	DesktopService_GetSecuritySettings_FullMethodName     = "/desktop.DesktopService/GetSecuritySettings"
 	DesktopService_SetInsecureModeEnabled_FullMethodName  = "/desktop.DesktopService/SetInsecureModeEnabled"
@@ -63,6 +69,12 @@ type DesktopServiceClient interface {
 	ExportOOMReport(ctx context.Context, in *OOMReportExportRequest, opts ...grpc.CallOption) (*CrashReportArchive, error)
 	DeleteOOMReport(ctx context.Context, in *OOMReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DeleteAllOOMReports(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	ListPowerReports(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*OOMReportList, error)
+	ReadPowerReport(ctx context.Context, in *OOMReportRequest, opts ...grpc.CallOption) (*OOMReportContent, error)
+	MarkPowerReportRead(ctx context.Context, in *OOMReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	ExportPowerReport(ctx context.Context, in *OOMReportExportRequest, opts ...grpc.CallOption) (*CrashReportArchive, error)
+	DeletePowerReport(ctx context.Context, in *OOMReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	DeleteAllPowerReports(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	InstallUpdate(ctx context.Context, in *InstallUpdateRequest, opts ...grpc.CallOption) (*InstallUpdateResponse, error)
 	GetSecuritySettings(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*SecuritySettings, error)
 	SetInsecureModeEnabled(ctx context.Context, in *SetInsecureModeEnabledRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -257,6 +269,66 @@ func (c *desktopServiceClient) DeleteAllOOMReports(ctx context.Context, in *empt
 	return out, nil
 }
 
+func (c *desktopServiceClient) ListPowerReports(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*OOMReportList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OOMReportList)
+	err := c.cc.Invoke(ctx, DesktopService_ListPowerReports_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *desktopServiceClient) ReadPowerReport(ctx context.Context, in *OOMReportRequest, opts ...grpc.CallOption) (*OOMReportContent, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OOMReportContent)
+	err := c.cc.Invoke(ctx, DesktopService_ReadPowerReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *desktopServiceClient) MarkPowerReportRead(ctx context.Context, in *OOMReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, DesktopService_MarkPowerReportRead_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *desktopServiceClient) ExportPowerReport(ctx context.Context, in *OOMReportExportRequest, opts ...grpc.CallOption) (*CrashReportArchive, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CrashReportArchive)
+	err := c.cc.Invoke(ctx, DesktopService_ExportPowerReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *desktopServiceClient) DeletePowerReport(ctx context.Context, in *OOMReportRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, DesktopService_DeletePowerReport_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *desktopServiceClient) DeleteAllPowerReports(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, DesktopService_DeleteAllPowerReports_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *desktopServiceClient) InstallUpdate(ctx context.Context, in *InstallUpdateRequest, opts ...grpc.CallOption) (*InstallUpdateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(InstallUpdateResponse)
@@ -319,6 +391,12 @@ type DesktopServiceServer interface {
 	ExportOOMReport(context.Context, *OOMReportExportRequest) (*CrashReportArchive, error)
 	DeleteOOMReport(context.Context, *OOMReportRequest) (*emptypb.Empty, error)
 	DeleteAllOOMReports(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
+	ListPowerReports(context.Context, *emptypb.Empty) (*OOMReportList, error)
+	ReadPowerReport(context.Context, *OOMReportRequest) (*OOMReportContent, error)
+	MarkPowerReportRead(context.Context, *OOMReportRequest) (*emptypb.Empty, error)
+	ExportPowerReport(context.Context, *OOMReportExportRequest) (*CrashReportArchive, error)
+	DeletePowerReport(context.Context, *OOMReportRequest) (*emptypb.Empty, error)
+	DeleteAllPowerReports(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	InstallUpdate(context.Context, *InstallUpdateRequest) (*InstallUpdateResponse, error)
 	GetSecuritySettings(context.Context, *emptypb.Empty) (*SecuritySettings, error)
 	SetInsecureModeEnabled(context.Context, *SetInsecureModeEnabledRequest) (*emptypb.Empty, error)
@@ -403,6 +481,30 @@ func (UnimplementedDesktopServiceServer) DeleteOOMReport(context.Context, *OOMRe
 
 func (UnimplementedDesktopServiceServer) DeleteAllOOMReports(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteAllOOMReports not implemented")
+}
+
+func (UnimplementedDesktopServiceServer) ListPowerReports(context.Context, *emptypb.Empty) (*OOMReportList, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPowerReports not implemented")
+}
+
+func (UnimplementedDesktopServiceServer) ReadPowerReport(context.Context, *OOMReportRequest) (*OOMReportContent, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReadPowerReport not implemented")
+}
+
+func (UnimplementedDesktopServiceServer) MarkPowerReportRead(context.Context, *OOMReportRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method MarkPowerReportRead not implemented")
+}
+
+func (UnimplementedDesktopServiceServer) ExportPowerReport(context.Context, *OOMReportExportRequest) (*CrashReportArchive, error) {
+	return nil, status.Error(codes.Unimplemented, "method ExportPowerReport not implemented")
+}
+
+func (UnimplementedDesktopServiceServer) DeletePowerReport(context.Context, *OOMReportRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeletePowerReport not implemented")
+}
+
+func (UnimplementedDesktopServiceServer) DeleteAllPowerReports(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteAllPowerReports not implemented")
 }
 
 func (UnimplementedDesktopServiceServer) InstallUpdate(context.Context, *InstallUpdateRequest) (*InstallUpdateResponse, error) {
@@ -765,6 +867,114 @@ func _DesktopService_DeleteAllOOMReports_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DesktopService_ListPowerReports_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DesktopServiceServer).ListPowerReports(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DesktopService_ListPowerReports_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DesktopServiceServer).ListPowerReports(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DesktopService_ReadPowerReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OOMReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DesktopServiceServer).ReadPowerReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DesktopService_ReadPowerReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DesktopServiceServer).ReadPowerReport(ctx, req.(*OOMReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DesktopService_MarkPowerReportRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OOMReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DesktopServiceServer).MarkPowerReportRead(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DesktopService_MarkPowerReportRead_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DesktopServiceServer).MarkPowerReportRead(ctx, req.(*OOMReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DesktopService_ExportPowerReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OOMReportExportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DesktopServiceServer).ExportPowerReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DesktopService_ExportPowerReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DesktopServiceServer).ExportPowerReport(ctx, req.(*OOMReportExportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DesktopService_DeletePowerReport_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OOMReportRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DesktopServiceServer).DeletePowerReport(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DesktopService_DeletePowerReport_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DesktopServiceServer).DeletePowerReport(ctx, req.(*OOMReportRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DesktopService_DeleteAllPowerReports_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DesktopServiceServer).DeleteAllPowerReports(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DesktopService_DeleteAllPowerReports_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DesktopServiceServer).DeleteAllPowerReports(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DesktopService_InstallUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(InstallUpdateRequest)
 	if err := dec(in); err != nil {
@@ -915,6 +1125,30 @@ var DesktopService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteAllOOMReports",
 			Handler:    _DesktopService_DeleteAllOOMReports_Handler,
+		},
+		{
+			MethodName: "ListPowerReports",
+			Handler:    _DesktopService_ListPowerReports_Handler,
+		},
+		{
+			MethodName: "ReadPowerReport",
+			Handler:    _DesktopService_ReadPowerReport_Handler,
+		},
+		{
+			MethodName: "MarkPowerReportRead",
+			Handler:    _DesktopService_MarkPowerReportRead_Handler,
+		},
+		{
+			MethodName: "ExportPowerReport",
+			Handler:    _DesktopService_ExportPowerReport_Handler,
+		},
+		{
+			MethodName: "DeletePowerReport",
+			Handler:    _DesktopService_DeletePowerReport_Handler,
+		},
+		{
+			MethodName: "DeleteAllPowerReports",
+			Handler:    _DesktopService_DeleteAllPowerReports_Handler,
 		},
 		{
 			MethodName: "InstallUpdate",

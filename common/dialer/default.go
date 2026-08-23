@@ -12,7 +12,9 @@ import (
 	"github.com/sagernet/sing-box/common/listener"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/service/powerreport"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -39,6 +41,7 @@ type DefaultDialer struct {
 	autoDetectBindFunc     control.Func
 	connectionManager      adapter.ConnectionManager
 	networkManager         adapter.NetworkManager
+	powerManager           *powerreport.Manager
 	networkStrategy        *C.NetworkStrategy
 	defaultNetworkStrategy bool
 	networkType            []C.InterfaceType
@@ -231,6 +234,7 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		autoDetectBindFunc:     autoDetectBindFunc,
 		connectionManager:      connectionManager,
 		networkManager:         networkManager,
+		powerManager:           service.FromContext[*powerreport.Manager](ctx),
 		networkStrategy:        networkStrategy,
 		defaultNetworkStrategy: defaultNetworkStrategy,
 		networkType:            networkType,
@@ -262,7 +266,7 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 		return nil, E.New("domain not resolved")
 	}
 	if d.networkStrategy == nil {
-		return d.trackConn(listener.ListenNetworkNamespace[net.Conn](ctx, d.netns, func() (net.Conn, error) {
+		conn, err := listener.ListenNetworkNamespace[net.Conn](ctx, d.netns, func() (net.Conn, error) {
 			switch N.NetworkName(network) {
 			case N.NetworkUDP:
 				if !address.IsIPv6() {
@@ -276,7 +280,8 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 			} else {
 				return DialSlowContext(&d.dialer6, ctx, network, address)
 			}
-		}))
+		})
+		return d.trackConn(ctx, address, conn, err)
 	} else {
 		return d.DialParallelInterface(ctx, network, address, d.networkStrategy, d.networkType, d.fallbackNetworkType, d.networkFallbackDelay)
 	}
@@ -327,12 +332,12 @@ func (d *DefaultDialer) DialParallelInterface(ctx context.Context, network strin
 	if !fastFallback && !isPrimary {
 		d.networkLastFallback.Store(time.Now())
 	}
-	return d.trackConn(conn, nil)
+	return d.trackConn(ctx, address, conn, nil)
 }
 
 func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if d.networkStrategy == nil {
-		return d.trackPacketConn(listener.ListenNetworkNamespace[net.PacketConn](ctx, d.netns, func() (net.PacketConn, error) {
+		packetConn, err := listener.ListenNetworkNamespace[net.PacketConn](ctx, d.netns, func() (net.PacketConn, error) {
 			listenConfig := d.udpListener
 			if d.autoDetectBindFunc != nil {
 				listenConfig.Control = control.Append(listenConfig.Control, func(network, address string, conn syscall.RawConn) error {
@@ -349,7 +354,8 @@ func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 			} else {
 				return listenConfig.ListenPacket(ctx, N.NetworkUDP, d.udpAddr4)
 			}
-		}))
+		})
+		return d.trackPacketConn(ctx, destination, packetConn, err)
 	} else {
 		return d.ListenSerialInterfacePacket(ctx, destination, d.networkStrategy, d.networkType, d.fallbackNetworkType, d.networkFallbackDelay)
 	}
@@ -393,7 +399,7 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 			return nil, err
 		}
 	}
-	return d.trackPacketConn(packetConn, nil)
+	return d.trackPacketConn(ctx, destination, packetConn, nil)
 }
 
 func (d *DefaultDialer) UDPListenerControl() (control.Func, bool) {
@@ -405,16 +411,68 @@ func (d *DefaultDialer) UDPListenerControl() (control.Func, bool) {
 	return listenerControl, egressEnabled
 }
 
-func (d *DefaultDialer) trackConn(conn net.Conn, err error) (net.Conn, error) {
-	if d.connectionManager == nil || err != nil {
+func (d *DefaultDialer) trackConn(ctx context.Context, destination M.Socksaddr, conn net.Conn, err error) (net.Conn, error) {
+	if err != nil {
 		return conn, err
 	}
-	return d.connectionManager.TrackConn(conn), nil
+	if d.connectionManager != nil {
+		conn = d.connectionManager.TrackConn(conn)
+	}
+	if d.powerManager != nil {
+		recorder := d.powerManager.Recorder()
+		if recorder != nil {
+			recorder.CountConnectionOpened()
+			attribution := dialAttribution(ctx, destination)
+			conn = bufio.NewCounterConn(conn, []N.CountFunc{func(n int64) {
+				recorder.Touch(powerreport.DirectionInbound, int(n), attribution)
+			}}, []N.CountFunc{func(n int64) {
+				recorder.Touch(powerreport.DirectionOutbound, int(n), attribution)
+			}})
+		}
+	}
+	return conn, nil
 }
 
-func (d *DefaultDialer) trackPacketConn(conn net.PacketConn, err error) (net.PacketConn, error) {
-	if d.connectionManager == nil || err != nil {
+func (d *DefaultDialer) trackPacketConn(ctx context.Context, destination M.Socksaddr, conn net.PacketConn, err error) (net.PacketConn, error) {
+	if err != nil {
 		return conn, err
 	}
-	return d.connectionManager.TrackPacketConn(conn), nil
+	if d.connectionManager != nil {
+		conn = d.connectionManager.TrackPacketConn(conn)
+	}
+	if d.powerManager != nil {
+		recorder := d.powerManager.Recorder()
+		if recorder != nil {
+			recorder.CountConnectionOpened()
+			attribution := dialAttribution(ctx, destination)
+			conn = bufio.NewNetPacketConn(bufio.NewCounterPacketConn(bufio.NewPacketConn(conn), []N.CountFunc{func(n int64) {
+				recorder.Touch(powerreport.DirectionInbound, int(n), attribution)
+			}}, []N.CountFunc{func(n int64) {
+				recorder.Touch(powerreport.DirectionOutbound, int(n), attribution)
+			}}))
+		}
+	}
+	return conn, nil
+}
+
+func dialAttribution(ctx context.Context, destination M.Socksaddr) *powerreport.Attribution {
+	metadata := adapter.ContextFrom(ctx)
+	if metadata == nil {
+		return &powerreport.Attribution{Destination: destination.String()}
+	}
+	attribution := &powerreport.Attribution{
+		Domain:   metadata.Domain,
+		Outbound: metadata.Outbound,
+	}
+	if metadata.Inbound != "" {
+		attribution.Inbound = metadata.InboundType + "/" + metadata.Inbound
+	} else {
+		attribution.Inbound = metadata.InboundType
+	}
+	if metadata.Destination.IsValid() {
+		attribution.Destination = metadata.Destination.String()
+	} else {
+		attribution.Destination = destination.String()
+	}
+	return attribution
 }

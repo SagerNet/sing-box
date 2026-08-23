@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	R "github.com/sagernet/sing-box/route/rule"
+	"github.com/sagernet/sing-box/service/powerreport"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -39,6 +40,7 @@ type Router struct {
 	logger                logger.ContextLogger
 	transport             adapter.DNSTransportManager
 	outbound              adapter.OutboundManager
+	powerManager          *powerreport.Manager
 	client                adapter.DNSClient
 	rawRules              []option.DNSRule
 	rules                 []adapter.DNSRule
@@ -57,6 +59,7 @@ func NewRouter(ctx context.Context, logFactory log.Factory, options option.DNSOp
 		logger:                logFactory.NewLogger("dns"),
 		transport:             service.FromContext[adapter.DNSTransportManager](ctx),
 		outbound:              service.FromContext[adapter.OutboundManager](ctx),
+		powerManager:          service.FromContext[*powerreport.Manager](ctx),
 		rawRules:              make([]option.DNSRule, 0, len(options.Rules)),
 		rules:                 make([]adapter.DNSRule, 0, len(options.Rules)),
 		defaultDomainStrategy: C.DomainStrategy(options.Strategy),
@@ -1053,6 +1056,12 @@ type dnsExchangeContext struct {
 }
 
 func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsExchangeContext, *mDNS.Msg, error) {
+	if r.powerManager != nil {
+		recorder := r.powerManager.Recorder()
+		if recorder != nil {
+			recorder.CountDNSQuery()
+		}
+	}
 	if len(message.Question) != 1 {
 		r.logger.WarnContext(ctx, "bad question size: ", len(message.Question))
 		return nil, &mDNS.Msg{

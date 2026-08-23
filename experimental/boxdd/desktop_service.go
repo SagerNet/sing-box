@@ -87,6 +87,7 @@ func (s *desktopService) StartService(ctx context.Context, request *StartService
 		mergedOptions.OOMKillerEnabled = request.Options.OomKillerEnabled
 		mergedOptions.OOMKillerDisabled = request.Options.OomKillerDisabled
 		mergedOptions.OOMMemoryLimit = request.Options.OomMemoryLimit
+		mergedOptions.PowerReportEnabled = request.Options.PowerReportEnabled
 	}
 	err = s.daemon.startServiceLocked(ctx, identity.UserID, request.ConfigContent, mergedOptions)
 	if err != nil {
