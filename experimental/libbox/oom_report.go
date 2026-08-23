@@ -302,16 +302,24 @@ func buildOOMConnection(connection *trafficcontrol.TrackerMetadata) oomConnectio
 	return info
 }
 
-func writeOOMLog(destPath string, entries []*log.Entry) {
+func formatLogEntries(entries []*log.Entry) []byte {
 	if len(entries) == 0 {
-		return
+		return nil
 	}
 	var buffer bytes.Buffer
 	for _, entry := range entries {
 		writeWithoutColors(&buffer, entry.Message)
 		buffer.WriteByte('\n')
 	}
-	writeReportFile(destPath, "go.log", buffer.Bytes())
+	return buffer.Bytes()
+}
+
+func writeOOMLog(destPath string, entries []*log.Entry) {
+	content := formatLogEntries(entries)
+	if content == nil {
+		return
+	}
+	writeReportFile(destPath, "go.log", content)
 }
 
 func writeWithoutColors(buffer *bytes.Buffer, message string) {

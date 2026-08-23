@@ -25,6 +25,12 @@ service DesktopService {
   rpc ExportOOMReport(OOMReportExportRequest) returns (CrashReportArchive) {}
   rpc DeleteOOMReport(OOMReportRequest) returns (google.protobuf.Empty) {}
   rpc DeleteAllOOMReports(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+  rpc ListPowerReports(google.protobuf.Empty) returns (OOMReportList) {}
+  rpc ReadPowerReport(OOMReportRequest) returns (OOMReportContent) {}
+  rpc MarkPowerReportRead(OOMReportRequest) returns (google.protobuf.Empty) {}
+  rpc ExportPowerReport(OOMReportExportRequest) returns (CrashReportArchive) {}
+  rpc DeletePowerReport(OOMReportRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteAllPowerReports(google.protobuf.Empty) returns (google.protobuf.Empty) {}
   rpc InstallUpdate(InstallUpdateRequest) returns (InstallUpdateResponse) {}
   rpc GetSecuritySettings(google.protobuf.Empty) returns (SecuritySettings) {}
   rpc SetInsecureModeEnabled(SetInsecureModeEnabledRequest) returns (google.protobuf.Empty) {}
@@ -80,6 +86,7 @@ message StartOptions {
   bool oom_killer_enabled = 1;
   bool oom_killer_disabled = 2;
   int64 oom_memory_limit = 3;
+  bool power_report_enabled = 4;
 }
 
 message ConfigContent {

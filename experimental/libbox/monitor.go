@@ -1,6 +1,7 @@
 package libbox
 
 import (
+	"github.com/sagernet/sing-box/service/powerreport"
 	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -69,6 +70,24 @@ func (m *platformDefaultInterfaceMonitor) UpdateDefaultInterface(interfaceName s
 }
 
 func (m *platformDefaultInterfaceMonitor) updateDefaultInterface(interfaceName string, interfaceIndex32 int32, isExpensive bool, isConstrained bool) {
+	var recorder *powerreport.Recorder
+	if m.powerManager != nil {
+		recorder = m.powerManager.Recorder()
+	}
+	if recorder != nil {
+		networkType := interfaceName
+		if interfaceIndex32 == -1 {
+			networkType = "none"
+		} else {
+			if isExpensive {
+				networkType += ",expensive"
+			}
+			if isConstrained {
+				networkType += ",constrained"
+			}
+		}
+		recorder.UpdateNetworkType(networkType)
+	}
 	m.isExpensive = isExpensive
 	m.isConstrained = isConstrained
 	err := m.networkManager.UpdateInterfaces()

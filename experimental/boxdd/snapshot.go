@@ -22,6 +22,7 @@ type startOptions struct {
 	OOMKillerEnabled   bool  `json:"oom_killer_enabled"`
 	OOMKillerDisabled  bool  `json:"oom_killer_disabled"`
 	OOMMemoryLimit     int64 `json:"oom_memory_limit"`
+	PowerReportEnabled bool  `json:"power_report_enabled,omitempty"`
 	SystemProxyEnabled *bool `json:"system_proxy_enabled,omitempty"`
 }
 

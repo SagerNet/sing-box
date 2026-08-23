@@ -65,6 +65,7 @@ func prepareWorkingDirectory() error {
 		return err
 	}
 	libbox.PromoteOOMDraft()
+	libbox.PromotePowerReportDraft()
 	return nil
 }
 
