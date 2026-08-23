@@ -34,6 +34,7 @@ var (
 	sOOMKillerEnabled        bool
 	sOOMKillerDisabled       bool
 	sOOMMemoryLimit          int64
+	sPowerReportEnabled      bool
 )
 
 func init() {
@@ -54,6 +55,7 @@ type SetupOptions struct {
 	OomKillerEnabled        bool
 	OomKillerDisabled       bool
 	OomMemoryLimit          int64
+	PowerReportEnabled      bool
 }
 
 func applySetupOptions(options *SetupOptions) {
@@ -80,6 +82,7 @@ func ReloadSetupOptions(options *SetupOptions) {
 	sOOMKillerEnabled = options.OomKillerEnabled
 	sOOMKillerDisabled = options.OomKillerDisabled
 	sOOMMemoryLimit = options.OomMemoryLimit
+	sPowerReportEnabled = options.PowerReportEnabled
 	if sOOMKillerEnabled {
 		if sOOMMemoryLimit == 0 && C.IsIos {
 			sOOMMemoryLimit = oomkiller.DefaultAppleNetworkExtensionMemoryLimit

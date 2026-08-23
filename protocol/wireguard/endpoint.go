@@ -105,6 +105,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 				},
 			}))
 		},
+		Tag:        tag,
 		Name:       options.Name,
 		MTU:        options.MTU,
 		Address:    options.Address,
