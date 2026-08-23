@@ -17,9 +17,11 @@ icon: material/new-box
   "password": "password",
   "insecure_concurrency": 0,
   "extra_headers": {},
+  "stream_receive_window": "",
   "udp_over_tcp": false | {},
   "quic": false,
   "quic_congestion_control": "",
+  "quic_session_receive_window": "",
   "tls": {},
 
   ... // 拨号字段
@@ -78,6 +80,14 @@ icon: material/new-box
 
 HTTP 请求中发送的额外头部。
 
+#### stream_receive_window
+
+流量控制窗口。
+
+当 `quic` 启用时，它设置 QUIC 初始流接收窗口，默认使用 `6 MB`。
+
+否则，它设置 HTTP/2 会话接收窗口，流接收窗口被设置为它的一半，在 iOS 上默认使用 `4 MB`，在其他平台上默认使用 `128 MB`。
+
 #### udp_over_tcp
 
 UDP over TCP 配置。
@@ -100,6 +110,16 @@ QUIC 拥塞控制算法。
 | `reno` | New Reno |
 
 默认使用 `bbr`（NaiveProxy 基于的 Chromium 使用的 QUICHE 的默认值）。
+
+#### quic_session_receive_window
+
+!!! note ""
+
+    仅在 `quic` 启用时使用。
+
+QUIC 初始会话接收窗口。
+
+默认使用 `15 MB`。
 
 #### tls
 

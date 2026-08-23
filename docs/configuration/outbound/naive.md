@@ -17,9 +17,11 @@ icon: material/new-box
   "password": "password",
   "insecure_concurrency": 0,
   "extra_headers": {},
+  "stream_receive_window": "",
   "udp_over_tcp": false | {},
   "quic": false,
   "quic_congestion_control": "",
+  "quic_session_receive_window": "",
   "tls": {},
 
   ... // Dial Fields
@@ -78,6 +80,14 @@ Number of concurrent tunnel connections. Multiple connections make the tunneling
 
 Extra headers to send in HTTP requests.
 
+#### stream_receive_window
+
+The flow control window.
+
+When `quic` is enabled, it sets the initial QUIC stream receive window, and `6 MB` is used by default.
+
+Otherwise, it sets the HTTP/2 session receive window, the stream receive window is set to half of it, and `4 MB` is used by default on iOS, `128 MB` on other platforms.
+
 #### udp_over_tcp
 
 UDP over TCP protocol settings.
@@ -100,6 +110,16 @@ QUIC congestion control algorithm.
 | `reno` | New Reno |
 
 `bbr` is used by default (the default of QUICHE, used by Chromium which NaiveProxy is based on).
+
+#### quic_session_receive_window
+
+!!! note ""
+
+    Only used when `quic` is enabled.
+
+The initial QUIC session receive window.
+
+`15 MB` is used by default.
 
 #### tls
 
