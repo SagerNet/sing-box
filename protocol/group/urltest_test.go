@@ -1,12 +1,24 @@
 package group
 
 import (
+	"context"
+	"net"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/adapter/outbound"
+	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 
 	"github.com/stretchr/testify/require"
 )
@@ -142,14 +154,149 @@ func TestRecordBandwidthWindow(t *testing.T) {
 		bandwidth:        &bandwidthTestOptions{samples: 3},
 		bandwidthHistory: make(map[string]*bandwidthState),
 	}
-	require.Equal(t, uint32(100), group.recordBandwidth("proxy", 100))
-	require.Equal(t, uint32(150), group.recordBandwidth("proxy", 200))
-	require.Equal(t, uint32(200), group.recordBandwidth("proxy", 300))
+	epoch := group.currentBandwidthEpoch()
+	record := func(throughput uint32) uint32 {
+		smoothed, recorded := group.recordBandwidthChecked(epoch, "proxy", throughput)
+		require.True(t, recorded)
+		return smoothed
+	}
+	require.Equal(t, uint32(100), record(100))
+	require.Equal(t, uint32(150), record(200))
+	require.Equal(t, uint32(200), record(300))
 	// The window slides rather than growing, so old samples stop counting.
-	require.Equal(t, uint32(300), group.recordBandwidth("proxy", 400))
+	require.Equal(t, uint32(300), record(400))
 	require.Len(t, group.bandwidthHistory["proxy"].samples, 3)
 	require.Equal(t, uint32(300), group.loadBandwidth("proxy"))
 
 	group.resetBandwidth()
 	require.Zero(t, group.loadBandwidth("proxy"))
+	// A probe that started before the reset measured the previous network path;
+	// its sample must be dropped instead of written back into the cleared history.
+	_, recorded := group.recordBandwidthChecked(epoch, "proxy", 500)
+	require.False(t, recorded)
+	require.Zero(t, group.loadBandwidth("proxy"))
+	// A probe started after the reset records normally.
+	newEpoch := group.currentBandwidthEpoch()
+	require.Equal(t, epoch+1, newEpoch)
+	smoothed, recorded := group.recordBandwidthChecked(newEpoch, "proxy", 600)
+	require.True(t, recorded)
+	require.Equal(t, uint32(600), smoothed)
+}
+
+// hangingDialOutbound reproduces the #4255 failure mode: a dialer that parks
+// forever while ignoring the context deadline it was handed.
+type hangingDialOutbound struct {
+	outbound.Adapter
+	block    chan struct{}
+	release  sync.Once
+	dials    atomic.Int32
+	returned atomic.Int32
+}
+
+func (o *hangingDialOutbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	o.dials.Add(1)
+	<-o.block
+	o.returned.Add(1)
+	return nil, E.New("dial released")
+}
+
+func (o *hangingDialOutbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	return nil, E.New("not implemented")
+}
+
+// unblock lets parked dials return; safe to call more than once.
+func (o *hangingDialOutbound) unblock() {
+	o.release.Do(func() { close(o.block) })
+}
+
+type staticOutboundManager struct {
+	outbounds []adapter.Outbound
+}
+
+func (m *staticOutboundManager) Start(stage adapter.StartStage) error { return nil }
+func (m *staticOutboundManager) Close() error                         { return nil }
+func (m *staticOutboundManager) Outbounds() []adapter.Outbound        { return m.outbounds }
+func (m *staticOutboundManager) Default() adapter.Outbound            { return m.outbounds[0] }
+func (m *staticOutboundManager) Remove(tag string) error              { return nil }
+func (m *staticOutboundManager) Outbound(tag string) (adapter.Outbound, bool) {
+	for _, detour := range m.outbounds {
+		if detour.Tag() == tag {
+			return detour, true
+		}
+	}
+	return nil, false
+}
+
+func (m *staticOutboundManager) Create(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, outboundType string, options any) error {
+	return nil
+}
+
+func newHangingBandwidthGroup(t *testing.T) (*URLTestGroup, *hangingDialOutbound) {
+	hang := &hangingDialOutbound{
+		Adapter: outbound.NewAdapter(C.TypeDirect, "hang", []string{N.NetworkTCP, N.NetworkUDP}, nil),
+		block:   make(chan struct{}),
+	}
+	ctx := service.ContextWithPtr[urltest.HistoryStorage](context.Background(), urltest.NewHistoryStorage())
+	group, err := NewURLTestGroup(
+		ctx, &staticOutboundManager{outbounds: []adapter.Outbound{hang}},
+		log.NewNOPFactory().Logger(), []adapter.Outbound{hang},
+		"https://example.com/payload", 50*time.Millisecond, 0, time.Second, false,
+		&option.URLTestBandwidthTestOptions{
+			Enabled: true,
+			URL:     "https://example.com/payload",
+			Timeout: badoption.Duration(50 * time.Millisecond),
+		},
+	)
+	require.NoError(t, err)
+	t.Cleanup(hang.unblock)
+	return group, hang
+}
+
+func TestBandwidthRoundCeilingReleasesGuard(t *testing.T) {
+	t.Parallel()
+	group, hang := newHangingBandwidthGroup(t)
+
+	// One worker and default concurrency give a budget of two probe timeouts; the
+	// dial ignores its deadline, so the round must be abandoned at the budget
+	// instead of wedging on batch.Wait() forever.
+	done := make(chan struct{})
+	go func() {
+		group.bandwidthTest(context.Background(), true)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("bandwidth round did not return under its budget")
+	}
+
+	// The re-entrancy guard went down with the round: a second forced round spawns
+	// a worker and dials again instead of being silently skipped.
+	group.bandwidthTest(context.Background(), true)
+	require.Eventually(t, func() bool {
+		return hang.dials.Load() == 2
+	}, 2*time.Second, 5*time.Millisecond)
+}
+
+func TestBandwidthAbandonedSampleDroppedAfterReset(t *testing.T) {
+	t.Parallel()
+	group, hang := newHangingBandwidthGroup(t)
+
+	// A round is abandoned while its worker hangs, then the network changes.
+	group.bandwidthTest(context.Background(), true)
+	require.Eventually(t, func() bool {
+		return hang.dials.Load() == 1
+	}, 2*time.Second, 5*time.Millisecond)
+	group.resetBandwidth()
+
+	// When the abandoned worker finally unblocks, its sample belongs to the
+	// previous network path and must not surface in the cleared history.
+	hang.unblock()
+	require.Eventually(t, func() bool {
+		return hang.returned.Load() == 1
+	}, 2*time.Second, 5*time.Millisecond)
+	// The dial has returned; give the worker a moment to run its record path,
+	// then require that no sample survived the reset.
+	time.Sleep(100 * time.Millisecond)
+	require.Empty(t, group.bandwidthHistory)
 }
