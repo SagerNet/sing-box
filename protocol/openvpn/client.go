@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/endpoint"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/iponly"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -791,16 +792,20 @@ func (c *ClientEndpoint) ListenPacketWithDestination(ctx context.Context, destin
 		if err != nil {
 			return nil, netip.Addr{}, err
 		}
-		return N.ListenSerial(ctx, c.device, destination, destinationAddresses)
+		packetConn, destinationAddress, err := N.ListenSerial(ctx, c.device, destination, destinationAddresses)
+		if err != nil {
+			return nil, netip.Addr{}, err
+		}
+		return iponly.NewPacketConn(c.logger, packetConn), destinationAddress, nil
 	}
 	packetConn, err := c.device.ListenPacket(ctx, destination)
 	if err != nil {
 		return nil, netip.Addr{}, err
 	}
 	if destination.IsIP() {
-		return packetConn, destination.Addr, nil
+		return iponly.NewPacketConn(c.logger, packetConn), destination.Addr, nil
 	}
-	return packetConn, netip.Addr{}, nil
+	return iponly.NewPacketConn(c.logger, packetConn), netip.Addr{}, nil
 }
 
 func (c *ClientEndpoint) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
