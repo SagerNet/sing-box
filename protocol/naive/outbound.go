@@ -257,7 +257,7 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 }
 
 func (h *Outbound) InterfaceUpdated(ctx context.Context) {
-	h.client.Engine().CloseAllConnections()
+	h.client.CloseAllConnections()
 }
 
 func (h *Outbound) Close() error {
