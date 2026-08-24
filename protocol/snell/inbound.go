@@ -189,6 +189,8 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 func (h *Inbound) newPacketConnection(ctx context.Context, conn N.PacketConn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	metadata.Inbound = h.Tag()
 	metadata.InboundType = h.Type()
+	// The snell client in Surge rejects UDP responses with domain addresses.
+	metadata.UDPDisableDomainUnmapping = true
 	if len(h.users) > 0 {
 		userIndex, loaded := auth.UserFromContext[int](ctx)
 		if !loaded {
