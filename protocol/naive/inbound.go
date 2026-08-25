@@ -59,6 +59,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		ctx:     ctx,
 		router:  uot.NewRouter(router, logger),
 		logger:  logger,
+		options: options,
 		listener: listener.New(listener.Options{
 			Context: ctx,
 			Logger:  logger,
