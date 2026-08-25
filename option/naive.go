@@ -12,7 +12,7 @@ const (
 	QuicheCongestionControlDefault QuicheCongestionControl = ""
 	QuicheCongestionControlBBR     QuicheCongestionControl = "TBBR"
 	QuicheCongestionControlBBRv2   QuicheCongestionControl = "B2ON"
-	QuicheCongestionControlCubic   QuicheCongestionControl = "QBIC"
+	QuicheCongestionControlCubic   QuicheCongestionControl = "CQBC"
 	QuicheCongestionControlReno    QuicheCongestionControl = "RENO"
 )
 
