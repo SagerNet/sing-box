@@ -86,6 +86,10 @@ func (h *Outbound) Start(stage adapter.StartStage) error {
 	return nil
 }
 
+func (h *Outbound) Close() error {
+	return nil
+}
+
 func (h *Outbound) fetchMyAddresses() {
 	if len(h.myAddresses.Load()) > 0 {
 		return
