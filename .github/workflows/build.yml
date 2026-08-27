@@ -1098,37 +1098,36 @@ jobs:
           echo "ASC_KEY_ID=$ASC_KEY_ID" >> "$GITHUB_ENV"
           echo "ASC_KEY_ISSUER_ID=$ASC_KEY_ISSUER_ID" >> "$GITHUB_ENV"
         env:
-          ASC_KEY: ${{ secrets.ASC_KEY }}
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
+          ASC_KEY: ${{ secrets.LEGACY_ASC_KEY }}
+          ASC_KEY_ID: ${{ secrets.LEGACY_ASC_KEY_ID }}
+          ASC_KEY_ISSUER_ID: ${{ secrets.LEGACY_ASC_KEY_ISSUER_ID }}
       - name: Install Apple provisioning profiles
         if: matrix.if && matrix.type != 'jailbreak'
         run: |-
           PROFILES_ZIP_PATH=$RUNNER_TEMP/AppleProvisioningProfiles.zip
-          for index in $(seq 1 16); do
-            variable="PROVISIONING_PROFILES_$index"
+          for variable in $(compgen -v | grep -E '^PROVISIONING_PROFILES_[0-9]+$' | sort -t_ -k3 -n); do
             printf '%s' "${!variable}"
           done | base64 --decode -o $PROFILES_ZIP_PATH
           PROFILES_PATH="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
           mkdir -p "$PROFILES_PATH"
           unzip -q $PROFILES_ZIP_PATH -d "$PROFILES_PATH"
         env:
-          PROVISIONING_PROFILES_1: ${{ secrets.APPLE_PROVISIONING_PROFILES_1 }}
-          PROVISIONING_PROFILES_2: ${{ secrets.APPLE_PROVISIONING_PROFILES_2 }}
-          PROVISIONING_PROFILES_3: ${{ secrets.APPLE_PROVISIONING_PROFILES_3 }}
-          PROVISIONING_PROFILES_4: ${{ secrets.APPLE_PROVISIONING_PROFILES_4 }}
-          PROVISIONING_PROFILES_5: ${{ secrets.APPLE_PROVISIONING_PROFILES_5 }}
-          PROVISIONING_PROFILES_6: ${{ secrets.APPLE_PROVISIONING_PROFILES_6 }}
-          PROVISIONING_PROFILES_7: ${{ secrets.APPLE_PROVISIONING_PROFILES_7 }}
-          PROVISIONING_PROFILES_8: ${{ secrets.APPLE_PROVISIONING_PROFILES_8 }}
-          PROVISIONING_PROFILES_9: ${{ secrets.APPLE_PROVISIONING_PROFILES_9 }}
-          PROVISIONING_PROFILES_10: ${{ secrets.APPLE_PROVISIONING_PROFILES_10 }}
-          PROVISIONING_PROFILES_11: ${{ secrets.APPLE_PROVISIONING_PROFILES_11 }}
-          PROVISIONING_PROFILES_12: ${{ secrets.APPLE_PROVISIONING_PROFILES_12 }}
-          PROVISIONING_PROFILES_13: ${{ secrets.APPLE_PROVISIONING_PROFILES_13 }}
-          PROVISIONING_PROFILES_14: ${{ secrets.APPLE_PROVISIONING_PROFILES_14 }}
-          PROVISIONING_PROFILES_15: ${{ secrets.APPLE_PROVISIONING_PROFILES_15 }}
-          PROVISIONING_PROFILES_16: ${{ secrets.APPLE_PROVISIONING_PROFILES_16 }}
+          PROVISIONING_PROFILES_1: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_1 }}
+          PROVISIONING_PROFILES_2: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_2 }}
+          PROVISIONING_PROFILES_3: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_3 }}
+          PROVISIONING_PROFILES_4: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_4 }}
+          PROVISIONING_PROFILES_5: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_5 }}
+          PROVISIONING_PROFILES_6: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_6 }}
+          PROVISIONING_PROFILES_7: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_7 }}
+          PROVISIONING_PROFILES_8: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_8 }}
+          PROVISIONING_PROFILES_9: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_9 }}
+          PROVISIONING_PROFILES_10: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_10 }}
+          PROVISIONING_PROFILES_11: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_11 }}
+          PROVISIONING_PROFILES_12: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_12 }}
+          PROVISIONING_PROFILES_13: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_13 }}
+          PROVISIONING_PROFILES_14: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_14 }}
+          PROVISIONING_PROFILES_15: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_15 }}
+          PROVISIONING_PROFILES_16: ${{ secrets.LEGACY_APPLE_PROVISIONING_PROFILES_16 }}
       - name: Setup Apple Development certificate
         if: matrix.if && matrix.type != 'jailbreak'
         run: |-
@@ -1145,8 +1144,8 @@ jobs:
           security find-identity -v -p codesigning $KEYCHAIN_PATH
           echo "APPLE_DEVELOPMENT_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
         env:
-          APPLE_DEVELOPMENT_CERTIFICATES_P12: ${{ secrets.APPLE_DEVELOPMENT_CERTIFICATES_P12 }}
-          P12_PASSWORD: ${{ secrets.APPLE_DEVELOPMENT_P12_PASSWORD }}
+          APPLE_DEVELOPMENT_CERTIFICATES_P12: ${{ secrets.LEGACY_APPLE_DEVELOPMENT_CERTIFICATES_P12 }}
+          P12_PASSWORD: ${{ secrets.LEGACY_APPLE_DEVELOPMENT_P12_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
       - name: Setup Developer ID certificates
         if: matrix.if && matrix.type == 'standalone'
@@ -1164,8 +1163,8 @@ jobs:
           security find-identity -v -p codesigning $KEYCHAIN_PATH
           echo "SIGNING_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
         env:
-          DEVELOPER_ID_CERTIFICATES_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATES_P12 }}
-          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+          DEVELOPER_ID_CERTIFICATES_P12: ${{ secrets.LEGACY_DEVELOPER_ID_CERTIFICATES_P12 }}
+          P12_PASSWORD: ${{ secrets.LEGACY_DEVELOPER_ID_P12_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
       - name: Setup notarization credentials
         if: matrix.if && matrix.type == 'standalone' && github.event_name == 'workflow_dispatch'
