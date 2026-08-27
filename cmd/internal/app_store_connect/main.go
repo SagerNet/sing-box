@@ -19,8 +19,11 @@ import (
 func main() {
 	ctx := context.Background()
 	switch os.Args[1] {
-	case "next_macos_project_version":
-		err := fetchMacOSVersion(ctx)
+	case "next_project_version":
+		if len(os.Args) < 3 {
+			log.Fatal("platform required: ios, macos, or tvos")
+		}
+		err := fetchNextProjectVersion(ctx, os.Args[2])
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -50,8 +53,8 @@ func main() {
 }
 
 const (
-	appID   = "6673731168"
-	groupID = "5c5f3b78-b7a0-40c0-bcad-e6ef87bbefda"
+	appID   = "6785326793"
+	groupID = "39f9ebdc-05d4-421f-9595-dae71df227c4"
 )
 
 func createClient(expireDuration time.Duration) *asc.Client {
@@ -66,36 +69,49 @@ func createClient(expireDuration time.Duration) *asc.Client {
 	return asc.NewClient(tokenConfig.Client())
 }
 
-func fetchMacOSVersion(ctx context.Context) error {
+func fetchNextProjectVersion(ctx context.Context, platformName string) error {
+	var platform asc.Platform
+	switch platformName {
+	case "ios":
+		platform = asc.PlatformIOS
+	case "macos":
+		platform = asc.PlatformMACOS
+	case "tvos":
+		platform = asc.PlatformTVOS
+	default:
+		return E.New("unknown platform: ", platformName)
+	}
+
+	query := &asc.ListBuildsQuery{
+		FilterApp:                       []string{appID},
+		FilterPreReleaseVersionPlatform: []string{string(platform)},
+		Limit:                           200,
+	}
+	if platform != asc.PlatformMACOS {
+		tagVersion, err := build_shared.ReadTagVersion()
+		if err != nil {
+			return err
+		}
+		query.FilterPreReleaseVersionVersion = []string{build_shared.TestFlightVersion(tagVersion)}
+	}
+
 	client := createClient(time.Minute)
-	versions, _, err := client.Apps.ListAppStoreVersionsForApp(ctx, appID, &asc.ListAppStoreVersionsQuery{
-		FilterPlatform: []string{"MAC_OS"},
-	})
+	builds, _, err := client.Builds.ListBuilds(ctx, query)
 	if err != nil {
 		return err
 	}
-	var versionID string
-findVersion:
-	for _, version := range versions.Data {
-		switch *version.Attributes.AppStoreState {
-		case asc.AppStoreVersionStateReadyForSale,
-			asc.AppStoreVersionStatePendingDeveloperRelease:
-			versionID = version.ID
-			break findVersion
+	nextProjectVersion := 1
+	var projectVersion int
+	for _, build := range builds.Data {
+		projectVersion, err = strconv.Atoi(*build.Attributes.Version)
+		if err != nil {
+			return E.Cause(err, "parse version code")
+		}
+		if projectVersion >= nextProjectVersion {
+			nextProjectVersion = projectVersion + 1
 		}
 	}
-	if versionID == "" {
-		return E.New("no version found")
-	}
-	latestBuild, _, err := client.Builds.GetBuildForAppStoreVersion(ctx, versionID, &asc.GetBuildForAppStoreVersionQuery{})
-	if err != nil {
-		return err
-	}
-	versionInt, err := strconv.Atoi(*latestBuild.Data.Attributes.Version)
-	if err != nil {
-		return E.Cause(err, "parse version code")
-	}
-	os.Stdout.WriteString(F.ToString(versionInt+1, "\n"))
+	os.Stdout.WriteString(F.ToString(nextProjectVersion, "\n"))
 	return nil
 }
 

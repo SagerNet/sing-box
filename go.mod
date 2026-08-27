@@ -33,7 +33,7 @@ require (
 	github.com/openai/openai-go/v3 v3.26.0
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/pkg/sftp v1.13.10
-	github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1
+	github.com/sagernet/asc-go v0.0.0-20260827085112-8f8226245b0d
 	github.com/sagernet/bbolt v0.0.0-20260823094646-e24805439c9c
 	github.com/sagernet/cors v1.2.1
 	github.com/sagernet/cronet-go v0.0.0-20260824154604-9247da29c718
