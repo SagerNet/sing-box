@@ -15,10 +15,14 @@ import (
 	"howett.net/plist"
 )
 
-var flagRunInCI bool
+var (
+	flagRunInCI    bool
+	flagTestFlight bool
+)
 
 func init() {
 	flag.BoolVar(&flagRunInCI, "ci", false, "Run in CI")
+	flag.BoolVar(&flagTestFlight, "testflight", false, "Override the App Store marketing version with the version reserved for TestFlight")
 }
 
 func main() {
@@ -41,19 +45,39 @@ func main() {
 	common.Must(decoder.Decode(&project))
 	objectsMap := project["objects"].(map[string]any)
 	projectContent := string(common.Must1(os.ReadFile("sing-box.xcodeproj/project.pbxproj")))
-	newContent, updated0 := findAndReplace(objectsMap, projectContent, []string{"io.nekohasekai.sfavt"}, newVersion.VersionString())
-	newContent, updated1 := findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfavt.standalone", "io.nekohasekai.sfavt.system"}, newVersion.String())
-	if updated0 || updated1 {
-		log.Info("updated version to ", newVersion.VersionString(), " (", newVersion.String(), ")")
-	}
-	var updated2 bool
-	if macProjectVersion := os.Getenv("MACOS_PROJECT_VERSION"); macProjectVersion != "" {
-		newContent, updated2 = findAndReplaceProjectVersion(objectsMap, newContent, []string{"SFM"}, macProjectVersion)
-		if updated2 {
-			log.Info("updated macos project version to ", macProjectVersion)
+	newContent := projectContent
+	var marketingVersionUpdated bool
+	if flagTestFlight {
+		testFlightVersion := build_shared.TestFlightVersion(newVersion)
+		newContent, marketingVersionUpdated = findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfamt"}, testFlightVersion)
+		if marketingVersionUpdated {
+			log.Info("updated App Store version to ", testFlightVersion)
 		}
 	}
-	if updated0 || updated1 || updated2 {
+	var standaloneVersionUpdated bool
+	newContent, standaloneVersionUpdated = findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfamt.standalone", "io.nekohasekai.sfamt.system"}, newVersion.String())
+	if standaloneVersionUpdated {
+		marketingVersionUpdated = true
+		log.Info("updated version to ", newVersion.String())
+	}
+	var projectVersionUpdated bool
+	for environmentName, directory := range map[string]string{
+		"IOS_PROJECT_VERSION":   "SFI",
+		"MACOS_PROJECT_VERSION": "SFM",
+		"TVOS_PROJECT_VERSION":  "SFT",
+	} {
+		projectVersion := os.Getenv(environmentName)
+		if projectVersion == "" {
+			continue
+		}
+		var updated bool
+		newContent, updated = findAndReplaceProjectVersion(objectsMap, newContent, []string{directory}, projectVersion)
+		if updated {
+			projectVersionUpdated = true
+			log.Info("updated ", directory, " project version to ", projectVersion)
+		}
+	}
+	if marketingVersionUpdated || projectVersionUpdated {
 		common.Must(os.WriteFile("sing-box.xcodeproj/project.pbxproj", []byte(newContent), 0o644))
 	}
 }
