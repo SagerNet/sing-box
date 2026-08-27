@@ -54,7 +54,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache/restore@v4
@@ -145,7 +145,7 @@ jobs:
         if: ${{ ! matrix.legacy_win7 }}
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache/restore@v4
@@ -160,7 +160,7 @@ jobs:
         with:
           path: |
             ~/go/go_win7
-          key: go_win7_1266
+          key: go_win7_1267
       - name: Setup Go for Windows 7
         if: matrix.legacy_win7 && steps.cache-go-for-windows7.outputs.cache-hit != 'true'
         env:
@@ -488,7 +488,7 @@ jobs:
         if: ${{ ! matrix.legacy_osx }}
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache/restore@v4
@@ -503,7 +503,7 @@ jobs:
         with:
           path: |
             ~/go/go_osx
-          key: go_osx_1266
+          key: go_osx_1267
       - name: Setup Go for macOS 10.13
         if: matrix.legacy_osx && steps.cache-go-for-macos1013.outputs.cache-hit != 'true'
         env:
@@ -587,7 +587,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -690,7 +690,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -754,7 +754,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache/restore@v4
@@ -862,7 +862,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache/restore@v4
@@ -972,7 +972,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -1081,7 +1081,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -1238,7 +1238,7 @@ jobs:
         if: matrix.build
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         if: matrix.build
@@ -1252,8 +1252,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/go-build
-          key: libbox-go-build-${{ matrix.artifact }}-1.26.6-${{ hashFiles('go.sum') }}
-          restore-keys: libbox-go-build-${{ matrix.artifact }}-1.26.6-
+          key: libbox-go-build-${{ matrix.artifact }}-1.26.7-${{ hashFiles('go.sum') }}
+          restore-keys: libbox-go-build-${{ matrix.artifact }}-1.26.7-
       - name: Set tag
         if: matrix.build
         run: git tag v${{ needs.calculate_version.outputs.version }} -f
@@ -1293,6 +1293,8 @@ jobs:
             destination: ''
             archive: ''
             upload: ''
+            upload_extension: ''
+            altool_platform: ''
           - name: iOS-jailbreak
             if: ${{ github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Apple-release' || inputs.build == 'iOS-jailbreak' }}
             type: jailbreak
@@ -1303,6 +1305,8 @@ jobs:
             destination: ''
             archive: ''
             upload: ''
+            upload_extension: ''
+            altool_platform: ''
     steps: &build_apple_steps
       - name: Checkout
         if: matrix.if
@@ -1316,7 +1320,7 @@ jobs:
         if: matrix.if
         uses: actions/setup-go@v5
         with:
-          go-version: 1.26.6
+          go-version: 1.26.7
           cache: false
       - name: Cache Go modules
         if: matrix.if
@@ -1367,21 +1371,23 @@ jobs:
       - name: Setup App Store Connect key
         if: matrix.if && matrix.type != 'jailbreak' && github.event_name == 'workflow_dispatch'
         run: |-
-          ASC_KEY_PATH=$RUNNER_TEMP/AuthKey.p8
+          # altool selects individual key authentication by the ApiKey_ file name prefix;
+          # an AuthKey_ prefixed file is signed as a team key and rejected.
+          ASC_PRIVATE_KEYS_DIR=$RUNNER_TEMP/private_keys
+          mkdir -p $ASC_PRIVATE_KEYS_DIR
+          ASC_KEY_PATH=$ASC_PRIVATE_KEYS_DIR/ApiKey_$ASC_KEY_ID.p8
           echo -n "$ASC_KEY" | base64 --decode -o $ASC_KEY_PATH
+          echo "API_PRIVATE_KEYS_DIR=$ASC_PRIVATE_KEYS_DIR" >> "$GITHUB_ENV"
           echo "ASC_KEY_PATH=$ASC_KEY_PATH" >> "$GITHUB_ENV"
           echo "ASC_KEY_ID=$ASC_KEY_ID" >> "$GITHUB_ENV"
-          echo "ASC_KEY_ISSUER_ID=$ASC_KEY_ISSUER_ID" >> "$GITHUB_ENV"
         env:
           ASC_KEY: ${{ secrets.ASC_KEY }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_KEY_ISSUER_ID: ${{ secrets.ASC_KEY_ISSUER_ID }}
       - name: Install Apple provisioning profiles
         if: matrix.if && matrix.type != 'jailbreak'
         run: |-
           PROFILES_ZIP_PATH=$RUNNER_TEMP/AppleProvisioningProfiles.zip
-          for index in $(seq 1 16); do
-            variable="PROVISIONING_PROFILES_$index"
+          for variable in $(compgen -v | grep -E '^PROVISIONING_PROFILES_[0-9]+$' | sort -t_ -k3 -n); do
             printf '%s' "${!variable}"
           done | base64 --decode -o $PROFILES_ZIP_PATH
           PROFILES_PATH="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
@@ -1442,14 +1448,33 @@ jobs:
           DEVELOPER_ID_CERTIFICATES_P12: ${{ secrets.DEVELOPER_ID_CERTIFICATES_P12 }}
           P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+      - name: Setup Apple Distribution certificate
+        if: matrix.if && matrix.type == 'app-store'
+        run: |-
+          CERTIFICATE_PATH=$RUNNER_TEMP/AppleDistributionCertificates.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/apple-distribution.keychain-db
+          echo -n "$APPLE_DISTRIBUTION_CERTIFICATES_P12" | base64 --decode -o $CERTIFICATE_PATH
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychains -d user -s $KEYCHAIN_PATH $APPLE_DEVELOPMENT_KEYCHAIN_PATH
+          security default-keychain -d user -s $KEYCHAIN_PATH
+          security find-identity -v -p codesigning $KEYCHAIN_PATH
+        env:
+          APPLE_DISTRIBUTION_CERTIFICATES_P12: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATES_P12 }}
+          P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
       - name: Setup notarization credentials
         if: matrix.if && matrix.type == 'standalone' && github.event_name == 'workflow_dispatch'
         run: |-
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $SIGNING_KEYCHAIN_PATH
-          xcrun notarytool store-credentials "notarytool-password" \
+          # store-credentials prompts for the issuer ID even when --issuer is absent;
+          # an empty answer selects individual key authentication.
+          printf '\n' | xcrun notarytool store-credentials "notarytool-password" \
             --key $ASC_KEY_PATH \
             --key-id $ASC_KEY_ID \
-            --issuer $ASC_KEY_ISSUER_ID \
             --keychain $SIGNING_KEYCHAIN_PATH
         env:
           KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
@@ -1483,16 +1508,17 @@ jobs:
           go run ./cmd/internal/merge_apple_xcframework \
             -output clients/apple/Libbox.xcframework \
             "${library_inputs[@]}"
-      - name: Update macOS version
-        if: matrix.if && matrix.name == 'macOS' && github.event_name == 'workflow_dispatch'
+      - name: Update project version
+        if: matrix.if && matrix.type == 'app-store' && github.event_name == 'workflow_dispatch'
         run: |-
-          MACOS_PROJECT_VERSION=$(go run -v ./cmd/internal/app_store_connect next_macos_project_version)
-          echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION"
-          echo "MACOS_PROJECT_VERSION=$MACOS_PROJECT_VERSION" >> "$GITHUB_ENV"
+          PROJECT_VERSION_VARIABLE=$(echo "${{ matrix.platform }}" | tr '[:lower:]' '[:upper:]')_PROJECT_VERSION
+          PROJECT_VERSION=$(go run -v ./cmd/internal/app_store_connect next_project_version ${{ matrix.platform }})
+          echo "$PROJECT_VERSION_VARIABLE=$PROJECT_VERSION"
+          echo "$PROJECT_VERSION_VARIABLE=$PROJECT_VERSION" >> "$GITHUB_ENV"
       - name: Update version
-        if: matrix.if && matrix.name != 'iOS'
+        if: matrix.if
         run: |-
-          go run -v ./cmd/internal/update_apple_version --ci
+          go run -v ./cmd/internal/update_apple_version --ci ${{ matrix.type == 'app-store' && '--testflight' || '' }}
       - name: Archive App Store build
         if: matrix.if && matrix.type == 'app-store'
         run: |-
@@ -1513,10 +1539,14 @@ jobs:
           cd clients/apple
           xcodebuild -exportArchive \
             -archivePath "${{ matrix.archive }}" \
-            -exportOptionsPlist ${{ matrix.upload }} \
-            -authenticationKeyPath $ASC_KEY_PATH \
-            -authenticationKeyID $ASC_KEY_ID \
-            -authenticationKeyIssuerID $ASC_KEY_ISSUER_ID
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist ${{ matrix.upload }}
+          # altool requires --api-issuer even for an individual key, and ignores its value.
+          xcrun altool --upload-app \
+            -f "$RUNNER_TEMP"/export/*.${{ matrix.upload_extension }} \
+            -t ${{ matrix.altool_platform }} \
+            --api-key $ASC_KEY_ID \
+            --api-issuer 00000000-0000-0000-0000-000000000000
       - name: Publish to TestFlight
         if: matrix.if && matrix.type == 'app-store' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/testing'
         run: |-
@@ -1591,7 +1621,9 @@ jobs:
             scheme: SFI
             destination: 'generic/platform=iOS'
             archive: build/SFI.xcarchive
-            upload: SFI/Upload.plist
+            upload: SFI/AppStoreExport.plist
+            upload_extension: ipa
+            altool_platform: ios
             variant: ''
             library_arch: ''
           - name: macOS
@@ -1601,7 +1633,9 @@ jobs:
             scheme: SFM
             destination: 'generic/platform=macOS'
             archive: build/SFM.xcarchive
-            upload: SFI/Upload.plist
+            upload: SFI/AppStoreExport.plist
+            upload_extension: pkg
+            altool_platform: macos
             variant: ''
             library_arch: ''
           - name: tvOS
@@ -1611,7 +1645,9 @@ jobs:
             scheme: SFT
             destination: 'generic/platform=tvOS'
             archive: build/SFT.xcarchive
-            upload: SFI/Upload.plist
+            upload: SFI/AppStoreExport.plist
+            upload_extension: ipa
+            altool_platform: appletvos
             variant: ''
             library_arch: ''
     steps: *build_apple_steps

@@ -236,8 +236,8 @@ github.com/quic-go/qpack v0.6.0/go.mod h1:lUpLKChi8njB4ty2bFLX2x4gzDqXwUpaO1DP9q
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/safchain/ethtool v0.3.0 h1:gimQJpsI6sc1yIqP/y8GYgiXn/NjgvpM0RNoWLVVmP0=
 github.com/safchain/ethtool v0.3.0/go.mod h1:SA9BwrgyAqNo7M+uaL6IYbxpm5wk3L7Mm6ocLW+CJUs=
-github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1 h1:qi+ijeREa0yfAaO+NOcZ81gv4uzOfALUIdhkiIFvmG4=
-github.com/sagernet/asc-go v0.0.0-20241217030726-d563060fe4e1/go.mod h1:JULDuzTMn2gyZFcjpTVZP4/UuwAdbHJ0bum2RdjXojU=
+github.com/sagernet/asc-go v0.0.0-20260827085112-8f8226245b0d h1:r3JBMjxwI8BPLprJpklmcgoPT3r7rJfUg4uuGWky48A=
+github.com/sagernet/asc-go v0.0.0-20260827085112-8f8226245b0d/go.mod h1:JULDuzTMn2gyZFcjpTVZP4/UuwAdbHJ0bum2RdjXojU=
 github.com/sagernet/bbolt v0.0.0-20260823094646-e24805439c9c h1:JdEDkgiwsDxiZb4+dQYgVOU/lND+jZxFmN5y/q49EXk=
 github.com/sagernet/bbolt v0.0.0-20260823094646-e24805439c9c/go.mod h1:7/qFPFH5fqK5XQeY8EA1Qpaly08Av77p38Zt50ieQww=
 github.com/sagernet/cors v1.2.1 h1:Cv5Z8y9YSD6Gm+qSpNrL3LO4lD3eQVvbFYJSG7JCMHQ=
