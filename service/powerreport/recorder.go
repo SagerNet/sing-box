@@ -12,6 +12,7 @@ import (
 
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	"github.com/sagernet/sing/common/memory"
 )
 
 const (
@@ -41,6 +42,7 @@ type Options struct {
 	Metadata         any
 	OwnerCallback    func(path string)
 	LogCallback      func() []byte
+	ProfileCallback  func(path string)
 	GateInterval     time.Duration
 	SampleInterval   time.Duration
 	FlushInterval    time.Duration
@@ -53,6 +55,7 @@ type Recorder struct {
 	metadata         any
 	ownerCallback    func(path string)
 	logCallback      func() []byte
+	profileCallback  func(path string)
 	gateNano         int64
 	sampleNano       int64
 	flushInterval    time.Duration
@@ -96,6 +99,7 @@ type previousSample struct {
 	at                time.Time
 	usage             systemUsage
 	gcSeconds         float64
+	gcCycles          uint64
 	absoluteTime      int64
 	continuousTime    int64
 	interfaces        map[string]interfaceCounters
@@ -130,6 +134,7 @@ func NewRecorder(options Options) *Recorder {
 		metadata:         options.Metadata,
 		ownerCallback:    options.OwnerCallback,
 		logCallback:      options.LogCallback,
+		profileCallback:  options.ProfileCallback,
 		gateNano:         int64(gateInterval),
 		sampleNano:       int64(sampleInterval),
 		flushInterval:    flushInterval,
@@ -139,6 +144,9 @@ func NewRecorder(options Options) *Recorder {
 		metricsSamples: []metrics.Sample{
 			{Name: "/cpu/classes/gc/total:cpu-seconds"},
 			{Name: "/sched/goroutines:goroutines"},
+			{Name: "/gc/cycles/total:gc-cycles"},
+			{Name: "/memory/classes/total:bytes"},
+			{Name: "/gc/heap/live:bytes"},
 		},
 		done:       make(chan struct{}),
 		workerDone: make(chan struct{}),
@@ -190,7 +198,7 @@ func (r *Recorder) Close() error {
 	r.sampleLocked(now)
 	r.flushLocked(now)
 	r.access.Unlock()
-	r.writeGoroutineProfile()
+	r.writeProfiles()
 	r.writeLog()
 	finalizeDraft(r.draftPath)
 	return nil
@@ -340,6 +348,7 @@ func (r *Recorder) resetPreviousLocked(now time.Time) {
 		at:                now,
 		usage:             readSystemUsage(),
 		gcSeconds:         r.metricsSamples[0].Value.Float64(),
+		gcCycles:          r.metricsSamples[2].Value.Uint64(),
 		interfaces:        readInterfaceCounters(),
 		dnsQueries:        r.dnsQueries.Load(),
 		connectionsOpened: r.connectionsOpened.Load(),
@@ -356,9 +365,15 @@ func (r *Recorder) sampleLocked(now time.Time) {
 		To:                now.UTC().Format(time.RFC3339),
 		CPUGCMS:           int64((current.gcSeconds - previous.gcSeconds) * 1000),
 		Goroutines:        r.metricsSamples[1].Value.Uint64(),
+		GCCycles:          current.gcCycles - previous.gcCycles,
+		GoMemoryBytes:     r.metricsSamples[3].Value.Uint64(),
+		GoHeapLiveBytes:   r.metricsSamples[4].Value.Uint64(),
 		DNSQueries:        current.dnsQueries - previous.dnsQueries,
 		ConnectionsOpened: current.connectionsOpened - previous.connectionsOpened,
 		NetworkType:       r.networkType,
+	}
+	if memory.TotalAvailable() {
+		row.MemoryBytes = memory.Total()
 	}
 	if current.usage.valid && previous.usage.valid {
 		row.CPUUserMS = (current.usage.userTime - previous.usage.userTime) / int64(time.Millisecond)
@@ -460,7 +475,11 @@ func appendRecords[T any](r *Recorder, path string, records []T) error {
 	return nil
 }
 
-func (r *Recorder) writeGoroutineProfile() {
+func (r *Recorder) writeProfiles() {
+	if r.profileCallback != nil {
+		r.profileCallback(r.draftPath)
+		return
+	}
 	profilePath := filepath.Join(r.draftPath, goroutineProfileFileName)
 	file, err := os.OpenFile(profilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o666)
 	if err != nil {

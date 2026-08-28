@@ -321,12 +321,12 @@ func (c *Client) beginExchange(ctx context.Context, transport adapter.DNSTranspo
 		}
 	}
 
-	contextTransport, transportTagLoaded := transportTagFromContext(ctx)
+	contextTransport, transportTagLoaded := adapter.DNSTransportTagFromContext(ctx)
 	if transportTagLoaded && transport.Tag() == contextTransport {
 		operation.release()
 		return nil, nil, exchangeDone, E.New("DNS query loopback in transport[", contextTransport, "]")
 	}
-	operation.ctx = contextWithTransportTag(ctx, transport.Tag())
+	operation.ctx = adapter.ContextWithDNSTransportTag(ctx, transport.Tag())
 	if !disableCache && responseChecker != nil && c.rdrc != nil {
 		rejected := c.rdrc.LoadRDRC(transport.Tag(), question.Name, question.Qtype)
 		if rejected {
@@ -644,7 +644,7 @@ func (c *Client) backgroundRefreshDNS(transport adapter.DNSTransport, key dnsCac
 	}
 	go func() {
 		defer c.backgroundRefresh.Delete(key)
-		ctx := contextWithTransportTag(c.ctx, transport.Tag())
+		ctx := adapter.ContextWithDNSTransportTag(c.ctx, transport.Tag())
 		response, err := c.exchangeToTransport(ctx, transport, message, options.Timeout)
 		if err != nil {
 			if c.logger != nil {
@@ -748,17 +748,6 @@ func (c *Client) exchangeToTransportAsync(ctx context.Context, transport adapter
 
 func MessageToAddresses(response *dns.Msg) []netip.Addr {
 	return adapter.DNSResponseAddresses(response)
-}
-
-type transportKey struct{}
-
-func contextWithTransportTag(ctx context.Context, transportTag string) context.Context {
-	return context.WithValue(ctx, transportKey{}, transportTag)
-}
-
-func transportTagFromContext(ctx context.Context) (string, bool) {
-	value, loaded := ctx.Value(transportKey{}).(string)
-	return value, loaded
 }
 
 func FixedResponseStatus(message *dns.Msg, rcode int) *dns.Msg {

@@ -54,6 +54,11 @@ type InboundContext struct {
 	User        string
 	Outbound    string
 
+	// power report
+
+	RouteRule     string
+	RouteOutbound string
+
 	// sniffer
 
 	Protocol     string
@@ -172,6 +177,17 @@ func DNSResponseAddresses(response *dns.Msg) []netip.Addr {
 }
 
 type inboundContextKey struct{}
+
+type dnsTransportTagKey struct{}
+
+func ContextWithDNSTransportTag(ctx context.Context, transportTag string) context.Context {
+	return context.WithValue(ctx, (*dnsTransportTagKey)(nil), transportTag)
+}
+
+func DNSTransportTagFromContext(ctx context.Context) (string, bool) {
+	transportTag, loaded := ctx.Value((*dnsTransportTagKey)(nil)).(string)
+	return transportTag, loaded
+}
 
 func WithContext(ctx context.Context, inboundContext *InboundContext) context.Context {
 	return context.WithValue(ctx, (*inboundContextKey)(nil), inboundContext)

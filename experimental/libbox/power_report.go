@@ -27,6 +27,11 @@ func PowerReportOptions(startedService *daemon.StartedService) powerreport.Optio
 		LogCallback: func() []byte {
 			return formatLogEntries(startedService.SavedLog())
 		},
+		ProfileCallback: func(path string) {
+			for _, name := range oomReportProfiles {
+				writeOOMProfile(path, name)
+			}
+		},
 	}
 }
 
