@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"slices"
 	"syscall"
 	"time"
 
@@ -42,6 +43,8 @@ type DefaultDialer struct {
 	connectionManager      adapter.ConnectionManager
 	networkManager         adapter.NetworkManager
 	powerManager           *powerreport.Manager
+	outboundManager        adapter.OutboundManager
+	dnsTransportManager    adapter.DNSTransportManager
 	networkStrategy        *C.NetworkStrategy
 	defaultNetworkStrategy bool
 	networkType            []C.InterfaceType
@@ -235,6 +238,8 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 		connectionManager:      connectionManager,
 		networkManager:         networkManager,
 		powerManager:           service.FromContext[*powerreport.Manager](ctx),
+		outboundManager:        service.FromContext[adapter.OutboundManager](ctx),
+		dnsTransportManager:    service.FromContext[adapter.DNSTransportManager](ctx),
 		networkStrategy:        networkStrategy,
 		defaultNetworkStrategy: defaultNetworkStrategy,
 		networkType:            networkType,
@@ -422,7 +427,7 @@ func (d *DefaultDialer) trackConn(ctx context.Context, destination M.Socksaddr, 
 		recorder := d.powerManager.Recorder()
 		if recorder != nil {
 			recorder.CountConnectionOpened()
-			attribution := dialAttribution(ctx, destination)
+			attribution := d.dialAttribution(ctx, destination)
 			conn = bufio.NewCounterConn(conn, []N.CountFunc{func(n int64) {
 				recorder.Touch(powerreport.DirectionInbound, int(n), attribution)
 			}}, []N.CountFunc{func(n int64) {
@@ -444,7 +449,7 @@ func (d *DefaultDialer) trackPacketConn(ctx context.Context, destination M.Socks
 		recorder := d.powerManager.Recorder()
 		if recorder != nil {
 			recorder.CountConnectionOpened()
-			attribution := dialAttribution(ctx, destination)
+			attribution := d.dialAttribution(ctx, destination)
 			conn = bufio.NewNetPacketConn(bufio.NewCounterPacketConn(bufio.NewPacketConn(conn), []N.CountFunc{func(n int64) {
 				recorder.Touch(powerreport.DirectionInbound, int(n), attribution)
 			}}, []N.CountFunc{func(n int64) {
@@ -455,24 +460,80 @@ func (d *DefaultDialer) trackPacketConn(ctx context.Context, destination M.Socks
 	return conn, nil
 }
 
-func dialAttribution(ctx context.Context, destination M.Socksaddr) *powerreport.Attribution {
+func (d *DefaultDialer) dialAttribution(ctx context.Context, destination M.Socksaddr) *powerreport.Attribution {
+	attribution := &powerreport.Attribution{}
+	dnsTransportTag, hasDNSTransport := adapter.DNSTransportTagFromContext(ctx)
+	if hasDNSTransport {
+		attribution.DNS = dnsTransportTag
+		if d.dnsTransportManager != nil {
+			transport, loaded := d.dnsTransportManager.Transport(dnsTransportTag)
+			if loaded {
+				attribution.DNSType = transport.Type()
+			}
+		}
+	}
 	metadata := adapter.ContextFrom(ctx)
 	if metadata == nil {
-		return &powerreport.Attribution{Destination: destination.String()}
+		attribution.Destination = destination.String()
+		return attribution
 	}
-	attribution := &powerreport.Attribution{
-		Domain:   metadata.Domain,
-		Outbound: metadata.Outbound,
+	attribution.Inbound = metadata.Inbound
+	attribution.InboundType = metadata.InboundType
+	attribution.Network = metadata.Network
+	if metadata.Source.IsValid() {
+		attribution.Source = metadata.Source.String()
 	}
-	if metadata.Inbound != "" {
-		attribution.Inbound = metadata.InboundType + "/" + metadata.Inbound
-	} else {
-		attribution.Inbound = metadata.InboundType
+	attribution.Domain = metadata.Domain
+	attribution.Protocol = metadata.Protocol
+	attribution.User = metadata.User
+	if metadata.ProcessInfo != nil {
+		attribution.Process = &powerreport.ProcessAttribution{
+			ProcessID:    metadata.ProcessInfo.ProcessID,
+			UserID:       metadata.ProcessInfo.UserId,
+			UserName:     metadata.ProcessInfo.UserName,
+			ProcessPath:  metadata.ProcessInfo.ProcessPath,
+			PackageNames: metadata.ProcessInfo.AndroidPackageNames,
+		}
+	}
+	attribution.Rule = metadata.RouteRule
+	attribution.Outbound = metadata.Outbound
+	if d.outboundManager != nil {
+		if metadata.Outbound != "" {
+			outbound, loaded := d.outboundManager.Outbound(metadata.Outbound)
+			if loaded {
+				attribution.OutboundType = outbound.Type()
+			}
+		}
+		if metadata.RouteOutbound != "" {
+			attribution.Chain = d.outboundChain(metadata.RouteOutbound)
+		}
 	}
 	if metadata.Destination.IsValid() {
 		attribution.Destination = metadata.Destination.String()
+		if metadata.Destination != destination {
+			attribution.Server = destination.String()
+		}
 	} else {
 		attribution.Destination = destination.String()
 	}
 	return attribution
+}
+
+func (d *DefaultDialer) outboundChain(head string) []string {
+	var chain []string
+	next := head
+	for {
+		detour, loaded := d.outboundManager.Outbound(next)
+		if !loaded {
+			break
+		}
+		chain = append(chain, next)
+		outboundGroup, isGroup := detour.(adapter.OutboundGroup)
+		if !isGroup {
+			break
+		}
+		next = outboundGroup.Now()
+	}
+	slices.Reverse(chain)
+	return chain
 }

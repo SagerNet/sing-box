@@ -15,11 +15,31 @@ func (d Direction) String() string {
 }
 
 type Attribution struct {
-	Inbound     string `json:"inbound,omitempty"`
-	Domain      string `json:"domain,omitempty"`
-	Destination string `json:"destination,omitempty"`
-	Outbound    string `json:"outbound,omitempty"`
-	Endpoint    string `json:"endpoint,omitempty"`
+	Inbound      string              `json:"inbound,omitempty"`
+	InboundType  string              `json:"inboundType,omitempty"`
+	Network      string              `json:"network,omitempty"`
+	Source       string              `json:"source,omitempty"`
+	Destination  string              `json:"destination,omitempty"`
+	Domain       string              `json:"domain,omitempty"`
+	Protocol     string              `json:"protocol,omitempty"`
+	User         string              `json:"user,omitempty"`
+	Process      *ProcessAttribution `json:"process,omitempty"`
+	Rule         string              `json:"rule,omitempty"`
+	Chain        []string            `json:"chain,omitempty"`
+	Outbound     string              `json:"outbound,omitempty"`
+	OutboundType string              `json:"outboundType,omitempty"`
+	Server       string              `json:"server,omitempty"`
+	DNS          string              `json:"dns,omitempty"`
+	DNSType      string              `json:"dnsType,omitempty"`
+	Endpoint     string              `json:"endpoint,omitempty"`
+}
+
+type ProcessAttribution struct {
+	ProcessID    uint32   `json:"processId,omitempty"`
+	UserID       int32    `json:"userId,omitempty"`
+	UserName     string   `json:"userName,omitempty"`
+	ProcessPath  string   `json:"processPath,omitempty"`
+	PackageNames []string `json:"packageNames,omitempty"`
 }
 
 type timelineRow struct {
@@ -37,6 +57,10 @@ type timelineRow struct {
 	DiskBytesWritten            uint64            `json:"diskWriteBytes,omitempty"`
 	SleptMS                     int64             `json:"sleptMS,omitempty"`
 	Goroutines                  uint64            `json:"goroutines,omitempty"`
+	GCCycles                    uint64            `json:"gcCycles,omitempty"`
+	GoMemoryBytes               uint64            `json:"goMemoryBytes,omitempty"`
+	GoHeapLiveBytes             uint64            `json:"goHeapLiveBytes,omitempty"`
+	MemoryBytes                 uint64            `json:"memoryBytes,omitempty"`
 	DNSQueries                  uint64            `json:"dnsQueries,omitempty"`
 	ConnectionsOpened           uint64            `json:"connectionsOpened,omitempty"`
 	InterfacePackets            map[string]uint64 `json:"interfacePackets,omitempty"`

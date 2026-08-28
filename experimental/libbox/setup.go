@@ -94,7 +94,7 @@ func ReloadSetupOptions(options *SetupOptions) {
 			sOOMMemoryLimit = oomkiller.DefaultAppleNetworkExtensionMemoryLimit
 		}
 		if sOOMMemoryLimit > 0 {
-			debug.SetMemoryLimit(sOOMMemoryLimit * 3 / 4)
+			debug.SetMemoryLimit(sOOMMemoryLimit * 4 / 5)
 		} else {
 			debug.SetMemoryLimit(math.MaxInt64)
 		}
