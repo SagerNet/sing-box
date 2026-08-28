@@ -6,21 +6,11 @@ import (
 	"github.com/sagernet/sing/common/json/badoption"
 )
 
-type QuicheCongestionControl string
-
-const (
-	QuicheCongestionControlDefault QuicheCongestionControl = ""
-	QuicheCongestionControlBBR     QuicheCongestionControl = "TBBR"
-	QuicheCongestionControlBBRv2   QuicheCongestionControl = "B2ON"
-	QuicheCongestionControlCubic   QuicheCongestionControl = "CQBC"
-	QuicheCongestionControlReno    QuicheCongestionControl = "RENO"
-)
-
 type NaiveInboundOptions struct {
 	ListenOptions
 	Users                 []auth.User `json:"users,omitempty"`
 	Network               NetworkList `json:"network,omitempty"`
-	QUICCongestionControl string      `json:"quic_congestion_control,omitempty" enum:"bbr,bbr_standard,bbr2,bbr2_variant,cubic,reno"`
+	QUICCongestionControl string      `json:"quic_congestion_control,omitempty" enum:"bbr,cubic,reno"`
 	InboundTLSOptionsContainer
 }
 

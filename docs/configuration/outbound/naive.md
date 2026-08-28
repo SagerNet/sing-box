@@ -109,7 +109,7 @@ QUIC congestion control algorithm.
 | `cubic` | CUBIC |
 | `reno` | New Reno |
 
-`bbr` is used by default (the default of QUICHE, used by Chromium which NaiveProxy is based on).
+`cubic` is used by default (the default of Chromium, which NaiveProxy is based on).
 
 #### quic_session_receive_window
 
