@@ -31,6 +31,8 @@ var (
 	sLogMaxLines             int
 	sDebug                   bool
 	sCrashReportSource       string
+	sAppVersion              string
+	sAppMarketingVersion     string
 	sOOMKillerEnabled        bool
 	sOOMKillerDisabled       bool
 	sOOMMemoryLimit          int64
@@ -52,6 +54,8 @@ type SetupOptions struct {
 	LogMaxLines             int
 	Debug                   bool
 	CrashReportSource       string
+	AppVersion              string
+	AppMarketingVersion     string
 	OomKillerEnabled        bool
 	OomKillerDisabled       bool
 	OomMemoryLimit          int64
@@ -75,6 +79,8 @@ func applySetupOptions(options *SetupOptions) {
 	sLogMaxLines = options.LogMaxLines
 	sDebug = options.Debug
 	sCrashReportSource = options.CrashReportSource
+	sAppVersion = options.AppVersion
+	sAppMarketingVersion = options.AppMarketingVersion
 	ReloadSetupOptions(options)
 }
 
