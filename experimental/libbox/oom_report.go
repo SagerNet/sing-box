@@ -357,6 +357,17 @@ func promoteOOMDraftAt(workingPath string) {
 	if err != nil || !info.IsDir() {
 		return
 	}
+	metadataContent, err := os.ReadFile(filepath.Join(draftPath, "metadata.json"))
+	if err != nil {
+		os.RemoveAll(draftPath)
+		return
+	}
+	var draftMetadata reportMetadata
+	err = json.Unmarshal(metadataContent, &draftMetadata)
+	if err != nil || draftMetadata.AppVersion != sAppVersion || draftMetadata.AppMarketingVersion != sAppMarketingVersion {
+		os.RemoveAll(draftPath)
+		return
+	}
 	reportsDir := filepath.Join(workingPath, "oom_reports")
 	initReportDir(reportsDir)
 	destPath, err := nextAvailableReportPath(reportsDir, info.ModTime().UTC())
