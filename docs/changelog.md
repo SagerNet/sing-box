@@ -2,6 +2,16 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.0-rc.2
+
+* Migrate Apple platform clients to a new Apple developer account **1**
+* Fixes and improvements
+
+**1**:
+
+For the macOS standalone client, profiles and settings are not inherited, see
+[Migration](/migration/#migrate-the-macos-standalone-client-data).
+
 #### 1.14.0-rc.1
 
 * Fixes and improvements
