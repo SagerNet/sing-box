@@ -4,6 +4,18 @@ icon: material/arrange-bring-forward
 
 ## 1.14.0
 
+### Migrate the macOS standalone client data
+
+Apple platform clients migrated to a new Apple developer account, so the macOS standalone client
+is a new application, and profiles and settings are not inherited.
+
+Before starting sing-box 1.14.0-rc.2 or later, they can be migrated using the following command:
+
+```bash
+mv ~/Library/Group\ Containers/287TTNZF8L.io.nekohasekai.sfavt \
+  ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt
+```
+
 ### Migrate inline ACME to certificate provider
 
 Inline ACME options in TLS are deprecated and can be replaced by certificate providers.
