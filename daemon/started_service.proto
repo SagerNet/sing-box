@@ -35,6 +35,7 @@ service StartedService {
   rpc StartTailscalePing(TailscalePingRequest) returns (stream TailscalePingResponse) {}
   rpc SetTailscaleExitNode(SetTailscaleExitNodeRequest) returns (google.protobuf.Empty) {}
   rpc TailscaleLogout(TailscaleLogoutRequest) returns (google.protobuf.Empty) {}
+  rpc GetTailscaleCertificate(TailscaleCertificateRequest) returns (TailscaleCertificate) {}
   rpc StartTailscaleSSHSession(stream TailscaleSSHClientMessage) returns (stream TailscaleSSHServerMessage) {}
   rpc SubscribeTaildropInbox(SubscribeTaildropInboxRequest) returns (stream TaildropInbox) {}
   rpc MarkTaildropInboxRead(MarkTaildropInboxReadRequest) returns (google.protobuf.Empty) {}
@@ -293,6 +294,7 @@ message TailscaleEndpointStatus {
   int32 waitingFileCount = 12;
   int32 receivingFileCount = 13;
   int32 unreadFileCount = 14;
+  repeated string certDomains = 15;
 }
 
 message TailscaleUserGroup {
@@ -345,6 +347,17 @@ message SetTailscaleExitNodeRequest {
 
 message TailscaleLogoutRequest {
   string endpointTag = 1;
+}
+
+message TailscaleCertificateRequest {
+  string endpointTag = 1;
+  string domain = 2;
+  int64 minValiditySeconds = 3;
+}
+
+message TailscaleCertificate {
+  bytes certificatePEM = 1;
+  bytes privateKeyPEM = 2;
 }
 
 message TailscaleSSHClientMessage {

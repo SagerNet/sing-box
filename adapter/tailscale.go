@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"io"
+	"time"
 )
 
 type TailscaleEndpoint interface {
@@ -10,6 +11,7 @@ type TailscaleEndpoint interface {
 	StartTailscalePing(ctx context.Context, peerIP string, fn func(*TailscalePingResult)) error
 	SetTailscaleExitNode(ctx context.Context, stableID string) error
 	Logout(ctx context.Context) error
+	GetTailscaleCertificate(ctx context.Context, domain string, minValidity time.Duration) (certificatePEM []byte, privateKeyPEM []byte, err error)
 	SubscribeTaildropInbox(ctx context.Context, fn func(*TaildropInbox)) error
 	MarkTaildropInboxRead() error
 	SendTaildropFile(ctx context.Context, peerStableID string, fileName string, size int64, content io.Reader, progress func(sentBytes int64)) error
@@ -61,6 +63,7 @@ type TailscaleEndpointStatus struct {
 	WaitingFileCount   int32
 	ReceivingFileCount int32
 	UnreadFileCount    int32
+	CertDomains        []string
 }
 
 type TailscaleUserGroup struct {
