@@ -40,6 +40,7 @@ const (
 	StartedService_StartTailscalePing_FullMethodName             = "/daemon.StartedService/StartTailscalePing"
 	StartedService_SetTailscaleExitNode_FullMethodName           = "/daemon.StartedService/SetTailscaleExitNode"
 	StartedService_TailscaleLogout_FullMethodName                = "/daemon.StartedService/TailscaleLogout"
+	StartedService_GetTailscaleCertificate_FullMethodName        = "/daemon.StartedService/GetTailscaleCertificate"
 	StartedService_StartTailscaleSSHSession_FullMethodName       = "/daemon.StartedService/StartTailscaleSSHSession"
 	StartedService_SubscribeTaildropInbox_FullMethodName         = "/daemon.StartedService/SubscribeTaildropInbox"
 	StartedService_MarkTaildropInboxRead_FullMethodName          = "/daemon.StartedService/MarkTaildropInboxRead"
@@ -87,6 +88,7 @@ type StartedServiceClient interface {
 	StartTailscalePing(ctx context.Context, in *TailscalePingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TailscalePingResponse], error)
 	SetTailscaleExitNode(ctx context.Context, in *SetTailscaleExitNodeRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	TailscaleLogout(ctx context.Context, in *TailscaleLogoutRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetTailscaleCertificate(ctx context.Context, in *TailscaleCertificateRequest, opts ...grpc.CallOption) (*TailscaleCertificate, error)
 	StartTailscaleSSHSession(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TailscaleSSHClientMessage, TailscaleSSHServerMessage], error)
 	SubscribeTaildropInbox(ctx context.Context, in *SubscribeTaildropInboxRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[TaildropInbox], error)
 	MarkTaildropInboxRead(ctx context.Context, in *MarkTaildropInboxReadRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -462,6 +464,16 @@ func (c *startedServiceClient) TailscaleLogout(ctx context.Context, in *Tailscal
 	return out, nil
 }
 
+func (c *startedServiceClient) GetTailscaleCertificate(ctx context.Context, in *TailscaleCertificateRequest, opts ...grpc.CallOption) (*TailscaleCertificate, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TailscaleCertificate)
+	err := c.cc.Invoke(ctx, StartedService_GetTailscaleCertificate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *startedServiceClient) StartTailscaleSSHSession(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[TailscaleSSHClientMessage, TailscaleSSHServerMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &StartedService_ServiceDesc.Streams[11], StartedService_StartTailscaleSSHSession_FullMethodName, cOpts...)
@@ -714,6 +726,7 @@ type StartedServiceServer interface {
 	StartTailscalePing(*TailscalePingRequest, grpc.ServerStreamingServer[TailscalePingResponse]) error
 	SetTailscaleExitNode(context.Context, *SetTailscaleExitNodeRequest) (*emptypb.Empty, error)
 	TailscaleLogout(context.Context, *TailscaleLogoutRequest) (*emptypb.Empty, error)
+	GetTailscaleCertificate(context.Context, *TailscaleCertificateRequest) (*TailscaleCertificate, error)
 	StartTailscaleSSHSession(grpc.BidiStreamingServer[TailscaleSSHClientMessage, TailscaleSSHServerMessage]) error
 	SubscribeTaildropInbox(*SubscribeTaildropInboxRequest, grpc.ServerStreamingServer[TaildropInbox]) error
 	MarkTaildropInboxRead(context.Context, *MarkTaildropInboxReadRequest) (*emptypb.Empty, error)
@@ -838,6 +851,10 @@ func (UnimplementedStartedServiceServer) SetTailscaleExitNode(context.Context, *
 
 func (UnimplementedStartedServiceServer) TailscaleLogout(context.Context, *TailscaleLogoutRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method TailscaleLogout not implemented")
+}
+
+func (UnimplementedStartedServiceServer) GetTailscaleCertificate(context.Context, *TailscaleCertificateRequest) (*TailscaleCertificate, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTailscaleCertificate not implemented")
 }
 
 func (UnimplementedStartedServiceServer) StartTailscaleSSHSession(grpc.BidiStreamingServer[TailscaleSSHClientMessage, TailscaleSSHServerMessage]) error {
@@ -1297,6 +1314,24 @@ func _StartedService_TailscaleLogout_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StartedService_GetTailscaleCertificate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TailscaleCertificateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StartedServiceServer).GetTailscaleCertificate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StartedService_GetTailscaleCertificate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StartedServiceServer).GetTailscaleCertificate(ctx, req.(*TailscaleCertificateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StartedService_StartTailscaleSSHSession_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(StartedServiceServer).StartTailscaleSSHSession(&grpc.GenericServerStream[TailscaleSSHClientMessage, TailscaleSSHServerMessage]{ServerStream: stream})
 }
@@ -1572,6 +1607,10 @@ var StartedService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TailscaleLogout",
 			Handler:    _StartedService_TailscaleLogout_Handler,
+		},
+		{
+			MethodName: "GetTailscaleCertificate",
+			Handler:    _StartedService_GetTailscaleCertificate_Handler,
 		},
 		{
 			MethodName: "MarkTaildropInboxRead",

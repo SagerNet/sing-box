@@ -42,6 +42,7 @@ func (t *Endpoint) SubscribeTailscaleStatus(ctx context.Context, fn func(*adapte
 			result.WaitingFileCount = t.taildrop.waitingFileCount()
 			result.ReceivingFileCount = t.taildrop.receivingFileCount()
 			result.UnreadFileCount = t.taildrop.unreadFileCount()
+			result.CertDomains = t.server.CertDomains()
 			if len(taildropTargets) > 0 {
 				for _, group := range result.UserGroups {
 					for _, peer := range group.Peers {

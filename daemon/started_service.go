@@ -1667,6 +1667,7 @@ func tailscaleEndpointStatusToProto(tag string, s *adapter.TailscaleEndpointStat
 		WaitingFileCount:   s.WaitingFileCount,
 		ReceivingFileCount: s.ReceivingFileCount,
 		UnreadFileCount:    s.UnreadFileCount,
+		CertDomains:        s.CertDomains,
 	}
 	if s.Self != nil {
 		result.Self = tailscalePeerToProto(s.Self)
@@ -1775,6 +1776,33 @@ func (s *StartedService) TailscaleLogout(ctx context.Context, request *Tailscale
 		return nil, err
 	}
 	return &emptypb.Empty{}, nil
+}
+
+func (s *StartedService) GetTailscaleCertificate(ctx context.Context, request *TailscaleCertificateRequest) (*TailscaleCertificate, error) {
+	err := s.waitForStarted(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.serviceAccess.RLock()
+	boxService := s.instance
+	s.serviceAccess.RUnlock()
+
+	endpoint, err := resolveTailscaleEndpoint(boxService, request.EndpointTag)
+	if err != nil {
+		return nil, err
+	}
+	tsEndpoint, loaded := endpoint.(adapter.TailscaleEndpoint)
+	if !loaded {
+		return nil, status.Error(codes.FailedPrecondition, "endpoint does not support tailscale")
+	}
+	certificatePEM, privateKeyPEM, err := tsEndpoint.GetTailscaleCertificate(ctx, request.Domain, time.Duration(request.MinValiditySeconds)*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	return &TailscaleCertificate{
+		CertificatePEM: certificatePEM,
+		PrivateKeyPEM:  privateKeyPEM,
+	}, nil
 }
 
 func (s *StartedService) SubscribeOpenConnectStatus(
