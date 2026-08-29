@@ -36,7 +36,7 @@ require (
 	github.com/sagernet/quic-go v0.59.0-sing-box-mod.4
 	github.com/sagernet/sing v0.8.14
 	github.com/sagernet/sing-mux v0.3.5
-	github.com/sagernet/sing-quic v0.6.4-0.20260803041914-d83826c306d7
+	github.com/sagernet/sing-quic v0.6.5
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1
