@@ -8,6 +8,12 @@ import (
 	"unsafe"
 )
 
+// cmd/compile creates the method symbols of *tls.Conn and of its field types with their
+// package recorded when the type is first used by a declaration; a linkname pull processed
+// afterwards reuses that symbol as a package-indexed reference, which the linker's
+// -checklinkname does not inspect. This declaration must precede the linkname declarations.
+var _ *tls.Conn
+
 type Methods struct {
 	readRecord                 func(c unsafe.Pointer) error
 	handlePostHandshakeMessage func(c unsafe.Pointer) error
