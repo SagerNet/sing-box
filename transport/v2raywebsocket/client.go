@@ -81,7 +81,11 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if c.maxEarlyData > 0 {
 		return &EarlyWebsocketConn{Client: c, rawConn: conn, create: make(chan struct{})}, nil
 	}
-	return c.upgrade(conn, &c.requestURL, c.headers)
+	websocketConn, err := c.upgrade(conn, &c.requestURL, c.headers)
+	if err != nil {
+		return nil, err
+	}
+	return websocketConn, nil
 }
 
 func (c *Client) upgrade(conn net.Conn, requestURL *url.URL, headers http.Header) (*WebsocketConn, error) {
