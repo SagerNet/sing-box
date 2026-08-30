@@ -5,14 +5,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing/common"
-	"github.com/sagernet/sing/common/batch"
 	"github.com/sagernet/sing/common/json/badjson"
 
 	"github.com/go-chi/chi/v5"
@@ -89,40 +86,7 @@ func getGroupDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 				itOutbound, _ := server.outbound.Outbound(it)
 				return itOutbound
 			}))
-			b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
-			checked := make(map[string]bool)
-			result = make(map[string]uint16)
-			var resultAccess sync.Mutex
-			for _, detour := range outbounds {
-				tag := detour.Tag()
-				realTag := group.RealTag(detour)
-				if checked[realTag] {
-					continue
-				}
-				checked[realTag] = true
-				p, loaded := server.outbound.Outbound(realTag)
-				if !loaded {
-					continue
-				}
-				b.Go(realTag, func() (any, error) {
-					t, err := urltest.URLTest(ctx, url, p)
-					if err != nil {
-						server.logger.Debug("outbound ", tag, " unavailable: ", err)
-						server.urlTestHistory.DeleteURLTestHistory(realTag)
-					} else {
-						server.logger.Debug("outbound ", tag, " available: ", t, "ms")
-						server.urlTestHistory.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
-							Time:  time.Now(),
-							Delay: t,
-						})
-						resultAccess.Lock()
-						result[tag] = t
-						resultAccess.Unlock()
-					}
-					return nil, nil
-				})
-			}
-			b.Wait()
+			result = group.URLTestOutbounds(ctx, server.outbound, server.urlTestHistory, server.logger, outbounds, url, 0, true)
 		}
 
 		if err != nil {

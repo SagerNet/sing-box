@@ -2,6 +2,7 @@ package group
 
 import (
 	"context"
+	"maps"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -297,14 +298,14 @@ func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 	switch network {
 	case N.NetworkTCP:
 		if g.selectedOutboundTCP != nil {
-			if history := g.history.LoadURLTestHistory(RealTag(g.selectedOutboundTCP)); history != nil {
+			if history := g.history.LoadURLTestHistory(RealTag(g.outbound, g.selectedOutboundTCP)); history != nil {
 				minOutbound = g.selectedOutboundTCP
 				minDelay = history.Delay
 			}
 		}
 	case N.NetworkUDP:
 		if g.selectedOutboundUDP != nil {
-			if history := g.history.LoadURLTestHistory(RealTag(g.selectedOutboundUDP)); history != nil {
+			if history := g.history.LoadURLTestHistory(RealTag(g.outbound, g.selectedOutboundUDP)); history != nil {
 				minOutbound = g.selectedOutboundUDP
 				minDelay = history.Delay
 			}
@@ -314,7 +315,7 @@ func (g *URLTestGroup) Select(network string) (adapter.Outbound, bool) {
 		if !common.Contains(detour.Network(), network) {
 			continue
 		}
-		history := g.history.LoadURLTestHistory(RealTag(detour))
+		history := g.history.LoadURLTestHistory(RealTag(g.outbound, detour))
 		if history == nil {
 			continue
 		}
@@ -366,7 +367,17 @@ func (g *URLTestGroup) CheckOutbounds(ctx context.Context, force bool) {
 }
 
 func (g *URLTestGroup) URLTest(ctx context.Context) (map[string]uint16, error) {
-	return g.urlTest(ctx, false)
+	return g.urlTest(ctx, true)
+}
+
+func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint16, error) {
+	if g.checking.Swap(true) {
+		return make(map[string]uint16), nil
+	}
+	defer g.checking.Store(false)
+	result := URLTestOutbounds(ctx, g.outbound, g.history, g.logger, g.outbounds, g.link, g.interval, force)
+	g.performUpdateCheck()
+	return result, nil
 }
 
 type urlTestResult struct {
@@ -374,63 +385,101 @@ type urlTestResult struct {
 	err   error
 }
 
-func (g *URLTestGroup) urlTest(ctx context.Context, force bool) (map[string]uint16, error) {
-	result := make(map[string]uint16)
-	if g.checking.Swap(true) {
-		return result, nil
-	}
-	defer g.checking.Store(false)
+type urlTestBatch struct {
+	ctx      context.Context
+	outbound adapter.OutboundManager
+	history  *urltest.HistoryStorage
+	logger   log.Logger
+	batch    *batch.Batch[any]
+	checked  map[string]bool
+	groups   []adapter.OutboundGroup
+	access   sync.Mutex
+	result   map[string]uint16
+}
+
+func URLTestOutbounds(ctx context.Context, outboundManager adapter.OutboundManager, history *urltest.HistoryStorage, logger log.Logger, outbounds []adapter.Outbound, link string, interval time.Duration, force bool) map[string]uint16 {
 	b, _ := batch.New(ctx, batch.WithConcurrencyNum[any](10))
-	checked := make(map[string]bool)
-	var resultAccess sync.Mutex
-	for _, detour := range g.outbounds {
-		tag := detour.Tag()
-		realTag := RealTag(detour)
-		if checked[realTag] {
-			continue
-		}
-		history := g.history.LoadURLTestHistory(realTag)
-		if !force && history != nil && time.Since(history.Time) < g.interval {
-			continue
-		}
-		checked[realTag] = true
-		p, loaded := g.outbound.Outbound(realTag)
-		if !loaded {
-			continue
-		}
-		b.Go(realTag, func() (any, error) {
-			testCtx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
-			defer cancel()
-			testChan := make(chan urlTestResult, 1)
-			go func() {
-				delay, testErr := urltest.URLTest(testCtx, g.link, p)
-				testChan <- urlTestResult{delay, testErr}
-			}()
-			var testResult urlTestResult
-			select {
-			case testResult = <-testChan:
-			case <-testCtx.Done():
-				testResult.err = testCtx.Err()
-			}
-			if testResult.err != nil {
-				g.logger.Debug("outbound ", tag, " unavailable: ", testResult.err)
-				g.history.DeleteURLTestHistory(realTag)
-			} else {
-				g.logger.Debug("outbound ", tag, " available: ", testResult.delay, "ms")
-				g.history.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
-					Time:  time.Now(),
-					Delay: testResult.delay,
-				})
-				resultAccess.Lock()
-				result[tag] = testResult.delay
-				resultAccess.Unlock()
-			}
-			return nil, nil
-		})
+	testBatch := &urlTestBatch{
+		ctx:      ctx,
+		outbound: outboundManager,
+		history:  history,
+		logger:   logger,
+		batch:    b,
+		checked:  make(map[string]bool),
+		result:   make(map[string]uint16),
 	}
+	testBatch.test(outbounds, link, interval, force)
 	b.Wait()
-	g.performUpdateCheck()
-	return result, nil
+	for _, outboundGroup := range testBatch.groups {
+		groupHistory := history.LoadURLTestHistory(RealTag(outboundManager, outboundGroup))
+		if groupHistory != nil {
+			testBatch.result[outboundGroup.Tag()] = groupHistory.Delay
+		}
+	}
+	return testBatch.result
+}
+
+func (b *urlTestBatch) test(outbounds []adapter.Outbound, link string, interval time.Duration, force bool) {
+	for _, detour := range outbounds {
+		tag := detour.Tag()
+		if b.checked[tag] {
+			continue
+		}
+		switch nested := detour.(type) {
+		case *URLTest:
+			b.checked[tag] = true
+			b.groups = append(b.groups, nested)
+			b.batch.Go(tag, func() (any, error) {
+				nestedResult, _ := nested.group.urlTest(b.ctx, force)
+				b.access.Lock()
+				maps.Copy(b.result, nestedResult)
+				b.access.Unlock()
+				return nil, nil
+			})
+		case adapter.OutboundGroup:
+			b.checked[tag] = true
+			b.groups = append(b.groups, nested)
+			b.test(common.FilterNotNil(common.Map(nested.All(), func(it string) adapter.Outbound {
+				member, _ := b.outbound.Outbound(it)
+				return member
+			})), link, interval, force)
+		default:
+			history := b.history.LoadURLTestHistory(tag)
+			if !force && history != nil && time.Since(history.Time) < interval {
+				continue
+			}
+			b.checked[tag] = true
+			b.batch.Go(tag, func() (any, error) {
+				testCtx, cancel := context.WithTimeout(b.ctx, C.TCPTimeout)
+				defer cancel()
+				testChan := make(chan urlTestResult, 1)
+				go func() {
+					delay, testErr := urltest.URLTest(testCtx, link, detour)
+					testChan <- urlTestResult{delay, testErr}
+				}()
+				var testResult urlTestResult
+				select {
+				case testResult = <-testChan:
+				case <-testCtx.Done():
+					testResult.err = testCtx.Err()
+				}
+				if testResult.err != nil {
+					b.logger.Debug("outbound ", tag, " unavailable: ", testResult.err)
+					b.history.DeleteURLTestHistory(tag)
+				} else {
+					b.logger.Debug("outbound ", tag, " available: ", testResult.delay, "ms")
+					b.history.StoreURLTestHistory(tag, &adapter.URLTestHistory{
+						Time:  time.Now(),
+						Delay: testResult.delay,
+					})
+					b.access.Lock()
+					b.result[tag] = testResult.delay
+					b.access.Unlock()
+				}
+				return nil, nil
+			})
+		}
+	}
 }
 
 func (g *URLTestGroup) performUpdateCheck() {
