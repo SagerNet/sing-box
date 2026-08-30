@@ -92,12 +92,12 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		Address:    options.Address,
 		PrivateKey: options.PrivateKey,
 		ListenPort: options.ListenPort,
-		ResolvePeer: func(domain string) (netip.Addr, error) {
-			endpointAddresses, lookupErr := ep.dnsRouter.Lookup(ctx, domain, outboundDialer.(dialer.ResolveDialer).QueryOptions())
-			if lookupErr != nil {
-				return netip.Addr{}, lookupErr
+		ResolvePeer: func(resolveCtx context.Context, domain string, disableCache bool) ([]netip.Addr, error) {
+			queryOptions := outboundDialer.(dialer.ResolveDialer).QueryOptions()
+			if disableCache {
+				queryOptions.DisableCache = true
 			}
-			return endpointAddresses[0], nil
+			return ep.dnsRouter.Lookup(resolveCtx, domain, queryOptions)
 		},
 		Peers: common.Map(options.Peers, func(it option.WireGuardPeer) wireguard.PeerOptions {
 			return wireguard.PeerOptions{
