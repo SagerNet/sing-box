@@ -9,6 +9,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/log"
+	"github.com/sagernet/sing/common"
 
 	"github.com/spf13/cobra"
 )
@@ -35,10 +36,12 @@ func init() {
 }
 
 func main() {
-	log.SetStdLogger(log.NewDefaultFactory(context.Background(), log.Formatter{
+	logFactory := log.NewDefaultFactory(context.Background(), log.Formatter{
 		BaseTime:      time.Now(),
 		DisableColors: true,
-	}, os.Stderr, "", nil, false).Logger())
+	}, os.Stderr, "", nil, false)
+	common.Must(logFactory.Start())
+	log.SetStdLogger(logFactory.Logger())
 	err := mainCommand.Execute()
 	if err != nil {
 		log.Fatal(err)
