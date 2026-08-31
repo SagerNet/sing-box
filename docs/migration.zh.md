@@ -4,6 +4,28 @@ icon: material/arrange-bring-forward
 
 ## 1.14.0
 
+### 迁移 macOS standalone 客户端数据
+
+Apple 平台客户端已迁移至新的 Apple 开发者账户，因此 macOS standalone 客户端是一个新应用，
+配置文件与设置不会被继承。
+
+在启动 sing-box 1.14.0-rc.2 或更高版本之前，可使用以下命令迁移：
+
+```bash
+mv ~/Library/Group\ Containers/287TTNZF8L.io.nekohasekai.sfavt \
+  ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt
+xattr -c ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt
+rm ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt/.com.apple.containermanagerd.metadata.plist
+```
+
+如果您已使用此命令的早期版本迁移，且启动时出现权限弹窗，请执行以下命令并重新启动应用：
+
+```bash
+xattr -c ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt
+rm ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt/.com.apple.containermanagerd.metadata.plist
+tccutil reset All io.nekohasekai.sfamt.standalone
+```
+
 ### 迁移内联 ACME 到证书提供者
 
 TLS 中的内联 ACME 选项已废弃，且可以被证书提供者替代。

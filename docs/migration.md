@@ -9,11 +9,22 @@ icon: material/arrange-bring-forward
 Apple platform clients migrated to a new Apple developer account, so the macOS standalone client
 is a new application, and profiles and settings are not inherited.
 
-Before starting sing-box 1.14.0-rc.2 or later, they can be migrated using the following command:
+Before starting sing-box 1.14.0-rc.2 or later, they can be migrated using the following commands:
 
 ```bash
 mv ~/Library/Group\ Containers/287TTNZF8L.io.nekohasekai.sfavt \
   ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt
+xattr -c ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt
+rm ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt/.com.apple.containermanagerd.metadata.plist
+```
+
+If you have already migrated using an earlier version of this command and a permission prompt
+appears at startup, run the following commands and restart the application:
+
+```bash
+xattr -c ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt
+rm ~/Library/Group\ Containers/P8XK3KHB48.io.nekohasekai.sfamt/.com.apple.containermanagerd.metadata.plist
+tccutil reset All io.nekohasekai.sfamt.standalone
 ```
 
 ### Migrate inline ACME to certificate provider
