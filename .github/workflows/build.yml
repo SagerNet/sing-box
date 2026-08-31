@@ -29,6 +29,7 @@ on:
         type: string
   push:
     branches:
+      - oldstable
       - stable
       - testing
       - unstable
