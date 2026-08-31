@@ -965,8 +965,11 @@ jobs:
       - name: Checkout desktop client
         run: git submodule update --init clients/desktop
       - name: Checkout main branch
-        if: github.ref == 'refs/heads/testing'
+        if: github.ref == 'refs/heads/stable' && github.event_name != 'workflow_dispatch'
         run: git -C clients/desktop checkout main
+      - name: Checkout dev branch
+        if: github.ref == 'refs/heads/testing'
+        run: git -C clients/desktop checkout dev
       - name: Checkout desktop submodules
         run: git -C clients/desktop submodule update --init --recursive
       - name: Setup Go
@@ -1074,8 +1077,11 @@ jobs:
       - name: Checkout desktop client
         run: git submodule update --init clients/desktop
       - name: Checkout main branch
-        if: github.ref == 'refs/heads/testing'
+        if: github.ref == 'refs/heads/stable' && github.event_name != 'workflow_dispatch'
         run: git -C clients/desktop checkout main
+      - name: Checkout dev branch
+        if: github.ref == 'refs/heads/testing'
+        run: git -C clients/desktop checkout dev
       - name: Checkout desktop submodules
         run: git -C clients/desktop submodule update --init --recursive
       - name: Setup Go

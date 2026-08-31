@@ -12,3 +12,4 @@ function updateClient() {
 
 updateClient "apple"
 updateClient "android"
+updateClient "desktop"
