@@ -39,5 +39,5 @@ func ReadTagVersion() (badversion.Version, error) {
 }
 
 func TestFlightVersion(version badversion.Version) string {
-	return F.ToString(version.Major, ".", version.Minor, ".10")
+	return F.ToString(version.Major, ".", version.Minor, ".1000")
 }
