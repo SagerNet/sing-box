@@ -23,7 +23,6 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/memory"
 	"github.com/sagernet/sing/common/observable"
-	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 
 	"github.com/gofrs/uuid/v5"
@@ -47,7 +46,6 @@ type StartedService struct {
 	// platform adapter.PlatformInterface
 	handler           PlatformHandler
 	debug             bool
-	logMaxLines       int
 	oomKillerEnabled  bool
 	oomKillerDisabled bool
 	oomMemoryLimit    uint64
@@ -64,7 +62,7 @@ type StartedService struct {
 	serviceStatusSubscriber *observable.Subscriber[*ServiceStatus]
 	serviceStatusObserver   *observable.Observer[*ServiceStatus]
 	logAccess               sync.RWMutex
-	logLines                list.List[*log.Entry]
+	logLines                logRing
 	logSubscriber           *observable.Subscriber[*log.Entry]
 	logObserver             *observable.Observer[*log.Entry]
 	instance                *Instance
@@ -99,7 +97,7 @@ func NewStartedService(options ServiceOptions) *StartedService {
 		// platform:                options.Platform,
 		handler:           options.Handler,
 		debug:             options.Debug,
-		logMaxLines:       options.LogMaxLines,
+		logLines:          logRing{maxLines: options.LogMaxLines},
 		oomKillerEnabled:  options.OOMKillerEnabled,
 		oomKillerDisabled: options.OOMKillerDisabled,
 		oomMemoryLimit:    options.OOMMemoryLimit,
@@ -140,7 +138,7 @@ func (s *StartedService) GetVersion(ctx context.Context, empty *emptypb.Empty) (
 
 func (s *StartedService) resetLogs() {
 	s.logAccess.Lock()
-	s.logLines = list.List[*log.Entry]{}
+	s.logLines.reset()
 	s.logAccess.Unlock()
 	s.logSubscriber.Emit(nil)
 }
@@ -378,12 +376,8 @@ func (s *StartedService) SubscribeServiceStatus(empty *emptypb.Empty, server grp
 }
 
 func (s *StartedService) SubscribeLog(empty *emptypb.Empty, server grpc.ServerStreamingServer[Log]) error {
-	var savedLines []*log.Entry
 	s.logAccess.Lock()
-	savedLines = make([]*log.Entry, 0, s.logLines.Len())
-	for element := s.logLines.Front(); element != nil; element = element.Next() {
-		savedLines = append(savedLines, element.Value)
-	}
+	savedLines := s.logLines.array()
 	subscription, done, err := s.logObserver.Subscribe()
 	s.logAccess.Unlock()
 	if err != nil {
@@ -2092,10 +2086,7 @@ func (s *StartedService) mustEmbedUnimplementedStartedServiceServer() {
 func (s *StartedService) WriteMessage(level log.Level, message string) {
 	item := &log.Entry{Level: level, Message: message}
 	s.logAccess.Lock()
-	s.logLines.PushBack(item)
-	if s.logLines.Len() > s.logMaxLines {
-		s.logLines.Remove(s.logLines.Front())
-	}
+	s.logLines.push(item)
 	s.logAccess.Unlock()
 	s.logSubscriber.Emit(item)
 	if s.debug {
@@ -2106,7 +2097,7 @@ func (s *StartedService) WriteMessage(level log.Level, message string) {
 func (s *StartedService) SavedLog() []*log.Entry {
 	s.logAccess.RLock()
 	defer s.logAccess.RUnlock()
-	return s.logLines.Array()
+	return s.logLines.array()
 }
 
 func (s *StartedService) Instance() *Instance {
