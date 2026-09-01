@@ -4,6 +4,7 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.14.0"
 
+    :material-plus: [auto_redirect_tproxy_mark](#auto_redirect_tproxy_mark)  
     :material-plus: [include_mac_address](#include_mac_address)  
     :material-plus: [exclude_mac_address](#exclude_mac_address)  
     :material-plus: [dns_mode](#dns_mode)  
@@ -91,6 +92,7 @@ icon: material/new-box
   "auto_redirect_input_mark": "0x2023",
   "auto_redirect_output_mark": "0x2024",
   "auto_redirect_reset_mark": "0x2025",
+  "auto_redirect_tproxy_mark": "0x2026",
   "auto_redirect_nfqueue": 100,
   "auto_redirect_iproute2_fallback_rule_index": 32768,
   "exclude_mptcp": false,
@@ -259,17 +261,17 @@ How DNS is handled on the TUN interface.
 
 `hijack` adds the following on top of `native`:
 
-*On Linux*: only DNS sent to non-local destinations can be intercepted.
-Traffic destined to addresses on the host's own interfaces (such as
-`127.0.0.53` or the host's LAN-side IP) is delivered through the kernel
-`local` routing table before any user rule applies, and `OUTPUT` NAT cannot
-redirect packets going through `lo`.
+*On Linux*: without address rewriting, only DNS sent to non-local
+destinations can be intercepted. Traffic destined to addresses on the host's
+own interfaces (such as `127.0.0.53` or the host's LAN-side IP) is delivered
+through the kernel `local` routing table before any user rule applies, and
+`OUTPUT` NAT cannot redirect packets going through `lo`.
 
 - Without `auto_redirect`, an `iproute2` rule makes port 53 skip the `main`
   table's specific-route lookup, forcing DNS that would otherwise be
   delivered through a directly-attached subnet through the TUN. Destination
   addresses are not rewritten.
-- With `auto_redirect`, an nftables rule DNATs port 53 traffic directly to
+- With `auto_redirect`, port 53 traffic is redirected directly to
   [`dns_address`](#dns_address).
 
 *On Windows with [`strict_route`](#strict_route)*: a WFP filter blocks port
@@ -351,11 +353,10 @@ Improve TUN routing and performance using nftables.
 higher performance (better than tproxy),
 and avoids conflicts between TUN and Docker bridge networks.
 
-Note that `auto_redirect` also works on Android, 
-but due to the lack of `nftables` and `ip6tables`,
-only simple IPv4 TCP forwarding is performed.
-To share your VPN connection over hotspot or repeater on Android,
-use [VPNHotspot](https://github.com/Mygod/VPNHotspot).
+Pre-matching requires nfqueue support in the kernel (`nfnetlink_queue`).
+
+`auto_redirect` is fully supported on Android through the root service of the graphical client
+or a root shell, including forwarded traffic (hotspot, repeater).
 
 `auto_redirect` also automatically inserts compatibility rules
 into the OpenWrt fw4 table, i.e. 
@@ -369,7 +370,7 @@ Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
 
 Connection input mark used by `auto_redirect`.
 
-`0x2023` is used by default.
+`0x2023` is used by default (`0x400000` on Android).
 
 #### auto_redirect_output_mark
 
@@ -377,7 +378,7 @@ Connection input mark used by `auto_redirect`.
 
 Connection output mark used by `auto_redirect`.
 
-`0x2024` is used by default.
+`0x2024` is used by default (`0x200000` on Android).
 
 #### auto_redirect_reset_mark
 
@@ -385,7 +386,15 @@ Connection output mark used by `auto_redirect`.
 
 Connection reset mark used by `auto_redirect` pre-matching.
 
-`0x2025` is used by default.
+`0x2025` is used by default (`0x600000` on Android).
+
+#### auto_redirect_tproxy_mark
+
+!!! question "Since sing-box 1.14.0"
+
+Connection TPROXY mark used by the `auto_redirect` iptables backend for IPv6 TCP.
+
+`0x2026` is used by default (`0x800000` on Android).
 
 #### auto_redirect_nfqueue
 
@@ -506,9 +515,9 @@ Exclude custom routes when `auto_route` is enabled.
 
     !!! quote ""
     
-        Only supported on Linux with nftables and requires `auto_route` and `auto_redirect` enabled.
+        Only supported on Linux and requires `auto_route` and `auto_redirect` enabled.
     
-    Add the destination IP CIDR rules in the specified rule-sets to the firewall.
+    Match the destination IP CIDR rules in the specified rule-sets during pre-matching.
     Unmatched traffic will bypass the sing-box routes.
     
     Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
@@ -532,9 +541,9 @@ Exclude custom routes when `auto_route` is enabled.
 
     !!! quote ""
 
-    Only supported on Linux with nftables and requires `auto_route` and `auto_redirect` enabled.
+        Only supported on Linux and requires `auto_route` and `auto_redirect` enabled.
 
-    Add the destination IP CIDR rules in the specified rule-sets to the firewall.
+    Match the destination IP CIDR rules in the specified rule-sets during pre-matching.
     Matched traffic will bypass the sing-box routes.
 
 === "Without `auto_redirect` enabled"
