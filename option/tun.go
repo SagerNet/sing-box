@@ -25,6 +25,7 @@ type TunInboundOptions struct {
 	AutoRedirectInputMark         FwMark                           `json:"auto_redirect_input_mark,omitempty"`
 	AutoRedirectOutputMark        FwMark                           `json:"auto_redirect_output_mark,omitempty"`
 	AutoRedirectResetMark         FwMark                           `json:"auto_redirect_reset_mark,omitempty"`
+	AutoRedirectTProxyMark        FwMark                           `json:"auto_redirect_tproxy_mark,omitempty"`
 	AutoRedirectNFQueue           uint16                           `json:"auto_redirect_nfqueue,omitempty"`
 	AutoRedirectFallbackRuleIndex int                              `json:"auto_redirect_iproute2_fallback_rule_index,omitempty"`
 	ExcludeMPTCP                  bool                             `json:"exclude_mptcp,omitempty"`
