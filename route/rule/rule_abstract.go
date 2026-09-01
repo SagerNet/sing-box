@@ -206,32 +206,32 @@ func (r *abstractLogicalRule) Match(metadata *adapter.InboundContext) bool {
 		matched        bool
 		deferredGroups uint8
 	)
+	snapshot := snapshotRuleMatch(metadata)
 	if r.mode == C.LogicalTypeAnd {
 		matched = true
 		for _, rule := range r.rules {
-			nestedMetadata := *metadata
-			nestedMetadata.ResetRuleCache()
-			if !rule.Match(&nestedMetadata) {
+			metadata.ResetRuleCache()
+			if !rule.Match(metadata) {
 				matched = false
 				deferredGroups = 0
 				break
 			}
-			deferredGroups |= nestedMetadata.DeferredIPCIDRMatchGroups
+			deferredGroups |= metadata.DeferredIPCIDRMatchGroups
 		}
 	} else {
 		for _, rule := range r.rules {
-			nestedMetadata := *metadata
-			nestedMetadata.ResetRuleCache()
-			if rule.Match(&nestedMetadata) {
+			metadata.ResetRuleCache()
+			if rule.Match(metadata) {
 				matched = true
-				if nestedMetadata.DeferredIPCIDRMatchGroups == 0 {
+				if metadata.DeferredIPCIDRMatchGroups == 0 {
 					deferredGroups = 0
 					break
 				}
-				deferredGroups |= nestedMetadata.DeferredIPCIDRMatchGroups
+				deferredGroups |= metadata.DeferredIPCIDRMatchGroups
 			}
 		}
 	}
+	snapshot.restore(metadata)
 	if matched {
 		metadata.DeferredIPCIDRMatchGroups |= deferredGroups
 	}
