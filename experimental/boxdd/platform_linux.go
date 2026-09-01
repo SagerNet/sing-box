@@ -201,6 +201,14 @@ func (p *linuxPlatformInterface) CreateBridge(options adapter.BridgeOptions) (ad
 	return nil, os.ErrInvalid
 }
 
+func (p *linuxPlatformInterface) UsePlatformAutoRedirect() bool {
+	return false
+}
+
+func (p *linuxPlatformInterface) CreateAutoRedirect(options adapter.AutoRedirectOptions) (adapter.AutoRedirectSession, error) {
+	return nil, os.ErrInvalid
+}
+
 func (p *linuxPlatformInterface) PrepareOwner(identity peerIdentity) error {
 	p.access.Lock()
 	defer p.access.Unlock()
