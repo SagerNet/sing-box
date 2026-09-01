@@ -277,8 +277,8 @@ func (s *StartedService) StartOrReloadService(ctx context.Context, profileConten
 		return err
 	}
 	instance.urlTestHistoryStorage.AddUpdateHook(s.urlTestSubscriber)
-	if instance.clashServer != nil {
-		instance.clashServer.AddModeUpdateHook(s.clashModeSubscriber)
+	if instance.clashMode != nil {
+		instance.clashMode.AddUpdateHook(s.clashModeSubscriber)
 	}
 	s.serviceAccess.Lock()
 	s.instance = instance
@@ -635,14 +635,14 @@ func (s *StartedService) GetClashModeStatus(ctx context.Context, empty *emptypb.
 		s.serviceAccess.RUnlock()
 		return nil, os.ErrInvalid
 	}
-	clashServer := s.instance.clashServer
+	clashMode := s.instance.clashMode
 	s.serviceAccess.RUnlock()
-	if clashServer == nil {
+	if clashMode == nil {
 		return nil, status.Error(codes.NotFound, "clash mode not available")
 	}
 	return &ClashModeStatus{
-		ModeList:    clashServer.ModeList(),
-		CurrentMode: clashServer.Mode(),
+		ModeList:    clashMode.ModeList(),
+		CurrentMode: clashMode.Mode(),
 	}, nil
 }
 
@@ -665,12 +665,12 @@ func (s *StartedService) SubscribeClashMode(empty *emptypb.Empty, server grpc.Se
 		s.serviceAccess.RLock()
 		var message *ClashMode
 		if s.serviceStatus.Status == ServiceStatus_STARTED {
-			clashServer := s.instance.clashServer
-			if clashServer == nil {
+			clashMode := s.instance.clashMode
+			if clashMode == nil {
 				s.serviceAccess.RUnlock()
 				return status.Error(codes.NotFound, "clash mode not available")
 			}
-			message = &ClashMode{Mode: clashServer.Mode()}
+			message = &ClashMode{Mode: clashMode.Mode()}
 		} else {
 			message = &ClashMode{}
 		}
@@ -700,12 +700,12 @@ func (s *StartedService) SetClashMode(ctx context.Context, request *ClashMode) (
 		s.serviceAccess.RUnlock()
 		return nil, os.ErrInvalid
 	}
-	clashServer := s.instance.clashServer
+	clashMode := s.instance.clashMode
 	s.serviceAccess.RUnlock()
-	if clashServer == nil {
+	if clashMode == nil {
 		return nil, status.Error(codes.NotFound, "clash mode not available")
 	}
-	clashServer.SetMode(request.Mode)
+	clashMode.SetMode(request.Mode)
 	return &emptypb.Empty{}, nil
 }
 

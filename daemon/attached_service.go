@@ -3,8 +3,6 @@ package daemon
 import (
 	"context"
 	"time"
-
-	"github.com/sagernet/sing-box/log"
 )
 
 const defaultAttachedLogMaxLines = 3000
@@ -20,9 +18,9 @@ func NewAttachedService(ctx context.Context) *StartedService {
 	s.serviceStatus = &ServiceStatus{Status: ServiceStatus_STARTED}
 	s.startedAt = time.Now()
 	instance.urlTestHistoryStorage.AddUpdateHook(s.urlTestSubscriber)
-	if instance.clashServer != nil {
-		instance.clashServer.AddModeUpdateHook(s.clashModeSubscriber)
+	if instance.clashMode != nil {
+		instance.clashMode.AddUpdateHook(s.clashModeSubscriber)
 	}
-	instance.logFactory.(log.ObservableFactory).AttachPlatformWriter(s)
+	instance.logFactory.AttachPlatformWriter(s)
 	return s
 }

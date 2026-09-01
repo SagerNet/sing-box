@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/common/trafficcontrol"
 	"github.com/sagernet/sing-box/common/urltest"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/clashmode"
 	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/experimental/locale"
 	"github.com/sagernet/sing-box/log"
@@ -25,7 +26,7 @@ type Instance struct {
 	cancel                context.CancelFunc
 	instance              *box.Box
 	connectionManager     adapter.ConnectionManager
-	clashServer           adapter.ClashServer
+	clashMode             *clashmode.Manager
 	trafficManager        *trafficcontrol.Manager
 	cacheFile             adapter.CacheFile
 	pauseManager          pause.Manager
@@ -130,7 +131,7 @@ func (s *StartedService) newInstance(ctx context.Context, profileContent string,
 	}
 	i.instance = boxInstance
 	i.connectionManager = service.FromContext[adapter.ConnectionManager](ctx)
-	i.clashServer = service.FromContext[adapter.ClashServer](ctx)
+	i.clashMode = service.PtrFromContext[clashmode.Manager](ctx)
 	i.trafficManager = service.PtrFromContext[trafficcontrol.Manager](ctx)
 	i.pauseManager = service.FromContext[pause.Manager](ctx)
 	i.cacheFile = service.FromContext[adapter.CacheFile](ctx)
@@ -145,7 +146,7 @@ func attachInstance(ctx context.Context) *Instance {
 	return &Instance{
 		ctx:                   ctx,
 		connectionManager:     service.FromContext[adapter.ConnectionManager](ctx),
-		clashServer:           service.FromContext[adapter.ClashServer](ctx),
+		clashMode:             service.PtrFromContext[clashmode.Manager](ctx),
 		trafficManager:        service.PtrFromContext[trafficcontrol.Manager](ctx),
 		pauseManager:          service.FromContext[pause.Manager](ctx),
 		cacheFile:             service.FromContext[adapter.CacheFile](ctx),

@@ -26,7 +26,6 @@ type ClashAPIOptions struct {
 	ExternalUIDownloadDetour         string                     `json:"external_ui_download_detour,omitempty" reference:"outbound"`
 	Secret                           string                     `json:"secret,omitempty"`
 	DefaultMode                      string                     `json:"default_mode,omitempty"`
-	ModeList                         []string                   `json:"-"`
 	AccessControlAllowOrigin         badoption.Listable[string] `json:"access_control_allow_origin,omitempty"`
 	AccessControlAllowPrivateNetwork bool                       `json:"access_control_allow_private_network,omitempty"`
 
