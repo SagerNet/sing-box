@@ -199,6 +199,14 @@ func (s *platformInterfaceStub) CreateBridge(options adapter.BridgeOptions) (ada
 	return nil, os.ErrInvalid
 }
 
+func (s *platformInterfaceStub) UsePlatformAutoRedirect() bool {
+	return false
+}
+
+func (s *platformInterfaceStub) CreateAutoRedirect(options adapter.AutoRedirectOptions) (adapter.AutoRedirectSession, error) {
+	return nil, os.ErrInvalid
+}
+
 func (s *platformInterfaceStub) LookupUser(username string) (*adapter.PlatformUser, error) {
 	return nil, os.ErrInvalid
 }
