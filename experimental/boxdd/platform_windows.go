@@ -241,6 +241,14 @@ func (p *windowsPlatformInterface) CreateBridge(options adapter.BridgeOptions) (
 	return nil, os.ErrInvalid
 }
 
+func (p *windowsPlatformInterface) UsePlatformAutoRedirect() bool {
+	return false
+}
+
+func (p *windowsPlatformInterface) CreateAutoRedirect(options adapter.AutoRedirectOptions) (adapter.AutoRedirectSession, error) {
+	return nil, os.ErrInvalid
+}
+
 func (p *windowsPlatformInterface) PrepareOwner(identity peerIdentity) error {
 	p.access.Lock()
 	defer p.access.Unlock()
