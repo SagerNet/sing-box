@@ -266,7 +266,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 				}
 				for j := uint64(0); j < prefixCount; j++ {
 					var prefix netip.Prefix
-					prefix, err = readPrefix(reader)
+					prefix, err = ReadPrefix(reader)
 					if err != nil {
 						return
 					}
@@ -283,7 +283,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 			}
 			for j := uint64(0); j < prefixCount; j++ {
 				var prefix netip.Prefix
-				prefix, err = readPrefix(reader)
+				prefix, err = ReadPrefix(reader)
 				if err != nil {
 					return
 				}
@@ -462,7 +462,7 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 				return err
 			}
 			for _, rawPrefix := range entry.Value {
-				err = writePrefix(writer, rawPrefix.Build(netip.Prefix{}))
+				err = WritePrefix(writer, rawPrefix.Build(netip.Prefix{}))
 				if err != nil {
 					return err
 				}
@@ -482,7 +482,7 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 			return err
 		}
 		for _, rawPrefix := range rule.DefaultInterfaceAddress {
-			err = writePrefix(writer, rawPrefix.Build(netip.Prefix{}))
+			err = WritePrefix(writer, rawPrefix.Build(netip.Prefix{}))
 			if err != nil {
 				return err
 			}
