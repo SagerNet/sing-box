@@ -56,6 +56,18 @@ func (m *platformDefaultInterfaceMonitor) UnregisterCallback(element *list.Eleme
 	m.callbacks.Remove(element)
 }
 
+func (m *platformDefaultInterfaceMonitor) UpdateNetworkPath(networkPath string) {
+	m.logger.Debug("updated network path: ", networkPath)
+	if m.powerManager == nil {
+		return
+	}
+	recorder := m.powerManager.Recorder()
+	if recorder == nil {
+		return
+	}
+	recorder.UpdateNetworkPath(networkPath)
+}
+
 func (m *platformDefaultInterfaceMonitor) UpdateDefaultInterface(interfaceName string, interfaceIndex32 int32, isExpensive bool, isConstrained bool) {
 	if sFixAndroidStack {
 		done := make(chan struct{})

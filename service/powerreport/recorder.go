@@ -70,11 +70,13 @@ type Recorder struct {
 	pendingBreak atomic.Pointer[breakRecord]
 	notify       chan struct{}
 
-	dnsQueries        atomic.Uint64
-	connectionsOpened atomic.Uint64
+	dnsQueries         atomic.Uint64
+	connectionsOpened  atomic.Uint64
+	networkPathUpdates atomic.Uint64
 
 	access         sync.Mutex
 	networkType    string
+	networkPath    string
 	rows           []timelineRow
 	events         []eventRecord
 	previous       previousSample
@@ -96,15 +98,16 @@ type breakRecord struct {
 }
 
 type previousSample struct {
-	at                time.Time
-	usage             systemUsage
-	gcSeconds         float64
-	gcCycles          uint64
-	absoluteTime      int64
-	continuousTime    int64
-	interfaces        map[string]interfaceCounters
-	dnsQueries        uint64
-	connectionsOpened uint64
+	at                 time.Time
+	usage              systemUsage
+	gcSeconds          float64
+	gcCycles           uint64
+	absoluteTime       int64
+	continuousTime     int64
+	interfaces         map[string]interfaceCounters
+	dnsQueries         uint64
+	connectionsOpened  uint64
+	networkPathUpdates uint64
 }
 
 func NewRecorder(options Options) *Recorder {
@@ -285,6 +288,24 @@ func (r *Recorder) UpdateNetworkType(networkType string) {
 	r.notifyWorker()
 }
 
+func (r *Recorder) UpdateNetworkPath(description string) {
+	r.networkPathUpdates.Add(1)
+	now := time.Now()
+	r.access.Lock()
+	if r.closed || r.networkPath == description {
+		r.access.Unlock()
+		return
+	}
+	r.networkPath = description
+	r.events = append(r.events, eventRecord{
+		Type:        eventTypePath,
+		At:          now.UTC().Format(time.RFC3339),
+		NetworkPath: description,
+	})
+	r.access.Unlock()
+	r.notifyWorker()
+}
+
 func (r *Recorder) notifyWorker() {
 	select {
 	case r.notify <- struct{}{}:
@@ -345,13 +366,14 @@ func (r *Recorder) consumeBreakLocked() {
 func (r *Recorder) resetPreviousLocked(now time.Time) {
 	metrics.Read(r.metricsSamples)
 	r.previous = previousSample{
-		at:                now,
-		usage:             readSystemUsage(),
-		gcSeconds:         r.metricsSamples[0].Value.Float64(),
-		gcCycles:          r.metricsSamples[2].Value.Uint64(),
-		interfaces:        readInterfaceCounters(),
-		dnsQueries:        r.dnsQueries.Load(),
-		connectionsOpened: r.connectionsOpened.Load(),
+		at:                 now,
+		usage:              readSystemUsage(),
+		gcSeconds:          r.metricsSamples[0].Value.Float64(),
+		gcCycles:           r.metricsSamples[2].Value.Uint64(),
+		interfaces:         readInterfaceCounters(),
+		dnsQueries:         r.dnsQueries.Load(),
+		connectionsOpened:  r.connectionsOpened.Load(),
+		networkPathUpdates: r.networkPathUpdates.Load(),
 	}
 	r.previous.absoluteTime, r.previous.continuousTime = readClocks()
 }
@@ -361,16 +383,17 @@ func (r *Recorder) sampleLocked(now time.Time) {
 	r.resetPreviousLocked(now)
 	current := &r.previous
 	row := timelineRow{
-		From:              previous.at.UTC().Format(time.RFC3339),
-		To:                now.UTC().Format(time.RFC3339),
-		CPUGCMS:           int64((current.gcSeconds - previous.gcSeconds) * 1000),
-		Goroutines:        r.metricsSamples[1].Value.Uint64(),
-		GCCycles:          current.gcCycles - previous.gcCycles,
-		GoMemoryBytes:     r.metricsSamples[3].Value.Uint64(),
-		GoHeapLiveBytes:   r.metricsSamples[4].Value.Uint64(),
-		DNSQueries:        current.dnsQueries - previous.dnsQueries,
-		ConnectionsOpened: current.connectionsOpened - previous.connectionsOpened,
-		NetworkType:       r.networkType,
+		From:               previous.at.UTC().Format(time.RFC3339),
+		To:                 now.UTC().Format(time.RFC3339),
+		CPUGCMS:            int64((current.gcSeconds - previous.gcSeconds) * 1000),
+		Goroutines:         r.metricsSamples[1].Value.Uint64(),
+		GCCycles:           current.gcCycles - previous.gcCycles,
+		GoMemoryBytes:      r.metricsSamples[3].Value.Uint64(),
+		GoHeapLiveBytes:    r.metricsSamples[4].Value.Uint64(),
+		DNSQueries:         current.dnsQueries - previous.dnsQueries,
+		ConnectionsOpened:  current.connectionsOpened - previous.connectionsOpened,
+		NetworkType:        r.networkType,
+		NetworkPathUpdates: current.networkPathUpdates - previous.networkPathUpdates,
 	}
 	if memory.TotalAvailable() {
 		row.MemoryBytes = memory.Total()

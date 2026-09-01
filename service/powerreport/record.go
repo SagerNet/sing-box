@@ -65,6 +65,7 @@ type timelineRow struct {
 	ConnectionsOpened           uint64            `json:"connectionsOpened,omitempty"`
 	InterfacePackets            map[string]uint64 `json:"interfacePackets,omitempty"`
 	NetworkType                 string            `json:"network,omitempty"`
+	NetworkPathUpdates          uint64            `json:"pathUpdates,omitempty"`
 }
 
 type qosBreakdown struct {
@@ -80,6 +81,7 @@ type qosBreakdown struct {
 const (
 	eventTypeBreak   = "break"
 	eventTypeNetwork = "network"
+	eventTypePath    = "path"
 )
 
 type eventRecord struct {
@@ -89,6 +91,7 @@ type eventRecord struct {
 	Direction   string       `json:"direction,omitempty"`
 	Size        int          `json:"size,omitempty"`
 	NetworkType string       `json:"network,omitempty"`
+	NetworkPath string       `json:"path,omitempty"`
 	By          *Attribution `json:"by,omitempty"`
 }
 
