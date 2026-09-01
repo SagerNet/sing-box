@@ -346,12 +346,12 @@ func TestPrefixCompat(t *testing.T) {
 				"mismatch for %q\nold: %x\nnew: %x", tc.name, oldBuf.Bytes(), newBuf.Bytes())
 
 			// New write -> new read (no old read for prefix)
-			readBack, err := readPrefix(bufio.NewReader(bytes.NewReader(newBuf.Bytes())))
+			readBack, err := ReadPrefix(bufio.NewReader(bytes.NewReader(newBuf.Bytes())))
 			require.NoError(t, err)
 			require.Equal(t, tc.input, readBack)
 
 			// Old write -> new read
-			readBack2, err := readPrefix(bufio.NewReader(bytes.NewReader(oldBuf.Bytes())))
+			readBack2, err := ReadPrefix(bufio.NewReader(bytes.NewReader(oldBuf.Bytes())))
 			require.NoError(t, err)
 			require.Equal(t, tc.input, readBack2)
 		})

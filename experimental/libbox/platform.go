@@ -30,6 +30,20 @@ type PlatformInterface interface {
 	TailscaleHostname() string
 	UsePlatformBridge() bool
 	CreateBridge(options *BridgeOptions) (BridgeSession, error)
+	UsePlatformAutoRedirect() bool
+	CreateAutoRedirect(options []byte, handler AutoRedirectHandler) (AutoRedirectSession, error)
+}
+
+type AutoRedirectHandler interface {
+	JudgeFlow(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32, firstPacket []byte) (int32, error)
+	RedirectListenerFileDescriptor() (int32, error)
+	RouteAddressSetFileDescriptor() (int32, error)
+	WriteLog(level int32, message string)
+}
+
+type AutoRedirectSession interface {
+	Close() error
+	UpdateRouteAddressSet() error
 }
 
 type BridgeOptions struct {
