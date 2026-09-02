@@ -26,10 +26,11 @@ func RegisterInbound(registry *inbound.Registry) {
 
 type Inbound struct {
 	inbound.Adapter
-	router   adapter.Router
-	logger   logger.ContextLogger
-	listener *listener.Listener
-	service  *shadowtls.Service
+	router     adapter.Router
+	logger     logger.ContextLogger
+	listener   *listener.Listener
+	service    *shadowtls.Service
+	references []string
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.ShadowTLSInboundOptions) (adapter.Inbound, error) {
@@ -48,6 +49,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		handshakeForServerName = make(map[string]shadowtls.HandshakeConfig)
 		if options.HandshakeForServerName != nil {
 			for _, entry := range options.HandshakeForServerName.Entries() {
+				if entry.Value.Detour != "" {
+					inbound.references = append(inbound.references, entry.Value.Detour)
+				}
 				handshakeDialer, err := dialer.New(ctx, entry.Value.DialerOptions, entry.Value.ServerIsDomain())
 				if err != nil {
 					return nil, err
@@ -66,6 +70,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	handshakeDialer, err := dialer.New(ctx, options.Handshake.DialerOptions, serverIsDomain)
 	if err != nil {
 		return nil, err
+	}
+	if options.Handshake.Detour != "" {
+		inbound.references = append(inbound.references, options.Handshake.Detour)
 	}
 	service, err := shadowtls.NewService(shadowtls.ServiceConfig{
 		Version:  options.Version,
@@ -138,4 +145,8 @@ func (h *inboundHandler) NewConnectionEx(ctx context.Context, conn net.Conn, sou
 		h.logger.InfoContext(ctx, "inbound connection to ", metadata.Destination)
 	}
 	h.router.RouteConnectionEx(ctx, conn, metadata, onClose)
+}
+
+func (h *Inbound) References() []string {
+	return h.references
 }

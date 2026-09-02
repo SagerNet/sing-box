@@ -152,9 +152,9 @@ func (m *Manager) startOutbounds(outbounds []adapter.Outbound) error {
 			if common.Contains(oTree, problemOutboundTag) {
 				return E.New("circular outbound dependency: ", strings.Join(oTree, " -> "), " -> ", problemOutboundTag)
 			}
-			m.access.Lock()
-			problemOutbound := m.outboundByTag[problemOutboundTag]
-			m.access.Unlock()
+			problemOutbound := common.Find(outbounds, func(it adapter.Outbound) bool {
+				return it.Tag() == problemOutboundTag
+			})
 			if problemOutbound == nil {
 				return E.New("dependency[", problemOutboundTag, "] not found for outbound[", oCurrent.Tag(), "]")
 			}

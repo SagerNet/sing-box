@@ -257,6 +257,7 @@ func New(options Options) (*Box, error) {
 		service.MustRegisterPtr(ctx, clashMode)
 		internalServices = append(internalServices, clashMode)
 	}
+	internalServices = append(internalServices, route.NewReferenceManager(ctx, logFactory.NewLogger("reference"), options.Options))
 	ntpOptions := common.PtrValueOrDefault(options.NTP)
 	var timeService *tls.TimeServiceWrapper
 	if ntpOptions.Enabled {

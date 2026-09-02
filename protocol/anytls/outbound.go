@@ -24,7 +24,11 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.AnyTLSOutboundOptions](registry, C.TypeAnyTLS, NewOutbound)
 }
 
-var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+var (
+	_ adapter.OutboundWithMultiplex   = (*Outbound)(nil)
+	_ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+	_ adapter.IdleConnectionCloser    = (*Outbound)(nil)
+)
 
 type Outbound struct {
 	outbound.Adapter
@@ -111,6 +115,14 @@ func (h *Outbound) dialOut(ctx context.Context) (net.Conn, error) {
 
 func (h *Outbound) MultiplexEnabled() bool {
 	return true
+}
+
+func (h *Outbound) InterfaceUpdated(ctx context.Context) {
+	h.client.Reset()
+}
+
+func (h *Outbound) CloseIdleConnections() {
+	h.client.CloseIdleConnections()
 }
 
 func (h *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
