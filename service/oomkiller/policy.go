@@ -10,7 +10,10 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
-const DefaultAppleNetworkExtensionMemoryLimit = 50 * 1024 * 1024
+const (
+	DefaultAppleNetworkExtensionMemoryLimit = 50 * 1024 * 1024
+	DefaultAppleNetworkExtensionGCPercent   = 50
+)
 
 type policyMode uint8
 
@@ -23,6 +26,19 @@ const (
 
 func (m policyMode) hasTimerMode() bool {
 	return m != policyModeNone
+}
+
+func (m policyMode) String() string {
+	switch m {
+	case policyModeMemoryLimit:
+		return "memory_limit"
+	case policyModeAvailable:
+		return "available"
+	case policyModeNetworkExtension:
+		return "network_extension"
+	default:
+		return "none"
+	}
 }
 
 func resolvePolicyMode(ctx context.Context, options option.OOMKillerServiceOptions) (uint64, policyMode) {

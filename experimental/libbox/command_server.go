@@ -36,6 +36,7 @@ type CommandServer struct {
 	platformInterface PlatformInterface
 	platformWrapper   *platformInterfaceWrapper
 	powerManager      *powerreport.Manager
+	oomRecorder       *oomkiller.Recorder
 	grpcServer        *grpc.Server
 	listener          net.Listener
 	endPauseTimer     *time.Timer
@@ -83,12 +84,14 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 		// GroupID:          sGroupID,
 		// SystemProxyEnabled: false,
 	})
-	reporter := &oomReporter{startedService: server.StartedService}
-	service.MustRegister[oomkiller.OOMReporter](ctx, reporter)
+	oomRecorder := oomkiller.NewRecorder(OOMRecorderOptions(server.StartedService))
+	service.MustRegister[*oomkiller.Recorder](ctx, oomRecorder)
+	oomRecorder.Start()
+	server.oomRecorder = oomRecorder
 	server.managedService = daemon.NewManagedService(daemon.ManagedServiceOptions{
 		Handler:     (*platformHandler)(server),
 		Debug:       sDebug,
-		OOMReporter: reporter,
+		OOMRecorder: oomRecorder,
 	})
 	if sPowerReportEnabled {
 		err := powerManager.Start(PowerReportOptions(server.StartedService))
@@ -195,6 +198,7 @@ func (s *CommandServer) Close() {
 	}
 	common.Close(s.listener)
 	s.StartedService.Close()
+	s.oomRecorder.Close()
 	s.powerManager.Close()
 }
 

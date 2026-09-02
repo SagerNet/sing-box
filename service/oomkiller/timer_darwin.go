@@ -5,6 +5,7 @@ package oomkiller
 import runtimeDebug "runtime/debug"
 
 func (t *adaptiveTimer) notifyPressure() {
+	badCleanup()
 	runtimeDebug.FreeOSMemory()
 	t.access.Lock()
 	t.startLocked()

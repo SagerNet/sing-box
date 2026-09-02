@@ -92,6 +92,7 @@ func ReloadSetupOptions(options *SetupOptions) {
 	if sOOMKillerEnabled {
 		if sOOMMemoryLimit == 0 && C.IsIos {
 			sOOMMemoryLimit = oomkiller.DefaultAppleNetworkExtensionMemoryLimit
+			debug.SetGCPercent(oomkiller.DefaultAppleNetworkExtensionGCPercent)
 		}
 		if sOOMMemoryLimit > 0 {
 			debug.SetMemoryLimit(sOOMMemoryLimit * 4 / 5)

@@ -5,21 +5,18 @@ package libbox
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/common/trafficcontrol"
 	"github.com/sagernet/sing-box/daemon"
 	"github.com/sagernet/sing-box/experimental/libbox/internal/oomprofile"
+	"github.com/sagernet/sing-box/experimental/libbox/internal/runtimeinfo"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing/common/byteformats"
 	F "github.com/sagernet/sing/common/format"
-	"github.com/sagernet/sing/common/memory"
 )
 
 var oomReportProfiles = []string{
@@ -34,157 +31,66 @@ var oomReportProfiles = []string{
 type oomReportMetadata struct {
 	reportMetadata
 	RecordedAt      string `json:"recordedAt"`
+	EndedAt         string `json:"endedAt,omitempty"`
+	MemoryLimit     string `json:"memoryLimit,omitempty"`
 	MemoryUsage     string `json:"memoryUsage"`
 	AvailableMemory string `json:"availableMemory,omitempty"`
-	// Heap
-	HeapAlloc    string `json:"heapAlloc,omitempty"`
-	HeapObjects  uint64 `json:"heapObjects,omitempty,string"`
-	HeapInuse    string `json:"heapInuse,omitempty"`
-	HeapIdle     string `json:"heapIdle,omitempty"`
-	HeapReleased string `json:"heapReleased,omitempty"`
-	HeapSys      string `json:"heapSys,omitempty"`
-	// Stack
-	StackInuse string `json:"stackInuse,omitempty"`
-	StackSys   string `json:"stackSys,omitempty"`
-	// Runtime metadata
-	MSpanInuse  string `json:"mSpanInuse,omitempty"`
-	MSpanSys    string `json:"mSpanSys,omitempty"`
-	MCacheSys   string `json:"mCacheSys,omitempty"`
-	BuckHashSys string `json:"buckHashSys,omitempty"`
-	GCSys       string `json:"gcSys,omitempty"`
-	OtherSys    string `json:"otherSys,omitempty"`
-	Sys         string `json:"sys,omitempty"`
-	// GC & runtime
-	TotalAlloc   string `json:"totalAlloc,omitempty"`
-	NumGC        uint32 `json:"numGC,omitempty,string"`
-	NumGoroutine int    `json:"numGoroutine,omitempty,string"`
-	NextGC       string `json:"nextGC,omitempty"`
-	LastGC       string `json:"lastGC,omitempty"`
+	Snapshots       int    `json:"snapshots,omitempty,string"`
 }
 
-type oomReporter struct {
-	startedService *daemon.StartedService
+func OOMRecorderOptions(startedService *daemon.StartedService) oomkiller.RecorderOptions {
+	return oomkiller.RecorderOptions{
+		BasePath:    sWorkingPath,
+		Logger:      log.StdLogger(),
+		AcceptDraft: acceptOOMDraft,
+		MetadataCallback: func(status oomkiller.ReportStatus) any {
+			metadata := oomReportMetadata{
+				reportMetadata: baseReportMetadata(),
+				RecordedAt:     status.RecordedAt.UTC().Format(time.RFC3339),
+				MemoryUsage:    byteformats.FormatMemoryBytes(status.PeakMemory),
+				Snapshots:      status.Snapshots,
+			}
+			metadata.StartedAt = status.StartedAt.UTC().Format(time.RFC3339)
+			if !status.EndedAt.IsZero() {
+				metadata.EndedAt = status.EndedAt.UTC().Format(time.RFC3339)
+			}
+			if status.MemoryLimit > 0 {
+				metadata.MemoryLimit = byteformats.FormatMemoryBytes(status.MemoryLimit)
+			}
+			if status.AvailableKnown {
+				metadata.AvailableMemory = byteformats.FormatMemoryBytes(status.MinAvailable)
+			}
+			return metadata
+		},
+		OwnerCallback: chownReport,
+		LogCallback: func() []byte {
+			return formatLogEntries(startedService.SavedLog())
+		},
+		SnapshotCallback: func(directory string, prefix string) {
+			for _, name := range oomReportProfiles {
+				writeOOMProfile(filepath.Join(directory, prefix+"."+name+".pb"), name)
+			}
+			runtimeInfoPath := filepath.Join(directory, prefix+".runtime.json")
+			err := runtimeinfo.WriteFile(runtimeInfoPath)
+			if err == nil {
+				chownReport(runtimeInfoPath)
+			}
+			copyConfigSnapshot(directory)
+			content := oomConnectionsContent(startedService)
+			if content != nil {
+				writeReportFile(directory, prefix+".connections.json", content)
+			}
+		},
+	}
 }
 
-var _ oomkiller.OOMReporter = (*oomReporter)(nil)
-
-func NewOOMReporter(startedService *daemon.StartedService) oomkiller.OOMReporter {
-	return &oomReporter{startedService: startedService}
-}
-
-func (r *oomReporter) WriteReport(memoryUsage uint64) error {
-	draftPath := filepath.Join(sWorkingPath, "oom_draft")
-	draftInfo, err := os.Stat(draftPath)
+func acceptOOMDraft(metadataContent []byte) bool {
+	var draftMetadata reportMetadata
+	err := json.Unmarshal(metadataContent, &draftMetadata)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-		draftInfo = nil
+		return false
 	}
-	reportsDir := filepath.Join(sWorkingPath, "oom_reports")
-	err = os.MkdirAll(reportsDir, 0o777)
-	if err != nil {
-		return err
-	}
-	chownReport(reportsDir)
-
-	destPath, err := nextAvailableReportPath(reportsDir, time.Now().UTC())
-	if err != nil {
-		return err
-	}
-	err = r.writeSnapshot(destPath, memoryUsage)
-	if err != nil {
-		return err
-	}
-	return discardDraftIfCurrent(draftPath, draftInfo)
-}
-
-func (r *oomReporter) WriteDraft(memoryUsage uint64) error {
-	draftPath := filepath.Join(sWorkingPath, "oom_draft")
-	os.RemoveAll(draftPath)
-	return r.writeSnapshot(draftPath, memoryUsage)
-}
-
-func (r *oomReporter) DiscardDraft() error {
-	draftPath := filepath.Join(sWorkingPath, "oom_draft")
-	return os.RemoveAll(draftPath)
-}
-
-func discardDraftIfCurrent(draftPath string, draftInfo os.FileInfo) error {
-	if draftInfo == nil {
-		return nil
-	}
-	currentInfo, err := os.Stat(draftPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	if !os.SameFile(draftInfo, currentInfo) {
-		return nil
-	}
-	return os.RemoveAll(draftPath)
-}
-
-func (r *oomReporter) writeSnapshot(destPath string, memoryUsage uint64) error {
-	now := time.Now().UTC()
-	err := os.MkdirAll(destPath, 0o777)
-	if err != nil {
-		return err
-	}
-	chownReport(destPath)
-
-	for _, name := range oomReportProfiles {
-		writeOOMProfile(destPath, name)
-	}
-
-	writeReportFile(destPath, "cmdline", []byte(strings.Join(os.Args, "\000")))
-
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	metadata := oomReportMetadata{
-		reportMetadata: baseReportMetadata(),
-		RecordedAt:     now.Format(time.RFC3339),
-		MemoryUsage:    byteformats.FormatMemoryBytes(memoryUsage),
-		// Heap
-		HeapAlloc:    byteformats.FormatMemoryBytes(memStats.HeapAlloc),
-		HeapObjects:  memStats.HeapObjects,
-		HeapInuse:    byteformats.FormatMemoryBytes(memStats.HeapInuse),
-		HeapIdle:     byteformats.FormatMemoryBytes(memStats.HeapIdle),
-		HeapReleased: byteformats.FormatMemoryBytes(memStats.HeapReleased),
-		HeapSys:      byteformats.FormatMemoryBytes(memStats.HeapSys),
-		// Stack
-		StackInuse: byteformats.FormatMemoryBytes(memStats.StackInuse),
-		StackSys:   byteformats.FormatMemoryBytes(memStats.StackSys),
-		// Runtime metadata
-		MSpanInuse:  byteformats.FormatMemoryBytes(memStats.MSpanInuse),
-		MSpanSys:    byteformats.FormatMemoryBytes(memStats.MSpanSys),
-		MCacheSys:   byteformats.FormatMemoryBytes(memStats.MCacheSys),
-		BuckHashSys: byteformats.FormatMemoryBytes(memStats.BuckHashSys),
-		GCSys:       byteformats.FormatMemoryBytes(memStats.GCSys),
-		OtherSys:    byteformats.FormatMemoryBytes(memStats.OtherSys),
-		Sys:         byteformats.FormatMemoryBytes(memStats.Sys),
-		// GC & runtime
-		TotalAlloc:   byteformats.FormatMemoryBytes(memStats.TotalAlloc),
-		NumGC:        memStats.NumGC,
-		NumGoroutine: runtime.NumGoroutine(),
-		NextGC:       byteformats.FormatMemoryBytes(memStats.NextGC),
-	}
-	if memStats.LastGC > 0 {
-		metadata.LastGC = time.Unix(0, int64(memStats.LastGC)).UTC().Format(time.RFC3339)
-	}
-	availableMemory := memory.Available()
-	if availableMemory > 0 {
-		metadata.AvailableMemory = byteformats.FormatMemoryBytes(availableMemory)
-	}
-	writeReportMetadata(destPath, metadata)
-	copyConfigSnapshot(destPath)
-	writeOOMLog(destPath, r.startedService.SavedLog())
-	r.writeOOMConnections(destPath)
-
-	return nil
+	return draftMetadata.AppVersion == sAppVersion && draftMetadata.AppMarketingVersion == sAppMarketingVersion
 }
 
 type oomConnectionsInfo struct {
@@ -213,14 +119,14 @@ type oomConnectionInfo struct {
 	Download     string   `json:"download,omitempty"`
 }
 
-func (r *oomReporter) writeOOMConnections(destPath string) {
-	instance := r.startedService.Instance()
+func oomConnectionsContent(startedService *daemon.StartedService) []byte {
+	instance := startedService.Instance()
 	if instance == nil {
-		return
+		return nil
 	}
 	trafficManager := instance.TrafficManager()
 	if trafficManager == nil {
-		return
+		return nil
 	}
 	connections := trafficManager.Connections()
 	sort.Slice(connections, func(i, j int) bool {
@@ -235,9 +141,9 @@ func (r *oomReporter) writeOOMConnections(destPath string) {
 	}
 	data, err := json.MarshalIndent(info, "", "  ")
 	if err != nil {
-		return
+		return nil
 	}
-	writeReportFile(destPath, "connections.json", data)
+	return data
 }
 
 func buildOOMConnections(connections []*trafficcontrol.TrackerMetadata) []oomConnectionInfo {
@@ -314,14 +220,6 @@ func formatLogEntries(entries []*log.Entry) []byte {
 	return buffer.Bytes()
 }
 
-func writeOOMLog(destPath string, entries []*log.Entry) {
-	content := formatLogEntries(entries)
-	if content == nil {
-		return
-	}
-	writeReportFile(destPath, "go.log", content)
-}
-
 func writeWithoutColors(buffer *bytes.Buffer, message string) {
 	start := 0
 	for index := 0; index < len(message); {
@@ -343,54 +241,18 @@ func writeWithoutColors(buffer *bytes.Buffer, message string) {
 	buffer.WriteString(message[start:])
 }
 
-func writeOOMProfile(destPath string, name string) {
-	filePath, err := oomprofile.WriteFile(destPath, name)
+func writeOOMProfile(filePath string, name string) {
+	err := oomprofile.WriteFile(filePath, name)
 	if err != nil {
 		return
 	}
 	chownReport(filePath)
 }
 
-func promoteOOMDraftAt(workingPath string) {
-	draftPath := filepath.Join(workingPath, "oom_draft")
-	info, err := os.Stat(draftPath)
-	if err != nil || !info.IsDir() {
-		return
-	}
-	metadataContent, err := os.ReadFile(filepath.Join(draftPath, "metadata.json"))
-	if err != nil {
-		os.RemoveAll(draftPath)
-		return
-	}
-	var draftMetadata reportMetadata
-	err = json.Unmarshal(metadataContent, &draftMetadata)
-	if err != nil || draftMetadata.AppVersion != sAppVersion || draftMetadata.AppMarketingVersion != sAppMarketingVersion {
-		os.RemoveAll(draftPath)
-		return
-	}
-	reportsDir := filepath.Join(workingPath, "oom_reports")
-	initReportDir(reportsDir)
-	destPath, err := nextAvailableReportPath(reportsDir, info.ModTime().UTC())
-	if err != nil {
-		os.RemoveAll(draftPath)
-		return
-	}
-	err = os.Rename(draftPath, destPath)
-	if err != nil {
-		os.RemoveAll(draftPath)
-		return
-	}
-	chownReport(destPath)
-}
-
-func promoteOOMDraft() {
-	promoteOOMDraftAt(sWorkingPath)
-}
-
 func PromoteOOMDraft() {
-	promoteOOMDraft()
+	oomkiller.PromoteDraft(sWorkingPath, acceptOOMDraft)
 }
 
 func PromoteOOMDraftAt(workingPath string) {
-	promoteOOMDraftAt(workingPath)
+	oomkiller.PromoteDraft(workingPath, acceptOOMDraft)
 }
