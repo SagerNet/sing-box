@@ -28,8 +28,25 @@ type Client struct {
 	tlsConfig  tls.Config
 	quicConfig *quic.Config
 	connAccess sync.Mutex
-	conn       common.TypedValue[*quic.Conn]
+	conn       common.TypedValue[*clientConnection]
 	rawConn    net.Conn
+}
+
+type clientConnection struct {
+	*quic.Conn
+	access   sync.Mutex
+	streams  int
+	draining bool
+}
+
+func (c *clientConnection) releaseStream() {
+	c.access.Lock()
+	c.streams--
+	drained := c.draining && c.streams == 0
+	c.access.Unlock()
+	if drained {
+		c.CloseWithError(0, "")
+	}
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayQUICOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
@@ -48,7 +65,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}, nil
 }
 
-func (c *Client) offer() (*quic.Conn, error) {
+func (c *Client) offer() (*clientConnection, error) {
 	conn := c.conn.Load()
 	if conn != nil && !common.Done(conn.Context()) {
 		return conn, nil
@@ -66,7 +83,7 @@ func (c *Client) offer() (*quic.Conn, error) {
 	return conn, nil
 }
 
-func (c *Client) offerNew() (*quic.Conn, error) {
+func (c *Client) offerNew() (*clientConnection, error) {
 	udpConn, err := c.dialer.DialContext(c.ctx, "udp", c.serverAddr)
 	if err != nil {
 		return nil, err
@@ -82,9 +99,10 @@ func (c *Client) offerNew() (*quic.Conn, error) {
 		<-quicConn.Context().Done()
 		udpConn.Close()
 	}()
-	c.conn.Store(quicConn)
+	conn := &clientConnection{Conn: quicConn}
+	c.conn.Store(conn)
 	c.rawConn = udpConn
-	return quicConn, nil
+	return conn, nil
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
@@ -92,11 +110,30 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	conn.access.Lock()
+	conn.streams++
+	conn.draining = false
+	conn.access.Unlock()
 	stream, err := conn.OpenStream()
 	if err != nil {
+		conn.releaseStream()
 		return nil, err
 	}
-	return &StreamWrapper{Conn: conn, Stream: stream}, nil
+	return &StreamWrapper{Conn: conn.Conn, Stream: stream, onClose: conn.releaseStream}, nil
+}
+
+func (c *Client) CloseIdleConnections() {
+	conn := c.conn.Load()
+	if conn == nil {
+		return
+	}
+	conn.access.Lock()
+	conn.draining = true
+	drained := conn.streams == 0
+	conn.access.Unlock()
+	if drained {
+		conn.CloseWithError(0, "")
+	}
 }
 
 func (c *Client) Close() error {
