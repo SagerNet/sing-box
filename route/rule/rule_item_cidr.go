@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/ipset"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 
@@ -15,7 +16,7 @@ import (
 var _ RuleItem = (*IPCIDRItem)(nil)
 
 type IPCIDRItem struct {
-	ipSet       *netipx.IPSet
+	ipSet       *ipset.Set
 	isSource    bool
 	description string
 }
@@ -53,13 +54,13 @@ func NewIPCIDRItem(isSource bool, prefixStrings []string) (*IPCIDRItem, error) {
 		return nil, err
 	}
 	return &IPCIDRItem{
-		ipSet:       ipSet,
+		ipSet:       ipset.FromIPSet(ipSet),
 		isSource:    isSource,
 		description: description,
 	}, nil
 }
 
-func NewRawIPCIDRItem(isSource bool, ipSet *netipx.IPSet) *IPCIDRItem {
+func NewRawIPCIDRItem(isSource bool, ipSet *ipset.Set) *IPCIDRItem {
 	var description string
 	if isSource {
 		description = "source_ip_cidr="
