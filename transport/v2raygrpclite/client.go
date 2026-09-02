@@ -102,6 +102,10 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	return conn, nil
 }
 
+func (c *Client) CloseIdleConnections() {
+	c.transport.CloseIdleConnections()
+}
+
 func (c *Client) Close() error {
 	v2rayhttp.ResetTransport(c.transport)
 	return nil

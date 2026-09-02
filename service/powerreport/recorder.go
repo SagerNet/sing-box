@@ -162,7 +162,7 @@ func (r *Recorder) Start() error {
 	if r.started {
 		return nil
 	}
-	PromoteDraft(filepath.Dir(r.draftPath))
+	DiscardDraft(filepath.Dir(r.draftPath))
 	err := os.MkdirAll(r.draftPath, 0o777)
 	if err != nil {
 		return E.Cause(err, "create power report draft directory")
