@@ -27,7 +27,11 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.VLESSOutboundOptions](registry, C.TypeVLESS, NewOutbound)
 }
 
-var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+var (
+	_ adapter.OutboundWithMultiplex   = (*Outbound)(nil)
+	_ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+	_ adapter.IdleConnectionCloser    = (*Outbound)(nil)
+)
 
 type Outbound struct {
 	outbound.Adapter
@@ -139,6 +143,16 @@ func (h *Outbound) InterfaceUpdated(ctx context.Context) {
 	}
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
+	}
+}
+
+func (h *Outbound) CloseIdleConnections() {
+	transportCloser, isTransportCloser := h.transport.(adapter.IdleConnectionCloser)
+	if isTransportCloser {
+		transportCloser.CloseIdleConnections()
+	}
+	if h.multiplexDialer != nil {
+		h.multiplexDialer.CloseIdleConnections()
 	}
 }
 

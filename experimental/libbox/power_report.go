@@ -36,6 +36,6 @@ func PowerReportOptions(startedService *daemon.StartedService) powerreport.Optio
 	}
 }
 
-func PromotePowerReportDraft() {
-	powerreport.PromoteDraft(sWorkingPath)
+func DiscardPowerReportDraft() {
+	powerreport.DiscardDraft(sWorkingPath)
 }
