@@ -35,14 +35,15 @@ var _ adapter.TCPInjectableInbound = (*Inbound)(nil)
 
 type Inbound struct {
 	inbound.Adapter
-	ctx       context.Context
-	router    adapter.ConnectionRouterEx
-	logger    logger.ContextLogger
-	listener  *listener.Listener
-	users     []option.VLESSUser
-	service   *vless.Service[int]
-	tlsConfig tls.ServerConfig
-	transport adapter.V2RayServerTransport
+	ctx        context.Context
+	router     adapter.ConnectionRouterEx
+	logger     logger.ContextLogger
+	listener   *listener.Listener
+	users      []option.VLESSUser
+	service    *vless.Service[int]
+	tlsConfig  tls.ServerConfig
+	transport  adapter.V2RayServerTransport
+	references []string
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.VLESSInboundOptions) (adapter.Inbound, error) {
@@ -80,6 +81,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		})
 		if err != nil {
 			return nil, err
+		}
+		if options.TLS.Reality != nil && options.TLS.Reality.Enabled && options.TLS.Reality.Handshake.Detour != "" {
+			inbound.references = []string{options.TLS.Reality.Handshake.Detour}
 		}
 	}
 	if options.Transport != nil {
@@ -219,4 +223,8 @@ func (h *inboundTransportHandler) NewConnectionEx(ctx context.Context, conn net.
 	//nolint:staticcheck
 	h.logger.InfoContext(ctx, "inbound connection from ", metadata.Source)
 	(*Inbound)(h).NewConnection(ctx, conn, metadata, onClose)
+}
+
+func (h *Inbound) References() []string {
+	return h.references
 }
