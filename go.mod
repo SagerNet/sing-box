@@ -5,7 +5,6 @@ go 1.25.5
 require (
 	filippo.io/age v1.3.1
 	github.com/anthropics/anthropic-sdk-go v1.26.0
-	github.com/anytls/sing-anytls v0.0.11
 	github.com/caddyserver/certmagic v0.25.3-0.20260421143802-60d9d8b415d6
 	github.com/caddyserver/zerossl v0.1.5
 	github.com/coder/websocket v1.8.14
@@ -45,7 +44,8 @@ require (
 	github.com/sagernet/netlink v0.0.0-20261114050611-bf24b30b925f
 	github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b
 	github.com/sagernet/quic-go v0.61.0-sing-box-mod.14
-	github.com/sagernet/sing v0.9.7-0.20261110095939-f545d0260412
+	github.com/sagernet/sing v0.9.7-0.20261110095940-27b73774b240
+	github.com/sagernet/sing-anytls v0.0.0-20260902113941-3a0c2f92e1af
 	github.com/sagernet/sing-cloudflared v0.1.4-0.20261108120326-83391fb7b139
 	github.com/sagernet/sing-mux v0.3.10-0.20261110064256-375087483ea2
 	github.com/sagernet/sing-openconnect v0.1.1-0.20261110063157-f28cbff7da8d
