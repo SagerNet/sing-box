@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/sagernet/sing-anytls"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
@@ -17,9 +18,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/uot"
-
-	anytls "github.com/anytls/sing-anytls"
-	"github.com/anytls/sing-anytls/session"
 )
 
 func RegisterOutbound(registry *outbound.Registry) {
@@ -30,32 +28,24 @@ var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
 
 type Outbound struct {
 	outbound.Adapter
-	ctx            context.Context
-	dialer         tls.Dialer
-	server         M.Socksaddr
-	tlsConfig      tls.Config
-	clientOptions  anytls.ClientConfig
-	clientMetadata string
-	client         *anytls.Client
-	sessionClient  *session.Client
-	uotClient      *uot.Client
-	logger         log.ContextLogger
+	dialer        tls.Dialer
+	server        M.Socksaddr
+	tlsConfig     tls.Config
+	clientOptions anytls.ClientOptions
+	client        *anytls.Client
+	uotClient     *uot.Client
+	logger        log.ContextLogger
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.AnyTLSOutboundOptions) (adapter.Outbound, error) {
 	outbound := &Outbound{
 		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeAnyTLS, tag, []string{N.NetworkTCP, N.NetworkUDP}, options.DialerOptions),
-		ctx:     ctx,
 		server:  options.ServerOptions.Build(),
 		logger:  logger,
 	}
 	if options.TLS == nil || !options.TLS.Enabled {
 		return nil, C.ErrTLSRequired
 	}
-	// TCP Fast Open is incompatible with anytls because TFO creates a lazy connection
-	// that only establishes on first write. The lazy connection returns an empty address
-	// before establishment, but anytls SOCKS wrapper tries to access the remote address
-	// during handshake, causing a null pointer dereference crash.
 	if options.DialerOptions.TCPFastOpen {
 		return nil, E.New("tcp_fast_open is not supported with anytls outbound")
 	}
@@ -77,15 +67,15 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 
 	outbound.dialer = tls.NewDialer(outboundDialer, tlsConfig)
 
-	outbound.clientOptions = anytls.ClientConfig{
+	outbound.clientOptions = anytls.ClientOptions{
 		Password:                 options.Password,
+		ClientMetadata:           options.ClientMetadata,
+		DialOut:                  outbound.dialOut,
 		IdleSessionCheckInterval: options.IdleSessionCheckInterval.Build(),
 		IdleSessionTimeout:       options.IdleSessionTimeout.Build(),
 		MinIdleSession:           options.MinIdleSession,
-		DialOut:                  outbound.dialOut,
 		Logger:                   logger,
 	}
-	outbound.clientMetadata = options.ClientMetadata
 	return outbound, nil
 }
 
@@ -93,31 +83,16 @@ func (h *Outbound) Start(stage adapter.StartStage) error {
 	if stage != adapter.StartStateInitialize {
 		return nil
 	}
-	client, err := anytls.NewClient(h.ctx, h.clientOptions)
+	client, err := anytls.NewClient(h.clientOptions)
 	if err != nil {
 		return err
 	}
 	h.client = client
-	h.sessionClient = sessionClientOf(client)
 	h.uotClient = &uot.Client{
-		Dialer:  anytlsDialer(h.createProxy),
+		Dialer:  anytlsDialer(client.DialContext),
 		Version: uot.Version,
 	}
 	return nil
-}
-
-func (h *Outbound) createProxy(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
-	conn, err := h.sessionClient.CreateStream(ctx)
-	if err != nil {
-		return nil, err
-	}
-	h.rewriteClientMetadata(conn)
-	err = M.SocksaddrSerializer.WriteAddrPort(conn, destination)
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-	return conn, nil
 }
 
 type anytlsDialer func(ctx context.Context, destination M.Socksaddr) (net.Conn, error)
@@ -145,7 +120,7 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-		return h.createProxy(ctx, destination)
+		return h.client.DialContext(ctx, destination)
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound UoT packet connection to ", destination)
 		return h.uotClient.DialContext(ctx, network, destination)
