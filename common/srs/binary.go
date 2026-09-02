@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"unsafe"
 
+	"github.com/sagernet/sing-box/common/ipset"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
@@ -80,7 +81,7 @@ func Read(reader io.Reader, recover bool) (ruleSetCompat option.PlainRuleSetComp
 	ruleSetCompat.Version = version
 	for i := range length {
 		var rule option.HeadlessRule
-		rule, err = readRule(bReader, recover, 0)
+		rule, err = readRule(bReader, recover, 0, nil)
 		if err != nil {
 			err = E.Cause(err, "read rule[", i, "]")
 			return
@@ -109,7 +110,7 @@ func Write(writer io.Writer, ruleSet option.PlainRuleSet, generateVersion uint8)
 		return err
 	}
 	for _, rule := range ruleSet.Rules {
-		err = writeRule(bWriter, rule, generateVersion)
+		err = writeRule(bWriter, rule, generateVersion, nil)
 		if err != nil {
 			return err
 		}
@@ -123,7 +124,7 @@ func Write(writer io.Writer, ruleSet option.PlainRuleSet, generateVersion uint8)
 
 const maxLogicalRuleDepth = 100
 
-func readRule(reader varbin.Reader, recover bool, depth int) (rule option.HeadlessRule, err error) {
+func readRule(reader varbin.Reader, recover bool, depth int, mmap *mmapReader) (rule option.HeadlessRule, err error) {
 	if depth > maxLogicalRuleDepth {
 		err = E.New("logical rule nested too deep")
 		return
@@ -136,28 +137,28 @@ func readRule(reader varbin.Reader, recover bool, depth int) (rule option.Headle
 	switch ruleType {
 	case 0:
 		rule.Type = C.RuleTypeDefault
-		rule.DefaultOptions, err = readDefaultRule(reader, recover)
+		rule.DefaultOptions, err = readDefaultRule(reader, recover, mmap)
 	case 1:
 		rule.Type = C.RuleTypeLogical
-		rule.LogicalOptions, err = readLogicalRule(reader, recover, depth)
+		rule.LogicalOptions, err = readLogicalRule(reader, recover, depth, mmap)
 	default:
 		err = E.New("unknown rule type: ", ruleType)
 	}
 	return
 }
 
-func writeRule(writer varbin.Writer, rule option.HeadlessRule, generateVersion uint8) error {
+func writeRule(writer varbin.Writer, rule option.HeadlessRule, generateVersion uint8, mmap *mmapWriter) error {
 	switch rule.Type {
 	case C.RuleTypeDefault:
-		return writeDefaultRule(writer, rule.DefaultOptions, generateVersion)
+		return writeDefaultRule(writer, rule.DefaultOptions, generateVersion, mmap)
 	case C.RuleTypeLogical:
-		return writeLogicalRule(writer, rule.LogicalOptions, generateVersion)
+		return writeLogicalRule(writer, rule.LogicalOptions, generateVersion, mmap)
 	default:
 		panic("unknown rule type: " + rule.Type)
 	}
 }
 
-func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHeadlessRule, err error) {
+func readDefaultRule(reader varbin.Reader, recover bool, mmap *mmapReader) (rule option.DefaultHeadlessRule, err error) {
 	var lastItemType uint8
 	for {
 		var itemType uint8
@@ -179,7 +180,11 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 			rule.Network, err = readRuleItemString(reader)
 		case ruleItemDomain:
 			var matcher *domain.Matcher
-			matcher, err = domain.ReadMatcher(reader)
+			if mmap != nil {
+				matcher, err = mmap.readMatcher(reader)
+			} else {
+				matcher, err = domain.ReadMatcher(reader)
+			}
 			if err != nil {
 				return
 			}
@@ -192,7 +197,11 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 		case ruleItemDomainRegex:
 			rule.DomainRegex, err = readRuleItemString(reader)
 		case ruleItemSourceIPCIDR:
-			rule.SourceIPSet, err = readIPSet(reader)
+			if mmap != nil {
+				rule.SourceIPSet, err = mmap.readIPSet(reader)
+			} else {
+				rule.SourceIPSet, err = readIPSet(reader)
+			}
 			if err != nil {
 				return
 			}
@@ -200,7 +209,11 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 				rule.SourceIPCIDR = common.Map(rule.SourceIPSet.Prefixes(), netip.Prefix.String)
 			}
 		case ruleItemIPCIDR:
-			rule.IPSet, err = readIPSet(reader)
+			if mmap != nil {
+				rule.IPSet, err = mmap.readIPSet(reader)
+			} else {
+				rule.IPSet, err = readIPSet(reader)
+			}
 			if err != nil {
 				return
 			}
@@ -231,7 +244,11 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 			rule.WIFIBSSID, err = readRuleItemString(reader)
 		case ruleItemAdGuardDomain:
 			var matcher *domain.AdGuardMatcher
-			matcher, err = domain.ReadAdGuardMatcher(reader)
+			if mmap != nil {
+				matcher, err = mmap.readAdGuardMatcher(reader)
+			} else {
+				matcher, err = domain.ReadAdGuardMatcher(reader)
+			}
 			if err != nil {
 				return
 			}
@@ -303,7 +320,7 @@ func readDefaultRule(reader varbin.Reader, recover bool) (rule option.DefaultHea
 	}
 }
 
-func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, generateVersion uint8) error {
+func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, generateVersion uint8, mmap *mmapWriter) error {
 	err := binary.Write(writer, binary.BigEndian, uint8(0))
 	if err != nil {
 		return err
@@ -322,12 +339,20 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 			return err
 		}
 	}
-	if len(rule.Domain) > 0 || len(rule.DomainSuffix) > 0 {
+	if len(rule.Domain) > 0 || len(rule.DomainSuffix) > 0 || mmap != nil && rule.DomainMatcher != nil {
 		err = binary.Write(writer, binary.BigEndian, ruleItemDomain)
 		if err != nil {
 			return err
 		}
-		err = domain.NewMatcher(rule.Domain, rule.DomainSuffix, generateVersion == C.RuleSetVersion1).Write(writer)
+		matcher := rule.DomainMatcher
+		if len(rule.Domain) > 0 || len(rule.DomainSuffix) > 0 {
+			matcher = domain.NewMatcher(rule.Domain, rule.DomainSuffix, generateVersion == C.RuleSetVersion1)
+		}
+		if mmap != nil {
+			err = mmap.writeMatcher(writer, matcher)
+		} else {
+			err = matcher.Write(writer)
+		}
 		if err != nil {
 			return err
 		}
@@ -344,14 +369,14 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 			return err
 		}
 	}
-	if len(rule.SourceIPCIDR) > 0 {
-		err = writeRuleItemCIDR(writer, ruleItemSourceIPCIDR, rule.SourceIPCIDR)
+	if len(rule.SourceIPCIDR) > 0 || mmap != nil && rule.SourceIPSet != nil {
+		err = writeRuleItemCIDR(writer, ruleItemSourceIPCIDR, rule.SourceIPCIDR, rule.SourceIPSet, mmap)
 		if err != nil {
 			return E.Cause(err, "source_ip_cidr")
 		}
 	}
-	if len(rule.IPCIDR) > 0 {
-		err = writeRuleItemCIDR(writer, ruleItemIPCIDR, rule.IPCIDR)
+	if len(rule.IPCIDR) > 0 || mmap != nil && rule.IPSet != nil {
+		err = writeRuleItemCIDR(writer, ruleItemIPCIDR, rule.IPCIDR, rule.IPSet, mmap)
 		if err != nil {
 			return E.Cause(err, "ipcidr")
 		}
@@ -500,7 +525,7 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 			return err
 		}
 	}
-	if len(rule.AdGuardDomain) > 0 {
+	if len(rule.AdGuardDomain) > 0 || mmap != nil && rule.AdGuardDomainMatcher != nil {
 		if generateVersion < C.RuleSetVersion2 {
 			return E.New("AdGuard rule items is only supported in version 2 or later")
 		}
@@ -508,7 +533,15 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 		if err != nil {
 			return err
 		}
-		err = domain.NewAdGuardMatcher(rule.AdGuardDomain).Write(writer)
+		matcher := rule.AdGuardDomainMatcher
+		if len(rule.AdGuardDomain) > 0 {
+			matcher = domain.NewAdGuardMatcher(rule.AdGuardDomain)
+		}
+		if mmap != nil {
+			err = mmap.writeAdGuardMatcher(writer, matcher)
+		} else {
+			err = matcher.Write(writer)
+		}
 		if err != nil {
 			return err
 		}
@@ -588,33 +621,40 @@ func writeRuleItemUint16(writer varbin.Writer, itemType uint8, value []uint16) e
 	return binary.Write(writer, binary.BigEndian, value)
 }
 
-func writeRuleItemCIDR(writer varbin.Writer, itemType uint8, value []string) error {
-	var builder netipx.IPSetBuilder
-	for i, prefixString := range value {
-		prefix, err := netip.ParsePrefix(prefixString)
-		if err == nil {
-			builder.AddPrefix(prefix)
-			continue
+func writeRuleItemCIDR(writer varbin.Writer, itemType uint8, value []string, rawSet *ipset.Set, mmap *mmapWriter) error {
+	set := rawSet
+	if len(value) > 0 {
+		var builder netipx.IPSetBuilder
+		for i, prefixString := range value {
+			prefix, err := netip.ParsePrefix(prefixString)
+			if err == nil {
+				builder.AddPrefix(prefix)
+				continue
+			}
+			addr, addrErr := netip.ParseAddr(prefixString)
+			if addrErr == nil {
+				builder.Add(addr)
+				continue
+			}
+			return E.Cause(err, "parse [", i, "]")
 		}
-		addr, addrErr := netip.ParseAddr(prefixString)
-		if addrErr == nil {
-			builder.Add(addr)
-			continue
+		ipSet, err := builder.IPSet()
+		if err != nil {
+			return err
 		}
-		return E.Cause(err, "parse [", i, "]")
+		set = ipset.FromIPSet(ipSet)
 	}
-	ipSet, err := builder.IPSet()
+	err := binary.Write(writer, binary.BigEndian, itemType)
 	if err != nil {
 		return err
 	}
-	err = binary.Write(writer, binary.BigEndian, itemType)
-	if err != nil {
-		return err
+	if mmap != nil {
+		return mmap.writeIPSet(writer, set)
 	}
-	return writeIPSet(writer, ipSet)
+	return writeIPSet(writer, set)
 }
 
-func readLogicalRule(reader varbin.Reader, recovery bool, depth int) (logicalRule option.LogicalHeadlessRule, err error) {
+func readLogicalRule(reader varbin.Reader, recovery bool, depth int, mmap *mmapReader) (logicalRule option.LogicalHeadlessRule, err error) {
 	mode, err := reader.ReadByte()
 	if err != nil {
 		return
@@ -634,7 +674,7 @@ func readLogicalRule(reader varbin.Reader, recovery bool, depth int) (logicalRul
 	}
 	for i := range length {
 		var rule option.HeadlessRule
-		rule, err = readRule(reader, recovery, depth+1)
+		rule, err = readRule(reader, recovery, depth+1, mmap)
 		if err != nil {
 			err = E.Cause(err, "read logical rule [", i, "]")
 			return
@@ -648,7 +688,7 @@ func readLogicalRule(reader varbin.Reader, recovery bool, depth int) (logicalRul
 	return
 }
 
-func writeLogicalRule(writer varbin.Writer, logicalRule option.LogicalHeadlessRule, generateVersion uint8) error {
+func writeLogicalRule(writer varbin.Writer, logicalRule option.LogicalHeadlessRule, generateVersion uint8, mmap *mmapWriter) error {
 	err := binary.Write(writer, binary.BigEndian, uint8(1))
 	if err != nil {
 		return err
@@ -669,7 +709,7 @@ func writeLogicalRule(writer varbin.Writer, logicalRule option.LogicalHeadlessRu
 		return err
 	}
 	for _, rule := range logicalRule.Rules {
-		err = writeRule(writer, rule, generateVersion)
+		err = writeRule(writer, rule, generateVersion, mmap)
 		if err != nil {
 			return err
 		}
