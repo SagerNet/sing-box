@@ -6,15 +6,12 @@ import (
 	"strconv"
 )
 
-func PromoteDraft(basePath string) {
-	promoteDirectory(filepath.Join(basePath, DraftDirectoryName), filepath.Join(basePath, ReportsDirectoryName))
+func DiscardDraft(basePath string) {
+	os.RemoveAll(filepath.Join(basePath, DraftDirectoryName))
 }
 
 func finalizeDraft(draftPath string) {
-	promoteDirectory(draftPath, filepath.Join(filepath.Dir(draftPath), ReportsDirectoryName))
-}
-
-func promoteDirectory(draftPath string, reportsPath string) {
+	reportsPath := filepath.Join(filepath.Dir(draftPath), ReportsDirectoryName)
 	info, err := os.Stat(draftPath)
 	if err != nil || !info.IsDir() {
 		return
