@@ -32,7 +32,10 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.SSHOutboundOptions](registry, C.TypeSSH, NewOutbound)
 }
 
-var _ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+var (
+	_ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+	_ adapter.IdleConnectionCloser    = (*Outbound)(nil)
+)
 
 type Outbound struct {
 	outbound.Adapter
@@ -50,6 +53,8 @@ type Outbound struct {
 	clientAccess      sync.Mutex
 	clientConn        net.Conn
 	client            *ssh.Client
+	streams           int
+	draining          bool
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.SSHOutboundOptions) (adapter.Outbound, error) {
@@ -193,6 +198,8 @@ func (s *Outbound) connect(ctx context.Context) (client *ssh.Client, err error) 
 
 	s.clientConn = conn
 	s.client = client
+	s.streams = 0
+	s.draining = false
 
 	go func() {
 		client.Wait()
@@ -210,6 +217,38 @@ func (s *Outbound) InterfaceUpdated(ctx context.Context) {
 	common.Close(s.clientConn)
 }
 
+func (s *Outbound) CloseIdleConnections() {
+	s.clientAccess.Lock()
+	if s.client == nil {
+		s.clientAccess.Unlock()
+		return
+	}
+	s.draining = true
+	if s.streams > 0 {
+		s.clientAccess.Unlock()
+		return
+	}
+	clientConn := s.clientConn
+	s.clientAccess.Unlock()
+	common.Close(clientConn)
+}
+
+func (s *Outbound) releaseStream(client *ssh.Client) {
+	s.clientAccess.Lock()
+	if s.client != client {
+		s.clientAccess.Unlock()
+		return
+	}
+	s.streams--
+	if !s.draining || s.streams > 0 {
+		s.clientAccess.Unlock()
+		return
+	}
+	clientConn := s.clientConn
+	s.clientAccess.Unlock()
+	common.Close(clientConn)
+}
+
 func (s *Outbound) Close() error {
 	return common.Close(s.clientConn)
 }
@@ -219,11 +258,18 @@ func (s *Outbound) DialContext(ctx context.Context, network string, destination 
 	if err != nil {
 		return nil, err
 	}
+	s.clientAccess.Lock()
+	if s.client == client {
+		s.streams++
+		s.draining = false
+	}
+	s.clientAccess.Unlock()
 	conn, err := client.Dial(network, destination.String())
 	if err != nil {
+		s.releaseStream(client)
 		return nil, err
 	}
-	return &chanConnWrapper{Conn: conn}, nil
+	return &chanConnWrapper{Conn: conn, onClose: func() { s.releaseStream(client) }}, nil
 }
 
 func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
@@ -232,6 +278,14 @@ func (s *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 
 type chanConnWrapper struct {
 	net.Conn
+	closeOnce sync.Once
+	onClose   func()
+}
+
+func (c *chanConnWrapper) Close() error {
+	err := c.Conn.Close()
+	c.closeOnce.Do(c.onClose)
+	return err
 }
 
 func (c *chanConnWrapper) SetDeadline(t time.Time) error {
