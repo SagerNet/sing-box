@@ -512,3 +512,9 @@ func (d *Service) loopSTUNPacket(packetConn *net.UDPConn) {
 		packetConn.WriteMsgUDPAddrPort(stun.Response(txid, addrPort), oob[:oobN], addrPort)
 	}
 }
+
+func (d *Service) References() []string {
+	return common.FilterNotDefault(common.Map(d.meshWith, func(it *option.DERPMeshOptions) string {
+		return it.Detour
+	}))
+}
