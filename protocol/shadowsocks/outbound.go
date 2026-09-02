@@ -26,7 +26,11 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.ShadowsocksOutboundOptions](registry, C.TypeShadowsocks, NewOutbound)
 }
 
-var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+var (
+	_ adapter.OutboundWithMultiplex   = (*Outbound)(nil)
+	_ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+	_ adapter.IdleConnectionCloser    = (*Outbound)(nil)
+)
 
 type Outbound struct {
 	outbound.Adapter
@@ -133,6 +137,12 @@ func (h *Outbound) MultiplexEnabled() bool {
 func (h *Outbound) InterfaceUpdated(ctx context.Context) {
 	if h.multiplexDialer != nil {
 		h.multiplexDialer.Reset()
+	}
+}
+
+func (h *Outbound) CloseIdleConnections() {
+	if h.multiplexDialer != nil {
+		h.multiplexDialer.CloseIdleConnections()
 	}
 }
 

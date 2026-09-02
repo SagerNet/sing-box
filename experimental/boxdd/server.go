@@ -203,7 +203,7 @@ func (d *Daemon) configureWorkingDirectoryLocked(directory string) error {
 		return err
 	}
 	libbox.PromoteOOMDraft()
-	libbox.PromotePowerReportDraft()
+	libbox.DiscardPowerReportDraft()
 	d.runtimeWorkingDirectory = directory
 	return nil
 }
@@ -262,7 +262,7 @@ func (d *Daemon) stopServiceLocked(ownerUserID string) error {
 		}
 	}
 	d.powerManager.Close()
-	libbox.PromotePowerReportDraft()
+	libbox.DiscardPowerReportDraft()
 	directory := userWorkingDirectory(ownerUserID)
 	crashReportError := tagUnownedReports(filepath.Join(directory, crashReportsDirectoryName), ownerUserID)
 	if crashReportError != nil {
