@@ -28,8 +28,52 @@ type Client struct {
 	tlsConfig  tls.Config
 	quicConfig *quic.Config
 	connAccess sync.Mutex
-	conn       common.TypedValue[*quic.Conn]
+	conn       common.TypedValue[*clientConnection]
 	rawConn    net.Conn
+}
+
+type clientConnection struct {
+	*quic.Conn
+	access   sync.Mutex
+	streams  int
+	draining bool
+	closed   bool
+}
+
+func (c *clientConnection) active() bool {
+	c.access.Lock()
+	closed := c.closed
+	c.access.Unlock()
+	return !closed && !common.Done(c.Context())
+}
+
+func (c *clientConnection) acquireStream() bool {
+	c.access.Lock()
+	defer c.access.Unlock()
+	if c.closed {
+		return false
+	}
+	c.streams++
+	c.draining = false
+	return true
+}
+
+func (c *clientConnection) releaseStream() {
+	c.access.Lock()
+	c.streams--
+	closed := c.draining && c.streams == 0 && c.markClosedLocked()
+	c.access.Unlock()
+	if closed {
+		c.CloseWithError(0, "")
+	}
+}
+
+func (c *clientConnection) markClosedLocked() bool {
+	if c.closed {
+		return false
+	}
+	c.closed = true
+	return true
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayQUICOptions, tlsConfig tls.Config) (adapter.V2RayClientTransport, error) {
@@ -48,15 +92,15 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}, nil
 }
 
-func (c *Client) offer() (*quic.Conn, error) {
+func (c *Client) offer() (*clientConnection, error) {
 	conn := c.conn.Load()
-	if conn != nil && !common.Done(conn.Context()) {
+	if conn != nil && conn.active() {
 		return conn, nil
 	}
 	c.connAccess.Lock()
 	defer c.connAccess.Unlock()
 	conn = c.conn.Load()
-	if conn != nil && !common.Done(conn.Context()) {
+	if conn != nil && conn.active() {
 		return conn, nil
 	}
 	conn, err := c.offerNew()
@@ -66,7 +110,7 @@ func (c *Client) offer() (*quic.Conn, error) {
 	return conn, nil
 }
 
-func (c *Client) offerNew() (*quic.Conn, error) {
+func (c *Client) offerNew() (*clientConnection, error) {
 	udpConn, err := c.dialer.DialContext(c.ctx, "udp", c.serverAddr)
 	if err != nil {
 		return nil, err
@@ -82,21 +126,42 @@ func (c *Client) offerNew() (*quic.Conn, error) {
 		<-quicConn.Context().Done()
 		udpConn.Close()
 	}()
-	c.conn.Store(quicConn)
+	conn := &clientConnection{Conn: quicConn}
+	c.conn.Store(conn)
 	c.rawConn = udpConn
-	return quicConn, nil
+	return conn, nil
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
-	conn, err := c.offer()
-	if err != nil {
-		return nil, err
+	for {
+		conn, err := c.offer()
+		if err != nil {
+			return nil, err
+		}
+		if !conn.acquireStream() {
+			continue
+		}
+		stream, err := conn.OpenStream()
+		if err != nil {
+			conn.releaseStream()
+			return nil, err
+		}
+		return &StreamWrapper{Conn: conn.Conn, Stream: stream, onClose: conn.releaseStream}, nil
 	}
-	stream, err := conn.OpenStream()
-	if err != nil {
-		return nil, err
+}
+
+func (c *Client) CloseIdleConnections() {
+	conn := c.conn.Load()
+	if conn == nil {
+		return
 	}
-	return &StreamWrapper{Conn: conn, Stream: stream}, nil
+	conn.access.Lock()
+	conn.draining = true
+	closed := conn.streams == 0 && conn.markClosedLocked()
+	conn.access.Unlock()
+	if closed {
+		conn.CloseWithError(0, "")
+	}
 }
 
 func (c *Client) Close() error {

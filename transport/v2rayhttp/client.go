@@ -170,6 +170,10 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 	return conn, nil
 }
 
+func (c *Client) CloseIdleConnections() {
+	CloseIdleConnections(c.transport)
+}
+
 func (c *Client) Close() error {
 	c.transport.Store(ResetTransport(c.transport.Load()))
 	return nil
