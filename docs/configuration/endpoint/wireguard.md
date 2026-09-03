@@ -1,3 +1,7 @@
+!!! quote "Changes in sing-box 1.15.0"
+
+    :material-plus: [on_demand](#on_demand)
+
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [udp_mapping](/configuration/shared/udp-nat/#udp_mapping)  
@@ -34,6 +38,7 @@
   ... // UDP NAT Fields
 
   "workers": 0,
+  "on_demand": false,
  
   ... // Dial Fields
 }
@@ -125,6 +130,12 @@ WireGuard reserved field bytes.
 WireGuard worker count.
 
 CPU count is used by default.
+
+#### on_demand
+
+!!! question "Since sing-box 1.15.0"
+
+Allow the endpoint to be disconnected when necessary.
 
 ### UDP NAT Fields
 
