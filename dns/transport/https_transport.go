@@ -111,6 +111,10 @@ func (h *HTTPSTransportWrapper) Close() {
 	for _, trackedConn := range connections {
 		trackedConn.Conn.Close()
 	}
+	h.CloseIdleConnections()
+}
+
+func (h *HTTPSTransportWrapper) CloseIdleConnections() {
 	h.http2Transport.CloseIdleConnections()
 	h.httpTransport.CloseIdleConnections()
 }
