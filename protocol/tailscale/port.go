@@ -114,6 +114,7 @@ func (t *Endpoint) WritePackets(packets [][]byte) error {
 	if !t.started.Load() {
 		return E.New("Tailscale is not ready yet")
 	}
+	t.requestResume()
 	unmatched, err := t.wgEngine.InputPackets(packets)
 	if err != nil || len(unmatched) == 0 {
 		return err
