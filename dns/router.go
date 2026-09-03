@@ -1073,6 +1073,19 @@ func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsEx
 			Question: message.Question,
 		}, nil
 	}
+	if isResolverDiscoveryQuery(message.Question[0]) {
+		r.logger.DebugContext(ctx, "rejected resolver discovery query ", FormatQuestion(message.Question[0].String()))
+		return nil, &mDNS.Msg{
+			MsgHdr: mDNS.MsgHdr{
+				Id:                 message.Id,
+				Response:           true,
+				RecursionDesired:   message.RecursionDesired,
+				RecursionAvailable: true,
+				Rcode:              mDNS.RcodeSuccess,
+			},
+			Question: message.Question,
+		}, nil
+	}
 	r.rulesAccess.RLock()
 	if r.closing {
 		r.rulesAccess.RUnlock()
@@ -1333,6 +1346,10 @@ response:
 		r.logger.InfoContext(ctx, "lookup succeed for ", domain, ": ", strings.Join(F.MapToString(responseAddrs), " "))
 	}
 	return responseAddrs, err
+}
+
+func isResolverDiscoveryQuery(question mDNS.Question) bool {
+	return question.Qtype == mDNS.TypeSVCB && len(question.Name) > 5 && strings.EqualFold(question.Name[:5], "_dns.")
 }
 
 func isAddressQuery(message *mDNS.Msg) bool {
