@@ -47,6 +47,8 @@ type connPoolState[T comparable] struct {
 	shared        T
 	hasShared     bool
 	sharedClaimed bool
+	sharedUsers   int
+	sharedWaiters int
 	sharedCtx     context.Context
 	sharedCancel  context.CancelCauseFunc
 
@@ -122,6 +124,9 @@ func (p *ConnPool[T]) Release(conn T, reuse bool) {
 		p.options.Close(conn, net.ErrClosed)
 		return
 	}
+	if p.options.Mode == ConnPoolSingle && state.hasShared && state.shared == conn && state.sharedUsers > 0 {
+		state.sharedUsers--
+	}
 	if p.options.Mode == ConnPoolOrdered {
 		if _, idle := state.idleElements[conn]; !idle {
 			state.idleElements[conn] = state.idle.PushBack(conn)
@@ -182,6 +187,7 @@ func (p *ConnPool[T]) removeConn(state *connPoolState[T], conn T, cause error) {
 			state.shared = zero
 			state.hasShared = false
 			state.sharedClaimed = false
+			state.sharedUsers = 0
 			state.sharedCtx = nil
 			if state.sharedCancel != nil {
 				state.sharedCancel(cause)
@@ -194,6 +200,23 @@ func (p *ConnPool[T]) removeConn(state *connPoolState[T], conn T, cause error) {
 			delete(state.idleElements, conn)
 		}
 	}
+}
+
+func (p *ConnPool[T]) CloseIdle() {
+	p.access.Lock()
+	if p.closed {
+		p.access.Unlock()
+		return
+	}
+	state := p.state
+	if p.options.Mode != ConnPoolSingle || !state.hasShared || state.sharedUsers > 0 || state.sharedWaiters > 0 {
+		p.access.Unlock()
+		return
+	}
+	conn := state.shared
+	p.removeConn(state, conn, net.ErrClosed)
+	p.access.Unlock()
+	p.options.Close(conn, net.ErrClosed)
 }
 
 func (p *ConnPool[T]) Reset() {
@@ -309,6 +332,7 @@ func (p *ConnPool[T]) acquireShared(ctx context.Context, dial func(context.Conte
 			if p.options.IsAlive(conn) {
 				created := !current.sharedClaimed
 				current.sharedClaimed = true
+				current.sharedUsers++
 				connCtx := current.sharedCtx
 				p.access.Unlock()
 				return conn, connCtx, created, nil
@@ -324,6 +348,7 @@ func (p *ConnPool[T]) acquireShared(ctx context.Context, dial func(context.Conte
 			current.connecting = &connPoolConnect[T]{done: make(chan struct{})}
 		}
 		state := current.connecting
+		current.sharedWaiters++
 		p.access.Unlock()
 
 		if startDial {
@@ -338,9 +363,13 @@ func (p *ConnPool[T]) acquireShared(ctx context.Context, dial func(context.Conte
 			}
 			return conn, connCtx, created, err
 		case <-ctx.Done():
+			p.access.Lock()
+			current.sharedWaiters--
+			p.access.Unlock()
 			return zero, nil, false, ctx.Err()
 		case <-current.ctx.Done():
 			p.access.Lock()
+			current.sharedWaiters--
 			closed := p.closed
 			p.access.Unlock()
 			if closed {
@@ -400,6 +429,7 @@ func (p *ConnPool[T]) collectShared(current *connPoolState[T], state *connPoolCo
 	var zero T
 
 	p.access.Lock()
+	current.sharedWaiters--
 	if state.err != nil {
 		err := state.err
 		p.access.Unlock()
@@ -431,6 +461,7 @@ func (p *ConnPool[T]) collectShared(current *connPoolState[T], state *connPoolCo
 
 	created := !current.sharedClaimed
 	current.sharedClaimed = true
+	current.sharedUsers++
 	connCtx := current.sharedCtx
 	p.access.Unlock()
 	return conn, connCtx, created, false, nil

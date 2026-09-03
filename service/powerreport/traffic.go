@@ -15,6 +15,14 @@ const maxTrafficCounters = 512
 type TrafficCounter struct {
 	inBytes  atomic.Uint64
 	outBytes atomic.Uint64
+	dials    atomic.Uint64
+}
+
+func (c *TrafficCounter) CountDial() {
+	if c == nil {
+		return
+	}
+	c.dials.Add(1)
 }
 
 func (c *TrafficCounter) CountIn(n int64) {
@@ -67,6 +75,7 @@ func (r *Recorder) snapshotTrafficLocked() map[trafficKey]trafficBytes {
 		snapshot[key] = trafficBytes{
 			inBytes:  counter.inBytes.Load(),
 			outBytes: counter.outBytes.Load(),
+			dials:    counter.dials.Load(),
 		}
 	}
 	return snapshot

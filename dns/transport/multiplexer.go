@@ -47,6 +47,7 @@ type queryMultiplexer struct {
 
 	reuseState     atomic.Int32
 	demoteFailures atomic.Int32
+	keepIdle       atomic.Bool
 
 	probeAccess   sync.Mutex
 	probeEpoch    uint32
@@ -81,7 +82,7 @@ type pendingQuery struct {
 }
 
 func newQueryMultiplexer(options queryMultiplexerOptions) *queryMultiplexer {
-	return &queryMultiplexer{
+	multiplexer := &queryMultiplexer{
 		options: options,
 		queries: make(map[uint16]*pendingQuery),
 		connection: NewConnPool(ConnPoolOptions[*multiplexConn]{
@@ -93,6 +94,23 @@ func newQueryMultiplexer(options queryMultiplexerOptions) *queryMultiplexer {
 				conn.Close()
 			},
 		}),
+	}
+	multiplexer.keepIdle.Store(true)
+	return multiplexer
+}
+
+func (m *queryMultiplexer) SetKeepIdleConnections(keep bool) {
+	m.keepIdle.Store(keep)
+	m.closeIdleConnection()
+}
+
+func (m *queryMultiplexer) CloseIdleConnections() {
+	m.connection.CloseIdle()
+}
+
+func (m *queryMultiplexer) closeIdleConnection() {
+	if !m.keepIdle.Load() {
+		m.connection.CloseIdle()
 	}
 }
 
@@ -307,6 +325,7 @@ func (m *queryMultiplexer) exchangeAsync(ctx context.Context, message *mDNS.Msg,
 		queryId, err := m.register(ctx, connCtx, conn, message, callback, retryReadError && m.options.retryReadError && !created)
 		if err != nil {
 			m.connection.Release(conn, true)
+			m.closeIdleConnection()
 			callback(nil, err)
 			return
 		}
@@ -408,6 +427,7 @@ func (m *queryMultiplexer) complete(queryId uint16, response *mDNS.Msg, err erro
 		response.Id = pending.message.Id
 	}
 	pending.callback(response, err)
+	m.closeIdleConnection()
 }
 
 func (m *queryMultiplexer) completeContextDone(queryId uint16, ctx context.Context) {
@@ -422,6 +442,7 @@ func (m *queryMultiplexer) completeContextDone(queryId uint16, ctx context.Conte
 		m.connection.Release(pending.conn, true)
 	}
 	pending.callback(nil, err)
+	m.closeIdleConnection()
 }
 
 func (m *queryMultiplexer) recvLoop(conn *multiplexConn) {
