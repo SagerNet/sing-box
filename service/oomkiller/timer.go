@@ -103,6 +103,7 @@ type adaptiveTimer struct {
 	logger          log.ContextLogger
 	network         adapter.NetworkManager
 	connections     adapter.ConnectionManager
+	cacheFile       adapter.CacheFile
 	recorder        *Recorder
 	limitThresholds pressureThresholds
 
@@ -116,12 +117,13 @@ type adaptiveTimer struct {
 	pressureBaselineTime    time.Time
 }
 
-func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, connections adapter.ConnectionManager, recorder *Recorder, config timerConfig) *adaptiveTimer {
+func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, connections adapter.ConnectionManager, cacheFile adapter.CacheFile, recorder *Recorder, config timerConfig) *adaptiveTimer {
 	t := &adaptiveTimer{
 		timerConfig: config,
 		logger:      logger,
 		network:     network,
 		connections: connections,
+		cacheFile:   cacheFile,
 		recorder:    recorder,
 	}
 	if config.policyMode == policyModeMemoryLimit || config.policyMode == policyModeNetworkExtension {
@@ -227,12 +229,19 @@ func (t *adaptiveTimer) poll() {
 			t.network.ResetNetwork(context.Background())
 		}
 	}
-	badCleanup()
-	runtimeDebug.FreeOSMemory()
+	t.releaseMemory()
 	if t.recorder != nil {
 		t.recorder.recordReset(reason, sample, readMemorySample(t.policyMode), connections, t.killerDisabled)
 		t.recorder.snapshot(SnapshotReasonReset, sample, false)
 	}
+}
+
+func (t *adaptiveTimer) releaseMemory() {
+	if t.cacheFile != nil {
+		t.cacheFile.Flush()
+	}
+	badCleanup()
+	runtimeDebug.FreeOSMemory()
 }
 
 func (t *adaptiveTimer) nextState(sample memorySample) pressureState {

@@ -3,11 +3,9 @@ package cachefile
 import (
 	"net/netip"
 	"os"
-	"time"
 
 	"github.com/sagernet/bbolt"
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 )
@@ -45,105 +43,99 @@ func (c *CacheFile) FakeIPMetadata() *adapter.FakeIPMetadata {
 }
 
 func (c *CacheFile) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) error {
-	return c.batch(func(tx *bbolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists(bucketFakeIP)
-		if err != nil {
-			return err
-		}
-		metadataBinary, err := metadata.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		return bucket.Put(keyMetadata, metadataBinary)
-	})
+	c.FakeIPSaveMetadataAsync(metadata)
+	c.Flush()
+	return nil
 }
 
 func (c *CacheFile) FakeIPSaveMetadataAsync(metadata *adapter.FakeIPMetadata) {
-	c.saveMetadataAccess.Lock()
-	defer c.saveMetadataAccess.Unlock()
-	c.saveMetadata = metadata
-	if c.saveMetadataTimer == nil {
-		c.saveMetadataTimer = time.AfterFunc(C.FakeIPMetadataSaveInterval, func() {
-			c.saveMetadataAccess.Lock()
-			savedMetadata := c.saveMetadata
-			c.saveMetadataAccess.Unlock()
-			if savedMetadata != nil {
-				_ = c.FakeIPSaveMetadata(savedMetadata)
-			}
-		})
-	} else {
-		c.saveMetadataTimer.Reset(C.FakeIPMetadataSaveInterval)
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
+	added := c.pending.fakeIPMetadata == nil
+	c.pending.fakeIPMetadata = metadata
+	c.enqueueLocked(added, 0)
+}
+
+func putFakeIPMetadata(tx *bbolt.Tx, metadata *adapter.FakeIPMetadata) error {
+	bucket, err := tx.CreateBucketIfNotExists(bucketFakeIP)
+	if err != nil {
+		return err
 	}
+	metadataBinary, err := metadata.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return bucket.Put(keyMetadata, metadataBinary)
 }
 
 func (c *CacheFile) FakeIPStore(address netip.Addr, domain string) error {
-	return c.batch(func(tx *bbolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists(bucketFakeIP)
-		if err != nil {
-			return err
-		}
-		oldDomain := bucket.Get(address.AsSlice())
-		err = bucket.Put(address.AsSlice(), []byte(domain))
-		if err != nil {
-			return err
-		}
-		if address.Is4() {
-			bucket, err = tx.CreateBucketIfNotExists(bucketFakeIPDomain4)
-		} else {
-			bucket, err = tx.CreateBucketIfNotExists(bucketFakeIPDomain6)
-		}
-		if err != nil {
-			return err
-		}
-		if oldDomain != nil {
-			if err := bucket.Delete(oldDomain); err != nil {
-				return err
-			}
-		}
-		return bucket.Put([]byte(domain), address.AsSlice())
-	})
+	c.queueFakeIP(address, domain)
+	c.Flush()
+	return nil
 }
 
 func (c *CacheFile) FakeIPStoreAsync(address netip.Addr, domain string, logger logger.Logger) {
-	c.saveFakeIPAccess.Lock()
-	if oldDomain, loaded := c.saveDomain[address]; loaded {
+	c.queueFakeIP(address, domain)
+}
+
+func (c *CacheFile) queueFakeIP(address netip.Addr, domain string) {
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
+	oldDomain, loaded := c.pending.fakeIPDomain[address]
+	if loaded {
 		if address.Is4() {
-			delete(c.saveAddress4, oldDomain)
+			delete(c.pending.fakeIPAddress4, oldDomain)
 		} else {
-			delete(c.saveAddress6, oldDomain)
+			delete(c.pending.fakeIPAddress6, oldDomain)
 		}
 	}
-	c.saveDomain[address] = domain
+	c.pending.fakeIPDomain[address] = domain
 	if address.Is4() {
-		c.saveAddress4[domain] = address
+		c.pending.fakeIPAddress4[domain] = address
 	} else {
-		c.saveAddress6[domain] = address
+		c.pending.fakeIPAddress6[domain] = address
 	}
-	c.saveFakeIPAccess.Unlock()
-	go func() {
-		err := c.FakeIPStore(address, domain)
+	c.enqueueLocked(!loaded, len(domain)-len(oldDomain))
+}
+
+func putFakeIP(tx *bbolt.Tx, address netip.Addr, domain string) error {
+	bucket, err := tx.CreateBucketIfNotExists(bucketFakeIP)
+	if err != nil {
+		return err
+	}
+	addressBytes := address.AsSlice()
+	oldDomain := bucket.Get(addressBytes)
+	err = bucket.Put(addressBytes, []byte(domain))
+	if err != nil {
+		return err
+	}
+	if address.Is4() {
+		bucket, err = tx.CreateBucketIfNotExists(bucketFakeIPDomain4)
+	} else {
+		bucket, err = tx.CreateBucketIfNotExists(bucketFakeIPDomain6)
+	}
+	if err != nil {
+		return err
+	}
+	if oldDomain != nil {
+		err = bucket.Delete(oldDomain)
 		if err != nil {
-			logger.Warn("save FakeIP cache: ", err)
+			return err
 		}
-		c.saveFakeIPAccess.Lock()
-		delete(c.saveDomain, address)
-		if address.Is4() {
-			delete(c.saveAddress4, domain)
-		} else {
-			delete(c.saveAddress6, domain)
-		}
-		c.saveFakeIPAccess.Unlock()
-	}()
+	}
+	return bucket.Put([]byte(domain), addressBytes)
 }
 
 func (c *CacheFile) FakeIPLoad(address netip.Addr) (string, bool) {
-	c.saveFakeIPAccess.RLock()
-	cachedDomain, cached := c.saveDomain[address]
-	c.saveFakeIPAccess.RUnlock()
-	if cached {
-		return cachedDomain, true
+	c.pendingAccess.RLock()
+	domain, cached := c.pending.fakeIPDomain[address]
+	if !cached && c.writing != nil {
+		domain, cached = c.writing.fakeIPDomain[address]
 	}
-	var domain string
+	c.pendingAccess.RUnlock()
+	if cached {
+		return domain, true
+	}
 	_ = c.view(func(tx *bbolt.Tx) error {
 		bucket := tx.Bucket(bucketFakeIP)
 		if bucket == nil {
@@ -155,22 +147,25 @@ func (c *CacheFile) FakeIPLoad(address netip.Addr) (string, bool) {
 	return domain, domain != ""
 }
 
+func (p *pendingWrites) fakeIPAddress(domain string, isIPv6 bool) (netip.Addr, bool) {
+	if isIPv6 {
+		address, loaded := p.fakeIPAddress6[domain]
+		return address, loaded
+	}
+	address, loaded := p.fakeIPAddress4[domain]
+	return address, loaded
+}
+
 func (c *CacheFile) FakeIPLoadDomain(domain string, isIPv6 bool) (netip.Addr, bool) {
-	var (
-		cachedAddress netip.Addr
-		cached        bool
-	)
-	c.saveFakeIPAccess.RLock()
-	if !isIPv6 {
-		cachedAddress, cached = c.saveAddress4[domain]
-	} else {
-		cachedAddress, cached = c.saveAddress6[domain]
+	c.pendingAccess.RLock()
+	address, cached := c.pending.fakeIPAddress(domain, isIPv6)
+	if !cached && c.writing != nil {
+		address, cached = c.writing.fakeIPAddress(domain, isIPv6)
 	}
-	c.saveFakeIPAccess.RUnlock()
+	c.pendingAccess.RUnlock()
 	if cached {
-		return cachedAddress, true
+		return address, true
 	}
-	var address netip.Addr
 	_ = c.view(func(tx *bbolt.Tx) error {
 		var bucket *bbolt.Bucket
 		if isIPv6 {
@@ -188,6 +183,21 @@ func (c *CacheFile) FakeIPLoadDomain(domain string, isIPv6 bool) (netip.Addr, bo
 }
 
 func (c *CacheFile) FakeIPReset() error {
+	c.flushAccess.Lock()
+	defer c.flushAccess.Unlock()
+	c.pendingAccess.Lock()
+	for _, domain := range c.pending.fakeIPDomain {
+		c.pending.count--
+		c.pending.size -= len(domain)
+	}
+	clear(c.pending.fakeIPDomain)
+	clear(c.pending.fakeIPAddress4)
+	clear(c.pending.fakeIPAddress6)
+	if c.pending.fakeIPMetadata != nil {
+		c.pending.fakeIPMetadata = nil
+		c.pending.count--
+	}
+	c.pendingAccess.Unlock()
 	return c.batch(func(tx *bbolt.Tx) error {
 		err := tx.DeleteBucket(bucketFakeIP)
 		if err != nil {
