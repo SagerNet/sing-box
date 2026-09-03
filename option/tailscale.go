@@ -34,6 +34,7 @@ type TailscaleEndpointOptions struct {
 	UDPTimeout                 UDPTimeoutCompat           `json:"udp_timeout,omitempty"`
 	SSHServer                  *TailscaleSSHServerOptions `json:"ssh_server,omitempty"`
 	TaildropDirectory          string                     `json:"taildrop_directory,omitempty"`
+	OnDemand                   bool                       `json:"on_demand,omitempty"`
 }
 
 type _TailscaleSSHServerOptions struct {
