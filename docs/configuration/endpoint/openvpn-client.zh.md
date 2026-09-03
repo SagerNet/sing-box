@@ -2,6 +2,10 @@
 
 !!! question "自 sing-box 1.14.0 起"
 
+!!! quote "sing-box 1.15.0 中的更改"
+
+    :material-plus: [on_demand](#on_demand)
+
 ## 结构
 
 ```json
@@ -100,6 +104,7 @@
   "system": false,
   "name": "",
   "mtu": 1500,
+  "on_demand": false,
 
   ... // UDP NAT 字段
 
@@ -698,6 +703,12 @@ endpoint 会配置接口地址和 MTU，但不会安装操作系统路由或 DNS
 OpenVPN 接口 MTU。
 
 为空时使用服务器推送的 MTU；收到服务器配置前使用 `1500`。
+
+### on_demand
+
+!!! question "自 sing-box 1.15.0 起"
+
+允许该 endpoint 在需要时断开连接。
 
 ## UDP NAT 字段
 
