@@ -2,11 +2,8 @@
 
 package oomkiller
 
-import runtimeDebug "runtime/debug"
-
 func (t *adaptiveTimer) notifyPressure() {
-	badCleanup()
-	runtimeDebug.FreeOSMemory()
+	t.releaseMemory()
 	t.access.Lock()
 	if t.timer == nil {
 		t.access.Unlock()

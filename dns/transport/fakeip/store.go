@@ -191,10 +191,7 @@ func (s *Store) Create(domain string, isIPv6 bool) (netip.Addr, error) {
 	}
 	pool.reservedCount--
 	pool.current = pool.next(pool.current)
-	err := s.storage.FakeIPStore(pool.current, domain)
-	if err != nil {
-		s.logger.Warn("save FakeIP cache: ", err)
-	}
+	s.storage.FakeIPStoreAsync(pool.current, domain, s.logger)
 	return pool.current, nil
 }
 
