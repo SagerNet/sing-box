@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/sagernet/bbolt"
-	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/logger"
 )
 
@@ -16,26 +15,22 @@ func (c *CacheFile) StoreDNS() bool {
 }
 
 func (c *CacheFile) LoadDNSCache(transportName string, qName string, qType uint16) (rawMessage []byte, expireAt time.Time, loaded bool) {
-	c.saveDNSCacheAccess.RLock()
-	entry, cached := c.saveDNSCache[saveCacheKey{transportName, qName, qType}]
-	c.saveDNSCacheAccess.RUnlock()
-	if cached {
-		return entry.rawMessage, entry.expireAt, true
+	key := saveCacheKey{transportName, qName, qType}
+	c.pendingAccess.RLock()
+	entry, cached := c.pending.dnsCache[key]
+	if !cached && c.writing != nil {
+		entry, cached = c.writing.dnsCache[key]
 	}
-	key := buf.Get(2 + len(qName))
-	binary.BigEndian.PutUint16(key, qType)
-	copy(key[2:], qName)
-	defer buf.Put(key)
+	c.pendingAccess.RUnlock()
+	if cached {
+		return entry.value[8:], time.Unix(int64(binary.BigEndian.Uint64(entry.value[:8])), 0), true
+	}
 	err := c.view(func(tx *bbolt.Tx) error {
 		bucket := c.bucket(tx, bucketDNSCache)
 		if bucket == nil {
 			return nil
 		}
-		bucket = bucket.Bucket([]byte(transportName))
-		if bucket == nil {
-			return nil
-		}
-		content := bucket.Get(key)
+		content := getCacheEntry(bucket, key)
 		if len(content) < 8 {
 			return nil
 		}
@@ -52,86 +47,37 @@ func (c *CacheFile) LoadDNSCache(transportName string, qName string, qType uint1
 }
 
 func (c *CacheFile) SaveDNSCache(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time) error {
-	value := buf.Get(8 + len(rawMessage))
-	defer buf.Put(value)
-	binary.BigEndian.PutUint64(value[:8], uint64(expireAt.Unix()))
-	copy(value[8:], rawMessage)
-	return c.batch(func(tx *bbolt.Tx) error {
-		bucket, err := c.createBucket(tx, bucketDNSCache)
-		if err != nil {
-			return err
-		}
-		bucket, err = bucket.CreateBucketIfNotExists([]byte(transportName))
-		if err != nil {
-			return err
-		}
-		key := buf.Get(2 + len(qName))
-		binary.BigEndian.PutUint16(key, qType)
-		copy(key[2:], qName)
-		defer buf.Put(key)
-		return bucket.Put(key, value)
-	})
+	c.queueDNSCache(transportName, qName, qType, rawMessage, expireAt)
+	c.Flush()
+	return nil
 }
 
 func (c *CacheFile) SaveDNSCacheAsync(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time, logger logger.Logger) {
-	saveKey := saveCacheKey{transportName, qName, qType}
-	if !c.queueDNSCacheSave(saveKey, rawMessage, expireAt) {
-		return
-	}
-	go c.flushPendingDNSCache(saveKey, logger)
+	c.queueDNSCache(transportName, qName, qType, rawMessage, expireAt)
 }
 
-func (c *CacheFile) queueDNSCacheSave(saveKey saveCacheKey, rawMessage []byte, expireAt time.Time) bool {
-	c.saveDNSCacheAccess.Lock()
-	defer c.saveDNSCacheAccess.Unlock()
-	entry := c.saveDNSCache[saveKey]
-	entry.rawMessage = append([]byte(nil), rawMessage...)
-	entry.expireAt = expireAt
-	entry.sequence++
-	startFlush := !entry.saving
-	entry.saving = true
-	c.saveDNSCache[saveKey] = entry
-	return startFlush
-}
-
-func (c *CacheFile) flushPendingDNSCache(saveKey saveCacheKey, logger logger.Logger) {
-	c.flushPendingDNSCacheWith(saveKey, logger, func(entry saveDNSCacheEntry) error {
-		return c.SaveDNSCache(saveKey.TransportName, saveKey.QuestionName, saveKey.QType, entry.rawMessage, entry.expireAt)
-	})
-}
-
-func (c *CacheFile) flushPendingDNSCacheWith(saveKey saveCacheKey, logger logger.Logger, save func(saveDNSCacheEntry) error) {
-	for {
-		c.saveDNSCacheAccess.RLock()
-		entry, loaded := c.saveDNSCache[saveKey]
-		c.saveDNSCacheAccess.RUnlock()
-		if !loaded {
-			return
-		}
-		err := save(entry)
-		if err != nil {
-			logger.Warn("save DNS cache: ", err)
-		}
-		c.saveDNSCacheAccess.Lock()
-		currentEntry, loaded := c.saveDNSCache[saveKey]
-		if !loaded {
-			c.saveDNSCacheAccess.Unlock()
-			return
-		}
-		if currentEntry.sequence != entry.sequence {
-			c.saveDNSCacheAccess.Unlock()
-			continue
-		}
-		delete(c.saveDNSCache, saveKey)
-		c.saveDNSCacheAccess.Unlock()
-		return
-	}
+func (c *CacheFile) queueDNSCache(transportName string, qName string, qType uint16, rawMessage []byte, expireAt time.Time) {
+	value := make([]byte, 8+len(rawMessage))
+	binary.BigEndian.PutUint64(value[:8], uint64(expireAt.Unix()))
+	copy(value[8:], rawMessage)
+	key := saveCacheKey{transportName, qName, qType}
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
+	oldEntry, loaded := c.pending.dnsCache[key]
+	c.pending.dnsCache[key] = saveDNSCacheEntry{value}
+	c.enqueueLocked(!loaded, len(qName)+len(value)-len(oldEntry.value))
 }
 
 func (c *CacheFile) ClearDNSCache() error {
-	c.saveDNSCacheAccess.Lock()
-	clear(c.saveDNSCache)
-	c.saveDNSCacheAccess.Unlock()
+	c.flushAccess.Lock()
+	defer c.flushAccess.Unlock()
+	c.pendingAccess.Lock()
+	for key, entry := range c.pending.dnsCache {
+		c.pending.count--
+		c.pending.size -= len(key.QuestionName) + len(entry.value)
+	}
+	clear(c.pending.dnsCache)
+	c.pendingAccess.Unlock()
 	return c.batch(func(tx *bbolt.Tx) error {
 		if c.cacheID == nil {
 			bucket := tx.Bucket(bucketDNSCache)
@@ -153,7 +99,7 @@ func (c *CacheFile) loopCacheCleanup(interval time.Duration, cleanupFunc func())
 	defer ticker.Stop()
 	for {
 		select {
-		case <-c.ctx.Done():
+		case <-c.done:
 			return
 		case <-ticker.C:
 			cleanupFunc()
@@ -221,9 +167,15 @@ func (c *CacheFile) cleanupDNSCache() {
 }
 
 func (c *CacheFile) clearRDRC() {
-	c.saveRDRCAccess.Lock()
-	clear(c.saveRDRC)
-	c.saveRDRCAccess.Unlock()
+	c.flushAccess.Lock()
+	defer c.flushAccess.Unlock()
+	c.pendingAccess.Lock()
+	for key := range c.pending.rdrc {
+		c.pending.count--
+		c.pending.size -= len(key.QuestionName)
+	}
+	clear(c.pending.rdrc)
+	c.pendingAccess.Unlock()
 	err := c.batch(func(tx *bbolt.Tx) error {
 		if c.cacheID == nil {
 			if tx.Bucket(bucketRDRC) == nil {
