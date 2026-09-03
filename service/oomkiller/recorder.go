@@ -324,6 +324,7 @@ func (r *Recorder) sample(sample memorySample, state pressureState, connections 
 	r.chown(timelinePath)
 }
 
+//nolint:unused
 func (r *Recorder) recordPressure(sample memorySample) {
 	r.access.Lock()
 	defer r.access.Unlock()
