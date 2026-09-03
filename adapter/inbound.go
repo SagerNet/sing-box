@@ -189,6 +189,16 @@ func DNSTransportTagFromContext(ctx context.Context) (string, bool) {
 	return transportTag, loaded
 }
 
+func ContextForMultiplexSession(ctx context.Context) context.Context {
+	var sessionContext InboundContext
+	metadata := ContextFrom(ctx)
+	if metadata != nil {
+		sessionContext.Outbound = metadata.Outbound
+	}
+	ctx = ContextWithDNSTransportTag(ctx, "")
+	return WithContext(ctx, &sessionContext)
+}
+
 func WithContext(ctx context.Context, inboundContext *InboundContext) context.Context {
 	return context.WithValue(ctx, (*inboundContextKey)(nil), inboundContext)
 }
