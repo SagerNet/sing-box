@@ -110,7 +110,7 @@ func (d anytlsDialer) ListenPacket(ctx context.Context, destination M.Socksaddr)
 }
 
 func (h *Outbound) dialOut(ctx context.Context) (net.Conn, error) {
-	return h.dialer.DialTLSContext(ctx, h.server)
+	return h.dialer.DialTLSContext(adapter.ContextForMultiplexSession(ctx), h.server)
 }
 
 func (h *Outbound) MultiplexEnabled() bool {
