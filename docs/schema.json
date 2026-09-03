@@ -3696,6 +3696,9 @@
               "items": {
                 "$ref": "#/$defs/OpenConnectFormEntryOptions"
               }
+            },
+            "on_demand": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -4122,6 +4125,9 @@
             },
             "udp_timeout": {
               "$ref": "#/$defs/UDPTimeout"
+            },
+            "on_demand": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -4602,6 +4608,9 @@
             },
             "taildrop_directory": {
               "type": "string"
+            },
+            "on_demand": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -4684,6 +4693,9 @@
             },
             "workers": {
               "type": "integer"
+            },
+            "on_demand": {
+              "type": "boolean"
             },
             "detour": {
               "type": "string",

@@ -30,6 +30,7 @@ type GunConn struct {
 	err           error
 	cancel        context.CancelFunc
 	readRemaining int
+	onClose       func()
 }
 
 func newGunConn(reader io.Reader, writer io.Writer, flusher http.Flusher) *GunConn {
@@ -157,6 +158,9 @@ func (c *GunConn) Close() error {
 	err := common.Close(reader, c.writer)
 	if c.cancel != nil {
 		c.cancel()
+	}
+	if c.onClose != nil {
+		c.onClose()
 	}
 	return err
 }
