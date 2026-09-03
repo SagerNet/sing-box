@@ -14,6 +14,12 @@ type Endpoint interface {
 	Outbound
 }
 
+type OnDemandEndpoint interface {
+	Endpoint
+	OnDemand() bool
+	SetKeepIdleConnections(keep bool)
+}
+
 type EndpointRegistry interface {
 	option.EndpointOptionsRegistry
 	Create(ctx context.Context, router Router, logger log.ContextLogger, tag string, endpointType string, options any) (Endpoint, error)
