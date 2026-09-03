@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 	"slices"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
@@ -11,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/observable"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/pause"
 )
 
 var _ adapter.LifecycleService = (*ReferenceManager)(nil)
@@ -23,6 +25,9 @@ type ReferenceManager struct {
 	staticOutbounds        []string
 	staticTransports       []string
 	subscriber             *observable.Subscriber[struct{}]
+	pauseManager           pause.Manager
+	devicePaused           atomic.Bool
+	idleFlushed            bool
 	keepIdle               map[any]bool
 	unreferencedTransports map[string]bool
 }
@@ -58,6 +63,7 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 		dnsRules:         dnsRules,
 		staticOutbounds:  staticOutbounds,
 		staticTransports: staticTransports,
+		pauseManager:     service.FromContext[pause.Manager](ctx),
 	}
 }
 
@@ -91,8 +97,28 @@ func (m *ReferenceManager) Start(stage adapter.StartStage, scope *adapter.Scope)
 	if clashMode != nil {
 		clashMode.AddUpdateHook(m.subscriber)
 	}
+	if m.pauseManager != nil {
+		m.devicePaused.Store(m.pauseManager.IsDevicePaused())
+	}
 	m.update()
 	go m.loop()
+	if m.pauseManager != nil {
+		pauseCallback := m.pauseManager.RegisterCallback(func(event int) {
+			switch event {
+			case pause.EventDevicePaused:
+				m.devicePaused.Store(true)
+			case pause.EventDeviceWake:
+				m.devicePaused.Store(false)
+			default:
+				return
+			}
+			m.subscriber.Emit(struct{}{})
+		})
+		scope.Add(func() error {
+			m.pauseManager.UnregisterCallback(pauseCallback)
+			return nil
+		})
+	}
 	return nil
 }
 
@@ -137,7 +163,13 @@ func (m *ReferenceManager) update() {
 			outboundQueue = append(outboundQueue, defaultOutbound.Tag())
 		}
 	}
+	var onDemandEndpoints []adapter.OnDemandEndpoint
 	for _, endpoint := range endpointManager.Endpoints() {
+		onDemandEndpoint, isOnDemandEndpoint := endpoint.(adapter.OnDemandEndpoint)
+		if isOnDemandEndpoint && onDemandEndpoint.OnDemand() {
+			onDemandEndpoints = append(onDemandEndpoints, onDemandEndpoint)
+			continue
+		}
 		outboundQueue = append(outboundQueue, endpoint.Tag())
 	}
 	for _, inbound := range inboundManager.Inbounds() {
@@ -195,6 +227,7 @@ func (m *ReferenceManager) update() {
 		}
 	}
 
+	devicePaused := m.devicePaused.Load()
 	keepIdle := make(map[any]bool)
 	for _, outbound := range outboundManager.Outbounds() {
 		keeper, isKeeper := outbound.(adapter.IdleConnectionKeeper)
@@ -209,6 +242,18 @@ func (m *ReferenceManager) update() {
 			typeName: outbound.Type(),
 			tag:      outbound.Tag(),
 			keep:     referencedOutbounds[outbound.Tag()],
+		})
+	}
+	for _, endpoint := range onDemandEndpoints {
+		m.applyKeepIdle(keepIdle, idleTarget{
+			value:        endpoint,
+			keeper:       endpoint,
+			kind:         "endpoint/",
+			action:       "suspending",
+			typeName:     endpoint.Type(),
+			tag:          endpoint.Tag(),
+			keep:         referencedOutbounds[endpoint.Tag()] && !devicePaused,
+			devicePaused: devicePaused,
 		})
 	}
 	unreferencedTransports := make(map[string]bool)
@@ -239,6 +284,10 @@ func (m *ReferenceManager) update() {
 	}
 	m.keepIdle = keepIdle
 	m.unreferencedTransports = unreferencedTransports
+	if devicePaused && !m.idleFlushed {
+		m.CloseIdleConnections()
+	}
+	m.idleFlushed = devicePaused
 }
 
 type idleKeeper interface {
@@ -246,13 +295,14 @@ type idleKeeper interface {
 }
 
 type idleTarget struct {
-	value    any
-	keeper   idleKeeper
-	kind     string
-	action   string
-	typeName string
-	tag      string
-	keep     bool
+	value        any
+	keeper       idleKeeper
+	kind         string
+	action       string
+	typeName     string
+	tag          string
+	keep         bool
+	devicePaused bool
 }
 
 func (m *ReferenceManager) applyKeepIdle(keepIdle map[any]bool, target idleTarget) {
@@ -262,7 +312,11 @@ func (m *ReferenceManager) applyKeepIdle(keepIdle map[any]bool, target idleTarge
 		return
 	}
 	if !target.keep {
-		m.logger.Debug(target.kind, target.typeName, "[", target.tag, "] is unreferenced, ", target.action)
+		if target.devicePaused {
+			m.logger.Debug(target.kind, target.typeName, "[", target.tag, "] device paused, ", target.action)
+		} else {
+			m.logger.Debug(target.kind, target.typeName, "[", target.tag, "] is unreferenced, ", target.action)
+		}
 	}
 	target.keeper.SetKeepIdleConnections(target.keep)
 }

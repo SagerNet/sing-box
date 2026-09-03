@@ -45,11 +45,11 @@ require (
 	github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b
 	github.com/sagernet/quic-go v0.61.0-sing-box-mod.14
 	github.com/sagernet/sing v0.9.7-0.20261110095940-27b73774b240
-	github.com/sagernet/sing-anytls v0.0.0-20260902142641-43bb1cbea74e
+	github.com/sagernet/sing-anytls v0.0.0-20260904135308-cec2d74334be
 	github.com/sagernet/sing-cloudflared v0.1.4-0.20261108120326-83391fb7b139
 	github.com/sagernet/sing-mux v0.3.10-0.20261110064256-375087483ea2
-	github.com/sagernet/sing-openconnect v0.1.1-0.20261110063157-f28cbff7da8d
-	github.com/sagernet/sing-openvpn v0.1.1-0.20261110111704-d1e498f993a0
+	github.com/sagernet/sing-openconnect v0.1.1-0.20261110063215-cd35f41e8f69
+	github.com/sagernet/sing-openvpn v0.1.1-0.20261110111939-ad7a6ce7d11b
 	github.com/sagernet/sing-quic v0.7.2-0.20261114063120-0979e001618d
 	github.com/sagernet/sing-shadowsocks v0.2.9-0.20260929204512-65740e0f0e3e
 	github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95

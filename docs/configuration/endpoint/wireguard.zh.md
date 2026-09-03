@@ -1,3 +1,7 @@
+!!! quote "sing-box 1.15.0 中的更改"
+
+    :material-plus: [on_demand](#on_demand)
+
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [udp_mapping](/zh/configuration/shared/udp-nat/#udp_mapping)  
@@ -34,6 +38,7 @@
   ... // UDP NAT 字段
 
   "workers": 0,
+  "on_demand": false,
 
   ... // 拨号字段
 }
@@ -127,6 +132,12 @@ WireGuard 对等方的列表。
 WireGuard worker 数量。
 
 默认使用 CPU 数量。
+
+#### on_demand
+
+!!! question "自 sing-box 1.15.0 起"
+
+允许该 endpoint 在需要时断开连接。
 
 ### UDP NAT 字段
 
