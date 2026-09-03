@@ -48,7 +48,7 @@ func (s *Service) startTimer() error {
 	if !s.timerConfig.policyMode.hasTimerMode() {
 		return E.New("memory pressure monitoring is not available on this platform without memory_limit")
 	}
-	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.network, s.connections, s.recorder, s.timerConfig)
+	s.adaptiveTimer = newAdaptiveTimer(s.logger, s.network, s.connections, service.FromContext[adapter.CacheFile](s.ctx), s.recorder, s.timerConfig)
 	if s.recorder != nil {
 		s.recorder.instanceStarted(s.timerConfig, s.adaptiveTimer.limitThresholds)
 	}
