@@ -223,7 +223,7 @@ func (d *Daemon) startServiceLocked(ctx context.Context, ownerUserID string, con
 	})
 	d.startedService.SetOOMKillerOptions(options.OOMKillerEnabled, options.OOMKillerDisabled, uint64(options.OOMMemoryLimit))
 	if options.PowerReportEnabled {
-		err = d.powerManager.Start(libbox.PowerReportOptions(d.startedService))
+		err = d.powerManager.Start(libbox.PowerReportOptions(d.startedService, nil))
 		if err != nil {
 			d.logger.Warn("start power report recorder: ", err)
 		}

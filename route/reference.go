@@ -3,6 +3,7 @@ package route
 import (
 	"context"
 	"slices"
+	"sync/atomic"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
@@ -10,7 +11,9 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/observable"
+	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
+	"github.com/sagernet/sing/service/pause"
 )
 
 var _ adapter.LifecycleService = (*ReferenceManager)(nil)
@@ -23,7 +26,11 @@ type ReferenceManager struct {
 	staticOutbounds        []string
 	staticTransports       []string
 	subscriber             *observable.Subscriber[struct{}]
-	unreferencedOutbounds  map[string]bool
+	pauseManager           pause.Manager
+	pauseCallback          *list.Element[pause.Callback]
+	devicePaused           atomic.Bool
+	idleFlushed            bool
+	keepIdle               map[any]bool
 	unreferencedTransports map[string]bool
 }
 
@@ -58,6 +65,7 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 		dnsRules:         dnsRules,
 		staticOutbounds:  staticOutbounds,
 		staticTransports: staticTransports,
+		pauseManager:     service.FromContext[pause.Manager](ctx),
 	}
 }
 
@@ -90,12 +98,32 @@ func (m *ReferenceManager) Start(stage adapter.StartStage) error {
 	if clashMode != nil {
 		clashMode.AddUpdateHook(m.subscriber)
 	}
+	if m.pauseManager != nil {
+		m.devicePaused.Store(m.pauseManager.IsDevicePaused())
+	}
 	m.update()
 	go m.loop()
+	if m.pauseManager != nil {
+		m.pauseCallback = m.pauseManager.RegisterCallback(func(event int) {
+			switch event {
+			case pause.EventDevicePaused:
+				m.devicePaused.Store(true)
+			case pause.EventDeviceWake:
+				m.devicePaused.Store(false)
+			default:
+				return
+			}
+			m.subscriber.Emit(struct{}{})
+		})
+	}
 	return nil
 }
 
 func (m *ReferenceManager) Close() error {
+	if m.pauseCallback != nil {
+		m.pauseManager.UnregisterCallback(m.pauseCallback)
+		m.pauseCallback = nil
+	}
 	if m.subscriber != nil {
 		m.subscriber.Close()
 	}
@@ -143,7 +171,13 @@ func (m *ReferenceManager) update() {
 			outboundQueue = append(outboundQueue, defaultOutbound.Tag())
 		}
 	}
+	var onDemandEndpoints []adapter.OnDemandEndpoint
 	for _, endpoint := range endpointManager.Endpoints() {
+		onDemandEndpoint, isOnDemandEndpoint := endpoint.(adapter.OnDemandEndpoint)
+		if isOnDemandEndpoint && onDemandEndpoint.OnDemand() {
+			onDemandEndpoints = append(onDemandEndpoints, onDemandEndpoint)
+			continue
+		}
 		outboundQueue = append(outboundQueue, endpoint.Tag())
 	}
 	for _, inbound := range inboundManager.Inbounds() {
@@ -201,28 +235,53 @@ func (m *ReferenceManager) update() {
 		}
 	}
 
-	unreferencedOutbounds := make(map[string]bool)
+	devicePaused := m.devicePaused.Load()
+	keepIdle := make(map[any]bool)
 	for _, outbound := range outboundManager.Outbounds() {
-		tag := outbound.Tag()
-		if referencedOutbounds[tag] {
+		keeper, isKeeper := outbound.(adapter.IdleConnectionKeeper)
+		if !isKeeper {
 			continue
 		}
-		unreferencedOutbounds[tag] = true
-		closer, isCloser := outbound.(adapter.IdleConnectionCloser)
-		if !isCloser {
-			continue
-		}
-		if !m.unreferencedOutbounds[tag] {
-			m.logger.Debug("outbound/", outbound.Type(), "[", tag, "] is unreferenced, closing idle connections")
-		}
-		closer.CloseIdleConnections()
+		m.applyKeepIdle(keepIdle, idleTarget{
+			value:    outbound,
+			keeper:   keeper,
+			kind:     "outbound/",
+			action:   "closing idle connections",
+			typeName: outbound.Type(),
+			tag:      outbound.Tag(),
+			keep:     referencedOutbounds[outbound.Tag()],
+		})
 	}
-	m.unreferencedOutbounds = unreferencedOutbounds
-
+	for _, endpoint := range onDemandEndpoints {
+		m.applyKeepIdle(keepIdle, idleTarget{
+			value:        endpoint,
+			keeper:       endpoint,
+			kind:         "endpoint/",
+			action:       "suspending",
+			typeName:     endpoint.Type(),
+			tag:          endpoint.Tag(),
+			keep:         referencedOutbounds[endpoint.Tag()] && !devicePaused,
+			devicePaused: devicePaused,
+		})
+	}
 	unreferencedTransports := make(map[string]bool)
 	for _, transport := range transportManager.Transports() {
 		tag := transport.Tag()
-		if referencedTransports[tag] {
+		referenced := referencedTransports[tag]
+		keeper, isKeeper := transport.(adapter.IdleConnectionKeeper)
+		if isKeeper {
+			m.applyKeepIdle(keepIdle, idleTarget{
+				value:    transport,
+				keeper:   keeper,
+				kind:     "dns/",
+				action:   "closing idle connections",
+				typeName: transport.Type(),
+				tag:      tag,
+				keep:     referenced,
+			})
+			continue
+		}
+		if referenced {
 			continue
 		}
 		unreferencedTransports[tag] = true
@@ -231,5 +290,58 @@ func (m *ReferenceManager) update() {
 			transport.Reset()
 		}
 	}
+	m.keepIdle = keepIdle
 	m.unreferencedTransports = unreferencedTransports
+	if devicePaused && !m.idleFlushed {
+		m.CloseIdleConnections()
+	}
+	m.idleFlushed = devicePaused
+}
+
+type idleKeeper interface {
+	SetKeepIdleConnections(keep bool)
+}
+
+type idleTarget struct {
+	value        any
+	keeper       idleKeeper
+	kind         string
+	action       string
+	typeName     string
+	tag          string
+	keep         bool
+	devicePaused bool
+}
+
+func (m *ReferenceManager) applyKeepIdle(keepIdle map[any]bool, target idleTarget) {
+	keepIdle[target.value] = target.keep
+	previous, tracked := m.keepIdle[target.value]
+	if tracked && previous == target.keep {
+		return
+	}
+	if !target.keep {
+		if target.devicePaused {
+			m.logger.Debug(target.kind, target.typeName, "[", target.tag, "] device paused, ", target.action)
+		} else {
+			m.logger.Debug(target.kind, target.typeName, "[", target.tag, "] is unreferenced, ", target.action)
+		}
+	}
+	target.keeper.SetKeepIdleConnections(target.keep)
+}
+
+func (m *ReferenceManager) CloseIdleConnections() {
+	outboundManager := service.FromContext[adapter.OutboundManager](m.ctx)
+	transportManager := service.FromContext[adapter.DNSTransportManager](m.ctx)
+	for _, outbound := range outboundManager.Outbounds() {
+		keeper, isKeeper := outbound.(adapter.IdleConnectionKeeper)
+		if isKeeper {
+			keeper.CloseIdleConnections()
+		}
+	}
+	for _, transport := range transportManager.Transports() {
+		keeper, isKeeper := transport.(adapter.IdleConnectionKeeper)
+		if isKeeper {
+			keeper.CloseIdleConnections()
+		}
+	}
 }
