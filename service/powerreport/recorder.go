@@ -1,11 +1,13 @@
 package powerreport
 
 import (
+	"cmp"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime/metrics"
 	"runtime/pprof"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,6 +15,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/common/memory"
+	"github.com/sagernet/sing/service/pause"
 )
 
 const (
@@ -34,6 +37,11 @@ const (
 
 	rowCapacity   = 4096
 	eventCapacity = 8192
+
+	maxDNSDomains      = 512
+	maxRowDNSDomains   = 8
+	maxProfiles        = 3
+	profileMinInterval = 2 * time.Minute
 )
 
 type Options struct {
@@ -74,16 +82,26 @@ type Recorder struct {
 	connectionsOpened  atomic.Uint64
 	networkPathUpdates atomic.Uint64
 
-	access         sync.Mutex
-	networkType    string
-	networkPath    string
-	rows           []timelineRow
-	events         []eventRecord
-	previous       previousSample
-	lastFlushAt    time.Time
-	started        bool
-	closed         bool
-	metricsSamples []metrics.Sample
+	trafficAccess sync.RWMutex
+	traffic       map[trafficKey]*TrafficCounter
+
+	dnsAccess  sync.Mutex
+	dnsDomains map[string]uint64
+
+	access           sync.Mutex
+	networkType      string
+	networkPath      string
+	rows             []timelineRow
+	events           []eventRecord
+	previous         previousSample
+	lastFlushAt      time.Time
+	started          bool
+	closed           bool
+	metricsSamples   []metrics.Sample
+	lastDeviceState  deviceState
+	deviceStateValid bool
+	profiles         []profileEntry
+	lastProfileAt    time.Time
 
 	done       chan struct{}
 	workerDone chan struct{}
@@ -108,6 +126,17 @@ type previousSample struct {
 	dnsQueries         uint64
 	connectionsOpened  uint64
 	networkPathUpdates uint64
+	traffic            map[trafficKey]trafficBytes
+}
+
+type profileEntry struct {
+	rate float64
+	path string
+}
+
+type profileRequest struct {
+	writePath  string
+	removePath string
 }
 
 func NewRecorder(options Options) *Recorder {
@@ -144,6 +173,8 @@ func NewRecorder(options Options) *Recorder {
 		fallbackInterval: fallbackInterval,
 		baseTime:         time.Now(),
 		notify:           make(chan struct{}, 1),
+		traffic:          make(map[trafficKey]*TrafficCounter),
+		dnsDomains:       make(map[string]uint64),
 		metricsSamples: []metrics.Sample{
 			{Name: "/cpu/classes/gc/total:cpu-seconds"},
 			{Name: "/sched/goroutines:goroutines"},
@@ -181,6 +212,7 @@ func (r *Recorder) Start() error {
 	r.lastSampleAt.Store(int64(now.Sub(r.baseTime)))
 	r.lastFlushAt = now
 	r.started = true
+	r.updateDeviceStateLocked(now)
 	go r.worker()
 	return nil
 }
@@ -248,8 +280,30 @@ func (r *Recorder) Touch(direction Direction, size int, by *Attribution) {
 	}
 }
 
-func (r *Recorder) CountDNSQuery() {
+func (r *Recorder) CountDNSQuery(domain string) {
 	r.dnsQueries.Add(1)
+	if domain == "" {
+		return
+	}
+	r.dnsAccess.Lock()
+	count, found := r.dnsDomains[domain]
+	if found || len(r.dnsDomains) < maxDNSDomains {
+		r.dnsDomains[domain] = count + 1
+	}
+	r.dnsAccess.Unlock()
+}
+
+func (r *Recorder) RecordPauseEvent(event int) {
+	switch event {
+	case pause.EventDevicePaused:
+		r.RecordPlatformEvent(eventTypeDevicePause)
+	case pause.EventDeviceWake:
+		r.RecordPlatformEvent(eventTypeDeviceWake)
+	case pause.EventNetworkPause:
+		r.RecordPlatformEvent(eventTypeNetworkPause)
+	case pause.EventNetworkWake:
+		r.RecordPlatformEvent(eventTypeNetworkWake)
+	}
 }
 
 func (r *Recorder) CountConnectionOpened() {
@@ -332,18 +386,23 @@ func (r *Recorder) worker() {
 func (r *Recorder) process() {
 	now := time.Now()
 	r.access.Lock()
-	defer r.access.Unlock()
 	if !r.started || r.closed {
+		r.access.Unlock()
 		return
 	}
 	r.consumeBreakLocked()
+	var request *profileRequest
 	nowNano := int64(now.Sub(r.baseTime))
 	if nowNano-r.lastSampleAt.Load() >= r.sampleNano {
 		r.lastSampleAt.Store(nowNano)
-		r.sampleLocked(now)
+		request = r.sampleLocked(now)
 	}
 	if now.Sub(r.lastFlushAt) >= r.flushInterval || len(r.rows) >= rowCapacity || len(r.events) >= eventCapacity {
 		r.flushLocked(now)
+	}
+	r.access.Unlock()
+	if request != nil {
+		r.writeSampleProfile(request)
 	}
 }
 
@@ -374,11 +433,12 @@ func (r *Recorder) resetPreviousLocked(now time.Time) {
 		dnsQueries:         r.dnsQueries.Load(),
 		connectionsOpened:  r.connectionsOpened.Load(),
 		networkPathUpdates: r.networkPathUpdates.Load(),
+		traffic:            r.snapshotTrafficLocked(),
 	}
 	r.previous.absoluteTime, r.previous.continuousTime = readClocks()
 }
 
-func (r *Recorder) sampleLocked(now time.Time) {
+func (r *Recorder) sampleLocked(now time.Time) *profileRequest {
 	previous := r.previous
 	r.resetPreviousLocked(now)
 	current := &r.previous
@@ -391,7 +451,9 @@ func (r *Recorder) sampleLocked(now time.Time) {
 		GoMemoryBytes:      r.metricsSamples[3].Value.Uint64(),
 		GoHeapLiveBytes:    r.metricsSamples[4].Value.Uint64(),
 		DNSQueries:         current.dnsQueries - previous.dnsQueries,
+		DNSDomains:         r.collectDNSDomains(),
 		ConnectionsOpened:  current.connectionsOpened - previous.connectionsOpened,
+		Traffic:            trafficDeltas(current.traffic, previous.traffic),
 		NetworkType:        r.networkType,
 		NetworkPathUpdates: current.networkPathUpdates - previous.networkPathUpdates,
 	}
@@ -433,21 +495,152 @@ func (r *Recorder) sampleLocked(now time.Time) {
 	}
 	if len(current.interfaces) > 0 && len(previous.interfaces) > 0 {
 		interfacePackets := make(map[string]uint64)
+		interfaceBytes := make(map[string]uint64)
 		for name, counters := range current.interfaces {
 			previousCounters, found := previous.interfaces[name]
 			if !found {
 				continue
 			}
-			delta := uint64(counters.inPackets-previousCounters.inPackets) + uint64(counters.outPackets-previousCounters.outPackets)
-			if delta > 0 {
-				interfacePackets[name] = delta
+			packets := uint64(counters.inPackets-previousCounters.inPackets) + uint64(counters.outPackets-previousCounters.outPackets)
+			if packets > 0 {
+				interfacePackets[name] = packets
+			}
+			bytesDelta := uint64(counters.inBytes-previousCounters.inBytes) + uint64(counters.outBytes-previousCounters.outBytes)
+			if bytesDelta > 0 {
+				interfaceBytes[name] = bytesDelta
 			}
 		}
 		if len(interfacePackets) > 0 {
 			row.InterfacePackets = interfacePackets
 		}
+		if len(interfaceBytes) > 0 {
+			row.InterfaceBytes = interfaceBytes
+		}
 	}
+	r.updateDeviceStateLocked(now)
 	r.rows = append(r.rows, row)
+	return r.requestProfileLocked(now, &row, now.Sub(previous.at))
+}
+
+func (r *Recorder) collectDNSDomains() map[string]uint64 {
+	r.dnsAccess.Lock()
+	defer r.dnsAccess.Unlock()
+	if len(r.dnsDomains) == 0 {
+		return nil
+	}
+	type domainCount struct {
+		domain string
+		count  uint64
+	}
+	counts := make([]domainCount, 0, len(r.dnsDomains))
+	for domain, count := range r.dnsDomains {
+		counts = append(counts, domainCount{domain, count})
+	}
+	clear(r.dnsDomains)
+	slices.SortFunc(counts, func(a domainCount, b domainCount) int {
+		return cmp.Compare(b.count, a.count)
+	})
+	if len(counts) > maxRowDNSDomains {
+		counts = counts[:maxRowDNSDomains]
+	}
+	result := make(map[string]uint64, len(counts))
+	for _, entry := range counts {
+		result[entry.domain] = entry.count
+	}
+	return result
+}
+
+func trafficDeltas(current map[trafficKey]trafficBytes, previous map[trafficKey]trafficBytes) trafficBreakdown {
+	var result trafficBreakdown
+	for key, currentBytes := range current {
+		previousBytes := previous[key]
+		delta := trafficDelta{
+			In:  currentBytes.inBytes - previousBytes.inBytes,
+			Out: currentBytes.outBytes - previousBytes.outBytes,
+		}
+		if delta == (trafficDelta{}) {
+			continue
+		}
+		if result == nil {
+			result = make(trafficBreakdown)
+		}
+		byTag := result[key.kind]
+		if byTag == nil {
+			byTag = make(map[string]*trafficDelta)
+			result[key.kind] = byTag
+		}
+		byTag[key.tag] = &delta
+	}
+	return result
+}
+
+func (r *Recorder) updateDeviceStateLocked(now time.Time) {
+	state, loaded := readDeviceState()
+	if !loaded {
+		return
+	}
+	if r.deviceStateValid && r.lastDeviceState == state {
+		return
+	}
+	r.lastDeviceState = state
+	r.deviceStateValid = true
+	r.events = append(r.events, eventRecord{
+		Type:   eventTypeDevice,
+		At:     now.UTC().Format(time.RFC3339),
+		Device: &state,
+	})
+}
+
+func (r *Recorder) requestProfileLocked(now time.Time, row *timelineRow, duration time.Duration) *profileRequest {
+	if r.closed || duration <= 0 {
+		return nil
+	}
+	work := float64(row.EnergyNanojoules)
+	if work == 0 {
+		work = float64(row.CPUUserMS + row.CPUSystemMS)
+	}
+	if work == 0 {
+		return nil
+	}
+	rate := work / duration.Seconds()
+	lowestIndex := -1
+	if len(r.profiles) >= maxProfiles {
+		lowestIndex = 0
+		for index := 1; index < len(r.profiles); index++ {
+			if r.profiles[index].rate < r.profiles[lowestIndex].rate {
+				lowestIndex = index
+			}
+		}
+		if rate <= r.profiles[lowestIndex].rate {
+			return nil
+		}
+	}
+	if !r.lastProfileAt.IsZero() && now.Sub(r.lastProfileAt) < profileMinInterval {
+		return nil
+	}
+	request := &profileRequest{
+		writePath: filepath.Join(r.draftPath, "goroutine-"+now.UTC().Format("150405")+".pb"),
+	}
+	if lowestIndex >= 0 {
+		request.removePath = r.profiles[lowestIndex].path
+		r.profiles = slices.Delete(r.profiles, lowestIndex, lowestIndex+1)
+	}
+	r.profiles = append(r.profiles, profileEntry{rate: rate, path: request.writePath})
+	r.lastProfileAt = now
+	return request
+}
+
+func (r *Recorder) writeSampleProfile(request *profileRequest) {
+	if request.removePath != "" {
+		os.Remove(request.removePath)
+	}
+	file, err := os.OpenFile(request.writePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o666)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	r.chown(request.writePath)
+	pprof.Lookup("goroutine").WriteTo(file, 0)
 }
 
 func (r *Recorder) chown(path string) {

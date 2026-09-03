@@ -14,9 +14,11 @@ import (
 	"github.com/sagernet/sing-box/experimental/locale"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/service/powerreport"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/pause"
 )
@@ -30,6 +32,7 @@ type Instance struct {
 	trafficManager        *trafficcontrol.Manager
 	cacheFile             adapter.CacheFile
 	pauseManager          pause.Manager
+	pauseCallback         *list.Element[pause.Callback]
 	urlTestHistoryStorage *urltest.HistoryStorage
 	outboundManager       adapter.OutboundManager
 	endpointManager       adapter.EndpointManager
@@ -134,6 +137,7 @@ func (s *StartedService) newInstance(ctx context.Context, profileContent string,
 	i.clashMode = service.PtrFromContext[clashmode.Manager](ctx)
 	i.trafficManager = service.PtrFromContext[trafficcontrol.Manager](ctx)
 	i.pauseManager = service.FromContext[pause.Manager](ctx)
+	i.registerPauseCallback(ctx)
 	i.cacheFile = service.FromContext[adapter.CacheFile](ctx)
 	i.outboundManager = service.FromContext[adapter.OutboundManager](ctx)
 	i.endpointManager = service.FromContext[adapter.EndpointManager](ctx)
@@ -163,8 +167,25 @@ func (i *Instance) Start() error {
 
 func (i *Instance) Close() error {
 	i.cancel()
+	if i.pauseCallback != nil {
+		i.pauseManager.UnregisterCallback(i.pauseCallback)
+		i.pauseCallback = nil
+	}
 	i.urlTestHistoryStorage.Close()
 	return i.instance.Close()
+}
+
+func (i *Instance) registerPauseCallback(ctx context.Context) {
+	powerManager := service.FromContext[*powerreport.Manager](ctx)
+	if i.pauseManager == nil || powerManager == nil {
+		return
+	}
+	i.pauseCallback = i.pauseManager.RegisterCallback(func(event int) {
+		recorder := powerManager.Recorder()
+		if recorder != nil {
+			recorder.RecordPauseEvent(event)
+		}
+	})
 }
 
 func (i *Instance) Box() *box.Box {
