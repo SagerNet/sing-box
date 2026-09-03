@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
@@ -19,7 +20,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-var _ adapter.V2RayClientTransport = (*Client)(nil)
+var _ adapter.V2RayMultiplexClientTransport = (*Client)(nil)
 
 type Client struct {
 	ctx        context.Context
@@ -30,14 +31,15 @@ type Client struct {
 	connAccess sync.Mutex
 	conn       common.TypedValue[*clientConnection]
 	rawConn    net.Conn
+	closeIdle  atomic.Bool
 }
 
 type clientConnection struct {
 	*quic.Conn
-	access   sync.Mutex
-	streams  int
-	draining bool
-	closed   bool
+	access    sync.Mutex
+	streams   int
+	closed    bool
+	closeIdle *atomic.Bool
 }
 
 func (c *clientConnection) active() bool {
@@ -54,14 +56,13 @@ func (c *clientConnection) acquireStream() bool {
 		return false
 	}
 	c.streams++
-	c.draining = false
 	return true
 }
 
-func (c *clientConnection) releaseStream() {
+func (c *clientConnection) releaseStream(keepSession bool) {
 	c.access.Lock()
 	c.streams--
-	closed := c.draining && c.streams == 0 && c.markClosedLocked()
+	closed := c.closeIdle.Load() && !keepSession && c.streams == 0 && c.markClosedLocked()
 	c.access.Unlock()
 	if closed {
 		c.CloseWithError(0, "")
@@ -126,7 +127,7 @@ func (c *Client) offerNew() (*clientConnection, error) {
 		<-quicConn.Context().Done()
 		udpConn.Close()
 	}()
-	conn := &clientConnection{Conn: quicConn}
+	conn := &clientConnection{Conn: quicConn, closeIdle: &c.closeIdle}
 	c.conn.Store(conn)
 	c.rawConn = udpConn
 	return conn, nil
@@ -143,10 +144,22 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		}
 		stream, err := conn.OpenStream()
 		if err != nil {
-			conn.releaseStream()
+			conn.releaseStream(false)
 			return nil, err
 		}
-		return &StreamWrapper{Conn: conn.Conn, Stream: stream, onClose: conn.releaseStream}, nil
+		keepSession := adapter.KeepSessionFromContext(ctx)
+		return &StreamWrapper{Conn: conn.Conn, Stream: stream, onClose: func() { conn.releaseStream(keepSession) }}, nil
+	}
+}
+
+func (c *Client) MultiplexEnabled() bool {
+	return true
+}
+
+func (c *Client) SetKeepIdleConnections(keep bool) {
+	c.closeIdle.Store(!keep)
+	if !keep {
+		c.CloseIdleConnections()
 	}
 }
 
@@ -156,7 +169,6 @@ func (c *Client) CloseIdleConnections() {
 		return
 	}
 	conn.access.Lock()
-	conn.draining = true
 	closed := conn.streams == 0 && conn.markClosedLocked()
 	conn.access.Unlock()
 	if closed {

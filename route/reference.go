@@ -23,7 +23,7 @@ type ReferenceManager struct {
 	staticOutbounds        []string
 	staticTransports       []string
 	subscriber             *observable.Subscriber[struct{}]
-	unreferencedOutbounds  map[string]bool
+	keepIdle               map[any]bool
 	unreferencedTransports map[string]bool
 }
 
@@ -201,28 +201,40 @@ func (m *ReferenceManager) update() {
 		}
 	}
 
-	unreferencedOutbounds := make(map[string]bool)
+	keepIdle := make(map[any]bool)
 	for _, outbound := range outboundManager.Outbounds() {
-		tag := outbound.Tag()
-		if referencedOutbounds[tag] {
+		keeper, isKeeper := outbound.(adapter.IdleConnectionKeeper)
+		if !isKeeper {
 			continue
 		}
-		unreferencedOutbounds[tag] = true
-		closer, isCloser := outbound.(adapter.IdleConnectionCloser)
-		if !isCloser {
-			continue
-		}
-		if !m.unreferencedOutbounds[tag] {
-			m.logger.Debug("outbound/", outbound.Type(), "[", tag, "] is unreferenced, closing idle connections")
-		}
-		closer.CloseIdleConnections()
+		m.applyKeepIdle(keepIdle, idleTarget{
+			value:    outbound,
+			keeper:   keeper,
+			kind:     "outbound/",
+			action:   "closing idle connections",
+			typeName: outbound.Type(),
+			tag:      outbound.Tag(),
+			keep:     referencedOutbounds[outbound.Tag()],
+		})
 	}
-	m.unreferencedOutbounds = unreferencedOutbounds
-
 	unreferencedTransports := make(map[string]bool)
 	for _, transport := range transportManager.Transports() {
 		tag := transport.Tag()
-		if referencedTransports[tag] {
+		referenced := referencedTransports[tag]
+		keeper, isKeeper := transport.(adapter.IdleConnectionKeeper)
+		if isKeeper {
+			m.applyKeepIdle(keepIdle, idleTarget{
+				value:    transport,
+				keeper:   keeper,
+				kind:     "dns/",
+				action:   "closing idle connections",
+				typeName: transport.Type(),
+				tag:      tag,
+				keep:     referenced,
+			})
+			continue
+		}
+		if referenced {
 			continue
 		}
 		unreferencedTransports[tag] = true
@@ -231,5 +243,49 @@ func (m *ReferenceManager) update() {
 			transport.Reset()
 		}
 	}
+	m.keepIdle = keepIdle
 	m.unreferencedTransports = unreferencedTransports
+}
+
+type idleKeeper interface {
+	SetKeepIdleConnections(keep bool)
+}
+
+type idleTarget struct {
+	value    any
+	keeper   idleKeeper
+	kind     string
+	action   string
+	typeName string
+	tag      string
+	keep     bool
+}
+
+func (m *ReferenceManager) applyKeepIdle(keepIdle map[any]bool, target idleTarget) {
+	keepIdle[target.value] = target.keep
+	previous, tracked := m.keepIdle[target.value]
+	if tracked && previous == target.keep {
+		return
+	}
+	if !target.keep {
+		m.logger.Debug(target.kind, target.typeName, "[", target.tag, "] is unreferenced, ", target.action)
+	}
+	target.keeper.SetKeepIdleConnections(target.keep)
+}
+
+func (m *ReferenceManager) CloseIdleConnections() {
+	outboundManager := service.FromContext[adapter.OutboundManager](m.ctx)
+	transportManager := service.FromContext[adapter.DNSTransportManager](m.ctx)
+	for _, outbound := range outboundManager.Outbounds() {
+		keeper, isKeeper := outbound.(adapter.IdleConnectionKeeper)
+		if isKeeper {
+			keeper.CloseIdleConnections()
+		}
+	}
+	for _, transport := range transportManager.Transports() {
+		keeper, isKeeper := transport.(adapter.IdleConnectionKeeper)
+		if isKeeper {
+			keeper.CloseIdleConnections()
+		}
+	}
 }
