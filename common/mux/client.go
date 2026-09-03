@@ -51,9 +51,9 @@ type clientDialer struct {
 }
 
 func (d *clientDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	return d.Dialer.DialContext(adapter.OverrideContext(ctx), network, destination)
+	return d.Dialer.DialContext(adapter.ContextForMultiplexSession(ctx), network, destination)
 }
 
 func (d *clientDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	return d.Dialer.ListenPacket(adapter.OverrideContext(ctx), destination)
+	return d.Dialer.ListenPacket(adapter.ContextForMultiplexSession(ctx), destination)
 }
