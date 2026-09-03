@@ -2,6 +2,10 @@
 
 !!! question "Since sing-box 1.14.0"
 
+!!! quote "Changes in sing-box 1.15.0"
+
+    :material-plus: [on_demand](#on_demand)
+
 ==Client only==
 
 ## Structure
@@ -107,6 +111,7 @@
       "promote": false
     }
   ],
+  "on_demand": false,
 
   ... // Dial Fields
 }
@@ -633,6 +638,12 @@ Conflict with `form_entries.promote`.
 Ask for the matching authentication field interactively instead of supplying an automatic value.
 
 Conflict with `form_entries.value`.
+
+### on_demand
+
+!!! question "Since sing-box 1.15.0"
+
+Allow the endpoint to be disconnected when necessary.
 
 ## UDP NAT Fields
 
