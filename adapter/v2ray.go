@@ -22,3 +22,8 @@ type V2RayClientTransport interface {
 	DialContext(ctx context.Context) (net.Conn, error)
 	Close() error
 }
+
+type V2RayMultiplexClientTransport interface {
+	V2RayClientTransport
+	MultiplexEnabled() bool
+}

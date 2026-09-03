@@ -19,6 +19,7 @@ type WireGuardEndpointOptions struct {
 	UDPFiltering UDPNATBehavior                   `json:"udp_filtering,omitempty"`
 	UDPNATMax    uint32                           `json:"udp_nat_max,omitempty"`
 	Workers      int                              `json:"workers,omitempty"`
+	OnDemand     bool                             `json:"on_demand,omitempty"`
 	DialerOptions
 }
 
