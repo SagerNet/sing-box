@@ -64,8 +64,28 @@ type timelineRow struct {
 	DNSQueries                  uint64            `json:"dnsQueries,omitempty"`
 	ConnectionsOpened           uint64            `json:"connectionsOpened,omitempty"`
 	InterfacePackets            map[string]uint64 `json:"interfacePackets,omitempty"`
+	InterfaceBytes              map[string]uint64 `json:"interfaceBytes,omitempty"`
+	Traffic                     trafficBreakdown  `json:"traffic,omitempty"`
+	DNSDomains                  map[string]uint64 `json:"dnsDomains,omitempty"`
 	NetworkType                 string            `json:"network,omitempty"`
 	NetworkPathUpdates          uint64            `json:"pathUpdates,omitempty"`
+}
+
+type trafficBreakdown map[TrafficKind]map[string]*trafficDelta
+
+type trafficDelta struct {
+	In  uint64 `json:"in,omitempty"`
+	Out uint64 `json:"out,omitempty"`
+}
+
+type trafficKey struct {
+	kind TrafficKind
+	tag  string
+}
+
+type trafficBytes struct {
+	inBytes  uint64
+	outBytes uint64
 }
 
 type qosBreakdown struct {
@@ -79,9 +99,14 @@ type qosBreakdown struct {
 }
 
 const (
-	eventTypeBreak   = "break"
-	eventTypeNetwork = "network"
-	eventTypePath    = "path"
+	eventTypeBreak        = "break"
+	eventTypeNetwork      = "network"
+	eventTypePath         = "path"
+	eventTypeDevice       = "device"
+	eventTypeDevicePause  = "device-pause"
+	eventTypeDeviceWake   = "device-wake"
+	eventTypeNetworkPause = "network-pause"
+	eventTypeNetworkWake  = "network-wake"
 )
 
 type eventRecord struct {
@@ -93,6 +118,14 @@ type eventRecord struct {
 	NetworkType string       `json:"network,omitempty"`
 	NetworkPath string       `json:"path,omitempty"`
 	By          *Attribution `json:"by,omitempty"`
+	Device      *deviceState `json:"device,omitempty"`
+}
+
+type deviceState struct {
+	PowerSource  string `json:"powerSource,omitempty"`
+	BatteryLevel int    `json:"batteryLevel,omitempty"`
+	LowPowerMode bool   `json:"lowPowerMode,omitempty"`
+	ThermalState string `json:"thermalState,omitempty"`
 }
 
 type systemUsage struct {
@@ -116,6 +149,8 @@ type systemUsage struct {
 }
 
 type interfaceCounters struct {
-	inPackets  uint32
-	outPackets uint32
+	inPackets  uint64
+	outPackets uint64
+	inBytes    uint64
+	outBytes   uint64
 }

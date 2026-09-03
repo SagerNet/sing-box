@@ -1,7 +1,6 @@
 package powerreport
 
 /*
-#include <ifaddrs.h>
 #include <mach/mach_time.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -16,9 +15,11 @@ int proc_pid_rusage(int pid, int flavor, rusage_info_t *buffer);
 import "C"
 
 import (
+	"encoding/binary"
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"unsafe"
 )
 
@@ -99,25 +100,35 @@ func readClocks() (absoluteTime int64, continuousTime int64) {
 }
 
 func readInterfaceCounters() map[string]interfaceCounters {
-	var list *C.struct_ifaddrs
-	if C.getifaddrs(&list) != 0 {
+	table, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, 0)
+	if err != nil {
 		return nil
 	}
-	defer C.freeifaddrs(list)
+	var message C.struct_if_msghdr2
+	messageSize := int(unsafe.Sizeof(message))
+	messageBytes := unsafe.Slice((*byte)(unsafe.Pointer(&message)), messageSize)
 	result := make(map[string]interfaceCounters)
-	for entry := list; entry != nil; entry = entry.ifa_next {
-		if entry.ifa_addr == nil || entry.ifa_addr.sa_family != C.AF_LINK || entry.ifa_data == nil {
-			continue
+	for len(table) >= 4 {
+		messageLength := int(binary.NativeEndian.Uint16(table))
+		if messageLength < 4 || messageLength > len(table) {
+			break
 		}
-		name := C.GoString(entry.ifa_name)
-		if !strings.HasPrefix(name, "en") && !strings.HasPrefix(name, "pdp_ip") {
-			continue
+		if table[3] == syscall.RTM_IFINFO2 && messageLength >= messageSize {
+			copy(messageBytes, table[:messageSize])
+			var nameBuffer [C.IF_NAMESIZE]C.char
+			if C.if_indextoname(C.uint(message.ifm_index), &nameBuffer[0]) != nil {
+				name := C.GoString(&nameBuffer[0])
+				if strings.HasPrefix(name, "en") || strings.HasPrefix(name, "pdp_ip") {
+					result[name] = interfaceCounters{
+						inPackets:  uint64(message.ifm_data.ifi_ipackets),
+						outPackets: uint64(message.ifm_data.ifi_opackets),
+						inBytes:    uint64(message.ifm_data.ifi_ibytes),
+						outBytes:   uint64(message.ifm_data.ifi_obytes),
+					}
+				}
+			}
 		}
-		data := (*C.struct_if_data)(entry.ifa_data)
-		result[name] = interfaceCounters{
-			inPackets:  uint32(data.ifi_ipackets),
-			outPackets: uint32(data.ifi_opackets),
-		}
+		table = table[messageLength:]
 	}
 	return result
 }
