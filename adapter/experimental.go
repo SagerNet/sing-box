@@ -37,6 +37,7 @@ type CacheFile interface {
 
 	SetDisableExpire(disableExpire bool)
 	SetOptimisticTimeout(timeout time.Duration)
+	Flush()
 
 	LoadMode() string
 	StoreMode(mode string) error
