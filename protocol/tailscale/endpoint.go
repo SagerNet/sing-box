@@ -69,6 +69,7 @@ var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
 	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
 	_ adapter.Referrer                    = (*Endpoint)(nil)
+	_ adapter.OnDemandEndpoint            = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
 	_ tun.Port                            = (*Endpoint)(nil)
 )
@@ -122,7 +123,13 @@ type Endpoint struct {
 	sshServerInstance *tailssh.Server
 	sshServerOptions  *option.TailscaleSSHServerOptions
 	taildrop          *taildropManager
-	localBackend      *ipnlocal.LocalBackend
+	localBackend      atomic.Pointer[ipnlocal.LocalBackend]
+	onDemand          bool
+	suspendAccess     sync.Mutex
+	idleRequested     atomic.Bool
+	resumeDone        chan struct{}
+	resumePending     atomic.Bool
+	suspended         atomic.Bool
 
 	systemInterface     bool
 	systemInterfaceName string
@@ -251,6 +258,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		systemInterfaceName:        options.SystemInterfaceName,
 		systemInterfaceMTU:         options.SystemInterfaceMTU,
 		keyAuth:                    options.AuthKey != "",
+		onDemand:                   options.OnDemand,
 	}, nil
 }
 
@@ -428,7 +436,7 @@ func (t *Endpoint) postStart() error {
 		})
 	}
 	localBackend := t.server.ExportLocalBackend()
-	t.localBackend = localBackend
+	t.localBackend.Store(localBackend)
 	if !version.IsAppleTV() {
 		registerTaildropEndpoint(localBackend, t)
 		go t.taildrop.start()
@@ -575,6 +583,7 @@ func (t *Endpoint) watchState() {
 				if exitNodePending {
 					tryApplyExitNode()
 				}
+				t.suspendIfRequested()
 			}
 			return true
 		})
@@ -722,9 +731,9 @@ func (t *Endpoint) Logout(ctx context.Context) error {
 func (t *Endpoint) Close() error {
 	var err error
 	t.started.Store(false)
-	if t.localBackend != nil {
-		unregisterTaildropEndpoint(t.localBackend)
-		t.localBackend = nil
+	localBackend := t.localBackend.Swap(nil)
+	if localBackend != nil {
+		unregisterTaildropEndpoint(localBackend)
 	}
 	t.taildrop.close()
 	if t.icmpForwarder != nil {
@@ -761,6 +770,132 @@ func (t *Endpoint) InterfaceUpdated(ctx context.Context) {
 	}
 }
 
+func (t *Endpoint) OnDemand() bool {
+	return t.onDemand
+}
+
+func (t *Endpoint) SetKeepIdleConnections(keep bool) {
+	t.idleRequested.Store(!keep)
+	if !keep {
+		t.suspendAccess.Lock()
+		t.suspendLocked()
+		t.suspendAccess.Unlock()
+		return
+	}
+	if t.systemInterface {
+		t.requestResume()
+	}
+}
+
+func (t *Endpoint) requestResume() {
+	if !t.suspended.Load() || !t.resumePending.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer t.resumePending.Store(false)
+		err := t.resume(t.ctx)
+		if err != nil {
+			t.logger.Error(E.Cause(err, "resume"))
+		}
+	}()
+}
+
+func (t *Endpoint) suspendIfRequested() {
+	if !t.idleRequested.Load() {
+		return
+	}
+	t.suspendAccess.Lock()
+	if t.idleRequested.Load() {
+		t.suspendLocked()
+	}
+	t.suspendAccess.Unlock()
+}
+
+func (t *Endpoint) suspendLocked() {
+	if t.suspended.Load() || t.resumeDone != nil {
+		return
+	}
+	localBackend := t.localBackend.Load()
+	if localBackend == nil || localBackend.State() != ipn.Running {
+		return
+	}
+	_, err := localBackend.EditPrefs(&ipn.MaskedPrefs{
+		Prefs:          ipn.Prefs{WantRunning: false},
+		WantRunningSet: true,
+	})
+	if err != nil {
+		t.logger.Error(E.Cause(err, "suspend"))
+		return
+	}
+	t.suspended.Store(true)
+}
+
+func (t *Endpoint) resume(ctx context.Context) error {
+	t.idleRequested.Store(false)
+	if !t.suspended.Load() {
+		return nil
+	}
+	t.suspendAccess.Lock()
+	if !t.suspended.Load() {
+		t.suspendAccess.Unlock()
+		return nil
+	}
+	resumeDone := t.resumeDone
+	if resumeDone == nil {
+		localBackend := t.localBackend.Load()
+		if localBackend == nil {
+			t.suspendAccess.Unlock()
+			return E.New("Tailscale is not ready yet")
+		}
+		_, err := localBackend.EditPrefs(&ipn.MaskedPrefs{
+			Prefs:          ipn.Prefs{WantRunning: true},
+			WantRunningSet: true,
+		})
+		if err != nil {
+			t.suspendAccess.Unlock()
+			return err
+		}
+		resumeDone = make(chan struct{})
+		t.resumeDone = resumeDone
+		go t.awaitRunning(localBackend, resumeDone)
+	}
+	t.suspendAccess.Unlock()
+	select {
+	case <-resumeDone:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	if t.suspended.Load() {
+		return E.New("Tailscale backend is not running")
+	}
+	return nil
+}
+
+func (t *Endpoint) awaitRunning(localBackend *ipnlocal.LocalBackend, resumeDone chan struct{}) {
+	running := localBackend.State() == ipn.Running
+	if !running {
+		watchCtx, cancel := context.WithTimeout(t.ctx, C.TCPTimeout)
+		localBackend.WatchNotifications(watchCtx, ipn.NotifyInitialState, nil, func(notify *ipn.Notify) bool {
+			if notify.State != nil && *notify.State == ipn.Running {
+				running = true
+				return false
+			}
+			return notify.ErrMessage == nil
+		})
+		cancel()
+	}
+	t.suspendAccess.Lock()
+	t.resumeDone = nil
+	if running {
+		t.suspended.Store(false)
+		if t.idleRequested.Load() {
+			t.suspendLocked()
+		}
+	}
+	t.suspendAccess.Unlock()
+	close(resumeDone)
+}
+
 func (t *Endpoint) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	switch network {
 	case N.NetworkTCP:
@@ -770,6 +905,10 @@ func (t *Endpoint) DialContext(ctx context.Context, network string, destination 
 	}
 	if !t.started.Load() {
 		return nil, E.New("Tailscale is not ready yet")
+	}
+	resumeErr := t.resume(ctx)
+	if resumeErr != nil {
+		return nil, resumeErr
 	}
 	if destination.IsDomain() {
 		destinationAddresses, err := t.dnsRouter.Lookup(ctx, destination.Fqdn, adapter.DNSQueryOptions{})
@@ -829,6 +968,10 @@ func (t *Endpoint) DialContext(ctx context.Context, network string, destination 
 func (t *Endpoint) listenPacketWithAddress(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	if !t.started.Load() {
 		return nil, E.New("Tailscale is not ready yet")
+	}
+	resumeErr := t.resume(ctx)
+	if resumeErr != nil {
+		return nil, resumeErr
 	}
 	if t.systemDialer != nil {
 		return t.systemDialer.ListenPacket(ctx, destination)

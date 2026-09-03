@@ -29,6 +29,7 @@ import (
 var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
 	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
+	_ adapter.OnDemandEndpoint            = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
 )
 
@@ -44,6 +45,7 @@ type Endpoint struct {
 	logger         logger.ContextLogger
 	localAddresses []netip.Prefix
 	endpoint       *wireguard.Endpoint
+	onDemand       bool
 	bindAccess     sync.Mutex
 	started        atomic.Bool
 }
@@ -56,6 +58,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
 		logger:         logger,
 		localAddresses: options.Address,
+		onDemand:       options.OnDemand,
 	}
 	if options.Detour != "" && options.ListenPort != 0 {
 		return nil, E.New("`listen_port` is conflict with `detour`")
@@ -160,6 +163,14 @@ func (w *Endpoint) InterfaceUpdated(ctx context.Context) {
 		return
 	}
 	go w.updateBind(ctx)
+}
+
+func (w *Endpoint) OnDemand() bool {
+	return w.onDemand
+}
+
+func (w *Endpoint) SetKeepIdleConnections(keep bool) {
+	w.endpoint.SetIdle(!keep)
 }
 
 func (w *Endpoint) updateBind(ctx context.Context) {

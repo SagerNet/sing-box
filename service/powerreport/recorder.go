@@ -42,6 +42,7 @@ const (
 	maxRowDNSDomains   = 8
 	maxProfiles        = 3
 	profileMinInterval = 2 * time.Minute
+	profileMaxDuration = 10 * time.Second
 )
 
 type Options struct {
@@ -70,10 +71,13 @@ type Recorder struct {
 	fallbackInterval time.Duration
 	baseTime         time.Time
 
-	_            [64]byte
-	lastActivity atomic.Int64
-	_            [64]byte
+	_                [64]byte
+	lastActivity     atomic.Int64
+	lastActivityWall atomic.Int64
+	_                [64]byte
 
+	wakePending  atomic.Bool
+	lastWakeNano atomic.Int64
 	lastSampleAt atomic.Int64
 	pendingBreak atomic.Pointer[breakRecord]
 	notify       chan struct{}
@@ -102,17 +106,28 @@ type Recorder struct {
 	deviceStateValid bool
 	profiles         []profileEntry
 	lastProfileAt    time.Time
+	profileFile      *os.File
+	profileTimer     *time.Timer
+	awake            bool
+	wakeAt           time.Time
+	wakeUsage        systemUsage
+	wakeDNSQueries   uint64
+	wakeConnections  uint64
+	windowRate       float64
 
 	done       chan struct{}
 	workerDone chan struct{}
 }
 
 type breakRecord struct {
-	at        time.Time
-	idleMS    int64
-	direction Direction
-	size      int
-	by        *Attribution
+	at          time.Time
+	idleMS      int64
+	wallIdleMS  int64
+	afterWake   bool
+	sinceWakeMS int64
+	direction   Direction
+	size        int
+	by          *Attribution
 }
 
 type previousSample struct {
@@ -212,6 +227,7 @@ func (r *Recorder) Start() error {
 	r.lastSampleAt.Store(int64(now.Sub(r.baseTime)))
 	r.lastFlushAt = now
 	r.started = true
+	r.beginWakeWindowLocked(now)
 	r.updateDeviceStateLocked(now)
 	go r.worker()
 	return nil
@@ -229,6 +245,7 @@ func (r *Recorder) Close() error {
 	<-r.workerDone
 	now := time.Now()
 	r.access.Lock()
+	r.stopProfileLocked()
 	r.consumeBreakLocked()
 	r.sampleLocked(now)
 	r.flushLocked(now)
@@ -260,24 +277,43 @@ func (r *Recorder) writeLog() {
 // and characterizes what ended an idle period; it is not accumulated. Volume totals come from
 // the sampled interface counters instead.
 func (r *Recorder) Touch(direction Direction, size int, by *Attribution) {
-	nowNano := int64(time.Since(r.baseTime))
+	now := time.Now()
+	nowNano := int64(now.Sub(r.baseTime))
+	if r.wakePending.Load() && r.wakePending.CompareAndSwap(true, false) {
+		record := r.newBreakRecord(now, nowNano, direction, size, by)
+		record.afterWake = true
+		record.sinceWakeMS = (nowNano - r.lastWakeNano.Load()) / int64(time.Millisecond)
+		r.pendingBreak.Store(record)
+		r.notifyWorker()
+		return
+	}
 	lastNano := r.lastActivity.Load()
 	if nowNano-lastNano < activityRefreshNano {
 		return
 	}
-	previousNano := r.lastActivity.Swap(nowNano)
-	if previousNano != 0 && nowNano-previousNano >= r.gateNano {
-		r.pendingBreak.Store(&breakRecord{
-			at:        time.Now(),
-			idleMS:    (nowNano - previousNano) / int64(time.Millisecond),
-			direction: direction,
-			size:      size,
-			by:        by,
-		})
+	record := r.newBreakRecord(now, nowNano, direction, size, by)
+	if record.idleMS >= r.gateNano/int64(time.Millisecond) {
+		r.pendingBreak.Store(record)
 		r.notifyWorker()
 	} else if nowNano-r.lastSampleAt.Load() >= r.sampleNano {
 		r.notifyWorker()
 	}
+}
+
+func (r *Recorder) newBreakRecord(now time.Time, nowNano int64, direction Direction, size int, by *Attribution) *breakRecord {
+	previousNano := r.lastActivity.Swap(nowNano)
+	previousWall := r.lastActivityWall.Swap(now.UnixNano())
+	record := &breakRecord{
+		at:        now,
+		direction: direction,
+		size:      size,
+		by:        by,
+	}
+	if previousNano != 0 {
+		record.idleMS = (nowNano - previousNano) / int64(time.Millisecond)
+		record.wallIdleMS = (now.UnixNano() - previousWall) / int64(time.Millisecond)
+	}
+	return record
 }
 
 func (r *Recorder) CountDNSQuery(domain string) {
@@ -296,13 +332,13 @@ func (r *Recorder) CountDNSQuery(domain string) {
 func (r *Recorder) RecordPauseEvent(event int) {
 	switch event {
 	case pause.EventDevicePaused:
-		r.RecordPlatformEvent(eventTypeDevicePause)
+		r.recordPlatformEvent(eventTypeDevicePause)
 	case pause.EventDeviceWake:
-		r.RecordPlatformEvent(eventTypeDeviceWake)
+		r.recordPlatformEvent(eventTypeDeviceWake)
 	case pause.EventNetworkPause:
-		r.RecordPlatformEvent(eventTypeNetworkPause)
+		r.recordPlatformEvent(eventTypeNetworkPause)
 	case pause.EventNetworkWake:
-		r.RecordPlatformEvent(eventTypeNetworkWake)
+		r.recordPlatformEvent(eventTypeNetworkWake)
 	}
 }
 
@@ -310,17 +346,98 @@ func (r *Recorder) CountConnectionOpened() {
 	r.connectionsOpened.Add(1)
 }
 
-func (r *Recorder) RecordPlatformEvent(eventType string) {
+// The service log prefixes each line with whole monotonic seconds since createdAt, so a
+// line at [N] sits at logBaseMonoMS + N*1000 on the monoMS axis of events and timeline rows.
+func (r *Recorder) RecordServiceStart(createdAt time.Time) {
 	now := time.Now()
 	r.access.Lock()
 	if !r.started || r.closed {
 		r.access.Unlock()
 		return
 	}
-	r.events = append(r.events, eventRecord{
-		Type: eventType,
-		At:   now.UTC().Format(time.RFC3339),
-	})
+	event := r.newEvent(eventTypeService, now)
+	event.LogBaseMonoMS = int64(createdAt.Sub(r.baseTime) / time.Millisecond)
+	r.events = append(r.events, event)
+	r.access.Unlock()
+	r.notifyWorker()
+}
+
+func (r *Recorder) RecordDeviceSleep() {
+	now := time.Now()
+	r.access.Lock()
+	if !r.started || r.closed {
+		r.access.Unlock()
+		return
+	}
+	r.wakePending.Store(false)
+	r.stopProfileLocked()
+	event := r.newEvent(eventTypeSleep, now)
+	if r.awake {
+		event.Window = r.endWakeWindowLocked(now)
+	}
+	r.events = append(r.events, event)
+	r.access.Unlock()
+	r.notifyWorker()
+}
+
+func (r *Recorder) RecordDeviceWake() {
+	now := time.Now()
+	r.access.Lock()
+	if !r.started || r.closed {
+		r.access.Unlock()
+		return
+	}
+	r.events = append(r.events, r.newEvent(eventTypeWake, now))
+	var request *profileRequest
+	if !r.awake {
+		r.beginWakeWindowLocked(now)
+		r.lastWakeNano.Store(int64(now.Sub(r.baseTime)))
+		r.wakePending.Store(true)
+		request = r.requestProfileLocked(now, r.windowRate)
+		r.windowRate = 0
+	}
+	r.access.Unlock()
+	if request != nil {
+		r.startProfile(request)
+	}
+	r.notifyWorker()
+}
+
+func (r *Recorder) beginWakeWindowLocked(now time.Time) {
+	r.awake = true
+	r.wakeAt = now
+	r.wakeUsage = readSystemUsage()
+	r.wakeDNSQueries = r.dnsQueries.Load()
+	r.wakeConnections = r.connectionsOpened.Load()
+}
+
+func (r *Recorder) endWakeWindowLocked(now time.Time) *wakeWindow {
+	r.awake = false
+	usage := readSystemUsage()
+	window := &wakeWindow{
+		AwakeMS:           int64(now.Sub(r.wakeAt) / time.Millisecond),
+		DNSQueries:        r.dnsQueries.Load() - r.wakeDNSQueries,
+		ConnectionsOpened: r.connectionsOpened.Load() - r.wakeConnections,
+	}
+	if usage.valid && r.wakeUsage.valid {
+		window.CPUUserMS = (usage.userTime - r.wakeUsage.userTime) / int64(time.Millisecond)
+		window.CPUSystemMS = (usage.systemTime - r.wakeUsage.systemTime) / int64(time.Millisecond)
+		window.EnergyNanojoules = usage.energyNanojoules - r.wakeUsage.energyNanojoules
+		window.PackageIdleWakeups = usage.packageIdleWakeups - r.wakeUsage.packageIdleWakeups
+		window.InterruptWakeups = usage.interruptWakeups - r.wakeUsage.interruptWakeups
+	}
+	r.windowRate = profileRate(window.EnergyNanojoules, window.CPUUserMS+window.CPUSystemMS, now.Sub(r.wakeAt))
+	return window
+}
+
+func (r *Recorder) recordPlatformEvent(eventType string) {
+	now := time.Now()
+	r.access.Lock()
+	if !r.started || r.closed {
+		r.access.Unlock()
+		return
+	}
+	r.events = append(r.events, r.newEvent(eventType, now))
 	r.access.Unlock()
 	r.notifyWorker()
 }
@@ -333,11 +450,9 @@ func (r *Recorder) UpdateNetworkType(networkType string) {
 		return
 	}
 	r.networkType = networkType
-	r.events = append(r.events, eventRecord{
-		Type:        eventTypeNetwork,
-		At:          now.UTC().Format(time.RFC3339),
-		NetworkType: networkType,
-	})
+	event := r.newEvent(eventTypeNetwork, now)
+	event.NetworkType = networkType
+	r.events = append(r.events, event)
 	r.access.Unlock()
 	r.notifyWorker()
 }
@@ -351,13 +466,19 @@ func (r *Recorder) UpdateNetworkPath(description string) {
 		return
 	}
 	r.networkPath = description
-	r.events = append(r.events, eventRecord{
-		Type:        eventTypePath,
-		At:          now.UTC().Format(time.RFC3339),
-		NetworkPath: description,
-	})
+	event := r.newEvent(eventTypePath, now)
+	event.NetworkPath = description
+	r.events = append(r.events, event)
 	r.access.Unlock()
 	r.notifyWorker()
+}
+
+func (r *Recorder) newEvent(eventType string, now time.Time) eventRecord {
+	return eventRecord{
+		Type:   eventType,
+		At:     now.UTC().Format(time.RFC3339),
+		MonoMS: int64(now.Sub(r.baseTime) / time.Millisecond),
+	}
 }
 
 func (r *Recorder) notifyWorker() {
@@ -402,7 +523,7 @@ func (r *Recorder) process() {
 	}
 	r.access.Unlock()
 	if request != nil {
-		r.writeSampleProfile(request)
+		r.startProfile(request)
 	}
 }
 
@@ -411,15 +532,16 @@ func (r *Recorder) consumeBreakLocked() {
 	if record == nil {
 		return
 	}
-	r.events = append(r.events, eventRecord{
-		Type:        eventTypeBreak,
-		At:          record.at.UTC().Format(time.RFC3339),
-		IdleMS:      record.idleMS,
-		Direction:   record.direction.String(),
-		Size:        record.size,
-		NetworkType: r.networkType,
-		By:          record.by,
-	})
+	event := r.newEvent(eventTypeBreak, record.at)
+	event.IdleMS = record.idleMS
+	event.WallIdleMS = record.wallIdleMS
+	event.AfterWake = record.afterWake
+	event.SinceWakeMS = record.sinceWakeMS
+	event.Direction = record.direction.String()
+	event.Size = record.size
+	event.NetworkType = r.networkType
+	event.By = record.by
+	r.events = append(r.events, event)
 }
 
 func (r *Recorder) resetPreviousLocked(now time.Time) {
@@ -445,6 +567,8 @@ func (r *Recorder) sampleLocked(now time.Time) *profileRequest {
 	row := timelineRow{
 		From:               previous.at.UTC().Format(time.RFC3339),
 		To:                 now.UTC().Format(time.RFC3339),
+		MonoMS:             int64(now.Sub(r.baseTime) / time.Millisecond),
+		AwakeMS:            int64(now.Sub(previous.at) / time.Millisecond),
 		CPUGCMS:            int64((current.gcSeconds - previous.gcSeconds) * 1000),
 		Goroutines:         r.metricsSamples[1].Value.Uint64(),
 		GCCycles:           current.gcCycles - previous.gcCycles,
@@ -485,7 +609,7 @@ func (r *Recorder) sampleLocked(now time.Time) *profileRequest {
 	}
 	if current.absoluteTime != 0 && previous.absoluteTime != 0 && current.absoluteTime >= previous.absoluteTime {
 		sleptNano := (current.continuousTime - previous.continuousTime) - (current.absoluteTime - previous.absoluteTime)
-		wallNano := now.Sub(previous.at).Nanoseconds()
+		wallNano := now.UnixNano() - previous.at.UnixNano()
 		if sleptNano > wallNano {
 			sleptNano = wallNano
 		}
@@ -519,7 +643,7 @@ func (r *Recorder) sampleLocked(now time.Time) *profileRequest {
 	}
 	r.updateDeviceStateLocked(now)
 	r.rows = append(r.rows, row)
-	return r.requestProfileLocked(now, &row, now.Sub(previous.at))
+	return r.requestProfileLocked(now, profileRate(row.EnergyNanojoules, row.CPUUserMS+row.CPUSystemMS, now.Sub(previous.at)))
 }
 
 func (r *Recorder) collectDNSDomains() map[string]uint64 {
@@ -555,8 +679,9 @@ func trafficDeltas(current map[trafficKey]trafficBytes, previous map[trafficKey]
 	for key, currentBytes := range current {
 		previousBytes := previous[key]
 		delta := trafficDelta{
-			In:  currentBytes.inBytes - previousBytes.inBytes,
-			Out: currentBytes.outBytes - previousBytes.outBytes,
+			In:    currentBytes.inBytes - previousBytes.inBytes,
+			Out:   currentBytes.outBytes - previousBytes.outBytes,
+			Dials: currentBytes.dials - previousBytes.dials,
 		}
 		if delta == (trafficDelta{}) {
 			continue
@@ -591,18 +716,21 @@ func (r *Recorder) updateDeviceStateLocked(now time.Time) {
 	})
 }
 
-func (r *Recorder) requestProfileLocked(now time.Time, row *timelineRow, duration time.Duration) *profileRequest {
-	if r.closed || duration <= 0 {
+func profileRate(energyNanojoules uint64, cpuMS int64, duration time.Duration) float64 {
+	if duration <= 0 {
+		return 0
+	}
+	work := float64(energyNanojoules)
+	if work == 0 {
+		work = float64(cpuMS)
+	}
+	return work / duration.Seconds()
+}
+
+func (r *Recorder) requestProfileLocked(now time.Time, rate float64) *profileRequest {
+	if r.closed || rate == 0 || r.profileFile != nil {
 		return nil
 	}
-	work := float64(row.EnergyNanojoules)
-	if work == 0 {
-		work = float64(row.CPUUserMS + row.CPUSystemMS)
-	}
-	if work == 0 {
-		return nil
-	}
-	rate := work / duration.Seconds()
 	lowestIndex := -1
 	if len(r.profiles) >= maxProfiles {
 		lowestIndex = 0
@@ -619,7 +747,7 @@ func (r *Recorder) requestProfileLocked(now time.Time, row *timelineRow, duratio
 		return nil
 	}
 	request := &profileRequest{
-		writePath: filepath.Join(r.draftPath, "goroutine-"+now.UTC().Format("150405")+".pb"),
+		writePath: filepath.Join(r.draftPath, "cpu-"+now.UTC().Format("150405")+".pb"),
 	}
 	if lowestIndex >= 0 {
 		request.removePath = r.profiles[lowestIndex].path
@@ -630,7 +758,7 @@ func (r *Recorder) requestProfileLocked(now time.Time, row *timelineRow, duratio
 	return request
 }
 
-func (r *Recorder) writeSampleProfile(request *profileRequest) {
+func (r *Recorder) startProfile(request *profileRequest) {
 	if request.removePath != "" {
 		os.Remove(request.removePath)
 	}
@@ -638,9 +766,38 @@ func (r *Recorder) writeSampleProfile(request *profileRequest) {
 	if err != nil {
 		return
 	}
-	defer file.Close()
 	r.chown(request.writePath)
-	pprof.Lookup("goroutine").WriteTo(file, 0)
+	r.access.Lock()
+	defer r.access.Unlock()
+	if r.closed || r.profileFile != nil {
+		file.Close()
+		os.Remove(request.writePath)
+		return
+	}
+	err = pprof.StartCPUProfile(file)
+	if err != nil {
+		file.Close()
+		os.Remove(request.writePath)
+		return
+	}
+	r.profileFile = file
+	r.profileTimer = time.AfterFunc(profileMaxDuration, r.stopProfile)
+}
+
+func (r *Recorder) stopProfile() {
+	r.access.Lock()
+	defer r.access.Unlock()
+	r.stopProfileLocked()
+}
+
+func (r *Recorder) stopProfileLocked() {
+	if r.profileFile == nil {
+		return
+	}
+	r.profileTimer.Stop()
+	pprof.StopCPUProfile()
+	r.profileFile.Close()
+	r.profileFile = nil
 }
 
 func (r *Recorder) chown(path string) {
