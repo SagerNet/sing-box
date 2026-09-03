@@ -1246,6 +1246,9 @@ jobs:
         with:
           go-version: 1.26.7
           cache: false
+      - name: Patch Go for iOS
+        if: matrix.build && (matrix.platform == 'ios/arm64' || matrix.platform == 'tvos/arm64')
+        run: .github/patch_go_for_ios.sh
       - name: Cache Go modules
         if: matrix.build
         uses: actions/cache@v4
@@ -1265,6 +1268,8 @@ jobs:
         run: git tag v${{ needs.calculate_version.outputs.version }} -f
       - name: Build library
         if: matrix.build
+        env:
+          GOTOOLCHAIN: local
         run: |-
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"

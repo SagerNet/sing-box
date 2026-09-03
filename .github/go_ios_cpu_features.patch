@@ -1,0 +1,28 @@
+--- a/src/internal/cpu/cpu_arm64_ios.go
++++ b/src/internal/cpu/cpu_arm64_ios.go
+@@ -0,0 +1,14 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64 && ios
++
++package cpu
++
++func osInit() {
++	ARM64.HasAES = true
++	ARM64.HasPMULL = true
++	ARM64.HasSHA1 = true
++	ARM64.HasSHA2 = true
++}
+--- a/src/internal/cpu/cpu_arm64_other.go
++++ b/src/internal/cpu/cpu_arm64_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build arm64 && !linux && !freebsd && !android && (!darwin || ios) && !openbsd
++//go:build arm64 && !linux && !freebsd && !android && !darwin && !openbsd
+ 
+ package cpu
+ 
