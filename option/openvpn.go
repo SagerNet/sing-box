@@ -70,6 +70,7 @@ type OpenVPNClientEndpointOptions struct {
 	HandshakeWindow      badoption.Duration               `json:"handshake_window,omitempty"`
 	ExplicitExitNotify   uint32                           `json:"explicit_exit_notify,omitempty"`
 	UDPTimeout           UDPTimeoutCompat                 `json:"udp_timeout,omitempty"`
+	OnDemand             bool                             `json:"on_demand,omitempty"`
 }
 
 type OpenVPNServerEndpointOptions struct {

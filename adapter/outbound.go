@@ -51,7 +51,8 @@ type OutboundManager interface {
 	Create(ctx context.Context, router Router, logger log.ContextLogger, tag string, outboundType string, options any) error
 }
 
-type IdleConnectionCloser interface {
+type IdleConnectionKeeper interface {
+	SetKeepIdleConnections(keep bool)
 	CloseIdleConnections()
 }
 
