@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/sagernet/bbolt"
-	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/logger"
 )
 
@@ -20,90 +19,53 @@ func (c *CacheFile) RDRCTimeout() time.Duration {
 }
 
 func (c *CacheFile) LoadRDRC(transportName string, qName string, qType uint16) (rejected bool) {
-	c.saveRDRCAccess.RLock()
-	rejected, cached := c.saveRDRC[saveCacheKey{transportName, qName, qType}]
-	c.saveRDRCAccess.RUnlock()
-	if cached {
-		return
+	key := saveCacheKey{transportName, qName, qType}
+	c.pendingAccess.RLock()
+	_, rejected = c.pending.rdrc[key]
+	if !rejected && c.writing != nil {
+		_, rejected = c.writing.rdrc[key]
 	}
-	key := buf.Get(2 + len(qName))
-	binary.BigEndian.PutUint16(key, qType)
-	copy(key[2:], qName)
-	defer buf.Put(key)
-	var deleteCache bool
+	c.pendingAccess.RUnlock()
+	if rejected {
+		return true
+	}
 	err := c.view(func(tx *bbolt.Tx) error {
 		bucket := c.bucket(tx, bucketRDRC)
 		if bucket == nil {
 			return nil
 		}
-		bucket = bucket.Bucket([]byte(transportName))
-		if bucket == nil {
-			return nil
-		}
-		content := bucket.Get(key)
-		if content == nil {
+		content := getCacheEntry(bucket, key)
+		if len(content) < 8 {
 			return nil
 		}
 		expiresAt := time.Unix(int64(binary.BigEndian.Uint64(content)), 0)
-		if time.Now().After(expiresAt) {
-			deleteCache = true
-			return nil
-		}
-		rejected = true
+		rejected = time.Now().Before(expiresAt)
 		return nil
 	})
 	if err != nil {
-		return
-	}
-	if deleteCache {
-		c.update(func(tx *bbolt.Tx) error {
-			bucket := c.bucket(tx, bucketRDRC)
-			if bucket == nil {
-				return nil
-			}
-			bucket = bucket.Bucket([]byte(transportName))
-			if bucket == nil {
-				return nil
-			}
-			return bucket.Delete(key)
-		})
+		return false
 	}
 	return
 }
 
 func (c *CacheFile) SaveRDRC(transportName string, qName string, qType uint16) error {
-	expiresAt := buf.Get(8)
-	defer buf.Put(expiresAt)
-	binary.BigEndian.PutUint64(expiresAt, uint64(time.Now().Add(c.rdrcTimeout).Unix()))
-	return c.batch(func(tx *bbolt.Tx) error {
-		bucket, err := c.createBucket(tx, bucketRDRC)
-		if err != nil {
-			return err
-		}
-		bucket, err = bucket.CreateBucketIfNotExists([]byte(transportName))
-		if err != nil {
-			return err
-		}
-		key := buf.Get(2 + len(qName))
-		binary.BigEndian.PutUint16(key, qType)
-		copy(key[2:], qName)
-		defer buf.Put(key)
-		return bucket.Put(key, expiresAt)
-	})
+	c.queueRDRC(transportName, qName, qType)
+	c.Flush()
+	return nil
 }
 
 func (c *CacheFile) SaveRDRCAsync(transportName string, qName string, qType uint16, logger logger.Logger) {
-	saveKey := saveCacheKey{transportName, qName, qType}
-	c.saveRDRCAccess.Lock()
-	c.saveRDRC[saveKey] = true
-	c.saveRDRCAccess.Unlock()
-	go func() {
-		err := c.SaveRDRC(transportName, qName, qType)
-		if err != nil {
-			logger.Warn("save RDRC: ", err)
-		}
-		c.saveRDRCAccess.Lock()
-		delete(c.saveRDRC, saveKey)
-		c.saveRDRCAccess.Unlock()
-	}()
+	c.queueRDRC(transportName, qName, qType)
+}
+
+func (c *CacheFile) queueRDRC(transportName string, qName string, qType uint16) {
+	key := saveCacheKey{transportName, qName, qType}
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
+	_, loaded := c.pending.rdrc[key]
+	if loaded {
+		return
+	}
+	c.pending.rdrc[key] = struct{}{}
+	c.enqueueLocked(true, len(qName))
 }
