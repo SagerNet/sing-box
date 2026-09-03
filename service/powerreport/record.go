@@ -45,6 +45,8 @@ type ProcessAttribution struct {
 type timelineRow struct {
 	From                        string            `json:"from"`
 	To                          string            `json:"to"`
+	MonoMS                      int64             `json:"monoMS"`
+	AwakeMS                     int64             `json:"awakeMS,omitempty"`
 	CPUUserMS                   int64             `json:"cpuUserMS,omitempty"`
 	CPUSystemMS                 int64             `json:"cpuSystemMS,omitempty"`
 	CPUPerformanceMS            int64             `json:"cpuPerformanceMS,omitempty"`
@@ -74,8 +76,9 @@ type timelineRow struct {
 type trafficBreakdown map[TrafficKind]map[string]*trafficDelta
 
 type trafficDelta struct {
-	In  uint64 `json:"in,omitempty"`
-	Out uint64 `json:"out,omitempty"`
+	In    uint64 `json:"in,omitempty"`
+	Out   uint64 `json:"out,omitempty"`
+	Dials uint64 `json:"dials,omitempty"`
 }
 
 type trafficKey struct {
@@ -86,6 +89,7 @@ type trafficKey struct {
 type trafficBytes struct {
 	inBytes  uint64
 	outBytes uint64
+	dials    uint64
 }
 
 type qosBreakdown struct {
@@ -107,18 +111,38 @@ const (
 	eventTypeDeviceWake   = "device-wake"
 	eventTypeNetworkPause = "network-pause"
 	eventTypeNetworkWake  = "network-wake"
+	eventTypeSleep        = "ne-sleep"
+	eventTypeWake         = "ne-wake"
+	eventTypeService      = "service"
 )
 
 type eventRecord struct {
-	Type        string       `json:"t"`
-	At          string       `json:"at"`
-	IdleMS      int64        `json:"idleMS,omitempty"`
-	Direction   string       `json:"direction,omitempty"`
-	Size        int          `json:"size,omitempty"`
-	NetworkType string       `json:"network,omitempty"`
-	NetworkPath string       `json:"path,omitempty"`
-	By          *Attribution `json:"by,omitempty"`
-	Device      *deviceState `json:"device,omitempty"`
+	Type          string       `json:"t"`
+	At            string       `json:"at"`
+	MonoMS        int64        `json:"monoMS"`
+	IdleMS        int64        `json:"idleMS,omitempty"`
+	WallIdleMS    int64        `json:"wallIdleMS,omitempty"`
+	AfterWake     bool         `json:"afterWake,omitempty"`
+	SinceWakeMS   int64        `json:"sinceWakeMS,omitempty"`
+	Direction     string       `json:"direction,omitempty"`
+	Size          int          `json:"size,omitempty"`
+	NetworkType   string       `json:"network,omitempty"`
+	NetworkPath   string       `json:"path,omitempty"`
+	By            *Attribution `json:"by,omitempty"`
+	Device        *deviceState `json:"device,omitempty"`
+	Window        *wakeWindow  `json:"window,omitempty"`
+	LogBaseMonoMS int64        `json:"logBaseMonoMS,omitempty"`
+}
+
+type wakeWindow struct {
+	AwakeMS            int64  `json:"awakeMS"`
+	CPUUserMS          int64  `json:"cpuUserMS,omitempty"`
+	CPUSystemMS        int64  `json:"cpuSystemMS,omitempty"`
+	EnergyNanojoules   uint64 `json:"energyNJ,omitempty"`
+	PackageIdleWakeups uint64 `json:"packageIdleWakeups,omitempty"`
+	InterruptWakeups   uint64 `json:"interruptWakeups,omitempty"`
+	DNSQueries         uint64 `json:"dnsQueries,omitempty"`
+	ConnectionsOpened  uint64 `json:"connectionsOpened,omitempty"`
 }
 
 type deviceState struct {

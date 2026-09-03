@@ -137,7 +137,7 @@ func (s *StartedService) newInstance(ctx context.Context, profileContent string,
 	i.clashMode = service.PtrFromContext[clashmode.Manager](ctx)
 	i.trafficManager = service.PtrFromContext[trafficcontrol.Manager](ctx)
 	i.pauseManager = service.FromContext[pause.Manager](ctx)
-	i.registerPauseCallback(ctx)
+	i.registerPowerReport(ctx)
 	i.cacheFile = service.FromContext[adapter.CacheFile](ctx)
 	i.outboundManager = service.FromContext[adapter.OutboundManager](ctx)
 	i.endpointManager = service.FromContext[adapter.EndpointManager](ctx)
@@ -175,9 +175,16 @@ func (i *Instance) Close() error {
 	return i.instance.Close()
 }
 
-func (i *Instance) registerPauseCallback(ctx context.Context) {
+func (i *Instance) registerPowerReport(ctx context.Context) {
 	powerManager := service.FromContext[*powerreport.Manager](ctx)
-	if i.pauseManager == nil || powerManager == nil {
+	if powerManager == nil {
+		return
+	}
+	recorder := powerManager.Recorder()
+	if recorder != nil {
+		recorder.RecordServiceStart(i.instance.CreatedAt())
+	}
+	if i.pauseManager == nil {
 		return
 	}
 	i.pauseCallback = i.pauseManager.RegisterCallback(func(event int) {

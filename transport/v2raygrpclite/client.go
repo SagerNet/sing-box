@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -34,6 +35,7 @@ type Client struct {
 	options    option.V2RayGRPCOptions
 	url        *url.URL
 	host       string
+	closeIdle  atomic.Bool
 }
 
 func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, options option.V2RayGRPCOptions, tlsConfig tls.Config) adapter.V2RayClientTransport {
@@ -88,6 +90,11 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	}
 	request = request.WithContext(ctx)
 	conn := newLateGunConn(pipeInWriter)
+	conn.onClose = func() {
+		if c.closeIdle.Load() {
+			c.transport.CloseIdleConnections()
+		}
+	}
 	go func() {
 		response, err := c.transport.RoundTrip(request)
 		if err != nil {
@@ -100,6 +107,13 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		}
 	}()
 	return conn, nil
+}
+
+func (c *Client) SetKeepIdleConnections(keep bool) {
+	c.closeIdle.Store(!keep)
+	if !keep {
+		c.CloseIdleConnections()
+	}
 }
 
 func (c *Client) CloseIdleConnections() {

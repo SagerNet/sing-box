@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/quic-go/http3"
@@ -30,19 +31,20 @@ type Client struct {
 	connAccess sync.Mutex
 	conn       common.TypedValue[*clientConnection]
 	rawConn    net.Conn
+	closeIdle  atomic.Bool
 }
 
 type clientConnection struct {
 	*quic.Conn
-	access   sync.Mutex
-	streams  int
-	draining bool
+	access    sync.Mutex
+	streams   int
+	closeIdle *atomic.Bool
 }
 
 func (c *clientConnection) releaseStream() {
 	c.access.Lock()
 	c.streams--
-	drained := c.draining && c.streams == 0
+	drained := c.closeIdle.Load() && c.streams == 0
 	c.access.Unlock()
 	if drained {
 		c.CloseWithError(0, "")
@@ -99,7 +101,7 @@ func (c *Client) offerNew() (*clientConnection, error) {
 		<-quicConn.Context().Done()
 		udpConn.Close()
 	}()
-	conn := &clientConnection{Conn: quicConn}
+	conn := &clientConnection{Conn: quicConn, closeIdle: &c.closeIdle}
 	c.conn.Store(conn)
 	c.rawConn = udpConn
 	return conn, nil
@@ -112,7 +114,6 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	}
 	conn.access.Lock()
 	conn.streams++
-	conn.draining = false
 	conn.access.Unlock()
 	stream, err := conn.OpenStream()
 	if err != nil {
@@ -122,13 +123,19 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	return &StreamWrapper{Conn: conn.Conn, Stream: stream, onClose: conn.releaseStream}, nil
 }
 
+func (c *Client) SetKeepIdleConnections(keep bool) {
+	c.closeIdle.Store(!keep)
+	if !keep {
+		c.CloseIdleConnections()
+	}
+}
+
 func (c *Client) CloseIdleConnections() {
 	conn := c.conn.Load()
 	if conn == nil {
 		return
 	}
 	conn.access.Lock()
-	conn.draining = true
 	drained := conn.streams == 0
 	conn.access.Unlock()
 	if drained {

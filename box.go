@@ -60,6 +60,7 @@ type Box struct {
 	dnsRouter           *dns.Router
 	connection          *route.ConnectionManager
 	router              *route.Router
+	referenceManager    *route.ReferenceManager
 	httpClientService   adapter.LifecycleService
 	internalService     []adapter.LifecycleService
 	done                chan struct{}
@@ -257,7 +258,8 @@ func New(options Options) (*Box, error) {
 		service.MustRegisterPtr(ctx, clashMode)
 		internalServices = append(internalServices, clashMode)
 	}
-	internalServices = append(internalServices, route.NewReferenceManager(ctx, logFactory.NewLogger("reference"), options.Options))
+	referenceManager := route.NewReferenceManager(ctx, logFactory.NewLogger("reference"), options.Options)
+	internalServices = append(internalServices, referenceManager)
 	ntpOptions := common.PtrValueOrDefault(options.NTP)
 	var timeService *tls.TimeServiceWrapper
 	if ntpOptions.Enabled {
@@ -480,6 +482,7 @@ func New(options Options) (*Box, error) {
 		dnsRouter:           dnsRouter,
 		connection:          connectionManager,
 		router:              router,
+		referenceManager:    referenceManager,
 		httpClientService:   httpClientService,
 		createdAt:           createdAt,
 		debugOptions:        debugOptions,
@@ -680,6 +683,14 @@ func (s *Box) Outbound() adapter.OutboundManager {
 
 func (s *Box) Endpoint() adapter.EndpointManager {
 	return s.endpoint
+}
+
+func (s *Box) CreatedAt() time.Time {
+	return s.createdAt
+}
+
+func (s *Box) CloseIdleConnections() {
+	s.referenceManager.CloseIdleConnections()
 }
 
 func (s *Box) LogFactory() log.Factory {

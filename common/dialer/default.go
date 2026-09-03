@@ -430,6 +430,8 @@ func (d *DefaultDialer) trackConn(ctx context.Context, destination M.Socksaddr, 
 			attribution := d.dialAttribution(ctx, destination)
 			outboundCounter := recorder.TrafficCounter(powerreport.TrafficOutbound, attribution.Outbound)
 			dnsCounter := recorder.TrafficCounter(powerreport.TrafficDNSTransport, attribution.DNS)
+			outboundCounter.CountDial()
+			dnsCounter.CountDial()
 			conn = bufio.NewCounterConn(conn, []N.CountFunc{func(n int64) {
 				outboundCounter.CountIn(n)
 				dnsCounter.CountIn(n)
@@ -458,6 +460,8 @@ func (d *DefaultDialer) trackPacketConn(ctx context.Context, destination M.Socks
 			attribution := d.dialAttribution(ctx, destination)
 			outboundCounter := recorder.TrafficCounter(powerreport.TrafficOutbound, attribution.Outbound)
 			dnsCounter := recorder.TrafficCounter(powerreport.TrafficDNSTransport, attribution.DNS)
+			outboundCounter.CountDial()
+			dnsCounter.CountDial()
 			conn = bufio.NewNetPacketConn(bufio.NewCounterPacketConn(bufio.NewPacketConn(conn), []N.CountFunc{func(n int64) {
 				outboundCounter.CountIn(n)
 				dnsCounter.CountIn(n)

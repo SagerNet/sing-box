@@ -2,6 +2,10 @@
 
 !!! question "自 sing-box 1.14.0 起"
 
+!!! quote "sing-box 1.15.0 中的更改"
+
+    :material-plus: [on_demand](#on_demand)
+
 ==仅客户端==
 
 ## 结构
@@ -107,6 +111,7 @@
       "promote": false
     }
   ],
+  "on_demand": false,
 
   ... // 拨号字段
 }
@@ -633,6 +638,12 @@ MCA 证书和私钥必须同时设置或同时为空。
 交互询问匹配的认证字段，而不是自动提供值。
 
 与 `form_entries.value` 冲突。
+
+### on_demand
+
+!!! question "自 sing-box 1.15.0 起"
+
+允许该 endpoint 在需要时断开连接。
 
 ## UDP NAT 字段
 
