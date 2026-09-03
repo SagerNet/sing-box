@@ -130,11 +130,12 @@ func (c *HTTPConn) Upstream() any {
 }
 
 type HTTP2Conn struct {
-	reader io.Reader
-	writer io.Writer
-	create chan struct{}
-	err    error
-	cancel context.CancelFunc
+	reader  io.Reader
+	writer  io.Writer
+	create  chan struct{}
+	err     error
+	cancel  context.CancelFunc
+	onClose func()
 }
 
 func NewHTTPConn(reader io.Reader, writer io.Writer) HTTP2Conn {
@@ -188,6 +189,9 @@ func (c *HTTP2Conn) Close() error {
 	err := common.Close(reader, c.writer)
 	if c.cancel != nil {
 		c.cancel()
+	}
+	if c.onClose != nil {
+		c.onClose()
 	}
 	return err
 }
