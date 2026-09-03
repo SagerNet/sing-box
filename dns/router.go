@@ -1059,7 +1059,11 @@ func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsEx
 	if r.powerManager != nil {
 		recorder := r.powerManager.Recorder()
 		if recorder != nil {
-			recorder.CountDNSQuery()
+			var domain string
+			if len(message.Question) == 1 {
+				domain = message.Question[0].Name
+			}
+			recorder.CountDNSQuery(domain)
 		}
 	}
 	if len(message.Question) != 1 {

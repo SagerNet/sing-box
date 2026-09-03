@@ -83,9 +83,16 @@ func readInterfaceCounters() map[string]interfaceCounters {
 		if inErr != nil || outErr != nil {
 			continue
 		}
+		inBytes, inBytesErr := strconv.ParseUint(fields[0], 10, 64)
+		outBytes, outBytesErr := strconv.ParseUint(fields[8], 10, 64)
+		if inBytesErr != nil || outBytesErr != nil {
+			continue
+		}
 		result[name] = interfaceCounters{
 			inPackets:  uint32(inPackets),
 			outPackets: uint32(outPackets),
+			inBytes:    uint32(inBytes),
+			outBytes:   uint32(outBytes),
 		}
 	}
 	return result
