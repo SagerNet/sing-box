@@ -39,11 +39,11 @@ func NewPackageNameRegexItem(expressions []string) (*PackageNameRegexItem, error
 }
 
 func (r *PackageNameRegexItem) Match(metadata *adapter.InboundContext) bool {
-	if metadata.ProcessInfo == nil || len(metadata.ProcessInfo.AndroidPackageNames) == 0 {
+	if metadata.ProcessInfo == nil || len(metadata.ProcessInfo.PackageNames) == 0 {
 		return false
 	}
 	for _, matcher := range r.matchers {
-		if slices.ContainsFunc(metadata.ProcessInfo.AndroidPackageNames, matcher.MatchString) {
+		if slices.ContainsFunc(metadata.ProcessInfo.PackageNames, matcher.MatchString) {
 			return true
 		}
 	}

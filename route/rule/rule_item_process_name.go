@@ -2,6 +2,7 @@ package rule
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -26,10 +27,12 @@ func NewProcessItem(processNameList []string) *ProcessItem {
 }
 
 func (r *ProcessItem) Match(metadata *adapter.InboundContext) bool {
-	if metadata.ProcessInfo == nil || metadata.ProcessInfo.ProcessPath == "" {
+	if metadata.ProcessInfo == nil {
 		return false
 	}
-	return r.processMap[filepath.Base(metadata.ProcessInfo.ProcessPath)]
+	return slices.ContainsFunc(metadata.ProcessInfo.ProcessPaths, func(processPath string) bool {
+		return r.processMap[filepath.Base(processPath)]
+	})
 }
 
 func (r *ProcessItem) String() string {
