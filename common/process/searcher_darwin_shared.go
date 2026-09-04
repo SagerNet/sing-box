@@ -20,26 +20,28 @@ import (
 const (
 	darwinSnapshotTTL = 200 * time.Millisecond
 
-	darwinXinpgenSize        = 24
-	darwinXsocketOffset      = 104
-	darwinXinpcbForeignPort  = 16
-	darwinXinpcbLocalPort    = 18
-	darwinXinpcbVFlag        = 44
-	darwinXinpcbForeignAddr  = 48
-	darwinXinpcbLocalAddr    = 64
-	darwinXinpcbIPv4Addr     = 12
-	darwinXsocketUID         = 64
-	darwinXsocketLastPID     = 68
-	darwinTCPExtraStructSize = 208
+	darwinXinpgenSize         = 24
+	darwinXsocketOffset       = 104
+	darwinXinpcbForeignPort   = 16
+	darwinXinpcbLocalPort     = 18
+	darwinXinpcbVFlag         = 44
+	darwinXinpcbForeignAddr   = 48
+	darwinXinpcbLocalAddr     = 64
+	darwinXinpcbIPv4Addr      = 12
+	darwinXsocketUID          = 64
+	darwinXsocketLastPID      = 68
+	darwinXsocketEffectivePID = 72
+	darwinTCPExtraStructSize  = 208
 )
 
 type darwinConnectionEntry struct {
-	localAddr  netip.Addr
-	remoteAddr netip.Addr
-	localPort  uint16
-	remotePort uint16
-	pid        uint32
-	uid        int32
+	localAddr    netip.Addr
+	remoteAddr   netip.Addr
+	localPort    uint16
+	remotePort   uint16
+	pid          uint32
+	effectivePid uint32
+	uid          int32
 }
 
 type darwinConnectionMatchKind uint8
@@ -105,7 +107,15 @@ func (f *darwinConnectionFinder) find(network string, source netip.AddrPort, des
 		}
 		processPath, err := getExecPathFromPID(entry.pid)
 		if err == nil {
-			owner.ProcessPath = processPath
+			owner.ProcessID = entry.pid
+			owner.ProcessPaths = []string{processPath}
+			if entry.effectivePid != 0 && entry.effectivePid != entry.pid {
+				effectivePath, effectiveErr := getExecPathFromPID(entry.effectivePid)
+				if effectiveErr == nil {
+					owner.ProcessID = entry.effectivePid
+					owner.ProcessPaths = []string{effectivePath, processPath}
+				}
+			}
 			return owner, nil
 		}
 		if fromCache {
@@ -186,10 +196,11 @@ func parseDarwinConnectionEntry(inp []byte, so []byte) (darwinConnectionEntry, b
 		return darwinConnectionEntry{}, false
 	}
 	entry := darwinConnectionEntry{
-		remotePort: binary.BigEndian.Uint16(inp[darwinXinpcbForeignPort : darwinXinpcbForeignPort+2]),
-		localPort:  binary.BigEndian.Uint16(inp[darwinXinpcbLocalPort : darwinXinpcbLocalPort+2]),
-		pid:        binary.NativeEndian.Uint32(so[darwinXsocketLastPID : darwinXsocketLastPID+4]),
-		uid:        int32(binary.NativeEndian.Uint32(so[darwinXsocketUID : darwinXsocketUID+4])),
+		remotePort:   binary.BigEndian.Uint16(inp[darwinXinpcbForeignPort : darwinXinpcbForeignPort+2]),
+		localPort:    binary.BigEndian.Uint16(inp[darwinXinpcbLocalPort : darwinXinpcbLocalPort+2]),
+		pid:          binary.NativeEndian.Uint32(so[darwinXsocketLastPID : darwinXsocketLastPID+4]),
+		effectivePid: binary.NativeEndian.Uint32(so[darwinXsocketEffectivePID : darwinXsocketEffectivePID+4]),
+		uid:          int32(binary.NativeEndian.Uint32(so[darwinXsocketUID : darwinXsocketUID+4])),
 	}
 	flag := inp[darwinXinpcbVFlag]
 	switch {
