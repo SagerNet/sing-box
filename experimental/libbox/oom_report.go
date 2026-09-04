@@ -164,10 +164,10 @@ func buildOOMConnection(connection *trafficcontrol.TrackerMetadata) oomConnectio
 	}
 	var process string
 	if processInfo := metadata.ProcessInfo; processInfo != nil {
-		if processInfo.ProcessPath != "" {
-			process = processInfo.ProcessPath
-		} else if len(processInfo.AndroidPackageNames) > 0 {
-			process = processInfo.AndroidPackageNames[0]
+		if len(processInfo.ProcessPaths) > 0 {
+			process = processInfo.ProcessPaths[0]
+		} else if len(processInfo.PackageNames) > 0 {
+			process = processInfo.PackageNames[0]
 		}
 		if process == "" {
 			if processInfo.UserId != -1 {
