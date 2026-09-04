@@ -84,7 +84,7 @@ func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, sou
 	if err != nil {
 		s.logger.DebugContext(ctx, "find process path: ", err)
 	} else {
-		processInfo.ProcessPath = processPath
+		processInfo.ProcessPaths = []string{processPath}
 	}
 	if s.packageManager != nil {
 		appID := uid % 100000
@@ -95,7 +95,7 @@ func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, sou
 		if packages, loaded := s.packageManager.PackagesByID(appID); loaded {
 			packageNames = append(packageNames, packages...)
 		}
-		processInfo.AndroidPackageNames = common.Uniq(packageNames)
+		processInfo.PackageNames = common.Uniq(packageNames)
 	}
 	return processInfo, nil
 }
