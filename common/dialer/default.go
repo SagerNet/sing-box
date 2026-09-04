@@ -507,8 +507,8 @@ func (d *DefaultDialer) dialAttribution(ctx context.Context, destination M.Socks
 			ProcessID:    metadata.ProcessInfo.ProcessID,
 			UserID:       metadata.ProcessInfo.UserId,
 			UserName:     metadata.ProcessInfo.UserName,
-			ProcessPath:  metadata.ProcessInfo.ProcessPath,
-			PackageNames: metadata.ProcessInfo.AndroidPackageNames,
+			ProcessPaths: metadata.ProcessInfo.ProcessPaths,
+			PackageNames: metadata.ProcessInfo.PackageNames,
 		}
 	}
 	attribution.Rule = metadata.RouteRule
