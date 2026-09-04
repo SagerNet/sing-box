@@ -119,9 +119,9 @@ func (t *resolve1Manager) createMetadata(sender dbus.Sender) adapter.InboundCont
 	if err == nil {
 		processInfo.ProcessPaths = []string{processPath}
 	} else {
-		processPath, err = os.Readlink(F.ToString("/proc/", senderPid, "/comm"))
-		if err == nil {
-			processInfo.ProcessPaths = []string{processPath}
+		processName, readErr := os.ReadFile(F.ToString("/proc/", senderPid, "/comm"))
+		if readErr == nil {
+			processInfo.ProcessPaths = []string{strings.TrimSpace(string(processName))}
 		}
 	}
 
