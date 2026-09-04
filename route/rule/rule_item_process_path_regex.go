@@ -2,6 +2,7 @@ package rule
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -38,11 +39,11 @@ func NewProcessPathRegexItem(expressions []string) (*ProcessPathRegexItem, error
 }
 
 func (r *ProcessPathRegexItem) Match(metadata *adapter.InboundContext) bool {
-	if metadata.ProcessInfo == nil || metadata.ProcessInfo.ProcessPath == "" {
+	if metadata.ProcessInfo == nil {
 		return false
 	}
 	for _, matcher := range r.matchers {
-		if matcher.MatchString(metadata.ProcessInfo.ProcessPath) {
+		if slices.ContainsFunc(metadata.ProcessInfo.ProcessPaths, matcher.MatchString) {
 			return true
 		}
 	}
