@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	runtimeDebug "runtime/debug"
 	"runtime/metrics"
 	"strconv"
 	"sync"
@@ -23,6 +24,7 @@ const (
 	eventsFileName   = "events.jsonl"
 	metadataFileName = "metadata.json"
 	logFileName      = "go.log"
+	heapDumpFileName = "heap.dump"
 	lockFileName     = ".lock"
 
 	normalSampleInterval   = time.Minute
@@ -44,6 +46,7 @@ const (
 
 	eventTypeStart    = "start"
 	eventTypeStop     = "stop"
+	eventTypeReload   = "reload"
 	eventTypePressure = "pressure"
 	eventTypeState    = "state"
 	eventTypeReset    = "reset"
@@ -88,6 +91,8 @@ type Recorder struct {
 	draftCreated     bool
 	draftLock        *os.File
 	notable          bool
+	reloading        bool
+	carriedState     *timerState
 	status           ReportStatus
 	lastRowAt        time.Time
 	lastRowState     pressureState
@@ -133,6 +138,7 @@ type eventRecord struct {
 	Sequence         int           `json:"seq,omitempty"`
 	Prefix           string        `json:"prefix,omitempty"`
 	Runtime          *runtimeStats `json:"runtime,omitempty"`
+	HeapDump         bool          `json:"heapDump,omitempty"`
 }
 
 type runtimeStats struct {
@@ -227,7 +233,7 @@ func (r *Recorder) WriteReport() error {
 		sample.availableKnown = true
 		sample.available = memory.Available()
 	}
-	err := r.snapshot(SnapshotReasonManual, sample, true)
+	err := r.snapshot(SnapshotReasonManual, sample, false, true)
 	if err != nil {
 		return E.Cause(err, "write snapshot")
 	}
@@ -253,12 +259,41 @@ func (r *Recorder) WriteReport() error {
 	return nil
 }
 
-func (r *Recorder) instanceStarted(config timerConfig, thresholds pressureThresholds) {
+func (r *Recorder) BeginReload() {
+	r.access.Lock()
+	defer r.access.Unlock()
+	r.reloading = true
+}
+
+func (r *Recorder) EndReload() {
+	r.access.Lock()
+	defer r.access.Unlock()
+	if !r.reloading {
+		return
+	}
+	r.reloading = false
+	if r.carriedState != nil {
+		r.carriedState = nil
+		r.appendEventLocked(eventRecord{Type: eventTypeStop})
+	}
+}
+
+func (r *Recorder) instanceStarted(config timerConfig, thresholds pressureThresholds) *timerState {
 	r.access.Lock()
 	defer r.access.Unlock()
 	r.status.MemoryLimit = config.memoryLimit
+	eventType := eventTypeStart
+	var carriedState *timerState
+	if r.reloading {
+		r.reloading = false
+		carriedState = r.carriedState
+		r.carriedState = nil
+		if carriedState != nil {
+			eventType = eventTypeReload
+		}
+	}
 	r.appendEventLocked(eventRecord{
-		Type:         eventTypeStart,
+		Type:         eventType,
 		Policy:       config.policyMode.String(),
 		MemoryLimit:  config.memoryLimit,
 		TriggerBytes: thresholds.trigger,
@@ -266,11 +301,16 @@ func (r *Recorder) instanceStarted(config timerConfig, thresholds pressureThresh
 		ResumeBytes:  thresholds.resume,
 		ReportOnly:   config.killerDisabled,
 	})
+	return carriedState
 }
 
-func (r *Recorder) instanceStopped() {
+func (r *Recorder) instanceStopped(state timerState) {
 	r.access.Lock()
 	defer r.access.Unlock()
+	if r.reloading {
+		r.carriedState = &state
+		return
+	}
 	r.appendEventLocked(eventRecord{Type: eventTypeStop})
 }
 
@@ -359,7 +399,7 @@ func (r *Recorder) recordReset(reason string, before memorySample, after memoryS
 	})
 }
 
-func (r *Recorder) snapshot(reason string, sample memorySample, force bool) error {
+func (r *Recorder) snapshot(reason string, sample memorySample, heapDump bool, force bool) error {
 	r.snapshotAccess.Lock()
 	defer r.snapshotAccess.Unlock()
 	now := time.Now()
@@ -399,6 +439,10 @@ func (r *Recorder) snapshot(reason string, sample memorySample, force bool) erro
 	if r.snapshotCallback != nil {
 		r.snapshotCallback(r.draftPath, prefix)
 	}
+	var heapDumped bool
+	if heapDump {
+		heapDumped = r.writeHeapDump()
+	}
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 	stats := &runtimeStats{
@@ -433,8 +477,31 @@ func (r *Recorder) snapshot(reason string, sample memorySample, force bool) erro
 		MemoryBytes:    sample.usage,
 		AvailableBytes: sample.available,
 		Runtime:        stats,
+		HeapDump:       heapDumped,
 	})
 	return nil
+}
+
+func (r *Recorder) writeHeapDump() bool {
+	dumpPath := filepath.Join(r.draftPath, heapDumpFileName)
+	tempPath := dumpPath + ".tmp"
+	file, err := os.Create(tempPath)
+	if err != nil {
+		r.logger.Error(E.Cause(err, "OOM report: create heap dump"))
+		return false
+	}
+	runtimeDebug.WriteHeapDump(file.Fd())
+	err = file.Close()
+	if err == nil {
+		err = os.Rename(tempPath, dumpPath)
+	}
+	if err != nil {
+		os.Remove(tempPath)
+		r.logger.Error(E.Cause(err, "OOM report: write heap dump"))
+		return false
+	}
+	r.chown(dumpPath)
+	return true
 }
 
 func (r *Recorder) observeLocked(sample memorySample) {
