@@ -348,7 +348,7 @@ func (r *Recorder) CountConnectionOpened() {
 
 // The service log prefixes each line with whole monotonic seconds since createdAt, so a
 // line at [N] sits at logBaseMonoMS + N*1000 on the monoMS axis of events and timeline rows.
-func (r *Recorder) RecordServiceStart(createdAt time.Time) {
+func (r *Recorder) RecordServiceStart(createdAt time.Time, reload bool) {
 	now := time.Now()
 	r.access.Lock()
 	if !r.started || r.closed {
@@ -357,6 +357,7 @@ func (r *Recorder) RecordServiceStart(createdAt time.Time) {
 	}
 	event := r.newEvent(eventTypeService, now)
 	event.LogBaseMonoMS = int64(createdAt.Sub(r.baseTime) / time.Millisecond)
+	event.Reload = reload
 	r.events = append(r.events, event)
 	r.access.Unlock()
 	r.notifyWorker()

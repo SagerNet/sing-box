@@ -81,7 +81,7 @@ type OverrideOptions struct {
 	ExcludePackage []string
 }
 
-func (s *StartedService) newInstance(ctx context.Context, profileContent string, overrideOptions *OverrideOptions) (*Instance, error) {
+func (s *StartedService) newInstance(ctx context.Context, profileContent string, overrideOptions *OverrideOptions, reloading bool) (*Instance, error) {
 	selectedLocale := locale.FromContext(ctx)
 	ctx, _ = locale.ContextWithLocale(s.ctx, selectedLocale.Locale)
 	ctx = service.ExtendContext(ctx)
@@ -137,7 +137,7 @@ func (s *StartedService) newInstance(ctx context.Context, profileContent string,
 	i.clashMode = service.PtrFromContext[clashmode.Manager](ctx)
 	i.trafficManager = service.PtrFromContext[trafficcontrol.Manager](ctx)
 	i.pauseManager = service.FromContext[pause.Manager](ctx)
-	i.registerPowerReport(ctx)
+	i.registerPowerReport(ctx, reloading)
 	i.cacheFile = service.FromContext[adapter.CacheFile](ctx)
 	i.outboundManager = service.FromContext[adapter.OutboundManager](ctx)
 	i.endpointManager = service.FromContext[adapter.EndpointManager](ctx)
@@ -175,14 +175,14 @@ func (i *Instance) Close() error {
 	return i.instance.Close()
 }
 
-func (i *Instance) registerPowerReport(ctx context.Context) {
+func (i *Instance) registerPowerReport(ctx context.Context, reloading bool) {
 	powerManager := service.FromContext[*powerreport.Manager](ctx)
 	if powerManager == nil {
 		return
 	}
 	recorder := powerManager.Recorder()
 	if recorder != nil {
-		recorder.RecordServiceStart(i.instance.CreatedAt())
+		recorder.RecordServiceStart(i.instance.CreatedAt(), reloading)
 	}
 	if i.pauseManager == nil {
 		return
