@@ -13,18 +13,13 @@ import (
 
 type powerReportMetadata struct {
 	reportMetadata
-	StartedAt          string `json:"startedAt"`
-	IncludeAllNetworks *bool  `json:"includeAllNetworks,omitempty"`
+	StartedAt string `json:"startedAt"`
 }
 
-func PowerReportOptions(startedService *daemon.StartedService, platformInterface PlatformInterface) powerreport.Options {
+func PowerReportOptions(startedService *daemon.StartedService) powerreport.Options {
 	metadata := powerReportMetadata{
 		reportMetadata: baseReportMetadata(),
 		StartedAt:      time.Now().UTC().Format(time.RFC3339),
-	}
-	if platformInterface != nil && platformInterface.UnderNetworkExtension() {
-		includeAllNetworks := platformInterface.IncludeAllNetworks()
-		metadata.IncludeAllNetworks = &includeAllNetworks
 	}
 	return powerreport.Options{
 		BasePath:      sWorkingPath,
