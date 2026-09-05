@@ -123,6 +123,12 @@ GSO 对透明代理场景没有优势，已废弃且在 TUN 中不再起作用�
 
 旧字段已在 sing-box 1.13.0 中被移除。
 
+#### TUN 的独立于端点的 NAT 选项
+
+独立于端点的 NAT 自 sing-box 1.11.0 起已默认启用。
+`endpoint_independent_nat` 选项已废弃且不再生效，
+参阅 [迁移指南](/zh/migration/#迁移独立于端点的-nat-选项)。
+
 ## 1.10.0
 
 #### Match source 规则项已重命名

@@ -1165,6 +1165,44 @@ WireGuard 出站已被弃用，且可以被端点替代。
     }
     ```
 
+### 迁移独立于端点的 NAT 选项
+
+独立于端点的 NAT 自 sing-box 1.11.0 起已默认启用，
+因此不再需要 `endpoint_independent_nat`。直接移除该字段即可。
+
+自 sing-box 1.14.0 起，使用 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)
+可自定义映射和过滤行为。
+
+!!! info "参考"
+
+    [TUN](/zh/configuration/inbound/tun/) /
+    [UDP NAT 字段](/zh/configuration/shared/udp-nat/)
+
+=== ":material-card-remove: 弃用的"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "tun",
+          "endpoint_independent_nat": true
+        }
+      ]
+    }
+    ```
+
+=== ":material-card-multiple: 新的"
+
+    ```json
+    {
+      "inbounds": [
+        {
+          "type": "tun"
+        }
+      ]
+    }
+    ```
+
 ## 1.10.0
 
 ### TUN 地址字段已合并

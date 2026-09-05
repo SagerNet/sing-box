@@ -35,6 +35,7 @@ icon: material/new-box
 !!! quote "sing-box 1.11.0 中的更改"
 
     :material-delete-alert: [gso](#gso)  
+    :material-delete-alert: [endpoint_independent_nat](#endpoint_independent_nat)  
     :material-alert-decagram: [route_address_set](#stack)  
     :material-alert-decagram: [route_exclude_address_set](#stack)
 
@@ -120,7 +121,6 @@ icon: material/new-box
   "route_exclude_address_set": [
     "geoip-cn"
   ],
-  "endpoint_independent_nat": false,
 
   ... // UDP NAT 字段
 
@@ -171,6 +171,7 @@ icon: material/new-box
 
   // 已弃用
   "gso": false,
+  "endpoint_independent_nat": false,
   "inet4_address": [
     "172.19.0.1/30"
   ],
@@ -548,9 +549,10 @@ sing-box DNS 模块，等价于一条
 
 #### endpoint_independent_nat
 
-启用独立于端点的 NAT。
+!!! failure "已在 sing-box 1.11.0 废弃"
 
-性能可能会略有下降，所以不建议在不需要的时候开启。
+    独立于端点的 NAT 自 sing-box 1.11.0 起已默认启用，因此此选项不再生效。
+    使用 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)自定义映射和过滤行为。
 
 #### stack
 

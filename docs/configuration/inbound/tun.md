@@ -35,6 +35,7 @@ icon: material/new-box
 !!! quote "Changes in sing-box 1.11.0"
 
     :material-delete-alert: [gso](#gso)  
+    :material-delete-alert: [endpoint_independent_nat](#endpoint_independent_nat)  
     :material-alert-decagram: [route_address_set](#stack)  
     :material-alert-decagram: [route_exclude_address_set](#stack)
 
@@ -119,7 +120,6 @@ icon: material/new-box
   "route_exclude_address_set": [
     "geoip-cn"
   ],
-  "endpoint_independent_nat": false,
 
   ... // UDP NAT Fields
 
@@ -169,6 +169,7 @@ icon: material/new-box
   },
   // Deprecated
   "gso": false,
+  "endpoint_independent_nat": false,
   "inet4_address": [
     "172.19.0.1/30"
   ],
@@ -562,13 +563,10 @@ Exclude custom routes when `auto_route` is enabled.
 
 #### endpoint_independent_nat
 
-!!! info ""
+!!! failure "Deprecated in sing-box 1.11.0"
 
-    This item is only available on the gvisor stack, other stacks are endpoint-independent NAT by default.
-
-Enable endpoint-independent NAT.
-
-Performance may degrade slightly, so it is not recommended to enable on when it is not needed.
+    Endpoint-independent NAT has been enabled by default since sing-box 1.11.0, so this option no longer has any effect.
+    Use [UDP NAT fields](/configuration/shared/udp-nat/) to customize the mapping and filtering behavior.
 
 #### stack
 
