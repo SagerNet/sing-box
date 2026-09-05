@@ -132,6 +132,7 @@ type eventRecord struct {
 	Device        *deviceState `json:"device,omitempty"`
 	Window        *wakeWindow  `json:"window,omitempty"`
 	LogBaseMonoMS int64        `json:"logBaseMonoMS,omitempty"`
+	Reload        bool         `json:"reload,omitempty"`
 }
 
 type wakeWindow struct {
