@@ -193,6 +193,9 @@ func (s *CommandServer) Start() error {
 }
 
 func (s *CommandServer) Close() {
+	if s.endPauseTimer != nil {
+		s.endPauseTimer.Stop()
+	}
 	if s.grpcServer != nil {
 		s.grpcServer.Stop()
 	}
@@ -264,11 +267,19 @@ func (s *CommandServer) Pause() {
 	instance.PauseManager().DevicePause()
 	if C.IsIos {
 		if s.endPauseTimer == nil {
-			s.endPauseTimer = time.AfterFunc(time.Minute, instance.PauseManager().DeviceWake)
+			s.endPauseTimer = time.AfterFunc(time.Minute, s.endDevicePause)
 		} else {
 			s.endPauseTimer.Reset(time.Minute)
 		}
 	}
+}
+
+func (s *CommandServer) endDevicePause() {
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.PauseManager() == nil {
+		return
+	}
+	instance.PauseManager().DeviceWake()
 }
 
 func (s *CommandServer) Wake() {
