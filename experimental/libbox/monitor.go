@@ -20,6 +20,7 @@ type platformDefaultInterfaceMonitor struct {
 	callbacks                   list.List[tun.DefaultInterfaceUpdateCallback]
 	myInterfaces                []string
 	defaultInterfaceInitialized bool
+	lastNetworkPath             string
 }
 
 func (m *platformDefaultInterfaceMonitor) Start() error {
@@ -57,7 +58,10 @@ func (m *platformDefaultInterfaceMonitor) UnregisterCallback(element *list.Eleme
 }
 
 func (m *platformDefaultInterfaceMonitor) UpdateNetworkPath(networkPath string) {
-	m.logger.Debug("updated network path: ", networkPath)
+	if networkPath != m.lastNetworkPath {
+		m.lastNetworkPath = networkPath
+		m.logger.Debug("updated network path: ", networkPath)
+	}
 	if m.powerManager == nil {
 		return
 	}
