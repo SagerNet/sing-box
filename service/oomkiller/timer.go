@@ -98,6 +98,15 @@ func buildTimerConfig(options option.OOMKillerServiceOptions, memoryLimit uint64
 	}, nil
 }
 
+type timerState struct {
+	state                   pressureState
+	currentInterval         time.Duration
+	forceMinInterval        bool
+	pendingPressureBaseline bool
+	pressureBaseline        memorySample
+	pressureBaselineTime    time.Time
+}
+
 type adaptiveTimer struct {
 	timerConfig
 	logger          log.ContextLogger
@@ -107,14 +116,9 @@ type adaptiveTimer struct {
 	recorder        *Recorder
 	limitThresholds pressureThresholds
 
-	access                  sync.Mutex
-	timer                   *time.Timer
-	state                   pressureState
-	currentInterval         time.Duration
-	forceMinInterval        bool
-	pendingPressureBaseline bool
-	pressureBaseline        memorySample
-	pressureBaselineTime    time.Time
+	access sync.Mutex
+	timer  *time.Timer
+	timerState
 }
 
 func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, connections adapter.ConnectionManager, cacheFile adapter.CacheFile, recorder *Recorder, config timerConfig) *adaptiveTimer {
@@ -132,9 +136,17 @@ func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, 
 	return t
 }
 
-func (t *adaptiveTimer) start() {
+func (t *adaptiveTimer) start(carriedState *timerState) {
 	t.access.Lock()
 	defer t.access.Unlock()
+	if t.timer != nil {
+		return
+	}
+	if carriedState != nil {
+		t.timerState = *carriedState
+		t.timer = time.AfterFunc(t.minInterval, t.poll)
+		return
+	}
 	t.startLocked()
 }
 
@@ -147,13 +159,14 @@ func (t *adaptiveTimer) startLocked() {
 	t.timer = time.AfterFunc(t.minInterval, t.poll)
 }
 
-func (t *adaptiveTimer) stop() {
+func (t *adaptiveTimer) stop() timerState {
 	t.access.Lock()
 	defer t.access.Unlock()
 	if t.timer != nil {
 		t.timer.Stop()
 		t.timer = nil
 	}
+	return t.timerState
 }
 
 func (t *adaptiveTimer) poll() {
@@ -231,8 +244,20 @@ func (t *adaptiveTimer) poll() {
 	}
 	t.releaseMemory()
 	if t.recorder != nil {
-		t.recorder.recordReset(reason, sample, readMemorySample(t.policyMode), connections, t.killerDisabled)
-		t.recorder.snapshot(SnapshotReasonReset, sample, false)
+		after := readMemorySample(t.policyMode)
+		t.recorder.recordReset(reason, sample, after, connections, t.killerDisabled)
+		t.recorder.snapshot(SnapshotReasonReset, sample, t.belowTrigger(after), false)
+	}
+}
+
+func (t *adaptiveTimer) belowTrigger(sample memorySample) bool {
+	switch t.policyMode {
+	case policyModeMemoryLimit, policyModeNetworkExtension:
+		return sample.usage < t.limitThresholds.trigger
+	case policyModeAvailable:
+		return !sample.availableKnown || sample.available > t.availableThresholds(sample).trigger
+	default:
+		return true
 	}
 }
 
