@@ -16,15 +16,16 @@ import (
 )
 
 type reportMetadata struct {
-	Source              string `json:"source,omitempty"`
-	BundleIdentifier    string `json:"bundleIdentifier,omitempty"`
-	ProcessName         string `json:"processName,omitempty"`
-	ProcessPath         string `json:"processPath,omitempty"`
-	StartedAt           string `json:"startedAt,omitempty"`
-	AppVersion          string `json:"appVersion,omitempty"`
-	AppMarketingVersion string `json:"appMarketingVersion,omitempty"`
-	CoreVersion         string `json:"coreVersion,omitempty"`
-	GoVersion           string `json:"goVersion,omitempty"`
+	Source              string          `json:"source,omitempty"`
+	BundleIdentifier    string          `json:"bundleIdentifier,omitempty"`
+	ProcessName         string          `json:"processName,omitempty"`
+	ProcessPath         string          `json:"processPath,omitempty"`
+	StartedAt           string          `json:"startedAt,omitempty"`
+	AppVersion          string          `json:"appVersion,omitempty"`
+	AppMarketingVersion string          `json:"appMarketingVersion,omitempty"`
+	CoreVersion         string          `json:"coreVersion,omitempty"`
+	GoVersion           string          `json:"goVersion,omitempty"`
+	Platform            json.RawMessage `json:"platform,omitempty"`
 }
 
 func baseReportMetadata() reportMetadata {
@@ -41,6 +42,7 @@ func baseReportMetadata() reportMetadata {
 		AppMarketingVersion: sAppMarketingVersion,
 		CoreVersion:         C.Version,
 		GoVersion:           GoVersion(),
+		Platform:            sPlatformMetadata,
 	}
 }
 
@@ -68,6 +70,28 @@ func copyConfigSnapshot(destPath string) {
 		return
 	}
 	writeReportFile(destPath, "configuration.json", content)
+}
+
+func platformSnapshotPath() string {
+	return filepath.Join(sWorkingPath, "PlatformMetadata-"+sCrashReportSource+".json")
+}
+
+func savePlatformSnapshot() {
+	snapshotPath := platformSnapshotPath()
+	if sPlatformMetadata == nil {
+		os.Remove(snapshotPath)
+		return
+	}
+	os.WriteFile(snapshotPath, sPlatformMetadata, 0o666)
+	chownReport(snapshotPath)
+}
+
+func readPlatformSnapshot() json.RawMessage {
+	content, err := os.ReadFile(platformSnapshotPath())
+	if err != nil || !json.Valid(content) {
+		return nil
+	}
+	return content
 }
 
 func initReportDir(path string) {
