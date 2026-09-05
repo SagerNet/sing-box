@@ -100,7 +100,7 @@ func goMemoryPressureCallback(status C.ulong) {
 		}
 		s.adaptiveTimer.notifyPressure()
 		if s.recorder != nil {
-			s.recorder.snapshot(SnapshotReasonPressure, sample, false)
+			s.recorder.snapshot(SnapshotReasonPressure, sample, false, false)
 		}
 	}
 }
