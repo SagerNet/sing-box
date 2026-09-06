@@ -96,7 +96,7 @@ func TestLinuxSearcherFindProcessInfo(t *testing.T) {
 	defer tcpConn.Close()
 	info, err := searcher.FindProcessInfo(context.Background(), N.NetworkTCP, M.AddrPortFromNet(tcpConn.LocalAddr()), M.AddrPortFromNet(listener.Addr()))
 	require.NoError(t, err)
-	require.Equal(t, executable, info.ProcessPath)
+	require.Equal(t, []string{executable}, info.ProcessPaths)
 	require.Equal(t, int32(os.Getuid()), info.UserId)
 
 	udpConn, err := net.ListenUDP("udp4", &net.UDPAddr{})
@@ -104,5 +104,5 @@ func TestLinuxSearcherFindProcessInfo(t *testing.T) {
 	defer udpConn.Close()
 	info, err = searcher.FindProcessInfo(context.Background(), N.NetworkUDP, netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), M.AddrPortFromNet(udpConn.LocalAddr()).Port()), netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), 53))
 	require.NoError(t, err)
-	require.Equal(t, executable, info.ProcessPath)
+	require.Equal(t, []string{executable}, info.ProcessPaths)
 }
