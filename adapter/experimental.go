@@ -12,8 +12,16 @@ import (
 )
 
 type URLTestHistory struct {
-	Time  time.Time `json:"time"`
-	Delay uint16    `json:"delay"`
+	Time time.Time `json:"time"`
+	// Delay is the time to response headers, in milliseconds.
+	Delay uint16 `json:"delay"`
+	// Throughput is the smoothed effective transfer rate in bytes per second, or
+	// zero when bandwidth testing is disabled or no sample has been taken yet.
+	// It is a ranking signal measured over a few hundred KiB, not a speed test
+	// result, and understates the capacity of a fast path.
+	Throughput uint32 `json:"throughput,omitempty"`
+	// Bytes is the number of body bytes read by the most recent bandwidth probe.
+	Bytes uint32 `json:"bytes,omitempty"`
 }
 
 type V2RayServer interface {
