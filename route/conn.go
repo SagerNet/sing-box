@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -17,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/common/tlsfragment"
 	"github.com/sagernet/sing-box/common/tlsspoof"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
@@ -47,6 +49,8 @@ func (m *ConnectionManager) Start(stage adapter.StartStage) error {
 }
 
 func (m *ConnectionManager) Count() int {
+	m.access.Lock()
+	defer m.access.Unlock()
 	return m.connections.Len()
 }
 
@@ -71,25 +75,25 @@ func (m *ConnectionManager) Close() error {
 }
 
 func (m *ConnectionManager) TrackConn(conn net.Conn) net.Conn {
-	m.access.Lock()
-	element := m.connections.PushBack(conn)
-	m.access.Unlock()
-	return &trackedConn{
+	tracked := &trackedConn{
 		Conn:    conn,
 		manager: m,
-		element: element,
 	}
+	m.access.Lock()
+	tracked.element = m.connections.PushBack(tracked)
+	m.access.Unlock()
+	return tracked
 }
 
 func (m *ConnectionManager) TrackPacketConn(conn net.PacketConn) net.PacketConn {
-	m.access.Lock()
-	element := m.connections.PushBack(conn)
-	m.access.Unlock()
-	return &trackedPacketConn{
-		PacketConn: conn,
-		manager:    m,
-		element:    element,
+	tracked := &trackedPacketConn{
+		NetPacketConn: bufio.NewPacketConn(conn),
+		manager:       m,
 	}
+	m.access.Lock()
+	tracked.element = m.connections.PushBack(tracked)
+	m.access.Unlock()
+	return tracked
 }
 
 func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
@@ -126,6 +130,19 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		N.CloseOnHandshakeFailure(conn, onClose, err)
 		m.logger.ErrorContext(ctx, err)
 		return
+	}
+	if !metadata.TLSFragment && !metadata.TLSRecordFragment && metadata.TLSSpoof == "" {
+		var spliced bool
+		spliced, err = m.spliceConnection(ctx, conn, remoteConn, onClose)
+		if err != nil {
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			remoteConn.Close()
+			m.logger.ErrorContext(ctx, err)
+			return
+		}
+		if spliced {
+			return
+		}
 	}
 	if metadata.TLSFragment || metadata.TLSRecordFragment {
 		remoteConn = tf.NewConn(remoteConn, ctx, metadata.TLSFragment, metadata.TLSRecordFragment, metadata.TLSFragmentFallbackDelay)
@@ -225,6 +242,18 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 		m.logger.ErrorContext(ctx, "report handshake success: ", err)
 		return
 	}
+	udpTimeout := packetTimeout(&metadata)
+	var (
+		spliceRemote any = remotePacketConn
+		spliced      bool
+	)
+	if remoteConn != nil {
+		spliceRemote = remoteConn
+	}
+	conn, spliced = m.splicePacketConnection(ctx, conn, spliceRemote, &metadata, destinationAddress, udpTimeout, onClose)
+	if spliced {
+		return
+	}
 	if destinationAddress.IsValid() {
 		var originDestination M.Socksaddr
 		if metadata.RouteOriginalDestination.IsValid() {
@@ -248,18 +277,6 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 		}
 	} else if metadata.RouteOriginalDestination.IsValid() && metadata.RouteOriginalDestination != metadata.Destination {
 		remotePacketConn = bufio.NewDestinationNATPacketConn(bufio.NewPacketConn(remotePacketConn), metadata.Destination, metadata.RouteOriginalDestination)
-	}
-	var udpTimeout time.Duration
-	if metadata.UDPTimeout > 0 {
-		udpTimeout = metadata.UDPTimeout
-	} else {
-		protocol := metadata.Protocol
-		if protocol == "" {
-			protocol = C.PortProtocols[metadata.Destination.Port]
-		}
-		if protocol != "" {
-			udpTimeout = C.ProtocolTimeouts[protocol]
-		}
 	}
 	if udpTimeout > 0 {
 		ctx, conn = canceler.NewPacketConn(ctx, conn, udpTimeout)
@@ -392,16 +409,62 @@ func (m *ConnectionManager) packetConnectionCopy(ctx context.Context, source N.P
 	common.Close(source, destination)
 }
 
+type socketOwner struct {
+	access sync.Mutex
+	owner  io.Closer
+	closed bool
+}
+
+func (o *socketOwner) Attach(closer io.Closer) bool {
+	o.access.Lock()
+	defer o.access.Unlock()
+	if o.closed {
+		return false
+	}
+	o.owner = closer
+	return true
+}
+
+func (o *socketOwner) Detach() {
+	o.access.Lock()
+	o.owner = nil
+	o.access.Unlock()
+}
+
+func (o *socketOwner) close() bool {
+	o.access.Lock()
+	o.closed = true
+	owner := o.owner
+	o.access.Unlock()
+	if owner == nil {
+		return false
+	}
+	owner.Close()
+	return true
+}
+
 type trackedConn struct {
 	net.Conn
+	socketOwner
 	manager *ConnectionManager
 	element *list.Element[io.Closer]
+}
+
+func (c *trackedConn) SyscallConn() (syscall.RawConn, error) {
+	syscallConn, isSyscallConn := c.Conn.(syscall.Conn)
+	if !isSyscallConn {
+		return nil, os.ErrInvalid
+	}
+	return syscallConn.SyscallConn()
 }
 
 func (c *trackedConn) Close() error {
 	c.manager.access.Lock()
 	c.manager.connections.Remove(c.element)
 	c.manager.access.Unlock()
+	if c.socketOwner.close() {
+		return nil
+	}
 	return c.Conn.Close()
 }
 
@@ -418,20 +481,32 @@ func (c *trackedConn) WriterReplaceable() bool {
 }
 
 type trackedPacketConn struct {
-	net.PacketConn
+	N.NetPacketConn
+	socketOwner
 	manager *ConnectionManager
 	element *list.Element[io.Closer]
+}
+
+func (c *trackedPacketConn) SyscallConn() (syscall.RawConn, error) {
+	syscallConn, isSyscallConn := c.NetPacketConn.(syscall.Conn)
+	if !isSyscallConn {
+		return nil, os.ErrInvalid
+	}
+	return syscallConn.SyscallConn()
 }
 
 func (c *trackedPacketConn) Close() error {
 	c.manager.access.Lock()
 	c.manager.connections.Remove(c.element)
 	c.manager.access.Unlock()
-	return c.PacketConn.Close()
+	if c.socketOwner.close() {
+		return nil
+	}
+	return c.NetPacketConn.Close()
 }
 
 func (c *trackedPacketConn) Upstream() any {
-	return bufio.NewPacketConn(c.PacketConn)
+	return c.NetPacketConn
 }
 
 func (c *trackedPacketConn) ReaderReplaceable() bool {
@@ -441,3 +516,8 @@ func (c *trackedPacketConn) ReaderReplaceable() bool {
 func (c *trackedPacketConn) WriterReplaceable() bool {
 	return true
 }
+
+var (
+	_ tun.SpliceSocket = (*trackedConn)(nil)
+	_ tun.SpliceSocket = (*trackedPacketConn)(nil)
+)
