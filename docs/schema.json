@@ -7962,10 +7962,14 @@
             "stack": {
               "type": "string",
               "enum": [
+                "go",
                 "system",
                 "gvisor",
                 "mixed"
               ]
+            },
+            "multi_queue": {
+              "type": "boolean"
             },
             "platform": {
               "$ref": "#/$defs/TunPlatformOptions"

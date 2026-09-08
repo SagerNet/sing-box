@@ -4,7 +4,9 @@ icon: material/new-box
 
 !!! quote "Changes in sing-box 1.15.0"
 
-    :material-plus: [auto_redirect_tproxy_mark](#auto_redirect_tproxy_mark)
+    :material-plus: [auto_redirect_tproxy_mark](#auto_redirect_tproxy_mark)  
+    :material-plus: [multi_queue](#multi_queue)  
+    :material-alert-decagram: [stack](#stack)
 
 !!! quote "Changes in sing-box 1.14.0"
 
@@ -124,6 +126,7 @@ icon: material/new-box
   ... // UDP NAT Fields
 
   "stack": "system",
+  "multi_queue": false,
   "include_interface": [
     "lan0"
   ],
@@ -569,6 +572,10 @@ to customize the mapping and filtering behavior.
 
 #### stack
 
+!!! quote "Changes in sing-box 1.15.0"
+
+    :material-plus: The `go` stack has been added and is now the default.
+
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-delete-alert: The legacy LWIP stack has been deprecated and removed.
@@ -577,11 +584,23 @@ TCP/IP stack.
 
 | Stack    | Description                                                                                           | 
 |----------|-------------------------------------------------------------------------------------------------------|
+| `go`     | Perform L3 to L4 translation using the built-in userspace network stack                               |
 | `system` | Perform L3 to L4 translation using the system network stack                                           |
 | `gvisor` | Perform L3 to L4 translation using [gVisor](https://github.com/google/gvisor)'s virtual network stack |
 | `mixed`  | Mixed `system` TCP stack and `gvisor` UDP stack                                                       |
 
-Defaults to the `mixed` stack if the gVisor build tag is enabled, otherwise defaults to the `system` stack.
+The `go` stack is written for sing-box, does not depend on gVisor, and uses significantly less memory
+than the `gvisor` and `mixed` stacks.
+
+Defaults to the `go` stack.
+
+#### multi_queue
+
+!!! quote ""
+
+    Only supported on Linux, and requires the `go` stack.
+
+Enable multi-queue support based on `IFF_MULTI_QUEUE`, allowing throughput to scale with the number of CPU cores.
 
 #### include_interface
 

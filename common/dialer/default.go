@@ -74,6 +74,9 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	} else {
 		interfaceFinder = control.NewDefaultInterfaceFinder()
 	}
+	socketBufferFunc := control.UDPSocketBuffer(C.UDPSocketBufferSize)
+	dialer.Control = control.Append(dialer.Control, socketBufferFunc)
+	listener.Control = control.Append(listener.Control, socketBufferFunc)
 	if options.BindInterface != "" {
 		if !(C.IsLinux || C.IsDarwin || C.IsWindows) {
 			return nil, E.New("`bind_interface` is only supported on Linux, macOS and Windows")
