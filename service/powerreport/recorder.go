@@ -342,6 +342,22 @@ func (r *Recorder) RecordPauseEvent(event int) {
 	}
 }
 
+func (r *Recorder) RecordScreenState(on bool) {
+	if on {
+		r.recordPlatformEvent(eventTypeScreenOn)
+	} else {
+		r.recordPlatformEvent(eventTypeScreenOff)
+	}
+}
+
+func (r *Recorder) RecordLockState(locked bool) {
+	if locked {
+		r.recordPlatformEvent(eventTypeDeviceLock)
+	} else {
+		r.recordPlatformEvent(eventTypeDeviceUnlock)
+	}
+}
+
 func (r *Recorder) CountConnectionOpened() {
 	r.connectionsOpened.Add(1)
 }
