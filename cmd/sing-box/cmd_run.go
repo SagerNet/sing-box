@@ -19,6 +19,7 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
+	"github.com/sagernet/sing/service"
 
 	"github.com/spf13/cobra"
 )
@@ -136,7 +137,7 @@ func create(options option.Options) (*box.Box, context.CancelFunc, error) {
 		}
 		options.Log.DisableColor = true
 	}
-	ctx, cancel := context.WithCancel(globalCtx)
+	ctx, cancel := context.WithCancel(service.ExtendContext(globalCtx))
 	instance, err := box.New(box.Options{
 		Context:                    ctx,
 		Options:                    options,

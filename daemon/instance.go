@@ -39,6 +39,7 @@ type Instance struct {
 func (s *StartedService) CheckConfig(ctx context.Context, configContent string) error {
 	selectedLocale := locale.FromContext(ctx)
 	ctx, _ = locale.ContextWithLocale(s.ctx, selectedLocale.Locale)
+	ctx = service.ExtendContext(ctx)
 	options, err := parseConfig(ctx, configContent)
 	if err != nil {
 		return err
