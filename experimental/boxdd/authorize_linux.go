@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"math"
+	"os"
 	"strconv"
 
 	E "github.com/sagernet/sing/common/exceptions"
@@ -17,11 +18,12 @@ import (
 )
 
 const (
-	policyKitService              = "org.freedesktop.PolicyKit1"
-	policyKitAuthorityPath        = dbus.ObjectPath("/org/freedesktop/PolicyKit1/Authority")
-	policyKitAuthorityInterface   = "org.freedesktop.PolicyKit1.Authority"
-	policyKitTakeOverAction       = "io.nekohasekai.sfl.take-over-service"
-	policyKitAllowUserInteraction = uint32(1)
+	policyKitService               = "org.freedesktop.PolicyKit1"
+	policyKitAuthorityPath         = dbus.ObjectPath("/org/freedesktop/PolicyKit1/Authority")
+	policyKitAuthorityInterface    = "org.freedesktop.PolicyKit1.Authority"
+	policyKitTakeOverAction        = "io.nekohasekai.sfl.take-over-service"
+	policyKitSetInsecureModeAction = "io.nekohasekai.sfl.set-insecure-mode"
+	policyKitAllowUserInteraction  = uint32(1)
 )
 
 type policyKitSubject struct {
@@ -36,6 +38,27 @@ type policyKitAuthorizationResult struct {
 }
 
 func authorizeTakeOver(ctx context.Context, identity peerIdentity) error {
+	return checkPolicyKitAuthorization(ctx, identity, policyKitTakeOverAction)
+}
+
+func authorizeSetInsecureMode(ctx context.Context, identity peerIdentity, enabled bool) error {
+	if enabled {
+		return checkPolicyKitAuthorization(ctx, identity, policyKitSetInsecureModeAction)
+	}
+	ownerUserID, err := loadOwner()
+	if err != nil {
+		if os.IsNotExist(err) {
+			return status.Error(codes.PermissionDenied, "the service has no owner")
+		}
+		return err
+	}
+	if ownerUserID != identity.UserID {
+		return status.Error(codes.PermissionDenied, "the service is owned by another user")
+	}
+	return nil
+}
+
+func checkPolicyKitAuthorization(ctx context.Context, identity peerIdentity, action string) error {
 	if listenAddress != "" {
 		return nil
 	}
@@ -72,7 +95,7 @@ func authorizeTakeOver(ctx context.Context, identity peerIdentity) error {
 		0,
 		resultChannel,
 		subject,
-		policyKitTakeOverAction,
+		action,
 		map[string]string{},
 		policyKitAllowUserInteraction,
 		cancellationID,
@@ -88,7 +111,10 @@ func authorizeTakeOver(ctx context.Context, identity peerIdentity) error {
 			return E.Cause(err, "read PolicyKit authorization result")
 		}
 		if !result.Authorized {
-			return status.Error(codes.PermissionDenied, "take over authorization was denied")
+			if result.Challenge {
+				return status.Error(codes.Unauthenticated, "no authentication agent is available")
+			}
+			return status.Error(codes.PermissionDenied, "authorization was denied")
 		}
 		return nil
 	case <-ctx.Done():
@@ -97,6 +123,6 @@ func authorizeTakeOver(ctx context.Context, identity peerIdentity) error {
 			0,
 			cancellationID,
 		).Err
-		return status.Error(codes.Canceled, "take over authorization was canceled")
+		return status.Error(codes.Canceled, "authorization was canceled")
 	}
 }
