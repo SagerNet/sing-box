@@ -297,7 +297,7 @@ func buildServerOptions(options option.OpenVPNServerEndpointOptions) (ovpn.Serve
 	if options.TLS == nil {
 		return ovpn.ServerOptions{}, E.New("missing `tls` options")
 	}
-	if len(options.StaticKey) > 0 || options.StaticKeyPath != "" || options.KeyDirection != "" || options.Cipher != "" || options.Remote != "" || options.RemotePort != 0 || netip.Addr(options.PeerAddress).IsValid() || netip.Addr(options.PeerAddressIPv6).IsValid() {
+	if len(options.StaticKey) > 0 || options.StaticKeyPath != "" || options.KeyDirection != "" || options.Cipher != "" || options.Remote != "" || options.RemotePort != 0 || options.PeerAddress.Build(netip.Addr{}).IsValid() || options.PeerAddressIPv6.Build(netip.Addr{}).IsValid() {
 		return ovpn.ServerOptions{}, E.New("static-key server options require `mode: static_key`")
 	}
 	tlsOptions, keyDirection, err := buildServerTLSOptions(*options.TLS)
@@ -367,11 +367,11 @@ func buildStaticKeyServerOptions(options option.OpenVPNServerEndpointOptions, pr
 	if err != nil {
 		return ovpn.ServerOptions{}, err
 	}
-	vpnGateway := netip.Addr(options.PeerAddress)
+	vpnGateway := options.PeerAddress.Build(netip.Addr{})
 	if vpnGateway.IsValid() && !vpnGateway.Is4() {
 		return ovpn.ServerOptions{}, E.New("`peer_address` must be an IPv4 address")
 	}
-	vpnGatewayIPv6 := netip.Addr(options.PeerAddressIPv6)
+	vpnGatewayIPv6 := options.PeerAddressIPv6.Build(netip.Addr{})
 	if vpnGatewayIPv6.IsValid() && !vpnGatewayIPv6.Is6() {
 		return ovpn.ServerOptions{}, E.New("`peer_address_ipv6` must be an IPv6 address")
 	}

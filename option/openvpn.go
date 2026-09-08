@@ -25,8 +25,8 @@ type OpenVPNClientEndpointOptions struct {
 	Servers              []OpenVPNRemoteOptions           `json:"servers,omitempty"`
 	RemoteRandom         bool                             `json:"remote_random,omitempty"`
 	Address              badoption.Listable[netip.Prefix] `json:"address,omitempty"`
-	PeerAddress          badoption.Addr                   `json:"peer_address,omitempty"`
-	PeerAddressIPv6      badoption.Addr                   `json:"peer_address_ipv6,omitempty"`
+	PeerAddress          *badoption.Addr                  `json:"peer_address,omitempty"`
+	PeerAddressIPv6      *badoption.Addr                  `json:"peer_address_ipv6,omitempty"`
 	Topology             string                           `json:"topology,omitempty" enum:"net30,p2p,subnet"`
 	Username             string                           `json:"username,omitempty"`
 	Password             string                           `json:"password,omitempty"`
@@ -81,8 +81,8 @@ type OpenVPNServerEndpointOptions struct {
 	RemotePort          uint16                           `json:"remote_port,omitempty"`
 	MaxClients          int                              `json:"max_clients,omitempty"`
 	Address             badoption.Listable[netip.Prefix] `json:"address"`
-	PeerAddress         badoption.Addr                   `json:"peer_address,omitempty"`
-	PeerAddressIPv6     badoption.Addr                   `json:"peer_address_ipv6,omitempty"`
+	PeerAddress         *badoption.Addr                  `json:"peer_address,omitempty"`
+	PeerAddressIPv6     *badoption.Addr                  `json:"peer_address_ipv6,omitempty"`
 	Topology            string                           `json:"topology,omitempty" enum:"net30,p2p,subnet"`
 	DuplicateCN         bool                             `json:"duplicate_cn,omitempty"`
 	Users               []auth.User                      `json:"users,omitempty"`
