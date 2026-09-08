@@ -392,7 +392,15 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 				}
 				return adapter.PreMatchResult{Action: adapter.PreMatchBypass}
 			}
-			return r.preMatchFlow(ctx, &metadata, packetDestination, currentRule, action.Outbound)
+			if metadata.Destination.IsDomain() || metadata.Destination != packetDestination {
+				return r.preMatchFlow(ctx, &metadata, packetDestination, currentRule, action.Outbound)
+			}
+			result := r.preMatchFlow(ctx, &metadata, packetDestination, currentRule, action.Outbound)
+			if result.Action != adapter.PreMatchFlow {
+				return adapter.PreMatchResult{Action: adapter.PreMatchBypass}
+			}
+			result.Action = adapter.PreMatchBypass
+			return result
 		case *R.RuleActionReject:
 			rejectErr := action.Error(r.ctx)
 			if errors.Is(rejectErr, R.ErrDrop) {
@@ -512,9 +520,9 @@ func (r *Router) preMatchFlow(ctx context.Context, metadata *adapter.InboundCont
 	} else if metadata.Destination != packetDestination {
 		result.Destination = metadata.Destination.AddrPort()
 	}
-	r.logger.InfoContext(ctx, "pre-match: forward ", metadata.Network, " connection from ", metadata.Source.AddrString(), " to ", metadata.Destination.AddrString(), " via outbound/", outbound.Type(), "[", outbound.Tag(), "]")
 	metadataCopy := *metadata
 	result.NewTracker = func() tun.FlowTracker {
+		r.logger.InfoContext(ctx, "pre-match: forward ", metadataCopy.Network, " connection from ", metadataCopy.Source.AddrString(), " to ", metadataCopy.Destination.AddrString(), " via outbound/", outbound.Type(), "[", outbound.Tag(), "]")
 		flowTrackers := make([]tun.FlowTracker, 0, len(r.trackers)+1)
 		flowTrackers = append(flowTrackers, newFlowLogger(ctx, r.logger, metadataCopy, outbound))
 		for _, tracker := range r.trackers {
