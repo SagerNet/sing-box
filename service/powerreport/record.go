@@ -113,6 +113,8 @@ const (
 	eventTypeNetworkWake  = "network-wake"
 	eventTypeSleep        = "ne-sleep"
 	eventTypeWake         = "ne-wake"
+	eventTypeScreenOn     = "screen-on"
+	eventTypeScreenOff    = "screen-off"
 	eventTypeService      = "service"
 )
 
