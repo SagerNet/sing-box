@@ -39,13 +39,7 @@ type CommandServer struct {
 	oomRecorder       *oomkiller.Recorder
 	grpcServer        *grpc.Server
 	listener          net.Listener
-	endPauseTimer     *time.Timer
-	sleepAt           time.Time
 }
-
-// iOS wakes the extension for every push and background task; in collected power reports
-// most sleeps last under two minutes and none exceeded ten.
-const closeIdleConnectionsAfterSleep = 2 * time.Minute
 
 type CommandServerHandler interface {
 	ServiceStop() error
@@ -198,9 +192,6 @@ func (s *CommandServer) Start() error {
 }
 
 func (s *CommandServer) Close() {
-	if s.endPauseTimer != nil {
-		s.endPauseTimer.Stop()
-	}
 	if s.grpcServer != nil {
 		s.grpcServer.Stop()
 	}
@@ -260,31 +251,32 @@ func (s *CommandServer) NeedFindProcess() bool {
 	return instance.Box().Router().NeedFindProcess()
 }
 
+// iOS wakes the extension for every push and background task, so wake is ignored there and
+// the pause ends on the screen state instead.
 func (s *CommandServer) Pause() {
-	s.sleepAt = time.Now().Round(0)
 	recorder := s.powerManager.Recorder()
 	if recorder != nil {
 		recorder.RecordDeviceSleep()
 	}
-	instance := s.StartedService.Instance()
-	if instance == nil || instance.PauseManager() == nil {
+	if !(C.IsAndroid || C.IsIos) || C.IsTvOS {
 		return
 	}
-	instance.PauseManager().DevicePause()
-	if C.IsIos {
-		// iOS calls wake within seconds of sleep while the device stays locked, so wake is
-		// ignored and the pause ends one minute after the last sleep instead. Go timers on
-		// darwin run on CLOCK_UPTIME_RAW, which does not advance while the device sleeps,
-		// so the minute counts awake time only and never expires inside a sleep.
-		if s.endPauseTimer == nil {
-			s.endPauseTimer = time.AfterFunc(time.Minute, s.endDevicePause)
-		} else {
-			s.endPauseTimer.Reset(time.Minute)
-		}
+	instance := s.StartedService.Instance()
+	if instance == nil || instance.Box() == nil || instance.PauseManager() == nil {
+		return
 	}
+	instance.Box().CloseIdleConnections()
+	instance.PauseManager().DevicePause()
 }
 
-func (s *CommandServer) endDevicePause() {
+func (s *CommandServer) Wake() {
+	recorder := s.powerManager.Recorder()
+	if recorder != nil {
+		recorder.RecordDeviceWake()
+	}
+	if !C.IsAndroid {
+		return
+	}
 	instance := s.StartedService.Instance()
 	if instance == nil || instance.PauseManager() == nil {
 		return
@@ -292,21 +284,25 @@ func (s *CommandServer) endDevicePause() {
 	instance.PauseManager().DeviceWake()
 }
 
-func (s *CommandServer) Wake() {
-	wakeAt := time.Now().Round(0)
-	recorder := s.powerManager.Recorder()
-	if recorder != nil {
-		recorder.RecordDeviceWake()
-	}
+func (s *CommandServer) WakeNow() {
 	instance := s.StartedService.Instance()
-	if instance == nil || instance.Box() == nil || instance.PauseManager() == nil {
+	if instance == nil || instance.PauseManager() == nil {
 		return
 	}
-	if !s.sleepAt.IsZero() && wakeAt.Sub(s.sleepAt) >= closeIdleConnectionsAfterSleep {
-		instance.Box().CloseIdleConnections()
+	instance.PauseManager().DeviceWake()
+}
+
+func (s *CommandServer) RecordScreenState(on bool) {
+	recorder := s.powerManager.Recorder()
+	if recorder != nil {
+		recorder.RecordScreenState(on)
 	}
-	if !C.IsIos {
-		instance.PauseManager().DeviceWake()
+}
+
+func (s *CommandServer) RecordLockState(locked bool) {
+	recorder := s.powerManager.Recorder()
+	if recorder != nil {
+		recorder.RecordLockState(locked)
 	}
 }
 
