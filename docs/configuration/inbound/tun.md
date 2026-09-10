@@ -550,13 +550,10 @@ Exclude custom routes when `auto_route` is enabled.
 
 #### endpoint_independent_nat
 
-!!! info ""
+This option has had no effect since sing-box 1.11.0 and can be removed from the configuration.
 
-    This item is only available on the gvisor stack, other stacks are endpoint-independent NAT by default.
-
-Enable endpoint-independent NAT.
-
-Performance may degrade slightly, so it is not recommended to enable on when it is not needed.
+Since sing-box 1.14.0, use [UDP NAT fields](/configuration/shared/udp-nat/)
+to customize the mapping and filtering behavior.
 
 #### stack
 
