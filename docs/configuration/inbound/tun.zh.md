@@ -534,9 +534,9 @@ sing-box DNS 模块，等价于一条
 
 #### endpoint_independent_nat
 
-启用独立于端点的 NAT。
+此选项自 sing-box 1.11.0 起不再生效，可从配置中移除。
 
-性能可能会略有下降，所以不建议在不需要的时候开启。
+自 sing-box 1.14.0 起，可使用 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)自定义映射和过滤行为。
 
 #### stack
 
