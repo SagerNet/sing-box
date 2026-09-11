@@ -22,6 +22,7 @@
 | 类型               | 格式                                      |
 |------------------|-----------------------------------------|
 | `wireguard`      | [WireGuard](./wireguard/)               |
+| `geph`           | [Geph5](./geph/)                         |
 | `tailscale`      | [Tailscale](./tailscale/)               |
 | `openconnect`    | [OpenConnect 客户端](./openconnect/)       |
 | `openvpn-client` | [OpenVPN 客户端](./openvpn-client/)         |
