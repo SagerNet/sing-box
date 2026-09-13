@@ -214,7 +214,7 @@ func (r *Recorder) Close() error {
 	r.writeLogLocked()
 	r.writeMetadataLocked()
 	r.releaseDraftLocked()
-	promoteDirectory(r.draftPath, filepath.Join(r.basePath, ReportsDirectoryName))
+	promoteDirectory(r.draftPath, filepath.Join(r.basePath, ReportsDirectoryName), r.status.EndedAt.UTC())
 	return nil
 }
 
@@ -233,7 +233,7 @@ func (r *Recorder) WriteReport() error {
 		sample.availableKnown = true
 		sample.available = memory.Available()
 	}
-	err := r.snapshot(SnapshotReasonManual, sample, false, true)
+	err := r.snapshot(SnapshotReasonManual, sample, true, true)
 	if err != nil {
 		return E.Cause(err, "write snapshot")
 	}
