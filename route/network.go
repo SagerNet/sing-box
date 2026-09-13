@@ -519,6 +519,16 @@ func (r *NetworkManager) ResetNetwork(ctx context.Context) {
 	r.router.ResetNetwork()
 }
 
+func (r *NetworkManager) ReleaseMemory(ctx context.Context) {
+	r.ResetNetwork(ctx)
+	for _, outbound := range r.outbound.Outbounds() {
+		keeper, isKeeper := outbound.(adapter.IdleConnectionKeeper)
+		if isKeeper {
+			keeper.CloseIdleConnections()
+		}
+	}
+}
+
 func (r *NetworkManager) notifyInterfaceUpdate(_ *control.Interface, _ int) {
 	r.interfaceUpdateAccess.Lock()
 	defer r.interfaceUpdateAccess.Unlock()
