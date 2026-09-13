@@ -2,9 +2,19 @@
 icon: material/alert-decagram
 ---
 
-#### 1.15.0-alpha.2
+#### 1.15.0-alpha.3
 
+* Significantly improve TUN performance with a new TCP/IP stack **1**
 * Fixes and improvements
+
+**1**:
+
+Since 1.15.0, sing-tun uses its own TCP/IP stack, with substantial improvements over all previous
+implementations in peak performance, energy efficiency, and memory usage.
+Remove the `stack` option to use it.
+
+The `stack` option is deprecated and will be removed in sing-box 1.17.0.
+See [Migration](/migration/#migrate-tun-stack).
 
 #### 1.15.0-alpha.1
 
