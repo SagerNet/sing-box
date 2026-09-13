@@ -7959,13 +7959,8 @@
               "minimum": 0,
               "maximum": 4294967295
             },
-            "stack": {
-              "type": "string",
-              "enum": [
-                "system",
-                "gvisor",
-                "mixed"
-              ]
+            "multi_queue": {
+              "type": "boolean"
             },
             "platform": {
               "$ref": "#/$defs/TunPlatformOptions"
