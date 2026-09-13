@@ -4,6 +4,15 @@ icon: material/delete-alert
 
 # 废弃功能列表
 
+## 1.15.0
+
+#### TUN `stack` 参数
+
+TUN 的 `stack` 参数已废弃，并将在 sing-box 1.17.0 中被移除。
+
+自 1.15.0 起，sing-tun 使用自有 TCP/IP stack，极限性能、能效以及内存占用均大幅领先于所有旧实现。
+移除 `stack` 参数以使用，参阅[迁移指南](/zh/migration/#迁移-tun-stack)。
+
 ## 1.14.0
 
 #### 旧版远程规则集 `download_detour` 选项

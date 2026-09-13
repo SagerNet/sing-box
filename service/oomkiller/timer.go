@@ -2,13 +2,17 @@ package oomkiller
 
 import (
 	"context"
+	"runtime"
 	runtimeDebug "runtime/debug"
+	"runtime/metrics"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/byteformats"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/memory"
@@ -16,8 +20,11 @@ import (
 
 const (
 	defaultMinInterval               = 100 * time.Millisecond
-	defaultArmedInterval             = time.Second
 	defaultMaxInterval               = 10 * time.Second
+	defaultReleaseInterval           = time.Second
+	defaultReleaseShrinkFloor        = 16
+	defaultReleaseShrinkDivisor      = 10
+	defaultMaxRateLookahead          = time.Second
 	defaultSafetyMargin              = 5 * 1024 * 1024
 	defaultAvailableTriggerMarginMin = 32 * 1024 * 1024
 	defaultAvailableTriggerMarginMax = 128 * 1024 * 1024
@@ -40,6 +47,7 @@ type memorySample struct {
 type pressureThresholds struct {
 	trigger uint64
 	armed   uint64
+	resume  uint64
 }
 
 type timerConfig struct {
@@ -47,7 +55,6 @@ type timerConfig struct {
 	safetyMargin    uint64
 	hasSafetyMargin bool
 	minInterval     time.Duration
-	armedInterval   time.Duration
 	maxInterval     time.Duration
 	policyMode      policyMode
 	killerDisabled  bool
@@ -90,7 +97,6 @@ func buildTimerConfig(options option.OOMKillerServiceOptions, memoryLimit uint64
 		safetyMargin:    safetyMargin,
 		hasSafetyMargin: hasSafetyMargin,
 		minInterval:     minInterval,
-		armedInterval:   max(min(defaultArmedInterval, maxInterval), minInterval),
 		maxInterval:     maxInterval,
 		policyMode:      policyMode,
 		killerDisabled:  killerDisabled,
@@ -113,14 +119,20 @@ type adaptiveTimer struct {
 	connections     adapter.ConnectionManager
 	cacheFile       adapter.CacheFile
 	recorder        *Recorder
+	pressure        *atomic.Uint32
 	limitThresholds pressureThresholds
 
-	access sync.Mutex
-	timer  *time.Timer
+	access          sync.Mutex
+	timer           *time.Timer
+	lastGoroutines  int
+	lastConnections int
+	lastGCCycles    uint64
+	releaseGCCycles uint64
+	lastRelease     time.Time
 	timerState
 }
 
-func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, connections adapter.ConnectionManager, cacheFile adapter.CacheFile, recorder *Recorder, config timerConfig) *adaptiveTimer {
+func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, connections adapter.ConnectionManager, cacheFile adapter.CacheFile, recorder *Recorder, pressure *atomic.Uint32, config timerConfig) *adaptiveTimer {
 	t := &adaptiveTimer{
 		timerConfig: config,
 		logger:      logger,
@@ -128,6 +140,7 @@ func newAdaptiveTimer(logger log.ContextLogger, network adapter.NetworkManager, 
 		connections: connections,
 		cacheFile:   cacheFile,
 		recorder:    recorder,
+		pressure:    pressure,
 	}
 	if config.policyMode == policyModeMemoryLimit || config.policyMode == policyModeNetworkExtension {
 		t.limitThresholds = computeLimitThresholds(config.memoryLimit, config.safetyMargin)
@@ -191,7 +204,8 @@ func (t *adaptiveTimer) poll() {
 			t.pressureBaselineTime = time.Time{}
 		}
 	}
-	t.timer.Reset(t.intervalForState())
+	interval := t.intervalForState()
+	t.timer.Reset(interval)
 	triggered = previousState != pressureStateTriggered && t.state == pressureStateTriggered
 	if !triggered && !t.pressureBaselineTime.IsZero() && t.memoryLimit > 0 &&
 		sample.usage > t.pressureBaseline.usage && sample.usage < t.memoryLimit {
@@ -201,7 +215,8 @@ func (t *adaptiveTimer) poll() {
 			ratePerSecond := float64(growth) / elapsed.Seconds()
 			headroom := t.memoryLimit - sample.usage
 			secondsUntilLimit := float64(headroom) / ratePerSecond
-			if secondsUntilLimit < t.minInterval.Seconds() {
+			lookahead := min(2*interval, defaultMaxRateLookahead)
+			if secondsUntilLimit < lookahead.Seconds() {
 				triggered = true
 				rateTriggered = true
 				t.state = pressureStateTriggered
@@ -210,6 +225,7 @@ func (t *adaptiveTimer) poll() {
 	}
 	state := t.state
 	t.access.Unlock()
+	t.pressure.Store(uint32(state.memoryPressure()))
 	var connections int
 	if t.connections != nil {
 		connections = t.connections.Count()
@@ -221,6 +237,7 @@ func (t *adaptiveTimer) poll() {
 		}
 	}
 	if !triggered {
+		t.releaseIdleMemory(sample, connections)
 		return
 	}
 	var reason string
@@ -230,7 +247,7 @@ func (t *adaptiveTimer) poll() {
 			t.logger.Warn("memory growth rate critical (report only), usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample))
 		} else {
 			t.logger.Error("memory growth rate critical, usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample), ", resetting network")
-			t.network.ResetNetwork(context.Background())
+			t.network.ReleaseMemory(context.Background())
 		}
 	} else {
 		reason = resetReasonThreshold
@@ -238,7 +255,7 @@ func (t *adaptiveTimer) poll() {
 			t.logger.Warn("memory threshold reached (report only), usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample))
 		} else {
 			t.logger.Error("memory threshold reached, usage: ", byteformats.FormatMemoryBytes(sample.usage), t.logDetails(sample), ", resetting network")
-			t.network.ResetNetwork(context.Background())
+			t.network.ReleaseMemory(context.Background())
 		}
 	}
 	t.releaseMemory()
@@ -246,6 +263,57 @@ func (t *adaptiveTimer) poll() {
 		after := readMemorySample(t.policyMode)
 		t.recorder.recordReset(reason, sample, after, connections, t.killerDisabled)
 		t.recorder.snapshot(SnapshotReasonReset, sample, t.belowTrigger(after), false)
+	}
+}
+
+func (t *adaptiveTimer) releaseIdleMemory(sample memorySample, connections int) {
+	goroutines := runtime.NumGoroutine()
+	gcCycles := readGCCycles()
+	now := time.Now()
+	t.access.Lock()
+	shrank := hasMeaningfulDrop(t.lastGoroutines, goroutines) || hasMeaningfulDrop(t.lastConnections, connections)
+	idleGC := gcCycles == t.lastGCCycles && gcCycles != t.releaseGCCycles
+	t.lastGoroutines = goroutines
+	t.lastConnections = connections
+	t.lastGCCycles = gcCycles
+	if t.belowResume(sample) || now.Sub(t.lastRelease) < defaultReleaseInterval || (!shrank && !idleGC) {
+		t.access.Unlock()
+		return
+	}
+	t.lastRelease = now
+	t.access.Unlock()
+	runtimeDebug.FreeOSMemory()
+	t.access.Lock()
+	t.lastGCCycles = readGCCycles()
+	t.releaseGCCycles = t.lastGCCycles
+	t.access.Unlock()
+	t.logger.Trace("released idle memory, usage: ", byteformats.FormatMemoryBytes(sample.usage), " -> ", byteformats.FormatMemoryBytes(memory.Total()))
+}
+
+func hasMeaningfulDrop(previous int, current int) bool {
+	if current >= previous {
+		return false
+	}
+	return previous-current >= max(defaultReleaseShrinkFloor, previous/defaultReleaseShrinkDivisor)
+}
+
+func readGCCycles() uint64 {
+	samples := []metrics.Sample{{Name: "/gc/cycles/total:gc-cycles"}}
+	metrics.Read(samples)
+	if samples[0].Value.Kind() != metrics.KindUint64 {
+		return 0
+	}
+	return samples[0].Value.Uint64()
+}
+
+func (t *adaptiveTimer) belowResume(sample memorySample) bool {
+	switch t.policyMode {
+	case policyModeMemoryLimit, policyModeNetworkExtension:
+		return sample.usage < t.limitThresholds.resume
+	case policyModeAvailable:
+		return !sample.availableKnown || sample.available > t.availableThresholds(sample).resume
+	default:
+		return true
 	}
 }
 
@@ -264,8 +332,23 @@ func (t *adaptiveTimer) releaseMemory() {
 	if t.cacheFile != nil {
 		t.cacheFile.Flush()
 	}
+	t.pressure.Store(uint32(tun.MemoryPressureCritical))
 	badCleanup()
 	runtimeDebug.FreeOSMemory()
+	t.access.Lock()
+	t.releaseGCCycles = readGCCycles()
+	t.access.Unlock()
+}
+
+func (s pressureState) memoryPressure() tun.MemoryPressure {
+	switch s {
+	case pressureStateArmed:
+		return tun.MemoryPressureWarning
+	case pressureStateTriggered:
+		return tun.MemoryPressureCritical
+	default:
+		return tun.MemoryPressureNone
+	}
 }
 
 func (t *adaptiveTimer) nextState(sample memorySample) pressureState {
@@ -292,10 +375,16 @@ func (t *adaptiveTimer) nextState(sample memorySample) pressureState {
 func computeLimitThresholds(memoryLimit uint64, safetyMargin uint64) pressureThresholds {
 	triggerMargin := min(safetyMargin, memoryLimit)
 	armedMargin := min(triggerMargin*2, memoryLimit)
+	resumeMargin := min(triggerMargin*4, memoryLimit)
 	return pressureThresholds{
 		trigger: memoryLimit - triggerMargin,
 		armed:   memoryLimit - armedMargin,
+		resume:  memoryLimit - resumeMargin,
 	}
+}
+
+func RuntimeMemoryLimit(memoryLimit uint64) uint64 {
+	return computeLimitThresholds(memoryLimit, defaultSafetyMargin).armed
 }
 
 func (t *adaptiveTimer) availableThresholds(sample memorySample) pressureThresholds {
@@ -310,15 +399,14 @@ func (t *adaptiveTimer) availableThresholds(sample memorySample) pressureThresho
 	return pressureThresholds{
 		trigger: triggerMargin,
 		armed:   triggerMargin * 2,
+		resume:  triggerMargin * 4,
 	}
 }
 
 func (t *adaptiveTimer) intervalForState() time.Duration {
 	switch {
-	case t.forceMinInterval || t.state == pressureStateTriggered:
+	case t.forceMinInterval || t.state != pressureStateNormal || !t.pressureBaselineTime.IsZero():
 		t.currentInterval = t.minInterval
-	case t.state == pressureStateArmed:
-		t.currentInterval = t.armedInterval
 	default:
 		if t.currentInterval == 0 {
 			t.currentInterval = t.maxInterval
