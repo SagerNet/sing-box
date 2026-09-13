@@ -16,8 +16,10 @@ import (
 	"github.com/sagernet/sing-box/adapter/inbound"
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/experimental/deprecated"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
 	"github.com/sagernet/sing/common"
@@ -79,6 +81,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	if options.InboundOptions != (option.InboundOptions{}) {
 		return nil, E.New("legacy inbound fields are deprecated in sing-box 1.11.0 and removed in sing-box 1.13.0, checkout migration: https://sing-box.sagernet.org/migration/#migrate-legacy-inbound-fields-to-rule-actions")
 	}
+	if options.Stack != "" {
+		deprecated.Report(ctx, deprecated.OptionTunStack)
+	}
 
 	address := options.Address
 	inet4Address := common.Filter(address, func(it netip.Prefix) bool {
@@ -122,7 +127,20 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	}
 	var enableGSO bool
 	if C.IsLinux && platformInterface == nil {
-		enableGSO = (options.Stack == "gvisor" && tunMTU < 49152)
+		switch options.Stack {
+		case "", "go", "gvisor":
+			enableGSO = tunMTU < 49152
+		}
+	}
+	if options.MultiQueue {
+		if !C.IsLinux || platformInterface != nil {
+			return nil, E.New("`multi_queue` is only supported on Linux")
+		}
+		switch options.Stack {
+		case "", "go":
+		default:
+			return nil, E.New("`multi_queue` is only supported by the `go` stack")
+		}
 	}
 	var udpTimeout time.Duration
 	if options.UDPTimeout != 0 {
@@ -179,7 +197,6 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		excludeMACAddress = append(excludeMACAddress, mac)
 	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
-	multiPendingPackets := C.IsDarwin && ((options.Stack == "gvisor" && tunMTU < 32768) || (options.Stack != "gvisor" && tunMTU <= 9000))
 	inbound := &Inbound{
 		tag:            tag,
 		ctx:            ctx,
@@ -191,6 +208,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			NetNs:                                 options.NetNs,
 			MTU:                                   tunMTU,
 			GSO:                                   enableGSO,
+			MultiQueue:                            options.MultiQueue,
 			Inet4Address:                          inet4Address,
 			Inet6Address:                          inet6Address,
 			DNSMode:                               options.DNSMode,
@@ -223,7 +241,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			ExcludeMACAddress:                     excludeMACAddress,
 			InterfaceMonitor:                      networkManager.InterfaceMonitor(),
 			Logger:                                logger,
-			EXP_MultiPendingPackets:               multiPendingPackets,
+			EXP_MultiPendingPackets:               C.IsDarwin,
 		},
 		udpTimeout:        udpTimeout,
 		udpMapping:        tun.NATMapping(options.UDPMapping),
@@ -453,6 +471,11 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if t.platformInterface != nil && t.platformInterface.UnderNetworkExtension() {
 			includeAllNetworks = t.platformInterface.NetworkExtensionIncludeAllNetworks()
 		}
+		var memoryPressure func() tun.MemoryPressure
+		oomKiller := service.FromContext[*oomkiller.Service](t.ctx)
+		if oomKiller != nil {
+			memoryPressure = oomKiller.MemoryPressure
+		}
 		tunStack, err := tun.NewStack(t.stack, tun.StackOptions{
 			Context:                t.ctx,
 			Tun:                    tunInterface,
@@ -467,6 +490,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 			ForwarderBindInterface: C.IsDarwin,
 			InterfaceFinder:        t.networkManager.InterfaceFinder(),
 			IncludeAllNetworks:     includeAllNetworks,
+			MemoryPressure:         memoryPressure,
 		})
 		if err != nil {
 			return err

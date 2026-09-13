@@ -20,8 +20,9 @@ Android does not handle DHCP option 121 and is not affected.
 Update [sing-box graphical client](/clients/apple/#download) to `1.9.0-rc.16` or newer,
 then enable `includeAllNetworks` in `Settings` — `Packet Tunnel` and you will be unaffected.
 
-Note: when `includeAllNetworks` is enabled, the default TUN stack is changed to `gvisor`,
-and the `system` and `mixed` stacks are not available.
+Since sing-box 1.15.0, sing-tun's own TCP/IP stack supports `includeAllNetworks`.
+Remove the `stack` option to use it. The legacy `system` and `mixed` stacks are not available
+when `includeAllNetworks` is enabled.
 
 ### Linux
 
