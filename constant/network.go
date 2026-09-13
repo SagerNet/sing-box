@@ -5,7 +5,10 @@ import (
 	F "github.com/sagernet/sing/common/format"
 )
 
-const ICMPFlowMax = 1024
+const (
+	UDPSocketBufferSize = 8 << 20
+	ICMPFlowMax         = 1024
+)
 
 type InterfaceType uint8
 
