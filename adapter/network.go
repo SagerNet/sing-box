@@ -36,6 +36,7 @@ type NetworkManager interface {
 	UpdateWIFIState(ctx context.Context)
 	ResetNetwork(ctx context.Context)
 	FlushSystemDNSCache()
+	ReleaseMemory(ctx context.Context)
 }
 
 type NetworkOptions struct {
