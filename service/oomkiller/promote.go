@@ -37,7 +37,7 @@ func PromoteDraft(basePath string, accept func(metadataContent []byte) bool) {
 			return
 		}
 	}
-	promoteDirectory(draftPath, filepath.Join(basePath, ReportsDirectoryName))
+	promoteDirectory(draftPath, filepath.Join(basePath, ReportsDirectoryName), info.ModTime().UTC())
 }
 
 func draftNotable(draftPath string) bool {
@@ -64,7 +64,7 @@ func draftNotable(draftPath string) bool {
 	return false
 }
 
-func promoteDirectory(draftPath string, reportsPath string) {
+func promoteDirectory(draftPath string, reportsPath string, timestamp time.Time) {
 	info, err := os.Stat(draftPath)
 	if err != nil || !info.IsDir() {
 		return
@@ -73,7 +73,7 @@ func promoteDirectory(draftPath string, reportsPath string) {
 	if err != nil {
 		return
 	}
-	destPath, err := nextAvailableReportPath(reportsPath, info.ModTime().UTC())
+	destPath, err := nextAvailableReportPath(reportsPath, timestamp)
 	if err != nil {
 		os.RemoveAll(draftPath)
 		return
