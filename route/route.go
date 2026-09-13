@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,8 +28,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/uot"
-
-	"golang.org/x/exp/slices"
 )
 
 var defaultPacketSniffers = []sniff.PacketSniffer{
@@ -318,7 +317,7 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 		N.ReleaseMultiPacketBuffer(packetBuffers)
 		return err
 	}
-	for _, buffer := range packetBuffers {
+	for _, buffer := range slices.Backward(packetBuffers) {
 		conn = bufio.NewCachedPacketConn(conn, buffer.Buffer, buffer.Destination)
 		N.PutPacketBuffer(buffer)
 	}
