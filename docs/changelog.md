@@ -2,9 +2,72 @@
 icon: material/alert-decagram
 ---
 
+#### 1.15.0-alpha.5
+
+* Add Tailcat support **1**
+* Fixes and improvements
+
+**1**:
+
+[Tailcat](https://github.com/tailscale/tailcat) is Tailscale's data plane without its control plane:
+point-to-point WireGuard tunnels bootstrapped through DERP, with NAT traversal.
+
+See [Tailcat Inbound](/configuration/inbound/tailcat/) and [Tailcat Outbound](/configuration/outbound/tailcat/).
+
+The DERP service can verify Tailcat clients with the new `verify_client_inbound` and `verify_client_key` options,
+see [DERP Service](/configuration/service/derp/#verify_client_inbound).
+
+#### 1.15.0-alpha.4
+
+* Fixes and improvements
+
 #### 1.14.1
 
 * Fixes and improvements
+
+#### 1.15.0-alpha.3
+
+* Significantly improve TUN performance with a new TCP/IP stack **1**
+* Fixes and improvements
+
+**1**:
+
+Since 1.15.0, sing-tun uses its own TCP/IP stack, with substantial improvements over all previous
+implementations in peak performance, energy efficiency, and memory usage.
+Remove the `stack` option to use it.
+
+The `stack` option is deprecated and will be removed in sing-box 1.17.0.
+See [Migration](/migration/#migrate-tun-stack).
+
+#### 1.15.0-alpha.1
+
+* Implement fully functional `auto_redirect` for Android **1**
+* Add `on_demand` endpoint option **2**
+* Add cache file write buffering **3**
+* Fixes and improvements
+
+**1**:
+
+`auto_redirect` is now fully supported on Android through the root service of the graphical client
+or a root shell.
+
+See [TUN](/configuration/inbound/tun/#auto_redirect).
+
+**2**:
+
+Allow the endpoint to be disconnected when necessary.
+
+See [WireGuard](/configuration/endpoint/wireguard/#on_demand),
+[Tailscale](/configuration/endpoint/tailscale/#on_demand),
+[OpenVPN Client](/configuration/endpoint/openvpn-client/#on_demand) and
+[OpenConnect](/configuration/endpoint/openconnect/#on_demand).
+
+**3**:
+
+Changes to the cache file are now collected in a write buffer and committed in one transaction
+when the buffer is full, on memory pressure, or when sing-box exits.
+
+See [Cache File](/configuration/experimental/cache-file/#buffer_size).
 
 #### 1.14.0
 
