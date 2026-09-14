@@ -136,6 +136,8 @@ func publishTestflight(ctx context.Context) error {
 		return err
 	}
 	tag := tagVersion.VersionString()
+	testFlightVersion := build_shared.TestFlightVersion(tagVersion)
+	projectVersion := os.Getenv(strings.ToUpper(os.Args[2]) + "_PROJECT_VERSION")
 
 	releaseNotes := F.ToString("sing-box ", tagVersion.String())
 	if len(os.Args) >= 4 {
@@ -153,26 +155,36 @@ func publishTestflight(ctx context.Context) error {
 		return it.ID
 	})
 
-	waitingForProcess := false
-	log.Info(string(platform), " list builds")
+	query := &asc.ListBuildsQuery{
+		FilterApp:                       []string{appID},
+		FilterPreReleaseVersionPlatform: []string{string(platform)},
+		FilterPreReleaseVersionVersion:  []string{testFlightVersion},
+		Sort:                            []string{"-uploadedDate"},
+		Limit:                           1,
+	}
+	if projectVersion != "" {
+		query.FilterVersion = []string{projectVersion}
+	}
+	log.Info(string(platform), " ", testFlightVersion, " (", projectVersion, ") list builds")
 	for {
-		builds, _, err := client.Builds.ListBuilds(ctx, &asc.ListBuildsQuery{
-			FilterApp:                       []string{appID},
-			FilterPreReleaseVersionPlatform: []string{string(platform)},
-		})
+		builds, _, err := client.Builds.ListBuilds(ctx, query)
 		if err != nil {
 			return err
 		}
+		if len(builds.Data) == 0 {
+			log.Info(string(platform), " ", testFlightVersion, " waiting for build upload")
+			time.Sleep(15 * time.Second)
+			continue
+		}
 		build := builds.Data[0]
-		log.Info(string(platform), " ", tag, " found build: ", build.ID, " (", *build.Attributes.Version, ")")
-		if !waitingForProcess && (common.Contains(buildIDs, build.ID) || time.Since(build.Attributes.UploadedDate.Time) > 30*time.Minute) {
-			log.Info(string(platform), " ", tag, " waiting for process")
+		log.Info(string(platform), " ", testFlightVersion, " found build: ", build.ID, " (", *build.Attributes.Version, ")")
+		if projectVersion == "" && common.Contains(buildIDs, build.ID) {
+			log.Info(string(platform), " ", testFlightVersion, " build ", *build.Attributes.Version, " already published, waiting for new upload")
 			time.Sleep(15 * time.Second)
 			continue
 		}
 		if *build.Attributes.ProcessingState != "VALID" {
-			waitingForProcess = true
-			log.Info(string(platform), " ", tag, " waiting for process: ", *build.Attributes.ProcessingState)
+			log.Info(string(platform), " ", testFlightVersion, " waiting for process: ", *build.Attributes.ProcessingState)
 			time.Sleep(15 * time.Second)
 			continue
 		}
