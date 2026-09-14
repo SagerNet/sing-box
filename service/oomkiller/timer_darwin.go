@@ -8,7 +8,10 @@ func (t *adaptiveTimer) notifyPressure() {
 	badCleanup()
 	runtimeDebug.FreeOSMemory()
 	t.access.Lock()
-	t.startLocked()
+	if t.timer == nil {
+		t.access.Unlock()
+		return
+	}
 	t.forceMinInterval = true
 	t.pendingPressureBaseline = true
 	t.access.Unlock()
