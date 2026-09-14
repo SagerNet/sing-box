@@ -1375,10 +1375,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ matrix.type == 'standalone' && 'clients/apple/build/SFM.System-*.dd' || matrix.type == 'jailbreak' && 'clients/apple/build/jailbreak/DerivedData' || format('{0}/DerivedData', runner.temp) }}
-          key: apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
+          key: apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-${{ github.ref_name }}-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-${{ github.sha }}
           restore-keys: |
-            apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
-            apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-
+            apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-${{ github.ref_name }}-${{ hashFiles('clients/apple/sing-box.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}-
+            apple-derived-data-${{ matrix.type }}-${{ matrix.platform }}-${{ matrix.variant || 'default' }}-${{ github.ref_name }}-
       - name: Setup App Store Connect key
         if: matrix.if && matrix.type != 'jailbreak' && github.event_name == 'workflow_dispatch'
         run: |-
