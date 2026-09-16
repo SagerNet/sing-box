@@ -1,4 +1,4 @@
-//go:build with_gvisor && unix && !android && !ios
+//go:build with_tailscale && unix && !android && !ios
 
 package tailssh
 

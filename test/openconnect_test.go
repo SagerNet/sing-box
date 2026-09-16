@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/json/badjson"
 	"github.com/sagernet/sing/common/json/badoption"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -176,6 +178,8 @@ func TestOpenConnectDockerInterop(t *testing.T) {
 }
 
 func openConnectInstanceOptions(server string, certificateAuthorityPath string, username string, password string) option.Options {
+	hosts := new(badjson.TypedMap[string, badoption.Listable[netip.Addr]])
+	hosts.Put("localhost", []netip.Addr{netip.MustParseAddr("127.0.0.1")})
 	endpointOptions := option.OpenConnectEndpointOptions{
 		Server:       server,
 		Flavor:       "anyconnect",
@@ -191,6 +195,9 @@ func openConnectInstanceOptions(server string, certificateAuthorityPath string, 
 		},
 	}
 	return option.Options{
+		DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{
+			Servers: []option.DNSServerOptions{{Type: C.DNSTypeHosts, Options: &option.HostsDNSServerOptions{Predefined: hosts}}},
+		}},
 		Endpoints: []option.Endpoint{
 			{
 				Type:    C.TypeOpenConnect,
