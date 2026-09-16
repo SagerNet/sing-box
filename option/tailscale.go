@@ -86,6 +86,8 @@ type DERPServiceOptions struct {
 	ConfigPath           string                                          `json:"config_path,omitempty"`
 	VerifyClientEndpoint badoption.Listable[string]                      `json:"verify_client_endpoint,omitempty"`
 	VerifyClientURL      badoption.Listable[*DERPVerifyClientURLOptions] `json:"verify_client_url,omitempty"`
+	VerifyClientInbound  badoption.Listable[string]                      `json:"verify_client_inbound,omitempty"`
+	VerifyClientKey      badoption.Listable[string]                      `json:"verify_client_key,omitempty"`
 	Home                 string                                          `json:"home,omitempty"`
 	MeshWith             badoption.Listable[*DERPMeshOptions]            `json:"mesh_with,omitempty"`
 	MeshPSK              string                                          `json:"mesh_psk,omitempty"`
