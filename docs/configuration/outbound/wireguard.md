@@ -76,8 +76,6 @@ Use system interface.
 
 Requires privilege and cannot conflict with exists system interfaces.
 
-Forced if gVisor not included in the build.
-
 #### interface_name
 
 Custom interface name for system interface.
