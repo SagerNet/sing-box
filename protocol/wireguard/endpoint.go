@@ -213,7 +213,7 @@ func (w *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination n
 			return tun.FlowVerdict{Action: tun.ActionAccept}
 		}
 	}
-	return adapter.JudgeFlow(w.router, w.Tag(), w.Type(), network, source, destination, firstPacket)
+	return adapter.JudgeFlow(w.router, adapter.InboundContext{Inbound: w.Tag(), InboundType: w.Type()}, network, source, destination, firstPacket)
 }
 
 func (w *Endpoint) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
