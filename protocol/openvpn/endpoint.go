@@ -107,7 +107,7 @@ func judgeOpenVPNFlow(router adapter.Router, tag string, endpointType string, lo
 			return tun.FlowVerdict{Action: tun.ActionAccept}
 		}
 	}
-	return adapter.JudgeFlow(router, tag, endpointType, network, source, destination, firstPacket)
+	return adapter.JudgeFlow(router, adapter.InboundContext{Inbound: tag, InboundType: endpointType}, network, source, destination, firstPacket)
 }
 
 func keyDirectionValue(direction string) (int, error) {
