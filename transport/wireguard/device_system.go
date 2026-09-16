@@ -36,22 +36,7 @@ func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
 	if options.Name == "" {
 		options.Name = tun.CalculateInterfaceName("wg")
 	}
-	var inet4Address netip.Addr
-	var inet6Address netip.Addr
-	if len(options.Address) > 0 {
-		if prefix := common.Find(options.Address, func(it netip.Prefix) bool {
-			return it.Addr().Is4()
-		}); prefix.IsValid() {
-			inet4Address = prefix.Addr()
-		}
-	}
-	if len(options.Address) > 0 {
-		if prefix := common.Find(options.Address, func(it netip.Prefix) bool {
-			return it.Addr().Is6()
-		}); prefix.IsValid() {
-			inet6Address = prefix.Addr()
-		}
-	}
+	inet4Address, inet6Address := deviceAddresses(options.Address)
 	return &systemDevice{
 		options:      options,
 		dialer:       options.CreateDialer(options.Name),
