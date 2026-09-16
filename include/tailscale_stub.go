@@ -8,6 +8,8 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/certificate"
 	"github.com/sagernet/sing-box/adapter/endpoint"
+	"github.com/sagernet/sing-box/adapter/inbound"
+	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/adapter/service"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
@@ -19,6 +21,18 @@ import (
 func registerTailscaleEndpoint(registry *endpoint.Registry) {
 	endpoint.Register[option.TailscaleEndpointOptions](registry, C.TypeTailscale, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TailscaleEndpointOptions) (adapter.Endpoint, error) {
 		return nil, E.New(`Tailscale is not included in this build, rebuild with -tags with_tailscale`)
+	})
+}
+
+func registerTailcatInbound(registry *inbound.Registry) {
+	inbound.Register[option.TailcatInboundOptions](registry, C.TypeTailcat, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TailcatInboundOptions) (adapter.Inbound, error) {
+		return nil, E.New(`Tailcat is not included in this build, rebuild with -tags with_tailscale`)
+	})
+}
+
+func registerTailcatOutbound(registry *outbound.Registry) {
+	outbound.Register[option.TailcatOutboundOptions](registry, C.TypeTailcat, func(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TailcatOutboundOptions) (adapter.Outbound, error) {
+		return nil, E.New(`Tailcat is not included in this build, rebuild with -tags with_tailscale`)
 	})
 }
 
