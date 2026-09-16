@@ -179,6 +179,7 @@ nav:
           - Redirect: configuration/inbound/redirect.md
           - TProxy: configuration/inbound/tproxy.md
           - Cloudflared: configuration/inbound/cloudflared.md
+          - Tailcat: configuration/inbound/tailcat.md
       - Outbound:
           - configuration/outbound/index.md
           - Direct: configuration/outbound/direct.md
@@ -198,6 +199,7 @@ nav:
           - Hysteria2: configuration/outbound/hysteria2.md
           - AnyTLS: configuration/outbound/anytls.md
           - Snell: configuration/outbound/snell.md
+          - Tailcat: configuration/outbound/tailcat.md
           - Tor: configuration/outbound/tor.md
           - SSH: configuration/outbound/ssh.md
           - DNS: configuration/outbound/dns.md
