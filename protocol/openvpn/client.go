@@ -17,6 +17,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/service/oomkiller"
 	ovpntransport "github.com/sagernet/sing-box/transport/openvpn"
 	ovpn "github.com/sagernet/sing-openvpn"
 	"github.com/sagernet/sing-tun"
@@ -50,6 +51,7 @@ type ClientEndpoint struct {
 	outboundDialer    N.Dialer
 	queryOptions      adapter.DNSQueryOptions
 	client            *ovpn.Client
+	deviceOptions     *ovpntransport.DeviceOptions
 	device            ovpntransport.Device
 	onDemand          bool
 	stateAccess       sync.Mutex
@@ -94,9 +96,6 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		if success {
 			return
 		}
-		if clientEndpoint.device != nil {
-			_ = clientEndpoint.device.Close()
-		}
 		cancelLoop()
 	}()
 	clientOptions, err := clientEndpoint.buildClientOptions(options)
@@ -125,7 +124,7 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 	if options.UDPTimeout != 0 {
 		udpTimeout = time.Duration(options.UDPTimeout)
 	}
-	device, err := ovpntransport.NewDevice(ovpntransport.DeviceOptions{
+	clientEndpoint.deviceOptions = &ovpntransport.DeviceOptions{
 		Context:         ctx,
 		Logger:          logger,
 		System:          options.System,
@@ -142,12 +141,7 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 			MTU:     options.MTU,
 			Address: clientOptions.Tunnel.LocalAddress,
 		},
-	})
-	if err != nil {
-		return nil, err
 	}
-	clientEndpoint.device = device
-	device.SetPacketWriter(clientEndpoint.writePacketBuffers)
 	client, err := ovpn.NewClient(clientOptions)
 	if err != nil {
 		return nil, err
@@ -600,6 +594,17 @@ func (c *ClientEndpoint) uninstallDNSTransport(dnsTransport *DNSTransport) {
 }
 
 func (c *ClientEndpoint) Start(stage adapter.StartStage) error {
+	if stage == adapter.StartStateInitialize {
+		c.deviceOptions.MemoryPressure = oomkiller.MemoryPressure(c.ctx)
+		device, err := ovpntransport.NewDevice(*c.deviceOptions)
+		if err != nil {
+			return err
+		}
+		device.SetPacketWriter(c.writePacketBuffers)
+		c.device = device
+		c.deviceOptions = nil
+		return nil
+	}
 	if stage != adapter.StartStatePostStart {
 		return nil
 	}
@@ -651,7 +656,7 @@ func (c *ClientEndpoint) Close() error {
 	challengeLoopDone := c.challengeLoopDone
 	c.stateAccess.Unlock()
 	c.cancelLoop()
-	err := E.Errors(c.client.Close(), c.device.Close())
+	err := common.Close(c.client, c.device)
 	if readLoopDone != nil {
 		<-readLoopDone
 	}
