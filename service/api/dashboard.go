@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
@@ -78,12 +79,18 @@ func (d *dashboard) start() error {
 	if err != nil && !os.IsNotExist(err) {
 		return E.Cause(err, "read dashboard directory")
 	}
-	transport, err := d.resolveTransport()
+	status := d.loadState()
+	if status == dashboardUserProvided {
+		d.logger.Info("dashboard: serving user-provided files at ", d.path, ", auto-update disabled")
+		return nil
+	}
+	httpClientManager := service.FromContext[adapter.HTTPClientManager](d.ctx)
+	transport, err := httpClientManager.ResolveTransport(d.ctx, d.logger, common.PtrValueOrDefault(d.options.HTTPClient))
 	if err != nil {
 		return E.Cause(err, "create dashboard http client")
 	}
 	d.httpClient = &http.Client{Transport: transport}
-	go d.loopUpdate()
+	go d.loopUpdate(status)
 	return nil
 }
 
@@ -95,21 +102,6 @@ func (d *dashboard) close() error {
 	return nil
 }
 
-func (d *dashboard) resolveTransport() (adapter.HTTPTransport, error) {
-	httpClientManager := service.FromContext[adapter.HTTPClientManager](d.ctx)
-	if httpClientManager == nil {
-		return nil, E.New("missing http client manager in context")
-	}
-	if d.options.HTTPClient != nil && !d.options.HTTPClient.IsEmpty() {
-		return httpClientManager.ResolveTransport(d.ctx, d.logger, *d.options.HTTPClient)
-	}
-	defaultTransport := httpClientManager.DefaultTransport()
-	if defaultTransport == nil {
-		return nil, E.New("default http client transport is not initialized")
-	}
-	return defaultTransport, nil
-}
-
 func (d *dashboard) serveHTTP(writer http.ResponseWriter, request *http.Request) {
 	if strings.HasPrefix(request.URL.Path, dashboardRoutePrefix) {
 		d.fileServer.ServeHTTP(writer, request)
@@ -118,12 +110,7 @@ func (d *dashboard) serveHTTP(writer http.ResponseWriter, request *http.Request)
 	http.Redirect(writer, request, dashboardRoutePrefix, http.StatusFound)
 }
 
-func (d *dashboard) loopUpdate() {
-	status := d.loadState()
-	if status == dashboardUserProvided {
-		d.logger.Info("dashboard: serving user-provided files at ", d.path, ", auto-update disabled")
-		return
-	}
+func (d *dashboard) loopUpdate(status dashboardStatus) {
 	var nextUpdate time.Time
 	if status == dashboardManaged {
 		nextUpdate = d.lastUpdated.Add(d.updateInterval)
