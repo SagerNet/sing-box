@@ -87,17 +87,11 @@ API 密钥。
 
 ##### http_client
 
-用于下载仪表板的 HTTP 客户端，行为与远程规则集相同。
+用于下载仪表板的 HTTP 客户端。
 
 参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/)。
 
-留空时使用默认 HTTP 客户端：即由 [`default_http_client`](/zh/configuration/route/#default_http_client)
-指定的客户端，或当 `default_http_client` 为空时使用顶级 `http_clients` 的第一项。
-
-!!! failure "隐式默认已在 sing-box 1.14.0 废弃"
-
-    当 `http_clients` 与 `default_http_client` 均未配置时，将使用通过默认出站连接的隐式 HTTP 客户端。
-    该隐式默认已在 sing-box 1.14.0 废弃，并将在 sing-box 1.16.0 移除；请改为定义 `http_clients`。
+当仪表板目录包含用户提供的文件时不使用。
 
 ##### update_interval
 
