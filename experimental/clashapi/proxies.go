@@ -232,10 +232,7 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 			if err != nil {
 				server.urlTestHistory.DeleteURLTestHistory(realTag)
 			} else {
-				server.urlTestHistory.StoreURLTestHistory(realTag, &adapter.URLTestHistory{
-					Time:  time.Now(),
-					Delay: delay,
-				})
+				server.urlTestHistory.StoreURLTestDelay(realTag, delay)
 			}
 			for _, detour := range server.outbound.Outbounds() {
 				urlTestGroup, isURLTestGroup := detour.(adapter.URLTestGroup)
