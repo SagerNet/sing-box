@@ -49,6 +49,14 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	return s, nil
 }
 
+func MemoryPressure(ctx context.Context) func() tun.MemoryPressure {
+	oomKiller := service.FromContext[*Service](ctx)
+	if oomKiller == nil {
+		return nil
+	}
+	return oomKiller.MemoryPressure
+}
+
 func (s *Service) MemoryPressure() tun.MemoryPressure {
 	return tun.MemoryPressure(s.pressure.Load())
 }

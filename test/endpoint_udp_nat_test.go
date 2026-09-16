@@ -149,9 +149,6 @@ func TestOpenConnectEndpointUDPNATDataPlane(t *testing.T) {
 
 func testEndpointUDPNATDataPlane(t *testing.T, newDevice func(context.Context, tun.Handler) (endpointUDPNATDevice, error)) {
 	t.Helper()
-	if !tun.WithGVisor {
-		t.Skip("requires gVisor")
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	handler := &endpointUDPNATHandler{packets: make(chan endpointUDPNATPacket, 4)}
@@ -182,8 +179,8 @@ func testEndpointUDPNATDataPlane(t *testing.T, newDevice func(context.Context, t
 	require.Equal(t, M.SocksaddrFromNetIP(firstDestination), firstPacket.destination)
 	require.Equal(t, []byte("request-one"), firstPacket.payload)
 
-	require.NoError(t, firstPacket.session.conn.WritePacket(buf.As([]byte("blocked")), M.SocksaddrFromNetIP(secondDestination)))
-	require.NoError(t, firstPacket.session.conn.WritePacket(buf.As([]byte("allowed-one")), M.SocksaddrFromNetIP(firstDestination)))
+	require.NoError(t, firstPacket.session.conn.WritePacket(endpointUDPPacketBuffer(firstPacket.session.conn, "blocked"), M.SocksaddrFromNetIP(secondDestination)))
+	require.NoError(t, firstPacket.session.conn.WritePacket(endpointUDPPacketBuffer(firstPacket.session.conn, "allowed-one"), M.SocksaddrFromNetIP(firstDestination)))
 	require.Equal(t, []byte("allowed-one"), waitEndpointUDPResponse(t, outboundPackets))
 
 	writeEndpointUDPPacket(t, device, source, secondDestination, []byte("request-two"))
@@ -197,7 +194,7 @@ func testEndpointUDPNATDataPlane(t *testing.T, newDevice func(context.Context, t
 		t.Fatal("first UDP NAT session was not evicted at max size")
 	}
 
-	require.NoError(t, secondPacket.session.conn.WritePacket(buf.As([]byte("allowed-two")), M.SocksaddrFromNetIP(secondDestination)))
+	require.NoError(t, secondPacket.session.conn.WritePacket(endpointUDPPacketBuffer(secondPacket.session.conn, "allowed-two"), M.SocksaddrFromNetIP(secondDestination)))
 	require.Equal(t, []byte("allowed-two"), waitEndpointUDPResponse(t, outboundPackets))
 }
 
@@ -223,6 +220,14 @@ func writeEndpointUDPPacket(t *testing.T, device endpointUDPNATDevice, source ne
 	packetBuffer := buf.As(packet)
 	require.NoError(t, device.writeInboundBuffers([]*buf.Buffer{packetBuffer}))
 	packetBuffer.Release()
+}
+
+func endpointUDPPacketBuffer(conn N.PacketConn, payload string) *buf.Buffer {
+	headroom := N.CalculateFrontHeadroom(conn)
+	buffer := buf.NewSize(headroom + len(payload))
+	buffer.Resize(headroom, 0)
+	buffer.WriteString(payload)
+	return buffer
 }
 
 func endpointUDPPayload(packet []byte) ([]byte, bool) {
