@@ -20,6 +20,8 @@ DERP 服务是一个 Tailscale DERP 服务器，类似于 [derper](https://pkg.g
   "config_path": "",
   "verify_client_endpoint": [],
   "verify_client_url": [],
+  "verify_client_inbound": [],
+  "verify_client_key": [],
   "home": "",
   "mesh_with": [],
   "mesh_psk": "",
@@ -69,6 +71,18 @@ Derper 配置文件路径。
 ```json
 { "url": __URL__ }
 ```
+
+#### verify_client_inbound
+
+!!! question "自 sing-box 1.15.0 起"
+
+用于验证客户端的 Tailcat 入站标签。
+
+#### verify_client_key
+
+!!! question "自 sing-box 1.15.0 起"
+
+用于验证客户端的 Tailcat 公钥。
 
 #### home
 

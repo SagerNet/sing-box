@@ -30,6 +30,7 @@ const (
 	TypeOpenVPNClient      = "openvpn-client"
 	TypeOpenVPNServer      = "openvpn-server"
 	TypeTailscale          = "tailscale"
+	TypeTailcat            = "tailcat"
 	TypeCloudflared        = "cloudflared"
 	TypeDERP               = "derp"
 	TypeResolved           = "resolved"
@@ -110,6 +111,8 @@ func ProxyDisplayName(proxyType string) string {
 		return "OpenVPN Server"
 	case TypeTailscale:
 		return "Tailscale"
+	case TypeTailcat:
+		return "Tailcat"
 	case TypeCloudflared:
 		return "Cloudflared"
 	case TypeSelector:
