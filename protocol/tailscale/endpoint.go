@@ -15,7 +15,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -32,7 +31,6 @@ import (
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
-	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	"github.com/sagernet/sing/common/logger"
@@ -46,13 +44,10 @@ import (
 	"github.com/sagernet/tailscale/ipn"
 	"github.com/sagernet/tailscale/ipn/ipnlocal"
 	tsDNS "github.com/sagernet/tailscale/net/dns"
-	"github.com/sagernet/tailscale/net/netmon"
-	"github.com/sagernet/tailscale/net/netns"
 	"github.com/sagernet/tailscale/net/tsaddr"
 	tsTUN "github.com/sagernet/tailscale/net/tstun"
 	"github.com/sagernet/tailscale/tailcfg"
 	"github.com/sagernet/tailscale/tsnet"
-	"github.com/sagernet/tailscale/types/nettype"
 	"github.com/sagernet/tailscale/version"
 	"github.com/sagernet/tailscale/wgengine"
 	"github.com/sagernet/tailscale/wgengine/router"
@@ -278,31 +273,12 @@ func (t *Endpoint) Start(stage adapter.StartStage) error {
 }
 
 func (t *Endpoint) start() error {
-	if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
-		err := t.network.UpdateInterfaces()
-		if err != nil {
-			return err
-		}
-		netmon.RegisterInterfaceGetter(func() ([]netmon.Interface, error) {
-			return common.Map(t.network.InterfaceFinder().Interfaces(), func(it control.Interface) netmon.Interface {
-				return netmon.Interface{
-					Interface: &net.Interface{
-						Index:        it.Index,
-						MTU:          it.MTU,
-						Name:         it.Name,
-						HardwareAddr: it.HardwareAddr,
-						Flags:        it.Flags,
-					},
-					AltAddrs: common.Map(it.Addresses, func(it netip.Prefix) net.Addr {
-						return &net.IPNet{
-							IP:   it.Addr().AsSlice(),
-							Mask: net.CIDRMask(it.Bits(), it.Addr().BitLen()),
-						}
-					}),
-				}
-			}), nil
-		})
+	binding, err := newSystemBinding(t.ctx, t.logger)
+	if err != nil {
+		return err
 	}
+	t.server.ControlFunc = binding.control
+	t.server.ListenPacketFunc = binding.listenPacket
 	if t.systemInterface {
 		mtu := t.systemInterfaceMTU
 		if mtu == 0 {
@@ -350,56 +326,7 @@ func (t *Endpoint) start() error {
 		t.systemDialer = systemDialer
 		t.server.Tun = wgTunDevice
 	}
-	if t.network.AutoRedirectOutputMark() != 0 {
-		netns.SetControlFunc(t.network.AutoRedirectOutputMarkFunc())
-	} else if t.platformInterface != nil && t.platformInterface.UsePlatformNetworkInterfaces() {
-		if t.platformInterface.UsePlatformAutoDetectInterfaceControl() {
-			netns.SetControlFunc(func(network, address string, conn syscall.RawConn) error {
-				return control.Raw(conn, func(fileDescriptor uintptr) error {
-					return t.platformInterface.AutoDetectInterfaceControl(int(fileDescriptor))
-				})
-			})
-		} else {
-			// NEPacketTunnelProvider sockets are excluded from tunnel routes by
-			// NECP; the empty override only suppresses tailscale's own
-			// default-interface bind, which would select the sing-box utun.
-			netns.SetControlFunc(func(string, string, syscall.RawConn) error {
-				return nil
-			})
-		}
-	} else {
-		bindFunc := t.network.AutoDetectInterfaceFunc()
-		if bindFunc != nil {
-			netns.SetControlFunc(bindFunc)
-			netns.SetListenPacketFunc(t.listenPacket)
-		}
-	}
 	return nil
-}
-
-func (t *Endpoint) listenPacket(ctx context.Context, network string, address string) (nettype.PacketConn, error) {
-	listenConfig := net.ListenConfig{
-		Control: control.Append(t.network.AutoDetectInterfaceFunc(), control.DisableUDPNetReset()),
-	}
-	packetConn, err := listenConfig.ListenPacket(ctx, network, address)
-	if err != nil {
-		return nil, err
-	}
-	udpConn := packetConn.(*net.UDPConn)
-	egressPool := tun.NewUDPEgressPool(tun.UDPEgressPoolOptions{
-		Logger:           t.logger,
-		Network:          network,
-		InterfaceFinder:  t.network.InterfaceFinder(),
-		InterfaceMonitor: t.network.InterfaceMonitor(),
-		IsExempt: func() bool {
-			return t.network.AutoRedirectOutputMark() != 0
-		},
-	})
-	if !egressPool.SetEgressPort(udpConn.LocalAddr().(*net.UDPAddr).AddrPort().Port()) {
-		egressPool.Close()
-		return udpConn, nil
-	}
-	return tun.NewUDPEgressConn(udpConn, egressPool), nil
 }
 
 func (t *Endpoint) postStart() error {
@@ -670,9 +597,6 @@ func (t *Endpoint) Close() error {
 		err = common.Close(common.PtrOrNil(t.server))
 		t.serverStarted = false
 	}
-	netmon.RegisterInterfaceGetter(nil)
-	netns.SetControlFunc(nil)
-	netns.SetListenPacketFunc(nil)
 	if t.systemTun != nil {
 		t.systemTun.Close()
 		t.systemTun = nil
