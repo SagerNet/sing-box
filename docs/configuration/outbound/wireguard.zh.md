@@ -64,8 +64,6 @@ icon: material/delete-clock
 
 需要特权且不能与已有系统接口冲突。
 
-如果 gVisor 未包含在构建中，则强制执行。
-
 #### interface_name
 
 为系统接口自定义设备名称。
