@@ -346,10 +346,10 @@ github.com/sagernet/sing-vmess v0.2.8 h1:xd5nnDOMlC76RgrLksS4jlk3eMt3c3CvQY3NsjW
 github.com/sagernet/sing-vmess v0.2.8/go.mod h1:P11scgTxMxVVQ8dlM27yNm3Cro40mD0+gHbnqrNGDuY=
 github.com/sagernet/smux v1.5.50-sing-box-mod.1 h1:XkJcivBC9V4wBjiGXIXZ229aZCU1hzcbp6kSkkyQ478=
 github.com/sagernet/smux v1.5.50-sing-box-mod.1/go.mod h1:NjhsCEWedJm7eFLyhuBgIEzwfhRmytrUoiLluxs5Sk8=
-github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916041743-66c96c36515b h1:+U1yggpa1xpUnpdVKjB2WSC4MTamtcWlDZAVhTXux74=
-github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916041743-66c96c36515b/go.mod h1:PV+Zt5IUWh9Hyp2nVwWfxEfU0yzImduBpKGxLI1pfNs=
-github.com/sagernet/wireguard-go v0.0.6 h1:zAjWSzufYThDsyLHxPLyyR+XdpBMlFDWD7WxJAvynSw=
-github.com/sagernet/wireguard-go v0.0.6/go.mod h1:er10sELpmzLXq7S7Pbc1Zsbyapcr+/gxNAHKTo6fzVA=
+github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916060041-a8fbeb4b0838 h1:YlcCeRWjFIp6dqxvfdH0i6ku17Lv3YzVuHY5qOA7Nv8=
+github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916060041-a8fbeb4b0838/go.mod h1:xGiEZax5sZ6gHJcwQxp0GmJVtDHGUXPXTgr6Ksm+yIc=
+github.com/sagernet/wireguard-go v0.0.7-0.20260916054909-2da8d81dcd5e h1:/PjWOCp01EG9cIdU18tn1nDT7+y/5KiIdIBcIfBThl8=
+github.com/sagernet/wireguard-go v0.0.7-0.20260916054909-2da8d81dcd5e/go.mod h1:er10sELpmzLXq7S7Pbc1Zsbyapcr+/gxNAHKTo6fzVA=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 h1:6uUiZcDRnZSAegryaUGwPC/Fj13JSHwiTftrXhMmYOc=
 github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854/go.mod h1:LtfoSK3+NG57tvnVEHgcuBW9ujgE8enPSgzgwStwCAA=
 github.com/smallstep/pkcs7 v0.1.1 h1:x+rPdt2W088V9Vkjho4KtoggyktZJlMduZAtRHm68LU=

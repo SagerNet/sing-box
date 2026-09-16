@@ -102,7 +102,7 @@ func judgeOpenConnectFlow(router adapter.Router, tag string, endpointType string
 			return tun.FlowVerdict{Action: tun.ActionAccept}
 		}
 	}
-	return adapter.JudgeFlow(router, tag, endpointType, network, source, destination, firstPacket)
+	return adapter.JudgeFlow(router, adapter.InboundContext{Inbound: tag, InboundType: endpointType}, network, source, destination, firstPacket)
 }
 
 func materialSource(name string, inlineValues []string, path string) (openconnect.Material, error) {
