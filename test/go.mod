@@ -18,9 +18,11 @@ require (
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-tun v0.9.4-0.20260916041232-89d2e01a748a
+	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916060041-a8fbeb4b0838
 	github.com/spyzhov/ajson v0.9.4
 	github.com/stretchr/testify v1.12.0
 	go.uber.org/goleak v1.3.0
+	go4.org/mem v0.0.0-20240501181205-ae6ca9944745
 	golang.org/x/net v0.57.0
 )
 
@@ -115,7 +117,7 @@ require (
 	github.com/pkg/sftp v1.13.10 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
 	github.com/safchain/ethtool v0.3.0 // indirect
-	github.com/sagernet/bbolt v0.0.0-20260823094646-e24805439c9c // indirect
+	github.com/sagernet/bbolt v0.0.0-20260915102804-500ee1e84832 // indirect
 	github.com/sagernet/cors v1.2.1 // indirect
 	github.com/sagernet/cronet-go v0.0.0-20260912104727-0d28acc44093 // indirect
 	github.com/sagernet/cronet-go/all v0.0.0-20260912104727-0d28acc44093 // indirect
@@ -162,8 +164,7 @@ require (
 	github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca // indirect
 	github.com/sagernet/sing-vmess v0.2.8 // indirect
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1 // indirect
-	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916041743-66c96c36515b // indirect
-	github.com/sagernet/wireguard-go v0.0.6 // indirect
+	github.com/sagernet/wireguard-go v0.0.8-0.20260917055437-bc6039037038 // indirect
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854 // indirect
 	github.com/smallstep/pkcs7 v0.1.1 // indirect
 	github.com/tailscale/certstore v0.1.1-0.20260409135935-3638fb84b77d // indirect
@@ -191,7 +192,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
-	go4.org/mem v0.0.0-20240501181205-ae6ca9944745 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
@@ -215,5 +215,3 @@ require (
 )
 
 replace github.com/sagernet/sing-tun => ../../sing-tun
-
-replace github.com/sagernet/tailscale => ../../tailscale
