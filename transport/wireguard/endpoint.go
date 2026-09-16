@@ -106,6 +106,16 @@ func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 	if options.MTU == 0 {
 		options.MTU = 1408
 	}
+	return &Endpoint{
+		options:        options,
+		peers:          peers,
+		ipcConf:        ipcConf,
+		allowedAddress: allowedAddresses,
+	}, nil
+}
+
+func (e *Endpoint) Initialize(memoryPressure func() tun.MemoryPressure) error {
+	options := e.options
 	deviceOptions := DeviceOptions{
 		Context:         options.Context,
 		Logger:          options.Logger,
@@ -117,24 +127,20 @@ func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 		UDPFiltering:    options.UDPFiltering,
 		UDPNATMax:       options.UDPNATMax,
 		InterfaceFinder: options.InterfaceFinder,
+		MemoryPressure:  memoryPressure,
 		CreateDialer:    options.CreateDialer,
 		Name:            options.Name,
 		MTU:             options.MTU,
 		Address:         options.Address,
-		AllowedAddress:  allowedAddresses,
+		AllowedAddress:  e.allowedAddress,
 	}
 	tunDevice, err := NewDevice(deviceOptions)
 	if err != nil {
-		return nil, E.Cause(err, "create WireGuard device")
+		return E.Cause(err, "create WireGuard device")
 	}
-	return &Endpoint{
-		options:        options,
-		peers:          peers,
-		ipcConf:        ipcConf,
-		allowedAddress: allowedAddresses,
-		tunDevice:      tunDevice,
-		returnDevice:   &returnDeviceWrapper{Device: tunDevice},
-	}, nil
+	e.tunDevice = tunDevice
+	e.returnDevice = &returnDeviceWrapper{Device: tunDevice}
+	return nil
 }
 
 func (e *Endpoint) Start(postStart bool) error {
@@ -336,7 +342,7 @@ func (e *Endpoint) Close() error {
 	if wgDevice != nil {
 		return nil
 	}
-	return e.tunDevice.Close()
+	return common.Close(e.tunDevice)
 }
 
 func (e *Endpoint) Lookup(address netip.Addr) *device.Peer {
