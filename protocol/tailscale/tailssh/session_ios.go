@@ -1,4 +1,4 @@
-//go:build with_gvisor && ios
+//go:build with_tailscale && ios
 
 package tailssh
 
