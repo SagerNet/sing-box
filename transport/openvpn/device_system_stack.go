@@ -1,5 +1,3 @@
-//go:build with_gvisor
-
 package openvpn
 
 import (
@@ -22,11 +20,7 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 	if err != nil {
 		return nil, err
 	}
-	stackOptions := options
-	stackOptions.System = false
-	stackOptions.Name = system.options.Name
-	stackOptions.ExcludeInterface = []string{system.options.Name}
-	stackDevice, err := newStackDevice(stackOptions)
+	stackDevice, err := newStackDevice(options)
 	if err != nil {
 		system.Close()
 		return nil, err
