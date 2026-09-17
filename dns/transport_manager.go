@@ -56,7 +56,7 @@ func (m *TransportManager) Start(stage adapter.StartStage) error {
 	}
 	m.started = true
 	m.stage = stage
-	if stage == adapter.StartStateStart {
+	if stage == adapter.StartStateInitialize {
 		if m.defaultTag != "" && m.defaultTransport == nil {
 			m.access.Unlock()
 			return E.New("default DNS server not found: ", m.defaultTag)
@@ -71,17 +71,16 @@ func (m *TransportManager) Start(stage adapter.StartStage) error {
 			m.transportByTag[defaultTransport.Tag()] = defaultTransport
 			m.defaultTransport = defaultTransport
 		}
-		transports := m.transports
-		m.access.Unlock()
+	}
+	transports := m.transports
+	m.access.Unlock()
+	if stage == adapter.StartStateStart {
 		return m.startTransports(transports)
-	} else {
-		transports := m.transports
-		m.access.Unlock()
-		for _, outbound := range transports {
-			err := adapter.LegacyStart(outbound, stage)
-			if err != nil {
-				return E.Cause(err, stage, " dns/", outbound.Type(), "[", outbound.Tag(), "]")
-			}
+	}
+	for _, transport := range transports {
+		err := adapter.LegacyStart(transport, stage)
+		if err != nil {
+			return E.Cause(err, stage, " dns/", transport.Type(), "[", transport.Tag(), "]")
 		}
 	}
 	return nil
