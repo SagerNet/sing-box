@@ -55,7 +55,7 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	}
 	m.started = true
 	m.stage = stage
-	if stage == adapter.StartStateStart {
+	if stage == adapter.StartStateInitialize {
 		if m.defaultTag != "" && m.defaultOutbound == nil {
 			defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
 			if !loaded {
@@ -74,20 +74,19 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 			m.outboundByTag[directOutbound.Tag()] = directOutbound
 			m.defaultOutbound = directOutbound
 		}
-		outbounds := m.outbounds
-		m.access.Unlock()
+	}
+	outbounds := m.outbounds
+	m.access.Unlock()
+	if stage == adapter.StartStateStart {
 		return m.startOutbounds(append(outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })...))
-	} else {
-		outbounds := m.outbounds
-		m.access.Unlock()
-		for _, outbound := range outbounds {
-			name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
-			done := adapter.LogElapsed(m.logger, stage, " ", name)
-			err := adapter.LegacyStart(outbound, stage)
-			done()
-			if err != nil {
-				return E.Cause(err, stage, " ", name)
-			}
+	}
+	for _, outbound := range outbounds {
+		name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
+		done := adapter.LogElapsed(m.logger, stage, " ", name)
+		err := adapter.LegacyStart(outbound, stage)
+		done()
+		if err != nil {
+			return E.Cause(err, stage, " ", name)
 		}
 	}
 	return nil
