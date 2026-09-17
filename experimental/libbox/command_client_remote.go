@@ -103,5 +103,10 @@ func NewStandaloneRemoteCommandClient(remoteOptions *RemoteConnectionOptions) (*
 	if err != nil {
 		return nil, err
 	}
-	return &CommandClient{remote: remote}, nil
+	ctx, cancel := context.WithCancel(context.Background())
+	return &CommandClient{
+		remote: remote,
+		ctx:    ctx,
+		cancel: cancel,
+	}, nil
 }

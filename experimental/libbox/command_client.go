@@ -31,7 +31,8 @@ type CommandClient struct {
 	remote            *remoteConnection
 	ctx               context.Context
 	cancel            context.CancelFunc
-	clientMutex       sync.RWMutex
+	clientAccess      sync.RWMutex
+	connectAccess     sync.Mutex
 	standalone        bool
 }
 
@@ -80,13 +81,21 @@ func SetXPCDialer(dialer XPCDialer) {
 }
 
 func NewStandaloneCommandClient() *CommandClient {
-	return &CommandClient{standalone: true}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &CommandClient{
+		ctx:        ctx,
+		cancel:     cancel,
+		standalone: true,
+	}
 }
 
 func NewCommandClient(handler CommandClientHandler, options *CommandClientOptions) *CommandClient {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &CommandClient{
 		handler: handler,
 		options: common.PtrValueOrDefault(options),
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 }
 
@@ -163,12 +172,12 @@ func localDialOptions(contextDialer func(context.Context, string) (net.Conn, err
 
 // establishConnection dials the command server the client is bound to: the
 // local command server (over socket/XPC) or a remote API service.
-func (c *CommandClient) establishConnection() (*grpc.ClientConn, daemon.StartedServiceClient, error) {
+func (c *CommandClient) establishConnection(ctx context.Context) (*grpc.ClientConn, daemon.StartedServiceClient, error) {
 	if c.remote != nil {
-		return c.dialRemote()
+		return c.dialRemote(ctx)
 	}
 	target, contextDialer := dialTarget()
-	return c.dialWithRetry(target, localDialOptions(contextDialer), !c.standalone)
+	return c.dialWithRetry(ctx, target, localDialOptions(contextDialer), !c.standalone)
 }
 
 // dialWithRetry connects to the local command server. For a handler-bound
@@ -178,15 +187,15 @@ func (c *CommandClient) establishConnection() (*grpc.ClientConn, daemon.StartedS
 // "unavailable" to the UI. A standalone client issues a single fail-fast
 // probe instead: it serves a query from a UI that does not own the service
 // lifecycle, and a server that is not running is reported immediately.
-func (c *CommandClient) dialWithRetry(target string, dialOptions []grpc.DialOption, retryDial bool) (*grpc.ClientConn, daemon.StartedServiceClient, error) {
+func (c *CommandClient) dialWithRetry(ctx context.Context, target string, dialOptions []grpc.DialOption, retryDial bool) (*grpc.ClientConn, daemon.StartedServiceClient, error) {
 	if !retryDial {
 		connection, err := grpc.NewClient(target, dialOptions...)
 		if err != nil {
 			return nil, nil, E.Cause(err, "create command client")
 		}
 		client := daemon.NewStartedServiceClient(connection)
-		ctx, cancel := context.WithTimeout(context.Background(), commandClientProbeTimeout)
-		_, err = client.GetStartedAt(ctx, &emptypb.Empty{}, grpc.WaitForReady(false))
+		probeCtx, cancel := context.WithTimeout(ctx, commandClientProbeTimeout)
+		_, err = client.GetStartedAt(probeCtx, &emptypb.Empty{}, grpc.WaitForReady(false))
 		cancel()
 		if err != nil {
 			connection.Close()
@@ -205,18 +214,25 @@ func (c *CommandClient) dialWithRetry(target string, dialOptions []grpc.DialOpti
 			connection, err = grpc.NewClient(target, dialOptions...)
 			if err != nil {
 				lastError = err
-				time.Sleep(commandClientDialDelay(attempt))
+				select {
+				case <-ctx.Done():
+					return nil, nil, ctx.Err()
+				case <-time.After(commandClientDialDelay(attempt)):
+				}
 				continue
 			}
 			client = daemon.NewStartedServiceClient(connection)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), commandClientDialDelay(attempt))
-		_, err := client.GetStartedAt(ctx, &emptypb.Empty{}, grpc.WaitForReady(true))
+		probeCtx, cancel := context.WithTimeout(ctx, commandClientDialDelay(attempt))
+		_, err := client.GetStartedAt(probeCtx, &emptypb.Empty{}, grpc.WaitForReady(true))
 		cancel()
 		if err == nil {
 			return connection, client, nil
 		}
 		lastError = err
+		if ctx.Err() != nil {
+			break
+		}
 	}
 
 	if connection != nil {
@@ -225,15 +241,15 @@ func (c *CommandClient) dialWithRetry(target string, dialOptions []grpc.DialOpti
 	return nil, nil, E.Cause(lastError, "probe command server")
 }
 
-func (c *CommandClient) dialRemote() (*grpc.ClientConn, daemon.StartedServiceClient, error) {
+func (c *CommandClient) dialRemote(ctx context.Context) (*grpc.ClientConn, daemon.StartedServiceClient, error) {
 	connection, err := grpc.NewClient(c.remote.target, c.remote.dialOptions...)
 	if err != nil {
 		return nil, nil, E.Cause(err, "create remote command client")
 	}
 	client := daemon.NewStartedServiceClient(connection)
-	ctx, cancel := context.WithTimeout(context.Background(), commandClientRemoteProbeTimeout)
+	probeCtx, cancel := context.WithTimeout(ctx, commandClientRemoteProbeTimeout)
 	defer cancel()
-	_, err = client.GetStartedAt(ctx, &emptypb.Empty{})
+	_, err = client.GetStartedAt(probeCtx, &emptypb.Empty{})
 	if err != nil {
 		connection.Close()
 		return nil, nil, E.Cause(err, "connect to remote server")
@@ -242,66 +258,81 @@ func (c *CommandClient) dialRemote() (*grpc.ClientConn, daemon.StartedServiceCli
 }
 
 func (c *CommandClient) Connect() error {
-	c.clientMutex.Lock()
-	common.Close(common.PtrOrNil(c.grpcConn))
-
-	connection, client, err := c.establishConnection()
-	if err != nil {
-		c.clientMutex.Unlock()
-		return err
-	}
-	c.grpcConn = connection
-	c.grpcClient = client
-	c.grpcManagedClient = daemon.NewManagedServiceClient(connection)
-	c.ctx, c.cancel = context.WithCancel(context.Background())
-	c.clientMutex.Unlock()
-
-	c.handler.Connected()
-	return c.dispatchCommands()
+	return c.connect(c.establishConnection)
 }
 
 func (c *CommandClient) ConnectWithFD(fd int32) error {
-	c.clientMutex.Lock()
-	common.Close(common.PtrOrNil(c.grpcConn))
-
 	networkConnection, err := networkConnectionFromFileDescriptor(fd)
 	if err != nil {
-		c.clientMutex.Unlock()
 		return err
 	}
-	connection, client, err := c.dialWithRetry("passthrough:///xpc", localDialOptions(func(ctx context.Context, _ string) (net.Conn, error) {
-		return networkConnection, nil
-	}), false)
+	err = c.connect(func(ctx context.Context) (*grpc.ClientConn, daemon.StartedServiceClient, error) {
+		return c.dialWithRetry(ctx, "passthrough:///xpc", localDialOptions(func(context.Context, string) (net.Conn, error) {
+			return networkConnection, nil
+		}), false)
+	})
 	if err != nil {
 		networkConnection.Close()
-		c.clientMutex.Unlock()
+	}
+	return err
+}
+
+func (c *CommandClient) connect(dial func(context.Context) (*grpc.ClientConn, daemon.StartedServiceClient, error)) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	c.clientAccess.Lock()
+	c.cancel()
+	previousConnection := c.grpcConn
+	c.grpcConn = nil
+	c.grpcClient = nil
+	c.grpcManagedClient = nil
+	c.ctx = ctx
+	c.cancel = cancel
+	c.clientAccess.Unlock()
+	common.Close(common.PtrOrNil(previousConnection))
+
+	c.connectAccess.Lock()
+	if ctx.Err() != nil {
+		c.connectAccess.Unlock()
+		return ctx.Err()
+	}
+	c.closeConnection()
+	connection, client, err := dial(ctx)
+	if err != nil {
+		c.connectAccess.Unlock()
 		return err
+	}
+	c.clientAccess.Lock()
+	if ctx.Err() != nil {
+		c.clientAccess.Unlock()
+		c.connectAccess.Unlock()
+		connection.Close()
+		return ctx.Err()
 	}
 	c.grpcConn = connection
 	c.grpcClient = client
 	c.grpcManagedClient = daemon.NewManagedServiceClient(connection)
-	c.ctx, c.cancel = context.WithCancel(context.Background())
-	c.clientMutex.Unlock()
+	c.clientAccess.Unlock()
+	c.connectAccess.Unlock()
 
 	c.handler.Connected()
-	return c.dispatchCommands()
+	return c.dispatchCommands(client, ctx)
 }
 
-func (c *CommandClient) dispatchCommands() error {
+func (c *CommandClient) dispatchCommands(client daemon.StartedServiceClient, ctx context.Context) error {
 	for _, command := range c.options.commands {
 		switch command {
 		case CommandLog:
-			go c.handleLogStream()
+			go c.handleLogStream(client, ctx)
 		case CommandStatus:
-			go c.handleStatusStream()
+			go c.handleStatusStream(client, ctx)
 		case CommandGroup:
-			go c.handleGroupStream()
+			go c.handleGroupStream(client, ctx)
 		case CommandClashMode:
-			go c.handleClashModeStream()
+			go c.handleClashModeStream(client, ctx)
 		case CommandConnections:
-			go c.handleConnectionsStream()
+			go c.handleConnectionsStream(client, ctx)
 		case CommandOutbounds:
-			go c.handleOutboundsStream()
+			go c.handleOutboundsStream(client, ctx)
 		default:
 			return E.New("unknown command: ", command)
 		}
@@ -310,51 +341,64 @@ func (c *CommandClient) dispatchCommands() error {
 }
 
 func (c *CommandClient) Disconnect() error {
-	c.clientMutex.Lock()
-	defer c.clientMutex.Unlock()
-	if c.cancel != nil {
-		c.cancel()
-	}
-	return common.Close(common.PtrOrNil(c.grpcConn))
+	c.clientAccess.Lock()
+	c.cancel()
+	connection := c.grpcConn
+	c.grpcConn = nil
+	c.grpcClient = nil
+	c.grpcManagedClient = nil
+	c.clientAccess.Unlock()
+	return common.Close(common.PtrOrNil(connection))
 }
 
 func (c *CommandClient) getClientForCall() (daemon.StartedServiceClient, context.Context, error) {
-	c.clientMutex.RLock()
+	c.clientAccess.RLock()
 	if c.grpcClient != nil {
-		defer c.clientMutex.RUnlock()
+		defer c.clientAccess.RUnlock()
 		return c.grpcClient, c.ctx, nil
 	}
-	c.clientMutex.RUnlock()
+	ctx := c.ctx
+	c.clientAccess.RUnlock()
 
-	c.clientMutex.Lock()
-	defer c.clientMutex.Unlock()
+	c.connectAccess.Lock()
+	defer c.connectAccess.Unlock()
 
-	if c.grpcClient != nil {
-		return c.grpcClient, c.ctx, nil
+	c.clientAccess.RLock()
+	if ctx.Err() != nil {
+		c.clientAccess.RUnlock()
+		return nil, nil, ctx.Err()
 	}
+	if c.grpcClient != nil {
+		defer c.clientAccess.RUnlock()
+		return c.grpcClient, ctx, nil
+	}
+	c.clientAccess.RUnlock()
 
-	connection, client, err := c.establishConnection()
+	connection, client, err := c.establishConnection(ctx)
 	if err != nil {
 		return nil, nil, E.Cause(err, "get command client")
+	}
+	c.clientAccess.Lock()
+	if ctx.Err() != nil {
+		c.clientAccess.Unlock()
+		connection.Close()
+		return nil, nil, ctx.Err()
 	}
 	c.grpcConn = connection
 	c.grpcClient = client
 	c.grpcManagedClient = daemon.NewManagedServiceClient(connection)
-	if c.ctx == nil {
-		c.ctx, c.cancel = context.WithCancel(context.Background())
-	}
-	return c.grpcClient, c.ctx, nil
+	c.clientAccess.Unlock()
+	return client, ctx, nil
 }
 
 func (c *CommandClient) closeConnection() {
-	c.clientMutex.Lock()
-	defer c.clientMutex.Unlock()
-	if c.grpcConn != nil {
-		c.grpcConn.Close()
-		c.grpcConn = nil
-		c.grpcClient = nil
-		c.grpcManagedClient = nil
-	}
+	c.clientAccess.Lock()
+	connection := c.grpcConn
+	c.grpcConn = nil
+	c.grpcClient = nil
+	c.grpcManagedClient = nil
+	c.clientAccess.Unlock()
+	common.Close(common.PtrOrNil(connection))
 }
 
 func callWithResult[T any](c *CommandClient, call func(ctx context.Context, client daemon.StartedServiceClient) (T, error)) (T, error) {
@@ -378,9 +422,9 @@ func callManagedWithResult[T any](c *CommandClient, call func(ctx context.Contex
 	if c.standalone {
 		defer c.closeConnection()
 	}
-	c.clientMutex.RLock()
+	c.clientAccess.RLock()
 	client := c.grpcManagedClient
-	c.clientMutex.RUnlock()
+	c.clientAccess.RUnlock()
 	if client == nil {
 		var zero T
 		return zero, os.ErrClosed
@@ -388,14 +432,7 @@ func callManagedWithResult[T any](c *CommandClient, call func(ctx context.Contex
 	return call(ctx, client)
 }
 
-func (c *CommandClient) getStreamContext() (daemon.StartedServiceClient, context.Context) {
-	c.clientMutex.RLock()
-	defer c.clientMutex.RUnlock()
-	return c.grpcClient, c.ctx
-}
-
-func (c *CommandClient) handleLogStream() {
-	client, ctx := c.getStreamContext()
+func (c *CommandClient) handleLogStream(client daemon.StartedServiceClient, ctx context.Context) {
 	stream, err := client.SubscribeLog(ctx, &emptypb.Empty{})
 	if err != nil {
 		c.handler.Disconnected(E.Cause(err, "subscribe log").Error())
@@ -427,8 +464,7 @@ func (c *CommandClient) handleLogStream() {
 	}
 }
 
-func (c *CommandClient) handleStatusStream() {
-	client, ctx := c.getStreamContext()
+func (c *CommandClient) handleStatusStream(client daemon.StartedServiceClient, ctx context.Context) {
 	interval := c.options.StatusInterval
 
 	stream, err := client.SubscribeStatus(ctx, &daemon.SubscribeStatusRequest{
@@ -449,9 +485,7 @@ func (c *CommandClient) handleStatusStream() {
 	}
 }
 
-func (c *CommandClient) handleGroupStream() {
-	client, ctx := c.getStreamContext()
-
+func (c *CommandClient) handleGroupStream(client daemon.StartedServiceClient, ctx context.Context) {
 	stream, err := client.SubscribeGroups(ctx, &emptypb.Empty{})
 	if err != nil {
 		c.handler.Disconnected(E.Cause(err, "subscribe groups").Error())
@@ -468,9 +502,7 @@ func (c *CommandClient) handleGroupStream() {
 	}
 }
 
-func (c *CommandClient) handleClashModeStream() {
-	client, ctx := c.getStreamContext()
-
+func (c *CommandClient) handleClashModeStream(client daemon.StartedServiceClient, ctx context.Context) {
 	modeStatus, err := client.GetClashModeStatus(ctx, &emptypb.Empty{})
 	if err != nil {
 		if status.Code(err) != codes.NotFound {
@@ -512,8 +544,7 @@ func (c *CommandClient) handleClashModeStream() {
 	}
 }
 
-func (c *CommandClient) handleConnectionsStream() {
-	client, ctx := c.getStreamContext()
+func (c *CommandClient) handleConnectionsStream(client daemon.StartedServiceClient, ctx context.Context) {
 	interval := c.options.StatusInterval
 
 	stream, err := client.SubscribeConnections(ctx, &daemon.SubscribeConnectionsRequest{
@@ -535,9 +566,7 @@ func (c *CommandClient) handleConnectionsStream() {
 	}
 }
 
-func (c *CommandClient) handleOutboundsStream() {
-	client, ctx := c.getStreamContext()
-
+func (c *CommandClient) handleOutboundsStream(client daemon.StartedServiceClient, ctx context.Context) {
 	stream, err := client.SubscribeOutbounds(ctx, &emptypb.Empty{})
 	if err != nil {
 		c.handler.Disconnected(E.Cause(err, "subscribe outbounds").Error())
