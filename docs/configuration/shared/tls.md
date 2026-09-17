@@ -295,8 +295,7 @@ See [Application-Layer Protocol Negotiation](https://en.wikipedia.org/wiki/Appli
 
 The minimum TLS version that is acceptable.
 
-By default, TLS 1.2 is currently used as the minimum when acting as a
-client, and TLS 1.0 when acting as a server.
+TLS 1.2 is used by default.
 
 #### max_version
 
