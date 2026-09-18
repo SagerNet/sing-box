@@ -76,6 +76,39 @@ func DurationNode() *Node {
 	return &Node{Type: "string", Pattern: durationPattern}
 }
 
+const (
+	ipv4Octet     = `(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])`
+	ipv4Address   = ipv4Octet + `(?:\.` + ipv4Octet + `){3}`
+	ipv6Group     = `[0-9A-Fa-f]{1,4}`
+	ipv6Low32Bits = `(?:` + ipv6Group + `:` + ipv6Group + `|` + ipv4Address + `)`
+	ipv6Address   = `(?:` +
+		`(?:` + ipv6Group + `:){6}` + ipv6Low32Bits +
+		`|::(?:` + ipv6Group + `:){5}` + ipv6Low32Bits +
+		`|(?:` + ipv6Group + `)?::(?:` + ipv6Group + `:){4}` + ipv6Low32Bits +
+		`|(?:(?:` + ipv6Group + `:)?` + ipv6Group + `)?::(?:` + ipv6Group + `:){3}` + ipv6Low32Bits +
+		`|(?:(?:` + ipv6Group + `:){0,2}` + ipv6Group + `)?::(?:` + ipv6Group + `:){2}` + ipv6Low32Bits +
+		`|(?:(?:` + ipv6Group + `:){0,3}` + ipv6Group + `)?::` + ipv6Group + `:` + ipv6Low32Bits +
+		`|(?:(?:` + ipv6Group + `:){0,4}` + ipv6Group + `)?::` + ipv6Low32Bits +
+		`|(?:(?:` + ipv6Group + `:){0,5}` + ipv6Group + `)?::` + ipv6Group +
+		`|(?:(?:` + ipv6Group + `:){0,6}` + ipv6Group + `)?::` +
+		`)`
+	ipv6Zone       = `%.+`
+	ipv4PrefixBits = `/(?:3[0-2]|[12]?[0-9])`
+	ipv6PrefixBits = `/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])`
+)
+
+func IPAddressNode() *Node {
+	return &Node{Type: "string", Pattern: `^(?:` + ipv4Address + `|` + ipv6Address + `(?:` + ipv6Zone + `)?)$`}
+}
+
+func IPPrefixNode() *Node {
+	return &Node{Type: "string", Pattern: `^(?:` + ipv4Address + ipv4PrefixBits + `|` + ipv6Address + ipv6PrefixBits + `)$`}
+}
+
+func IPAddressOrPrefixNode() *Node {
+	return &Node{Type: "string", Pattern: `^(?:` + ipv4Address + `(?:` + ipv4PrefixBits + `)?|` + ipv6Address + `(?:` + ipv6PrefixBits + `|` + ipv6Zone + `)?)$`}
+}
+
 func StringEnum(values ...string) *Node {
 	anyValues := make([]any, 0, len(values))
 	for _, value := range values {
