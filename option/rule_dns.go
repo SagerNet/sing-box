@@ -147,7 +147,7 @@ type RawDefaultDNSRule struct {
 	DomainSuffix             badoption.Listable[string]                                                  `json:"domain_suffix,omitempty"`
 	DomainKeyword            badoption.Listable[string]                                                  `json:"domain_keyword,omitempty"`
 	DomainRegex              badoption.Listable[string]                                                  `json:"domain_regex,omitempty"`
-	SourceIPCIDR             badoption.Listable[string]                                                  `json:"source_ip_cidr,omitempty"`
+	SourceIPCIDR             badoption.Listable[string]                                                  `json:"source_ip_cidr,omitempty" schema:"prefixable"`
 	SourceIPIsPrivate        bool                                                                        `json:"source_ip_is_private,omitempty"`
 	SourcePort               badoption.Listable[uint16]                                                  `json:"source_port,omitempty"`
 	SourcePortRange          badoption.Listable[string]                                                  `json:"source_port_range,omitempty"`
@@ -176,7 +176,7 @@ type RawDefaultDNSRule struct {
 	RuleSet                  badoption.Listable[string]                                                  `json:"rule_set,omitempty" reference:"rule_set"`
 	RuleSetIPCIDRMatchSource bool                                                                        `json:"rule_set_ip_cidr_match_source,omitempty"`
 	MatchResponse            *DNSRuleMatchResponse                                                       `json:"match_response,omitempty"`
-	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty"`
+	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty" schema:"prefixable"`
 	IPIsPrivate              bool                                                                        `json:"ip_is_private,omitempty"`
 	IPAcceptAny              bool                                                                        `json:"ip_accept_any,omitempty"`
 	ResponseRcode            *DNSRCode                                                                   `json:"response_rcode,omitempty"`
