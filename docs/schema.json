@@ -728,10 +728,10 @@
           "type": "string"
         },
         "inet4_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "inet6_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "bind_address_no_port": {
           "type": "boolean"
@@ -881,7 +881,7 @@
           ]
         },
         "client_subnet": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddressOrPrefix"
         }
       },
       "additionalProperties": false
@@ -1075,12 +1075,12 @@
                 "query_client_subnet": {
                   "anyOf": [
                     {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     },
                     {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       }
                     }
                   ]
@@ -1214,12 +1214,12 @@
                 "source_ip_cidr": {
                   "anyOf": [
                     {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     },
                     {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       }
                     }
                   ]
@@ -1431,12 +1431,12 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "type": "string"
+                          "$ref": "#/$defs/IPAddressOrPrefix"
                         }
                       }
                     ]
@@ -1450,12 +1450,12 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "type": "string"
+                          "$ref": "#/$defs/IPAddressOrPrefix"
                         }
                       }
                     ]
@@ -1464,12 +1464,12 @@
                 "default_interface_address": {
                   "anyOf": [
                     {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     },
                     {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       }
                     }
                   ]
@@ -1544,12 +1544,12 @@
                 "ip_cidr": {
                   "anyOf": [
                     {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     },
                     {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       }
                     }
                   ]
@@ -1685,7 +1685,7 @@
               "maximum": 4294967295
             },
             "client_subnet": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddressOrPrefix"
             },
             "remove_client_subnet": {
               "type": "boolean"
@@ -1726,7 +1726,7 @@
               "maximum": 4294967295
             },
             "client_subnet": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddressOrPrefix"
             },
             "remove_client_subnet": {
               "type": "boolean"
@@ -1774,7 +1774,7 @@
               "maximum": 4294967295
             },
             "client_subnet": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddressOrPrefix"
             },
             "remove_client_subnet": {
               "type": "boolean"
@@ -1887,10 +1887,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -2013,13 +2013,13 @@
               "type": "string"
             },
             "inet4_range": {
-              "type": "string",
+              "$ref": "#/$defs/IPPrefix",
               "examples": [
                 "198.18.0.0/15"
               ]
             },
             "inet6_range": {
-              "type": "string",
+              "$ref": "#/$defs/IPPrefix",
               "examples": [
                 "fc00::/18"
               ]
@@ -2047,10 +2047,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -2191,12 +2191,12 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddress"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddress"
                     }
                   }
                 ]
@@ -2225,10 +2225,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -2359,10 +2359,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -2489,10 +2489,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -2680,10 +2680,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -2850,10 +2850,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -2972,10 +2972,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -3097,10 +3097,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -3253,10 +3253,10 @@
           "type": "string"
         },
         "inet4_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "inet6_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "bind_address_no_port": {
           "type": "boolean"
@@ -3378,7 +3378,7 @@
               "maximum": 4294967295
             },
             "client_subnet": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddressOrPrefix"
             }
           },
           "required": [
@@ -3422,10 +3422,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -3702,10 +3702,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -3865,21 +3865,21 @@
             "address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPPrefix"
                   }
                 }
               ]
             },
             "peer_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "peer_address_ipv6": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "topology": {
               "type": "string",
@@ -4023,11 +4023,11 @@
             "routes": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/$defs/IPPrefix"
               }
             },
             "route_gateway": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "route_metric": {
               "type": "integer"
@@ -4103,7 +4103,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -4219,21 +4219,21 @@
             "address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPPrefix"
                   }
                 }
               ]
             },
             "peer_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "peer_address_ipv6": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "topology": {
               "type": "string",
@@ -4365,10 +4365,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -4483,7 +4483,7 @@
             "advertise_routes": {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/$defs/IPPrefix"
               }
             },
             "advertise_exit_node": {
@@ -4585,12 +4585,12 @@
             "address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPPrefix"
                   }
                 }
               ]
@@ -4649,10 +4649,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -4805,10 +4805,10 @@
           "type": "string"
         },
         "inet4_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "inet6_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "bind_address_no_port": {
           "type": "boolean"
@@ -4978,10 +4978,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -5273,12 +5273,12 @@
             "source_ip_cidr": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -5286,12 +5286,12 @@
             "ip_cidr": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -5474,12 +5474,12 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     }
                   }
                 ]
@@ -5488,12 +5488,12 @@
             "default_interface_address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -5678,6 +5678,18 @@
       },
       "additionalProperties": false
     },
+    "IPAddress": {
+      "type": "string",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}|(?:(?:[0-9A-Fa-f]{1,4}:){6}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|::(?:[0-9A-Fa-f]{1,4}:){5}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){4}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){3}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){2}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}:(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}|(?:(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})?::)(?:%.+)?)$"
+    },
+    "IPAddressOrPrefix": {
+      "type": "string",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}(?:/(?:3[0-2]|[12]?[0-9]))?|(?:(?:[0-9A-Fa-f]{1,4}:){6}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|::(?:[0-9A-Fa-f]{1,4}:){5}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){4}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){3}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){2}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}:(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}|(?:(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})?::)(?:/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9])|%.+)?)$"
+    },
+    "IPPrefix": {
+      "type": "string",
+      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3}/(?:3[0-2]|[12]?[0-9])|(?:(?:[0-9A-Fa-f]{1,4}:){6}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|::(?:[0-9A-Fa-f]{1,4}:){5}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){4}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){3}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:){2}(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}:(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})?::(?:[0-9A-Fa-f]{1,4}:[0-9A-Fa-f]{1,4}|(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])(?:\\.(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])){3})|(?:(?:[0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})?::[0-9A-Fa-f]{1,4}|(?:(?:[0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})?::)/(?:12[0-8]|1[01][0-9]|[1-9]?[0-9]))$"
+    },
     "Inbound": {
       "oneOf": [
         {
@@ -5690,7 +5702,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -5842,7 +5854,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -5941,7 +5953,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6026,7 +6038,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6173,7 +6185,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6417,7 +6429,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6502,7 +6514,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6610,7 +6622,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6680,7 +6692,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6806,7 +6818,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -6919,7 +6931,7 @@
                   "const": 5
                 },
                 "listen": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "listen_port": {
                   "type": "integer",
@@ -7010,7 +7022,7 @@
                   "const": 6
                 },
                 "listen": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "listen_port": {
                   "type": "integer",
@@ -7100,7 +7112,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -7245,10 +7257,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -7352,7 +7364,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -7466,7 +7478,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -7560,7 +7572,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -7707,7 +7719,7 @@
             "address": {
               "anyOf": [
                 {
-                  "type": "string",
+                  "$ref": "#/$defs/IPPrefix",
                   "examples": [
                     "172.19.0.1/30",
                     "fdfe:dcba:9876::1/126"
@@ -7716,7 +7728,7 @@
                 {
                   "type": "array",
                   "items": {
-                    "type": "string",
+                    "$ref": "#/$defs/IPPrefix",
                     "examples": [
                       "172.19.0.1/30",
                       "fdfe:dcba:9876::1/126"
@@ -7736,12 +7748,12 @@
             "dns_address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddress"
                   }
                 }
               ]
@@ -7820,12 +7832,12 @@
             "loopback_address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddress"
                   }
                 }
               ]
@@ -7836,12 +7848,12 @@
             "route_address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPPrefix"
                   }
                 }
               ]
@@ -7862,12 +7874,12 @@
             "route_exclude_address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPPrefix"
                   }
                 }
               ]
@@ -8084,7 +8096,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -8169,7 +8181,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -8305,10 +8317,10 @@
           "type": "string"
         },
         "inet4_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "inet6_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "bind_address_no_port": {
           "type": "boolean"
@@ -8693,10 +8705,10 @@
           "type": "string"
         },
         "inet4_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "inet6_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "bind_address_no_port": {
           "type": "boolean"
@@ -8837,12 +8849,12 @@
             "query_client_subnet": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -8976,12 +8988,12 @@
             "source_ip_cidr": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -9193,12 +9205,12 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     }
                   }
                 ]
@@ -9212,12 +9224,12 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     }
                   }
                 ]
@@ -9226,12 +9238,12 @@
             "default_interface_address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -9306,12 +9318,12 @@
             "ip_cidr": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -9577,12 +9589,12 @@
             "source_ip_cidr": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -9593,12 +9605,12 @@
             "ip_cidr": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -9810,12 +9822,12 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     }
                   }
                 ]
@@ -9829,12 +9841,12 @@
               "additionalProperties": {
                 "anyOf": [
                   {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   },
                   {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     }
                   }
                 ]
@@ -9843,12 +9855,12 @@
             "default_interface_address": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddressOrPrefix"
                 },
                 {
                   "type": "array",
                   "items": {
-                    "type": "string"
+                    "$ref": "#/$defs/IPAddressOrPrefix"
                   }
                 }
               ]
@@ -10709,18 +10721,18 @@
         "routes": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/IPPrefix"
           }
         },
         "dns": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             {
               "type": "array",
               "items": {
-                "type": "string"
+                "$ref": "#/$defs/IPAddress"
               }
             }
           ]
@@ -10808,10 +10820,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -10990,10 +11002,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -11104,10 +11116,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -11241,10 +11253,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -11482,10 +11494,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -11743,10 +11755,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -11968,10 +11980,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -12171,10 +12183,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -12312,10 +12324,10 @@
                   "type": "string"
                 },
                 "inet4_bind_address": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "inet6_bind_address": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "bind_address_no_port": {
                   "type": "boolean"
@@ -12479,10 +12491,10 @@
                   "type": "string"
                 },
                 "inet4_bind_address": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "inet6_bind_address": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "bind_address_no_port": {
                   "type": "boolean"
@@ -12642,10 +12654,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -12824,10 +12836,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -13091,10 +13103,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -13205,10 +13217,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -13337,10 +13349,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -13492,10 +13504,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -13744,10 +13756,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -13905,10 +13917,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -14664,12 +14676,12 @@
                 "source_ip_cidr": {
                   "anyOf": [
                     {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     },
                     {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       }
                     }
                   ]
@@ -14680,12 +14692,12 @@
                 "ip_cidr": {
                   "anyOf": [
                     {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     },
                     {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       }
                     }
                   ]
@@ -14897,12 +14909,12 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "type": "string"
+                          "$ref": "#/$defs/IPAddressOrPrefix"
                         }
                       }
                     ]
@@ -14916,12 +14928,12 @@
                   "additionalProperties": {
                     "anyOf": [
                       {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       },
                       {
                         "type": "array",
                         "items": {
-                          "type": "string"
+                          "$ref": "#/$defs/IPAddressOrPrefix"
                         }
                       }
                     ]
@@ -14930,12 +14942,12 @@
                 "default_interface_address": {
                   "anyOf": [
                     {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddressOrPrefix"
                     },
                     {
                       "type": "array",
                       "items": {
-                        "type": "string"
+                        "$ref": "#/$defs/IPAddressOrPrefix"
                       }
                     }
                   ]
@@ -15186,10 +15198,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -15462,7 +15474,7 @@
               "maximum": 4294967295
             },
             "client_subnet": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddressOrPrefix"
             }
           },
           "required": [
@@ -15617,7 +15629,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -15748,7 +15760,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -15836,7 +15848,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -15955,10 +15967,10 @@
                           "type": "string"
                         },
                         "inet4_bind_address": {
-                          "type": "string"
+                          "$ref": "#/$defs/IPAddress"
                         },
                         "inet6_bind_address": {
-                          "type": "string"
+                          "$ref": "#/$defs/IPAddress"
                         },
                         "bind_address_no_port": {
                           "type": "boolean"
@@ -16137,10 +16149,10 @@
                             "type": "string"
                           },
                           "inet4_bind_address": {
-                            "type": "string"
+                            "$ref": "#/$defs/IPAddress"
                           },
                           "inet6_bind_address": {
-                            "type": "string"
+                            "$ref": "#/$defs/IPAddress"
                           },
                           "bind_address_no_port": {
                             "type": "boolean"
@@ -16338,7 +16350,7 @@
                       "type": "boolean"
                     },
                     "listen": {
-                      "type": "string"
+                      "$ref": "#/$defs/IPAddress"
                     },
                     "listen_port": {
                       "type": "integer",
@@ -16413,7 +16425,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -16523,7 +16535,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -16654,7 +16666,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -16724,7 +16736,7 @@
               "type": "string"
             },
             "listen": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "listen_port": {
               "type": "integer",
@@ -16813,10 +16825,10 @@
               "type": "string"
             },
             "inet4_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "inet6_bind_address": {
-              "type": "string"
+              "$ref": "#/$defs/IPAddress"
             },
             "bind_address_no_port": {
               "type": "boolean"
@@ -16943,7 +16955,7 @@
                   ]
                 },
                 "listen": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "listen_port": {
                   "type": "integer",
@@ -17022,7 +17034,7 @@
                   "const": "dynamic"
                 },
                 "listen": {
-                  "type": "string"
+                  "$ref": "#/$defs/IPAddress"
                 },
                 "listen_port": {
                   "type": "integer",
@@ -17106,10 +17118,10 @@
           "type": "string"
         },
         "inet4_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "inet6_bind_address": {
-          "type": "string"
+          "$ref": "#/$defs/IPAddress"
         },
         "bind_address_no_port": {
           "type": "boolean"
@@ -17567,7 +17579,7 @@
         "allowed_ips": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/IPPrefix"
           }
         },
         "persistent_keepalive_interval": {
