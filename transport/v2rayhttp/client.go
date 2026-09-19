@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -30,7 +31,7 @@ type Client struct {
 	ctx        context.Context
 	dialer     N.Dialer
 	serverAddr M.Socksaddr
-	transport  http.RoundTripper
+	transport  common.TypedValue[http.RoundTripper]
 	http2      bool
 	requestURL url.URL
 	host       []string
@@ -77,7 +78,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	if !strings.HasPrefix(requestURL.Path, "/") {
 		requestURL.Path = "/" + requestURL.Path
 	}
-	return &Client{
+	client := &Client{
 		ctx:        ctx,
 		dialer:     dialer,
 		serverAddr: serverAddr,
@@ -85,9 +86,10 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 		host:       options.Host,
 		method:     options.Method,
 		headers:    options.Headers.Build(),
-		transport:  transport,
 		http2:      tlsConfig != nil,
-	}, nil
+	}
+	client.transport.Store(transport)
+	return client, nil
 }
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
@@ -151,7 +153,7 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 		cancel()
 	})
 	go func() {
-		response, err := c.transport.RoundTrip(request)
+		response, err := c.transport.Load().RoundTrip(request)
 		handshakeTimer.Stop()
 		if err != nil {
 			if handshakeTimedOut.Load() {
@@ -169,6 +171,6 @@ func (c *Client) dialHTTP2(ctx context.Context) (net.Conn, error) {
 }
 
 func (c *Client) Close() error {
-	c.transport = ResetTransport(c.transport)
+	c.transport.Store(ResetTransport(c.transport.Load()))
 	return nil
 }
