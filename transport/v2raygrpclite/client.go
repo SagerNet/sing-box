@@ -5,11 +5,15 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
+	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -79,6 +83,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	pipeInReader, pipeInWriter := io.Pipe()
+	requestCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	request := &http.Request{
 		Method: http.MethodPost,
 		Body:   pipeInReader,
@@ -86,11 +91,30 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		Header: defaultClientHeader,
 		Host:   c.host,
 	}
-	request = request.WithContext(ctx)
-	conn := newLateGunConn(pipeInWriter)
+	conn := newLateGunConn(pipeInWriter, cancel)
+	handshakeTimeout := C.TCPTimeout
+	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+		handshakeTimeout = time.Until(deadline)
+	}
+	var handshakeTimedOut atomic.Bool
+	handshakeTimer := time.AfterFunc(handshakeTimeout, func() {
+		handshakeTimedOut.Store(true)
+		cancel()
+	})
+	// gRPC servers send the response headers together with the first message, so RoundTrip
+	// returning does not mark the stream as established; the request headers being written does.
+	request = request.WithContext(httptrace.WithClientTrace(requestCtx, &httptrace.ClientTrace{
+		WroteHeaders: func() {
+			handshakeTimer.Stop()
+		},
+	}))
 	go func() {
 		response, err := c.transport.RoundTrip(request)
+		handshakeTimer.Stop()
 		if err != nil {
+			if handshakeTimedOut.Load() {
+				err = os.ErrDeadlineExceeded
+			}
 			conn.setup(nil, err)
 		} else if response.StatusCode != 200 {
 			response.Body.Close()

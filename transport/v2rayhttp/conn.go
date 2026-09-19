@@ -134,6 +134,7 @@ type HTTP2Conn struct {
 	writer io.Writer
 	create chan struct{}
 	err    error
+	cancel context.CancelFunc
 }
 
 func NewHTTPConn(reader io.Reader, writer io.Writer) HTTP2Conn {
@@ -143,10 +144,11 @@ func NewHTTPConn(reader io.Reader, writer io.Writer) HTTP2Conn {
 	}
 }
 
-func NewLateHTTPConn(writer io.Writer) *HTTP2Conn {
+func NewLateHTTPConn(writer io.Writer, cancel context.CancelFunc) *HTTP2Conn {
 	return &HTTP2Conn{
 		create: make(chan struct{}),
 		writer: writer,
+		cancel: cancel,
 	}
 }
 
@@ -173,7 +175,11 @@ func (c *HTTP2Conn) Write(b []byte) (n int, err error) {
 }
 
 func (c *HTTP2Conn) Close() error {
-	return common.Close(c.reader, c.writer)
+	err := common.Close(c.reader, c.writer)
+	if c.cancel != nil {
+		c.cancel()
+	}
+	return err
 }
 
 func (c *HTTP2Conn) LocalAddr() net.Addr {
