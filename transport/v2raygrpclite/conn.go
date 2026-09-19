@@ -2,6 +2,7 @@ package v2raygrpclite
 
 import (
 	std_bufio "bufio"
+	"context"
 	"encoding/binary"
 	"io"
 	"net"
@@ -27,6 +28,7 @@ type GunConn struct {
 	flusher       http.Flusher
 	create        chan struct{}
 	err           error
+	cancel        context.CancelFunc
 	readRemaining int
 }
 
@@ -39,10 +41,11 @@ func newGunConn(reader io.Reader, writer io.Writer, flusher http.Flusher) *GunCo
 	}
 }
 
-func newLateGunConn(writer io.Writer) *GunConn {
+func newLateGunConn(writer io.Writer, cancel context.CancelFunc) *GunConn {
 	return &GunConn{
 		create: make(chan struct{}),
 		writer: writer,
+		cancel: cancel,
 	}
 }
 
@@ -141,7 +144,11 @@ func (c *GunConn) FrontHeadroom() int {
 }
 
 func (c *GunConn) Close() error {
-	return common.Close(c.rawReader, c.writer)
+	err := common.Close(c.rawReader, c.writer)
+	if c.cancel != nil {
+		c.cancel()
+	}
+	return err
 }
 
 func (c *GunConn) LocalAddr() net.Addr {

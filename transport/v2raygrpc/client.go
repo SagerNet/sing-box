@@ -102,11 +102,18 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		return nil, err
 	}
 	client := NewGunServiceClient(clientConn).(GunServiceCustomNameClient)
-	ctx, cancel := context.WithCancelCause(ctx)
-	stream, err := client.TunCustomName(ctx, c.serviceName)
+	streamCtx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
+	stopPropagation := context.AfterFunc(ctx, func() {
+		cancel(context.Cause(ctx))
+	})
+	stream, err := client.TunCustomName(streamCtx, c.serviceName)
 	if err != nil {
+		stopPropagation()
 		cancel(err)
 		return nil, err
+	}
+	if !stopPropagation() {
+		return nil, context.Cause(ctx)
 	}
 	return NewGRPCConn(stream, cancel), nil
 }

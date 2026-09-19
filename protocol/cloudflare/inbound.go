@@ -53,7 +53,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 
 	service, err := cloudflared.NewService(cloudflared.ServiceOptions{
 		Logger:           logger,
-		ConnectionDialer: &routerDialer{router: router, tag: tag},
+		ConnectionDialer: &routerDialer{ctx: ctx, router: router, tag: tag},
 		ControlDialer:    controlDialer,
 		TunnelDialer:     tunnelDialer,
 		ControlResolver:  controlResolver,
@@ -101,8 +101,80 @@ func (i *Inbound) Close() error {
 }
 
 type routerDialer struct {
+	ctx    context.Context
 	router adapter.Router
 	tag    string
+}
+
+// cloudflared cancels the dial context as soon as DialContext/ListenPacket returns
+// (router_pipe.go dialRouterTCPWithMetadata, origin_dial.go dialWarpPacketConnection), while the
+// routing and the outbound dial behind the pipe are still in progress, so only its deadline is
+// honoured, and only until the outbound handshake is reported.
+func (d *routerDialer) routeContext(ctx context.Context) (context.Context, func(), func()) {
+	routeCtx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
+	stopShutdown := context.AfterFunc(d.ctx, func() {
+		cancel(context.Cause(d.ctx))
+	})
+	var connectTimeout *time.Timer
+	if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+		connectTimeout = time.AfterFunc(time.Until(deadline), func() {
+			cancel(context.DeadlineExceeded)
+		})
+	}
+	connected := func() {
+		if connectTimeout != nil {
+			connectTimeout.Stop()
+		}
+	}
+	closed := func() {
+		connected()
+		stopShutdown()
+	}
+	return routeCtx, connected, closed
+}
+
+type routedConn struct {
+	net.Conn
+	connected func()
+}
+
+func (c *routedConn) HandshakeSuccess() error {
+	c.connected()
+	return nil
+}
+
+func (c *routedConn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *routedConn) WriterReplaceable() bool {
+	return true
+}
+
+func (c *routedConn) Upstream() any {
+	return c.Conn
+}
+
+type routedPacketConn struct {
+	N.PacketConn
+	connected func()
+}
+
+func (c *routedPacketConn) HandshakeSuccess() error {
+	c.connected()
+	return nil
+}
+
+func (c *routedPacketConn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *routedPacketConn) WriterReplaceable() bool {
+	return true
+}
+
+func (c *routedPacketConn) Upstream() any {
+	return c.PacketConn
 }
 
 func (d *routerDialer) newMetadata(network string, destination M.Socksaddr) adapter.InboundContext {
@@ -116,7 +188,9 @@ func (d *routerDialer) newMetadata(network string, destination M.Socksaddr) adap
 
 func (d *routerDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	input, output := pipe.Pipe()
-	go d.router.RouteConnectionEx(ctx, output, d.newMetadata(N.NetworkTCP, destination), N.OnceClose(func(it error) {
+	routeCtx, connected, closed := d.routeContext(ctx)
+	go d.router.RouteConnectionEx(routeCtx, &routedConn{Conn: output, connected: connected}, d.newMetadata(N.NetworkTCP, destination), N.OnceClose(func(it error) {
+		closed()
 		input.Close()
 	}))
 	return input, nil
@@ -124,8 +198,10 @@ func (d *routerDialer) DialContext(ctx context.Context, network string, destinat
 
 func (d *routerDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
 	input, output := pipe.Pipe()
-	routerConn := bufio.NewUnbindPacketConn(output)
-	go d.router.RoutePacketConnectionEx(ctx, routerConn, d.newMetadata(N.NetworkUDP, destination), N.OnceClose(func(it error) {
+	routeCtx, connected, closed := d.routeContext(ctx)
+	routerConn := &routedPacketConn{PacketConn: bufio.NewUnbindPacketConn(output), connected: connected}
+	go d.router.RoutePacketConnectionEx(routeCtx, routerConn, d.newMetadata(N.NetworkUDP, destination), N.OnceClose(func(it error) {
+		closed()
 		input.Close()
 	}))
 	return bufio.NewUnbindPacketConn(input), nil
@@ -178,3 +254,12 @@ func (h *icmpRouterHandler) RouteICMPFlow(source netip.Addr, destination netip.A
 		return nil, E.New("no direct route")
 	}
 }
+
+var (
+	_ N.HandshakeSuccess   = (*routedConn)(nil)
+	_ N.ReaderWithUpstream = (*routedConn)(nil)
+	_ N.WriterWithUpstream = (*routedConn)(nil)
+	_ N.HandshakeSuccess   = (*routedPacketConn)(nil)
+	_ N.ReaderWithUpstream = (*routedPacketConn)(nil)
+	_ N.WriterWithUpstream = (*routedPacketConn)(nil)
+)

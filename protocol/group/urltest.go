@@ -464,6 +464,9 @@ func (b *urlTestBatch) test(outbounds []adapter.Outbound, link string, interval 
 					testResult.err = testCtx.Err()
 				}
 				if testResult.err != nil {
+					if b.ctx.Err() != nil {
+						return nil, nil
+					}
 					b.logger.Debug("outbound ", tag, " unavailable: ", testResult.err)
 					b.history.DeleteURLTestHistory(tag)
 				} else {

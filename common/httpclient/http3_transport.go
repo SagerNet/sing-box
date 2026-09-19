@@ -6,6 +6,7 @@ import (
 	"context"
 	stdTLS "crypto/tls"
 	"errors"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -172,41 +173,49 @@ func (t *http3FallbackTransport) roundTripHTTP3(request *http.Request) (*http.Re
 }
 
 func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request, authority string) (*http.Response, error) {
-	ctx, cancel := context.WithCancel(request.Context())
-	defer cancel()
 	type result struct {
 		response *http.Response
 		err      error
 		h3       bool
 	}
-	results := make(chan result, 2)
-	startRoundTrip := func(request *http.Request, useH3 bool) {
-		request = request.WithContext(ctx)
-		var (
-			response *http.Response
-			err      error
-		)
-		if useH3 {
-			response, err = t.h3Transport.RoundTrip(request)
-		} else {
-			response, err = t.h2FallbackRoundTrip(request)
-		}
-		results <- result{response: response, err: err, h3: useH3}
+	var (
+		results  = make(chan result, 2)
+		cancels  []context.CancelFunc
+		received int
+	)
+	startRoundTrip := func(useH3 bool) {
+		ctx, cancel := context.WithCancel(request.Context())
+		cancels = append(cancels, cancel)
+		raceRequest := cloneRequestForRetry(request).WithContext(ctx)
+		go func() {
+			var (
+				response *http.Response
+				err      error
+			)
+			if useH3 {
+				response, err = t.h3Transport.RoundTrip(raceRequest)
+			} else {
+				response, err = t.h2FallbackRoundTrip(raceRequest)
+			}
+			results <- result{response: response, err: err, h3: useH3}
+		}()
 	}
-	goroutines := 1
-	received := 0
-	drainRemaining := func() {
-		cancel()
-		for range goroutines - received {
+	finish := func(winner int) {
+		for index, cancel := range cancels {
+			if index != winner {
+				cancel()
+			}
+		}
+		for range len(cancels) - received {
 			go func() {
 				loser := <-results
-				if loser.response != nil && loser.response.Body != nil {
+				if loser.response != nil {
 					loser.response.Body.Close()
 				}
 			}()
 		}
 	}
-	go startRoundTrip(cloneRequestForRetry(request), true)
+	startRoundTrip(true)
 	timer := time.NewTimer(t.fallbackDelay)
 	defer timer.Stop()
 	var (
@@ -216,39 +225,40 @@ func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request, autho
 	for {
 		select {
 		case <-timer.C:
-			if goroutines == 1 {
-				goroutines++
-				go startRoundTrip(cloneRequestForRetry(request), false)
+			if len(cancels) == 1 {
+				startRoundTrip(false)
 			}
 		case raceResult := <-results:
 			received++
 			if raceResult.err == nil {
+				winner := 1
 				if raceResult.h3 {
+					winner = 0
 					t.clearH3Broken(authority)
 				}
-				drainRemaining()
+				finish(winner)
+				raceResult.response.Body = &cancelOnCloseBody{ReadCloser: raceResult.response.Body, cancel: cancels[winner]}
 				return raceResult.response, nil
 			}
 			if raceResult.h3 {
 				t.markH3Broken(authority)
 				h3Err = raceResult.err
-				if goroutines == 1 {
-					goroutines++
+				if len(cancels) == 1 {
 					if !timer.Stop() {
 						select {
 						case <-timer.C:
 						default:
 						}
 					}
-					go startRoundTrip(cloneRequestForRetry(request), false)
+					startRoundTrip(false)
 				}
 			} else {
 				fallbackErr = raceResult.err
 			}
-			if received < goroutines {
+			if received < len(cancels) {
 				continue
 			}
-			drainRemaining()
+			finish(-1)
 			switch {
 			case h3Err != nil && fallbackErr != nil:
 				return nil, E.Errors(h3Err, fallbackErr)
@@ -259,6 +269,17 @@ func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request, autho
 			}
 		}
 	}
+}
+
+type cancelOnCloseBody struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (b *cancelOnCloseBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.cancel()
+	return err
 }
 
 func (t *http3FallbackTransport) h2FallbackRoundTrip(request *http.Request) (*http.Response, error) {

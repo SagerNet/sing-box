@@ -534,10 +534,7 @@ func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interfa
 	if previousCancel != nil {
 		previousCancel()
 	}
-	go func() {
-		defer updateCancel()
-		r.updateInterface(updateContext, defaultInterface)
-	}()
+	go r.updateInterface(updateContext, defaultInterface)
 }
 
 func (r *NetworkManager) updateInterface(ctx context.Context, defaultInterface *control.Interface) {
@@ -606,7 +603,6 @@ func (r *NetworkManager) notifyWindowsPowerEvent(event int) {
 			previousCancel()
 		}
 		go func() {
-			defer updateCancel()
 			r.resetRunAccess.Lock()
 			defer r.resetRunAccess.Unlock()
 			if updateContext.Err() != nil {
