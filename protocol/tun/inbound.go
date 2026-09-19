@@ -542,6 +542,9 @@ func (t *Inbound) routeAddressSetPrefixes() (include []netip.Prefix, exclude []n
 	t.routeAddressSetAccess.RLock()
 	defer t.routeAddressSetAccess.RUnlock()
 	include = common.FlatMap(t.routeAddressSet, (*netipx.IPSet).Prefixes)
+	if len(t.routeAddressSet) > 0 && len(include) == 0 {
+		include = []netip.Prefix{netip.PrefixFrom(netip.IPv4Unspecified(), 32), netip.PrefixFrom(netip.IPv6Unspecified(), 128)}
+	}
 	exclude = common.FlatMap(t.routeExcludeAddressSet, (*netipx.IPSet).Prefixes)
 	return
 }
