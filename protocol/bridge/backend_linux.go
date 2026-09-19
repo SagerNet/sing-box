@@ -313,7 +313,10 @@ func (b *backendLinux) batchReadLoop() {
 	sizes := make([]int, batchSize)
 	batch := make([][]byte, 0, batchSize)
 	headroom := -1
-	var buffers [][]byte
+	var (
+		buffers   [][]byte
+		readRetry tun.ReadRetry
+	)
 	for {
 		b.returnAccess.Lock()
 		returnPaths := b.returnPaths
@@ -336,11 +339,13 @@ func (b *backendLinux) batchReadLoop() {
 				return
 			default:
 			}
-			if E.IsClosed(err) {
+			b.logger.Debug(E.Cause(err, "bridge tun read"))
+			if !tun.IsRecoverableReadError(err) {
 				return
 			}
-			b.logger.Debug(E.Cause(err, "bridge tun read"))
-			continue
+			readRetry.Wait(err)
+		} else {
+			readRetry.Reset()
 		}
 		if n == 0 || len(returnPaths) == 0 {
 			continue
