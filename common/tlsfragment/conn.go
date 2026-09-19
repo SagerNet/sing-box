@@ -41,7 +41,7 @@ func NewConn(conn net.Conn, ctx context.Context, splitPacket bool, splitRecord b
 }
 
 func (c *Conn) Write(b []byte) (n int, err error) {
-	if !c.firstPacketWritten {
+	if !c.firstPacketWritten && len(b) > 0 {
 		defer func() {
 			c.firstPacketWritten = true
 		}()
