@@ -12,7 +12,7 @@ import (
 func TestOptionsWrapper(t *testing.T) {
 	inbound := option.Inbound{
 		Type: C.TypeHTTP,
-		Options: &option.HTTPMixedInboundOptions{
+		Options: &option.HTTPInboundOptions{
 			InboundTLSOptionsContainer: option.InboundTLSOptionsContainer{
 				TLS: &option.InboundTLSOptions{
 					Enabled: true,
@@ -26,5 +26,5 @@ func TestOptionsWrapper(t *testing.T) {
 	require.NotNil(t, tlsOptions, "find inbound tls options")
 	tlsOptions.Enabled = false
 	tlsOptionsWrapper.ReplaceInboundTLSOptions(tlsOptions)
-	require.False(t, inbound.Options.(*option.HTTPMixedInboundOptions).TLS.Enabled, "replace tls enabled")
+	require.False(t, inbound.Options.(*option.HTTPInboundOptions).TLS.Enabled, "replace tls enabled")
 }
