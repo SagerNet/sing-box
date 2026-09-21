@@ -1,4 +1,4 @@
-package openvpn
+package device
 
 import (
 	"context"
@@ -30,7 +30,7 @@ const (
 type systemDevice struct {
 	baseDevice
 	stateAccess  sync.RWMutex
-	options      DeviceOptions
+	options      Options
 	dialer       N.Dialer
 	device       tun.Tun
 	inet4Address netip.Addr
@@ -38,12 +38,9 @@ type systemDevice struct {
 	closed       bool
 }
 
-func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
+func newSystemDevice(options Options) (*systemDevice, error) {
 	if options.Name == "" {
-		options.Name = tun.CalculateInterfaceName("ovpn")
-	}
-	if options.MTU == 0 {
-		options.MTU = DefaultMTU
+		options.Name = tun.CalculateInterfaceName(options.NamePrefix)
 	}
 	interfaceDialer, err := dialer.NewDefault(options.Context, option.DialerOptions{
 		AbstractDialerOptions: option.AbstractDialerOptions{
@@ -55,6 +52,7 @@ func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
 	}
 	inet4Address, inet6Address := firstAddresses(options.Configuration.Address)
 	return &systemDevice{
+		baseDevice:   baseDevice{packetHeadroom: options.PacketHeadroom},
 		options:      options,
 		dialer:       interfaceDialer,
 		inet4Address: inet4Address,
@@ -128,11 +126,11 @@ func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
 		d.readLoopDarwin(darwinTUN)
 		return
 	}
-	packetBuffer := buf.NewSize(PacketHeadroom + systemDeviceReadBufferSize + systemDevicePacketRearSpace)
+	packetBuffer := buf.NewSize(d.packetHeadroom + systemDeviceReadBufferSize + systemDevicePacketRearSpace)
 	defer packetBuffer.Release()
 	for {
 		packetBuffer.Reset()
-		packetBuffer.Resize(PacketHeadroom, 0)
+		packetBuffer.Resize(d.packetHeadroom, 0)
 		readN, err := tunInterface.Read(packetBuffer.FreeBytes()[:systemDeviceReadBufferSize])
 		if err != nil {
 			if E.IsClosed(err) {
@@ -164,13 +162,13 @@ func (d *systemDevice) readLoopLinux(tunInterface tun.LinuxTUN, batchSize int, m
 	packetSizes := make([]int, batchSize)
 	outboundBuffers := make([]*buf.Buffer, 0, batchSize)
 	for i := range packetBuffers {
-		packetBuffers[i] = buf.NewSize(PacketHeadroom + mtu + systemDevicePacketRearSpace)
+		packetBuffers[i] = buf.NewSize(d.packetHeadroom + mtu + systemDevicePacketRearSpace)
 	}
 	defer buf.ReleaseMulti(packetBuffers)
 	for {
 		for i, packetBuffer := range packetBuffers {
 			packetBuffer.Reset()
-			packetBuffer.Resize(PacketHeadroom, 0)
+			packetBuffer.Resize(d.packetHeadroom, 0)
 			readBuffers[i] = packetBuffer.FreeBytes()[:mtu]
 		}
 		packetCount, readErr := tunInterface.BatchRead(readBuffers, 0, packetSizes)

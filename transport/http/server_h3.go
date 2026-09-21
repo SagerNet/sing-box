@@ -1,6 +1,6 @@
 //go:build with_quic
 
-package quic
+package http
 
 import (
 	"context"
@@ -16,8 +16,6 @@ import (
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	boxHTTP "github.com/sagernet/sing-box/protocol/http"
-	transportHTTP "github.com/sagernet/sing-box/transport/http"
 	"github.com/sagernet/sing-quic"
 	congestion_meta2 "github.com/sagernet/sing-quic/congestion_meta2"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -25,7 +23,7 @@ import (
 )
 
 func init() {
-	boxHTTP.ConfigureHTTP3ListenerFunc = func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error) {
+	ConfigureHTTP3ListenerFunc = func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error) {
 		err := qtls.ConfigureHTTP3(tlsConfig)
 		if err != nil {
 			return nil, err
@@ -63,7 +61,7 @@ func init() {
 		}()
 		return quicListener, nil
 	}
-	transportHTTP.HTTP3StreamFunc = func(ctx context.Context, writer http.ResponseWriter) (transportHTTP.DatagramStream, bool) {
+	HTTP3StreamFunc = func(ctx context.Context, writer http.ResponseWriter) (DatagramStream, bool) {
 		streamer, isStreamer := writer.(http3.HTTPStreamer)
 		if !isStreamer {
 			return nil, false
@@ -91,7 +89,7 @@ type datagramStream struct {
 
 func (s *datagramStream) SendDatagram(payload []byte) error {
 	if !s.datagramsEnabled {
-		return transportHTTP.ErrDatagramUnsupported
+		return ErrDatagramUnsupported
 	}
 	err := s.Stream.SendDatagram(payload)
 	if err == nil {
@@ -99,7 +97,7 @@ func (s *datagramStream) SendDatagram(payload []byte) error {
 	}
 	var tooLarge *quic.DatagramTooLargeError
 	if errors.As(err, &tooLarge) {
-		return transportHTTP.ErrDatagramUnsupported
+		return &DatagramTooLargeError{MaxPayloadSize: int(tooLarge.MaxDatagramPayloadSize) - VarintLen(uint64(s.Stream.StreamID()/4))}
 	}
 	return err
 }
