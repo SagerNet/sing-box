@@ -10,18 +10,21 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/sing-box/common/badhttp"
 	"github.com/sagernet/sing-box/common/httpclient"
+	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
@@ -39,6 +42,7 @@ type ClientOptions struct {
 	RawDialer              N.Dialer
 	TLSConfig              aTLS.Config
 	Server                 M.Socksaddr
+	Authority              string
 	Username               string
 	Password               string
 	Path                   string
@@ -51,7 +55,7 @@ type ClientOptions struct {
 
 type http3Client interface {
 	DialContext(ctx context.Context, destination M.Socksaddr) (net.Conn, error)
-	ListenPacket(ctx context.Context, destination M.Socksaddr) (N.PacketConn, error)
+	OpenTunnel(ctx context.Context, request tunnelRequest) (DatagramStream, error)
 	ResetConnection()
 	Close() error
 }
@@ -59,24 +63,64 @@ type http3Client interface {
 var NewHTTP3Client func(options ClientOptions, authorization string) (http3Client, error)
 
 type Client struct {
-	dialer                     N.Dialer
-	http1Dialer                N.Dialer
-	tlsDialer                  tlsDialer
-	server                     M.Socksaddr
-	authorization              string
-	host                       string
-	path                       string
-	headers                    http.Header
-	version                    int
-	disableVersionFallback     bool
-	http2Transport             *http2.Transport
-	http2Access                sync.Mutex
-	http2Conns                 []*http2ClientConn
-	http2Unsupported           atomic.Bool
-	http2ConnectUDPUnsupported atomic.Bool
-	http3                      http3Client
-	http3Broken                atomic.Int64
-	http3Backoff               atomic.Int64
+	dialer                          N.Dialer
+	http1Dialer                     N.Dialer
+	tlsDialer                       tlsDialer
+	server                          M.Socksaddr
+	authorityOverride               string
+	authorization                   string
+	host                            string
+	path                            string
+	headers                         http.Header
+	version                         int
+	disableVersionFallback          bool
+	http2Transport                  *http2.Transport
+	http2Access                     sync.Mutex
+	http2Conns                      []*http2ClientConn
+	http2Unsupported                atomic.Bool
+	http2ExtendedConnectUnsupported atomic.Bool
+	http3                           http3Client
+	http3Broken                     atomic.Int64
+	http3Backoff                    atomic.Int64
+}
+
+func NewClientWithTLS(ctx context.Context, logger logger.ContextLogger, outboundDialer N.Dialer, serverOptions option.ServerOptions, tlsOptions option.OutboundTLSOptions, options ClientOptions) (*Client, error) {
+	if options.Version == 3 && !tlsOptions.Enabled {
+		return nil, C.ErrTLSRequired
+	}
+	alpnIsDefault := tlsOptions.Enabled && len(tlsOptions.ALPN) == 0
+	if alpnIsDefault {
+		if options.Version == 1 {
+			tlsOptions.ALPN = []string{"http/1.1"}
+		} else {
+			tlsOptions.ALPN = []string{http2.NextProtoTLS, "http/1.1"}
+		}
+	}
+	var err error
+	options.Dialer, err = tls.NewDialerFromOptions(ctx, logger, outboundDialer, serverOptions.Server, tlsOptions)
+	if err != nil {
+		return nil, err
+	}
+	if options.Version >= 2 && (alpnIsDefault || slices.Contains(tlsOptions.ALPN, "http/1.1")) {
+		http1TLSOptions := tlsOptions
+		http1TLSOptions.ALPN = []string{"http/1.1"}
+		options.HTTP1Dialer, err = tls.NewDialerFromOptions(ctx, logger, outboundDialer, serverOptions.Server, http1TLSOptions)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if options.Version == 3 {
+		if alpnIsDefault {
+			tlsOptions.ALPN = []string{"h3"}
+		}
+		options.TLSConfig, err = tls.NewClient(ctx, logger, serverOptions.Server, tlsOptions)
+		if err != nil {
+			return nil, err
+		}
+	}
+	options.RawDialer = outboundDialer
+	options.Server = serverOptions.Build()
+	return NewClient(options)
 }
 
 func NewClient(options ClientOptions) (*Client, error) {
@@ -84,6 +128,7 @@ func NewClient(options ClientOptions) (*Client, error) {
 		dialer:                 options.Dialer,
 		http1Dialer:            options.HTTP1Dialer,
 		server:                 options.Server,
+		authorityOverride:      options.Authority,
 		path:                   options.Path,
 		headers:                options.Headers.Clone(),
 		version:                options.Version,
@@ -219,7 +264,7 @@ func (c *Client) ResetConnections() {
 	c.closeHTTP2Locked()
 	c.http2Access.Unlock()
 	c.http2Unsupported.Store(false)
-	c.http2ConnectUDPUnsupported.Store(false)
+	c.http2ExtendedConnectUnsupported.Store(false)
 	if c.http3 != nil {
 		c.http3.ResetConnection()
 		c.clearHTTP3Broken()
@@ -249,13 +294,7 @@ func (c *Client) connect(ctx context.Context, conn net.Conn, destination M.Socks
 			return nil, err
 		}
 	}
-	maps.Copy(request.Header, c.headers)
-	if _, loaded := request.Header["User-Agent"]; !loaded {
-		request.Header["User-Agent"] = nil
-	}
-	if c.authorization != "" {
-		request.Header.Set("Proxy-Authorization", c.authorization)
-	}
+	maps.Copy(request.Header, buildRequestHeader(c.headers, c.authorization, false))
 	err := request.Write(conn)
 	if err != nil {
 		return nil, E.Cause(err, "write request")
@@ -281,6 +320,24 @@ func (c *Client) connect(ctx context.Context, conn net.Conn, destination M.Socks
 		return bufio.NewCachedConn(conn, buffer), nil
 	}
 	return conn, nil
+}
+
+func buildRequestHeader(headers http.Header, authorization string, originAuthorization bool) http.Header {
+	header := headers.Clone()
+	if header == nil {
+		header = make(http.Header)
+	}
+	if _, loaded := header["User-Agent"]; !loaded {
+		header["User-Agent"] = nil
+	}
+	if authorization != "" {
+		if originAuthorization {
+			header.Set("Authorization", authorization)
+		} else {
+			header.Set("Proxy-Authorization", authorization)
+		}
+	}
+	return header
 }
 
 func (c *Client) Close() error {
@@ -324,55 +381,18 @@ func (c *Client) ListenPacket(ctx context.Context, destination M.Socksaddr) (net
 }
 
 func (c *Client) listenPacket(ctx context.Context, destination M.Socksaddr) (N.PacketConn, error) {
-	if c.http3Available() {
-		packetConn, err := c.http3.ListenPacket(ctx, destination)
-		if err == nil {
-			c.clearHTTP3Broken()
-			return packetConn, nil
-		}
-		if c.disableVersionFallback || !errors.Is(err, ErrHTTP3Unavailable) {
-			return nil, err
-		}
-		c.markHTTP3Broken()
-	}
-	if c.tlsDialer != nil && !c.http2Unsupported.Load() && !c.http2ConnectUDPUnsupported.Load() {
-		clientConn, conn, err := c.acquireHTTP2(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if clientConn != nil {
-			packetConn, connectErr := c.connectUDPHTTP2(ctx, clientConn, destination)
-			if connectErr == nil {
-				return packetConn, nil
-			}
-			if !errors.Is(connectErr, errExtendedConnectUnsupported) || c.disableVersionFallback {
-				return nil, connectErr
-			}
-			c.http2ConnectUDPUnsupported.Store(true)
-		} else if c.disableVersionFallback {
-			conn.Close()
-			return nil, ErrHTTP2Unsupported
-		} else {
-			return c.connectUDPHTTP1AndClose(ctx, conn, destination)
-		}
-	}
-	conn, err := c.http1Dialer.DialContext(ctx, N.NetworkTCP, c.server)
+	conn, stream, err := c.openTunnel(ctx, tunnelRequest{
+		protocol:    connectUDPProtocol,
+		url:         connectUDPURL(destination),
+		destination: destination,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return c.connectUDPHTTP1AndClose(ctx, conn, destination)
-}
-
-func (c *Client) connectUDPHTTP1AndClose(ctx context.Context, conn net.Conn, destination M.Socksaddr) (N.PacketConn, error) {
-	packetConn, err := c.connectUDPHTTP1(ctx, conn, destination)
-	if err != nil {
-		conn.Close()
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		return nil, err
+	if stream != nil {
+		return newHTTP3PacketConn(stream, destination, M.Socksaddr{}), nil
 	}
-	return packetConn, nil
+	return newCapsuleConn(std_bufio.NewReader(conn), conn, destination), nil
 }
 
 var _ N.Dialer = (*Client)(nil)
