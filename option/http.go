@@ -1,7 +1,9 @@
 package option
 
 import (
+	"context"
 	"reflect"
+	"slices"
 
 	"github.com/sagernet/sing-box/schema"
 	"github.com/sagernet/sing/common/byteformats"
@@ -69,17 +71,17 @@ func (o HTTPClientOptions) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(_HTTPClientOptions(o), httpClientVariant(_HTTPClientOptions(o)))
 }
 
-func (o *HTTPClientOptions) UnmarshalJSON(content []byte) error {
+func (o *HTTPClientOptions) UnmarshalJSONContext(ctx context.Context, content []byte) error {
 	if len(content) > 0 && content[0] == '"' {
 		*o = HTTPClientOptions{}
 		return json.Unmarshal(content, &o.Tag)
 	}
 	var options _HTTPClientOptions
-	err := json.Unmarshal(content, &options)
+	err := json.UnmarshalContext(ctx, content, &options)
 	if err != nil {
 		return err
 	}
-	err = unmarshalHTTPClientVersionOptions(content, &options, &options)
+	err = unmarshalHTTPVersionOptions(ctx, content, &options, options.Version, &options.HTTP2Options, &options.HTTP3Options)
 	if err != nil {
 		return err
 	}
@@ -92,39 +94,74 @@ func (h HTTPClient) MarshalJSON() ([]byte, error) {
 	return badjson.MarshallObjects(_HTTPClientOptions(h), httpClientVariant(_HTTPClientOptions(h)))
 }
 
-func (h *HTTPClient) UnmarshalJSON(content []byte) error {
-	err := json.Unmarshal(content, (*_HTTPClientOptions)(h))
+func (h *HTTPClient) UnmarshalJSONContext(ctx context.Context, content []byte) error {
+	err := json.UnmarshalContext(ctx, content, (*_HTTPClientOptions)(h))
 	if err != nil {
 		return err
 	}
-	return unmarshalHTTPClientVersionOptions(content, (*_HTTPClientOptions)(h), (*_HTTPClientOptions)(h))
+	return unmarshalHTTPVersionOptions(ctx, content, (*_HTTPClientOptions)(h), h.Version, &h.HTTP2Options, &h.HTTP3Options)
 }
 
-func unmarshalHTTPClientVersionOptions(content []byte, baseStruct any, options *_HTTPClientOptions) error {
-	switch options.Version {
+func unmarshalHTTPVersionOptions(ctx context.Context, content []byte, baseStruct any, version int, http2Options *HTTP2Options, http3Options *QUICOptions) error {
+	switch version {
 	case 1:
-		return json.UnmarshalDisallowUnknownFields(content, baseStruct)
+		return json.UnmarshalContextDisallowUnknownFields(ctx, content, baseStruct)
 	case 0, 2:
-		options.Version = 2
-		return badjson.UnmarshallExcluded(content, baseStruct, &options.HTTP2Options)
+		return badjson.UnmarshallExcludedContext(ctx, content, baseStruct, http2Options)
 	case 3:
-		return badjson.UnmarshallExcluded(content, baseStruct, &options.HTTP3Options)
+		return badjson.UnmarshallExcludedContext(ctx, content, baseStruct, http3Options)
 	default:
-		return E.New("unknown HTTP version: ", options.Version)
+		return E.New("unknown HTTP version: ", version)
+	}
+}
+
+func unmarshalHTTPVersionsOptions(ctx context.Context, content []byte, baseStruct any, versions []int, http2Options *HTTP2Options, http3Options *QUICOptions) error {
+	for _, version := range versions {
+		if version < 1 || version > 3 {
+			return E.New("unknown HTTP version: ", version)
+		}
+	}
+	switch {
+	case slices.Contains(versions, 3):
+		err := badjson.UnmarshallExcludedContext(ctx, content, baseStruct, http3Options)
+		if err != nil {
+			return err
+		}
+		*http2Options = http3Options.HTTP2Options
+		return nil
+	case slices.Contains(versions, 2):
+		return badjson.UnmarshallExcludedContext(ctx, content, baseStruct, http2Options)
+	default:
+		return json.UnmarshalContextDisallowUnknownFields(ctx, content, baseStruct)
+	}
+}
+
+func httpVersionsVariant(versions []int, http2Options HTTP2Options, http3Options QUICOptions) any {
+	switch {
+	case slices.Contains(versions, 3):
+		return http3Options
+	case slices.Contains(versions, 2):
+		return http2Options
+	default:
+		return nil
+	}
+}
+
+func httpVersionVariant(version int, http2Options HTTP2Options, http3Options QUICOptions) any {
+	switch version {
+	case 1:
+		return nil
+	case 0, 2:
+		return http2Options
+	case 3:
+		return http3Options
+	default:
+		return nil
 	}
 }
 
 func httpClientVariant(options _HTTPClientOptions) any {
-	switch options.Version {
-	case 1:
-		return nil
-	case 0, 2:
-		return options.HTTP2Options
-	case 3:
-		return options.HTTP3Options
-	default:
-		return nil
-	}
+	return httpVersionVariant(options.Version, options.HTTP2Options, options.HTTP3Options)
 }
 
 func describeHTTPClientObject(builder schema.Builder) (*schema.Node, error) {
