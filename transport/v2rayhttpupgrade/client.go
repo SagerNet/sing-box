@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/badhttp"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
@@ -16,7 +17,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	sHTTP "github.com/sagernet/sing/protocol/http"
 )
 
 var _ adapter.V2RayClientTransport = (*Client)(nil)
@@ -52,7 +52,7 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	}
 	requestURL.Host = serverAddr.String()
 	requestURL.Path = options.Path
-	err := sHTTP.URLSetPath(&requestURL, options.Path)
+	err := badhttp.URLSetPath(&requestURL, options.Path)
 	if err != nil {
 		return nil, E.Cause(err, "parse path")
 	}
