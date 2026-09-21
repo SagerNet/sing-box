@@ -158,6 +158,8 @@ nav:
           - OpenConnect Client: configuration/endpoint/openconnect.md
           - OpenVPN Client: configuration/endpoint/openvpn-client.md
           - OpenVPN Server: configuration/endpoint/openvpn-server.md
+          - MASQUE Client: configuration/endpoint/masque-client.md
+          - MASQUE Server: configuration/endpoint/masque-server.md
       - Inbound:
           - configuration/inbound/index.md
           - Direct: configuration/inbound/direct.md
