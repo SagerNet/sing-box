@@ -1,4 +1,4 @@
-package openconnect
+package device
 
 import (
 	"net/netip"
@@ -15,7 +15,7 @@ type systemStackDevice struct {
 	stackDevice *stackDevice
 }
 
-func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
+func newSystemStackDevice(options Options) (*systemStackDevice, error) {
 	system, err := newSystemDevice(options)
 	if err != nil {
 		return nil, err

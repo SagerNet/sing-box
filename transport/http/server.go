@@ -2,11 +2,16 @@ package http
 
 import (
 	"context"
+	"io"
 	"math"
 	"net"
 	"net/http"
+	"slices"
 	"time"
 
+	"github.com/sagernet/sing-box/common/listener"
+	"github.com/sagernet/sing-box/common/tls"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -25,6 +30,8 @@ const (
 	realm               = "sing-box"
 )
 
+var ConfigureHTTP3ListenerFunc func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error)
+
 type Handler interface {
 	N.TCPConnectionHandlerEx
 	N.UDPConnectionHandlerEx
@@ -37,6 +44,7 @@ type ServerOptions struct {
 	HTTP2         bool
 	HTTP2Options  option.HTTP2Options
 	UDP           bool
+	Tunnels       map[string]TunnelHandler
 }
 
 type Server struct {
@@ -45,6 +53,7 @@ type Server struct {
 	http1         bool
 	http2Server   *http2.Server
 	udp           bool
+	tunnels       map[string]TunnelHandler
 }
 
 func NewServer(options ServerOptions) *Server {
@@ -53,6 +62,7 @@ func NewServer(options ServerOptions) *Server {
 		logger:        options.Logger,
 		http1:         options.HTTP1,
 		udp:           options.UDP,
+		tunnels:       options.Tunnels,
 	}
 	if options.HTTP2 {
 		server.http2Server = &http2.Server{
@@ -101,11 +111,31 @@ func (s *Server) ServeConnection(ctx context.Context, conn net.Conn, reader *Rea
 	connection.serve()
 }
 
-func (s *Server) HTTP3Handler(handler Handler) http.Handler {
-	return &httpHandler{
+func (s *Server) ConfigureTLS(tlsConfig tls.ServerConfig) {
+	if len(tlsConfig.NextProtos()) > 0 {
+		return
+	}
+	var nextProtos []string
+	if s.http2Server != nil {
+		nextProtos = append(nextProtos, http2.NextProtoTLS)
+	}
+	if s.http1 {
+		nextProtos = append(nextProtos, "http/1.1")
+	}
+	tlsConfig.SetNextProtos(nextProtos)
+}
+
+func (s *Server) ListenHTTP3(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error) {
+	if ConfigureHTTP3ListenerFunc == nil {
+		return nil, C.ErrQUICNotIncluded
+	}
+	if !slices.Contains(tlsConfig.NextProtos(), "h3") {
+		tlsConfig.SetNextProtos(append([]string{"h3"}, tlsConfig.NextProtos()...))
+	}
+	return ConfigureHTTP3ListenerFunc(ctx, logger, listener, &httpHandler{
 		server:  s,
 		handler: handler,
-	}
+	}, tlsConfig, options)
 }
 
 func (s *Server) finishConnection(ctx context.Context, conn net.Conn, source M.Socksaddr, onClose N.CloseHandlerFunc, err error) {

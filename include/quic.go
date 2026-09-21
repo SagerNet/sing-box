@@ -8,7 +8,6 @@ import (
 	"github.com/sagernet/sing-box/adapter/service"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/dns/transport/quic"
-	_ "github.com/sagernet/sing-box/protocol/http/quic"
 	"github.com/sagernet/sing-box/protocol/hysteria"
 	"github.com/sagernet/sing-box/protocol/hysteria2"
 	_ "github.com/sagernet/sing-box/protocol/naive/quic"
