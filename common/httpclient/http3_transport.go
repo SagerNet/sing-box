@@ -46,21 +46,7 @@ func newHTTP3RoundTripper(
 	if baseTLSConfig != nil {
 		handshakeTimeout = baseTLSConfig.HandshakeTimeout()
 	}
-	quicConfig := &quic.Config{
-		InitialStreamReceiveWindow:     options.StreamReceiveWindow.Value(),
-		MaxStreamReceiveWindow:         options.StreamReceiveWindow.Value(),
-		InitialConnectionReceiveWindow: options.ConnectionReceiveWindow.Value(),
-		MaxConnectionReceiveWindow:     options.ConnectionReceiveWindow.Value(),
-		KeepAlivePeriod:                time.Duration(options.KeepAlivePeriod),
-		MaxIdleTimeout:                 time.Duration(options.IdleTimeout),
-		DisablePathMTUDiscovery:        options.DisablePathMTUDiscovery,
-	}
-	if options.InitialPacketSize > 0 {
-		quicConfig.InitialPacketSize = uint16(options.InitialPacketSize)
-	}
-	if options.MaxConcurrentStreams > 0 {
-		quicConfig.MaxIncomingStreams = int64(options.MaxConcurrentStreams)
-	}
+	quicConfig := NewQUICConfig(options)
 	if handshakeTimeout > 0 {
 		quicConfig.HandshakeIdleTimeout = handshakeTimeout
 	}
@@ -342,4 +328,23 @@ func (t *http3FallbackTransport) markH3Broken(authority string) {
 	}
 	entry.until = time.Now().Add(entry.backoff)
 	t.broken[authority] = entry
+}
+
+func NewQUICConfig(options option.QUICOptions) *quic.Config {
+	quicConfig := &quic.Config{
+		InitialStreamReceiveWindow:     options.StreamReceiveWindow.Value(),
+		MaxStreamReceiveWindow:         options.StreamReceiveWindow.Value(),
+		InitialConnectionReceiveWindow: options.ConnectionReceiveWindow.Value(),
+		MaxConnectionReceiveWindow:     options.ConnectionReceiveWindow.Value(),
+		KeepAlivePeriod:                time.Duration(options.KeepAlivePeriod),
+		MaxIdleTimeout:                 time.Duration(options.IdleTimeout),
+		DisablePathMTUDiscovery:        options.DisablePathMTUDiscovery,
+	}
+	if options.InitialPacketSize > 0 {
+		quicConfig.InitialPacketSize = uint16(options.InitialPacketSize)
+	}
+	if options.MaxConcurrentStreams > 0 {
+		quicConfig.MaxIncomingStreams = int64(options.MaxConcurrentStreams)
+	}
+	return quicConfig
 }
