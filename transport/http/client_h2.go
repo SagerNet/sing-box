@@ -54,7 +54,7 @@ func (c *Client) connectHTTP2(ctx context.Context, clientConn *http2ClientConn, 
 		Method: http.MethodConnect,
 		URL:    &url.URL{Host: destination.String()},
 		Host:   destination.String(),
-		Header: c.headers.Clone(),
+		Header: buildRequestHeader(c.headers, c.authorization, false),
 	}
 	streamConn, err := c.roundTripHTTP2(ctx, clientConn, request, destination)
 	if err != nil {
@@ -68,15 +68,6 @@ func (c *Client) roundTripHTTP2(ctx context.Context, clientConn *http2ClientConn
 	streamCtx, cancel := context.WithCancel(context.Background())
 	request.Body = pipeReader
 	request = request.WithContext(streamCtx)
-	if request.Header == nil {
-		request.Header = make(http.Header)
-	}
-	if _, loaded := request.Header["User-Agent"]; !loaded {
-		request.Header["User-Agent"] = nil
-	}
-	if c.authorization != "" {
-		request.Header.Set("Proxy-Authorization", c.authorization)
-	}
 	stop := context.AfterFunc(ctx, cancel)
 	response, err := clientConn.RoundTrip(request)
 	stopped := stop()
