@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/badhttp"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -21,7 +22,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
-	sHttp "github.com/sagernet/sing/protocol/http"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c" //nolint:staticcheck
@@ -103,7 +103,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		}
 	}
 
-	source := sHttp.SourceAddress(request)
+	source := badhttp.SourceAddress(request)
 	if h, ok := writer.(http.Hijacker); ok {
 		var requestBody *buf.Buffer
 		if contentLength := int(request.ContentLength); contentLength > 0 {

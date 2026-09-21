@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/badhttp"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
@@ -19,7 +20,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	aTLS "github.com/sagernet/sing/common/tls"
-	sHttp "github.com/sagernet/sing/protocol/http"
 )
 
 var _ adapter.V2RayServerTransport = (*Server)(nil)
@@ -112,7 +112,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		s.invalidRequest(writer, request, http.StatusInternalServerError, E.Cause(err, "hijack failed"))
 		return
 	}
-	s.handler.NewConnectionEx(v2rayhttp.DupContext(request.Context()), conn, sHttp.SourceAddress(request), M.Socksaddr{}, nil)
+	s.handler.NewConnectionEx(v2rayhttp.DupContext(request.Context()), conn, badhttp.SourceAddress(request), M.Socksaddr{}, nil)
 }
 
 func (s *Server) invalidRequest(writer http.ResponseWriter, request *http.Request, statusCode int, err error) {

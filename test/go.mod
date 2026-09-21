@@ -12,12 +12,12 @@ require (
 	github.com/gofrs/uuid/v5 v5.5.1
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/sagernet/quic-go v0.61.0-sing-box-mod.7
-	github.com/sagernet/sing v0.9.5-0.20260914135810-80bfa92a0607
+	github.com/sagernet/sing v0.9.6-0.20260920093640-814d533a21ef
 	github.com/sagernet/sing-openvpn v0.0.0-20260903200517-e060dda5b1f1
 	github.com/sagernet/sing-quic v0.7.1-0.20260904135313-497364e8ee3e
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
-	github.com/sagernet/sing-tun v0.9.4-0.20260917030658-12dce01d6d8d
+	github.com/sagernet/sing-tun v0.9.6-0.20260919141142-a39eab51450b
 	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916060041-a8fbeb4b0838
 	github.com/spyzhov/ajson v0.9.4
 	github.com/stretchr/testify v1.12.0
@@ -157,7 +157,7 @@ require (
 	github.com/sagernet/nftables v0.3.0-mod.4 // indirect
 	github.com/sagernet/sing-anytls v0.0.0-20260904135308-cec2d74334be // indirect
 	github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3 // indirect
-	github.com/sagernet/sing-mux v0.3.7-0.20260905054442-91d1502591ce // indirect
+	github.com/sagernet/sing-mux v0.3.9-0.20260919141002-baf887b90a62 // indirect
 	github.com/sagernet/sing-openconnect v0.0.0-20260903200519-8b89c968949d // indirect
 	github.com/sagernet/sing-shadowtls v0.2.1 // indirect
 	github.com/sagernet/sing-snell v0.0.0-20260904135315-bc5a12ac736f // indirect

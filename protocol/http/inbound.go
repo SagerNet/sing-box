@@ -1,9 +1,11 @@
 package http
 
 import (
-	std_bufio "bufio"
 	"context"
+	"io"
 	"net"
+	std_http "net/http"
+	"slices"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
@@ -13,34 +15,63 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/http"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/sagernet/sing/common/logger"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/protocol/http"
+
+	"golang.org/x/net/http2"
 )
 
+var ConfigureHTTP3ListenerFunc func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler std_http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error)
+
 func RegisterInbound(registry *inbound.Registry) {
-	inbound.Register[option.HTTPMixedInboundOptions](registry, C.TypeHTTP, NewInbound)
+	inbound.Register[option.HTTPInboundOptions](registry, C.TypeHTTP, NewInbound)
 }
 
 var _ adapter.TCPInjectableInbound = (*Inbound)(nil)
 
 type Inbound struct {
 	inbound.Adapter
-	router        adapter.ConnectionRouterEx
-	logger        log.ContextLogger
-	listener      *listener.Listener
-	authenticator *auth.Authenticator
-	tlsConfig     tls.ServerConfig
+	ctx         context.Context
+	router      adapter.ConnectionRouterEx
+	logger      log.ContextLogger
+	listener    *listener.Listener
+	server      *http.Server
+	tlsConfig   tls.ServerConfig
+	http3       bool
+	quicOptions option.QUICOptions
+	http3Server io.Closer
 }
 
-func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPMixedInboundOptions) (adapter.Inbound, error) {
+func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.HTTPInboundOptions) (adapter.Inbound, error) {
+	versions := options.Versions()
+	serveHTTP1 := slices.Contains(versions, 1)
+	serveHTTP2 := slices.Contains(versions, 2)
+	serveHTTP3 := slices.Contains(versions, 3)
+	if serveHTTP3 && (options.TLS == nil || !options.TLS.Enabled) {
+		return nil, E.New("TLS is required for HTTP/3")
+	}
+	if !serveHTTP1 && !serveHTTP2 && options.SetSystemProxy {
+		return nil, E.New("set_system_proxy requires HTTP/1 or HTTP/2")
+	}
 	inbound := &Inbound{
-		Adapter:       inbound.NewAdapter(C.TypeHTTP, tag),
-		router:        uot.NewRouter(router, logger),
-		logger:        logger,
-		authenticator: auth.NewAuthenticator(options.Users),
+		Adapter: inbound.NewAdapter(C.TypeHTTP, tag),
+		ctx:     ctx,
+		router:  uot.NewRouter(router, logger),
+		logger:  logger,
+		server: http.NewServer(http.ServerOptions{
+			Authenticator: auth.NewAuthenticator(options.Users),
+			Logger:        logger,
+			HTTP1:         serveHTTP1,
+			HTTP2:         serveHTTP2,
+			HTTP2Options:  options.HTTP2Options,
+			UDP:           true,
+		}),
+		http3:       serveHTTP3,
+		quicOptions: options.HTTP3Options,
 	}
 	if options.TLS != nil {
 		tlsConfig, err := tls.NewServerWithOptions(tls.ServerOptions{
@@ -52,12 +83,26 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if err != nil {
 			return nil, err
 		}
+		if tlsConfig != nil && len(tlsConfig.NextProtos()) == 0 {
+			var nextProtos []string
+			if serveHTTP2 {
+				nextProtos = append(nextProtos, http2.NextProtoTLS)
+			}
+			if serveHTTP1 {
+				nextProtos = append(nextProtos, "http/1.1")
+			}
+			tlsConfig.SetNextProtos(nextProtos)
+		}
 		inbound.tlsConfig = tlsConfig
+	}
+	var network []string
+	if serveHTTP1 || serveHTTP2 {
+		network = []string{N.NetworkTCP}
 	}
 	inbound.listener = listener.New(listener.Options{
 		Context:           ctx,
 		Logger:            logger,
-		Network:           []string{N.NetworkTCP},
+		Network:           network,
 		Listen:            options.ListenOptions,
 		ConnectionHandler: inbound,
 		SetSystemProxy:    options.SetSystemProxy,
@@ -76,12 +121,38 @@ func (h *Inbound) Start(stage adapter.StartStage) error {
 			return E.Cause(err, "create TLS config")
 		}
 	}
-	return h.listener.Start()
+	err := h.listener.Start()
+	if err != nil {
+		return err
+	}
+	if h.http3 {
+		return h.startHTTP3()
+	}
+	return nil
+}
+
+func (h *Inbound) startHTTP3() error {
+	if ConfigureHTTP3ListenerFunc == nil {
+		return C.ErrQUICNotIncluded
+	}
+	if !slices.Contains(h.tlsConfig.NextProtos(), "h3") {
+		h.tlsConfig.SetNextProtos(append([]string{"h3"}, h.tlsConfig.NextProtos()...))
+	}
+	var metadata adapter.InboundContext
+	//nolint:staticcheck
+	metadata.InboundDetour = h.listener.ListenOptions().Detour
+	http3Server, err := ConfigureHTTP3ListenerFunc(h.ctx, h.logger, h.listener, h.server.HTTP3Handler(adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection)), h.tlsConfig, h.quicOptions)
+	if err != nil {
+		return err
+	}
+	h.http3Server = http3Server
+	return nil
 }
 
 func (h *Inbound) Close() error {
 	return common.Close(
 		h.listener,
+		h.http3Server,
 		h.tlsConfig,
 	)
 }
@@ -96,11 +167,7 @@ func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata ada
 		}
 		conn = tlsConn
 	}
-	err := http.HandleConnectionEx(ctx, conn, std_bufio.NewReader(conn), h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
-	if err != nil {
-		N.CloseOnHandshakeFailure(conn, onClose, err)
-		h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
-	}
+	h.server.ServeConnection(ctx, conn, http.NewReader(conn), adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
 }
 
 func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
