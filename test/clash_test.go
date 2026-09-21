@@ -411,9 +411,10 @@ func testLargeDataWithPacketConnSize(t *testing.T, port uint16, chunkSize int, p
 		buf := make([]byte, 64*1024)
 
 		for i := 0; i < times; i++ {
-			_, rAddr, err = l.ReadFrom(buf)
-			if err != nil {
-				t.Log(err.Error())
+			var readErr error
+			_, rAddr, readErr = l.ReadFrom(buf)
+			if readErr != nil {
+				t.Log(readErr.Error())
 				return
 			}
 			hash := md5.Sum(buf[:chunkSize])
