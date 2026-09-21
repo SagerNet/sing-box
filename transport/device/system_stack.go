@@ -1,4 +1,4 @@
-package openvpn
+package device
 
 import (
 	"net/netip"
@@ -15,7 +15,7 @@ type systemStackDevice struct {
 	stackDevice *stackDevice
 }
 
-func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
+func newSystemStackDevice(options Options) (*systemStackDevice, error) {
 	system, err := newSystemDevice(options)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,6 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 		system.Close()
 		return nil, err
 	}
-	stackDevice.logRouteOptions = false
 	return &systemStackDevice{
 		systemDevice: system,
 		stackDevice:  stackDevice,

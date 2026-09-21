@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/service/oomkiller"
+	"github.com/sagernet/sing-box/transport/device"
 	ovpntransport "github.com/sagernet/sing-box/transport/openvpn"
 	ovpn "github.com/sagernet/sing-openvpn"
 	"github.com/sagernet/sing-tun"
@@ -43,8 +44,8 @@ type ServerEndpoint struct {
 	dnsRouter      adapter.DNSRouter
 	listener       *listener.Listener
 	server         *ovpn.Server
-	deviceOptions  *ovpntransport.DeviceOptions
-	device         ovpntransport.Device
+	deviceOptions  *device.Options
+	device         device.Device
 	localAddresses []netip.Prefix
 	started        atomic.Bool
 	readLoopDone   chan struct{}
@@ -104,7 +105,7 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 	if options.UDPTimeout != 0 {
 		udpTimeout = time.Duration(options.UDPTimeout)
 	}
-	serverEndpoint.deviceOptions = &ovpntransport.DeviceOptions{
+	serverEndpoint.deviceOptions = &device.Options{
 		Context:         ctx,
 		Logger:          logger,
 		System:          options.System,
@@ -116,11 +117,12 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		UDPNATMax:       options.UDPNATMax,
 		InterfaceFinder: service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
 		Name:            options.Name,
+		NamePrefix:      "ovpn",
 		MTU:             options.MTU,
-		Configuration: ovpntransport.Configuration{
-			MTU:      options.MTU,
-			Address:  options.Address,
-			Topology: options.Topology,
+		PacketHeadroom:  ovpntransport.PacketHeadroom,
+		Configuration: device.Configuration{
+			MTU:     options.MTU,
+			Address: options.Address,
 		},
 	}
 	return serverEndpoint, nil
@@ -160,12 +162,12 @@ func validateServerTopology(topology string) error {
 func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
 	if stage == adapter.StartStateInitialize {
 		s.deviceOptions.MemoryPressure = oomkiller.MemoryPressure(s.ctx)
-		device, err := ovpntransport.NewDevice(*s.deviceOptions)
+		tunnelDevice, err := device.New(*s.deviceOptions)
 		if err != nil {
 			return err
 		}
-		device.SetPacketWriter(s.writePacketBuffersByDestination)
-		s.device = device
+		tunnelDevice.SetPacketWriter(s.writePacketBuffersByDestination)
+		s.device = tunnelDevice
 		s.deviceOptions = nil
 		return nil
 	}
@@ -709,7 +711,7 @@ func (s *ServerEndpoint) writeRouteMisses(routeMisses []*ovpn.RouteMissError) {
 	replies := make([][]byte, 0, len(routeMisses))
 	for _, routeMiss := range routeMisses {
 		sourceAddress := packetSourceAddress(routeMiss.Packet, inet4Address, inet6Address)
-		reply, built := tun.BuildUnreachable(routeMiss.Packet, sourceAddress, headroom)
+		reply, built := tun.BuildICMPError(routeMiss.Packet, tun.ICMPErrorNoRoute, sourceAddress, 0, headroom)
 		if built {
 			replies = append(replies, reply)
 		}

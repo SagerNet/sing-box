@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/common/badhttp"
-	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
@@ -68,20 +67,22 @@ func (c *serverConn) serveRequest() (requestResult, error) {
 			return c.rejectAndClose(nil, http.StatusBadRequest, E.Cause(err, "read request"))
 		}
 	}
-	ctx := c.ctx
-	if c.server.authenticator != nil {
-		username, password, valid := badhttp.ParseBasicAuth(request.Header.Get("Proxy-Authorization"))
-		if !valid || !c.server.authenticator.Verify(username, password) {
-			var authErr error
-			if !valid {
-				authErr = E.New("authentication failed: missing or malformed Proxy-Authorization")
-			} else {
-				authErr = E.New("authentication failed: username=", username)
-			}
-			c.server.logger.ErrorContext(ctx, E.Cause(authErr, "process connection from ", c.source))
-			return c.reject(request, requestKeepAlive(request), http.StatusProxyAuthRequired, authErr)
+	tunnelProtocol, tunnelHandler := c.server.upgradeTunnelHandler(request)
+	if tunnelHandler != nil {
+		tunnelCtx, tunnelAuthErr := c.server.authenticate(c.ctx, request, "Authorization")
+		if tunnelAuthErr != nil {
+			c.server.logger.ErrorContext(c.ctx, E.Cause(tunnelAuthErr, "process connection from ", c.source))
+			return c.reject(request, requestKeepAlive(request), http.StatusUnauthorized, nil, tunnelAuthErr)
 		}
-		ctx = auth.ContextWithUser(ctx, username)
+		return c.serveTunnel(tunnelCtx, request, badhttp.ForwardedSource(request, c.source), tunnelProtocol, tunnelHandler)
+	}
+	if c.handler == nil {
+		return c.reject(request, requestKeepAlive(request), http.StatusNotFound, nil, E.New("unexpected request: ", request.Method, " ", request.URL))
+	}
+	ctx, authErr := c.server.authenticate(c.ctx, request, "Proxy-Authorization")
+	if authErr != nil {
+		c.server.logger.ErrorContext(c.ctx, E.Cause(authErr, "process connection from ", c.source))
+		return c.reject(request, requestKeepAlive(request), http.StatusProxyAuthRequired, nil, authErr)
 	}
 	source := badhttp.ForwardedSource(request, c.source)
 	switch {
@@ -99,7 +100,7 @@ func (c *serverConn) serveRequest() (requestResult, error) {
 func (c *serverConn) serveConnect(ctx context.Context, request *http.Request, source M.Socksaddr) (requestResult, error) {
 	destination := connectDestination(request)
 	if !destination.IsValid() {
-		return c.reject(request, requestKeepAlive(request), http.StatusBadRequest, E.New("invalid CONNECT target: ", request.URL.Host))
+		return c.reject(request, requestKeepAlive(request), http.StatusBadRequest, nil, E.New("invalid CONNECT target: ", request.URL.Host))
 	}
 	_, err := c.conn.Write([]byte(F.ToString("HTTP/", request.ProtoMajor, ".", request.ProtoMinor, " 200 Connection established\r\n\r\n")))
 	if err != nil {
@@ -109,11 +110,11 @@ func (c *serverConn) serveConnect(ctx context.Context, request *http.Request, so
 	return requestHandedOff, nil
 }
 
-func (c *serverConn) reject(request *http.Request, keepAlive bool, statusCode int, cause error) (requestResult, error) {
+func (c *serverConn) reject(request *http.Request, keepAlive bool, statusCode int, header http.Header, cause error) (requestResult, error) {
 	if keepAlive && request.Body != nil && request.Body != http.NoBody {
 		keepAlive = c.discardBody(request.Body)
 	}
-	err := c.writeReject(request, statusCode, keepAlive)
+	err := c.writeReject(request, statusCode, header, keepAlive)
 	if err != nil {
 		return requestClose, E.Errors(cause, err)
 	}
@@ -124,28 +125,34 @@ func (c *serverConn) reject(request *http.Request, keepAlive bool, statusCode in
 }
 
 func (c *serverConn) rejectAndClose(request *http.Request, statusCode int, cause error) (requestResult, error) {
-	err := c.writeReject(request, statusCode, false)
+	err := c.writeReject(request, statusCode, nil, false)
 	if err != nil {
 		return requestClose, E.Errors(cause, err)
 	}
 	return requestClose, cause
 }
 
-func (c *serverConn) writeReject(request *http.Request, statusCode int, keepAlive bool) error {
+func (c *serverConn) writeReject(request *http.Request, statusCode int, header http.Header, keepAlive bool) error {
 	response := &http.Response{
 		StatusCode: statusCode,
 		ProtoMajor: 1,
 		ProtoMinor: 1,
-		Header:     make(http.Header),
+		Header:     header.Clone(),
 		Request:    request,
 		Close:      !keepAlive,
+	}
+	if response.Header == nil {
+		response.Header = make(http.Header)
 	}
 	if request != nil {
 		response.ProtoMajor = request.ProtoMajor
 		response.ProtoMinor = request.ProtoMinor
 	}
-	if statusCode == http.StatusProxyAuthRequired {
+	switch statusCode {
+	case http.StatusProxyAuthRequired:
 		response.Header.Set("Proxy-Authenticate", `Basic realm="`+realm+`", charset="UTF-8"`)
+	case http.StatusUnauthorized:
+		response.Header.Set("WWW-Authenticate", `Basic realm="`+realm+`", charset="UTF-8"`)
 	}
 	if keepAlive && request.ProtoMajor == 1 && request.ProtoMinor == 0 {
 		response.Header.Set("Connection", "keep-alive")
