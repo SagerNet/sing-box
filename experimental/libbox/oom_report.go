@@ -31,7 +31,6 @@ var oomReportProfiles = []string{
 type oomReportMetadata struct {
 	reportMetadata
 	RecordedAt      string `json:"recordedAt"`
-	EndedAt         string `json:"endedAt,omitempty"`
 	MemoryLimit     string `json:"memoryLimit,omitempty"`
 	MemoryUsage     string `json:"memoryUsage"`
 	AvailableMemory string `json:"availableMemory,omitempty"`
@@ -51,9 +50,6 @@ func OOMRecorderOptions(startedService *daemon.StartedService) oomkiller.Recorde
 				Snapshots:      status.Snapshots,
 			}
 			metadata.StartedAt = status.StartedAt.UTC().Format(time.RFC3339)
-			if !status.EndedAt.IsZero() {
-				metadata.EndedAt = status.EndedAt.UTC().Format(time.RFC3339)
-			}
 			if status.MemoryLimit > 0 {
 				metadata.MemoryLimit = byteformats.FormatMemoryBytes(status.MemoryLimit)
 			}
