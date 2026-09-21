@@ -52,6 +52,9 @@ func newHTTP3Client(options ClientOptions, authorization string) (http3Client, e
 	quicConfig.EnableDatagrams = true
 	headers := options.Headers.Clone()
 	authority := options.Server.String()
+	if options.Authority != "" {
+		authority = options.Authority
+	}
 	if headers != nil {
 		if host := headers.Get("Host"); host != "" {
 			authority = host
@@ -112,15 +115,6 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 		}
 		return nil, nil, E.Cause1(ErrHTTP3Unavailable, err)
 	}
-	if request.Header == nil {
-		request.Header = make(http.Header)
-	}
-	if _, loaded := request.Header["User-Agent"]; !loaded {
-		request.Header["User-Agent"] = nil
-	}
-	if c.authorization != "" {
-		request.Header.Set("Proxy-Authorization", c.authorization)
-	}
 	stop := context.AfterFunc(ctx, func() {
 		stream.CancelRead(0)
 		stream.CancelWrite(0)
@@ -163,7 +157,7 @@ func (c *http3ClientImpl) DialContext(ctx context.Context, destination M.Socksad
 		Method: http.MethodConnect,
 		URL:    &url.URL{Host: destination.String()},
 		Host:   destination.String(),
-		Header: c.headers.Clone(),
+		Header: buildRequestHeader(c.headers, c.authorization, false),
 	})
 	if err != nil {
 		return nil, err
@@ -171,23 +165,23 @@ func (c *http3ClientImpl) DialContext(ctx context.Context, destination M.Socksad
 	return &http3StreamConn{stream: stream, remoteAddr: destination}, nil
 }
 
-func (c *http3ClientImpl) ListenPacket(ctx context.Context, destination M.Socksaddr) (N.PacketConn, error) {
-	header := c.headers.Clone()
-	if header == nil {
-		header = make(http.Header)
-	}
+func (c *http3ClientImpl) OpenTunnel(ctx context.Context, request tunnelRequest) (DatagramStream, error) {
+	requestURL := *request.url
+	requestURL.Scheme = "https"
+	requestURL.Host = c.authority
+	header := buildRequestHeader(c.headers, c.authorization, request.originAuthorization)
 	header.Set("Capsule-Protocol", "?1")
 	stream, clientConn, err := c.openStream(ctx, &http.Request{
 		Method: http.MethodConnect,
-		Proto:  connectUDPProtocol,
-		URL:    connectUDPURL(c.authority, destination),
+		Proto:  request.protocol,
+		URL:    &requestURL,
 		Host:   c.authority,
 		Header: header,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return newHTTP3PacketConn(&http3RequestDatagramStream{stream: stream, datagramsEnabled: clientConn.Settings().EnableDatagrams}, destination, M.Socksaddr{}), nil
+	return &http3RequestDatagramStream{stream: stream, datagramsEnabled: clientConn.Settings().EnableDatagrams}, nil
 }
 
 func (c *http3ClientImpl) ResetConnection() {
@@ -314,7 +308,7 @@ func (s *http3RequestDatagramStream) SendDatagram(payload []byte) error {
 	}
 	var tooLarge *quic.DatagramTooLargeError
 	if errors.As(err, &tooLarge) {
-		return ErrDatagramUnsupported
+		return &DatagramTooLargeError{MaxPayloadSize: int(tooLarge.MaxDatagramPayloadSize) - VarintLen(uint64(s.stream.StreamID()/4))}
 	}
 	return err
 }

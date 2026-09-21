@@ -44,18 +44,13 @@ func parseConnectUDPTarget(path string) (M.Socksaddr, bool) {
 	return destination, true
 }
 
-func connectUDPURL(authority string, destination M.Socksaddr) *url.URL {
+func connectUDPURL(destination M.Socksaddr) *url.URL {
 	host := destination.AddrString()
 	port := "/" + strconv.Itoa(int(destination.Port)) + "/"
-	requestURL := &url.URL{
+	return &url.URL{
 		Path:    connectUDPPathPrefix + host + port,
 		RawPath: connectUDPPathPrefix + strings.ReplaceAll(url.PathEscape(host), ":", "%3A") + port,
 	}
-	if authority != "" {
-		requestURL.Scheme = "https"
-		requestURL.Host = authority
-	}
-	return requestURL
 }
 
 func requestIsConnectUDP(request *http.Request) bool {
@@ -65,7 +60,7 @@ func requestIsConnectUDP(request *http.Request) bool {
 func (c *serverConn) serveConnectUDP(ctx context.Context, request *http.Request, source M.Socksaddr) (requestResult, error) {
 	destination, valid := parseConnectUDPTarget(request.URL.EscapedPath())
 	if !valid || !request.ProtoAtLeast(1, 1) {
-		return c.reject(request, requestKeepAlive(request), http.StatusBadRequest, E.New("invalid connect-udp request: ", request.URL.Path))
+		return c.reject(request, requestKeepAlive(request), http.StatusBadRequest, nil, E.New("invalid connect-udp request: ", request.URL.Path))
 	}
 	_, err := c.conn.Write([]byte("HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: connect-udp\r\nCapsule-Protocol: ?1\r\n\r\n"))
 	if err != nil {
@@ -105,74 +100,4 @@ func (h *httpHandler) serveConnectUDP(ctx context.Context, writer http.ResponseW
 	}))
 	<-done
 	conn.CloseWrapper()
-}
-
-func (c *Client) connectUDPHTTP1(ctx context.Context, conn net.Conn, destination M.Socksaddr) (N.PacketConn, error) {
-	stop := context.AfterFunc(ctx, func() {
-		conn.Close()
-	})
-	defer stop()
-	request := &http.Request{
-		Method: http.MethodGet,
-		URL:    connectUDPURL("", destination),
-		Host:   c.authority(),
-		Header: c.headers.Clone(),
-	}
-	if request.Header == nil {
-		request.Header = make(http.Header)
-	}
-	request.Header.Set("Connection", "Upgrade")
-	request.Header.Set("Upgrade", connectUDPProtocol)
-	request.Header.Set("Capsule-Protocol", "?1")
-	if _, loaded := request.Header["User-Agent"]; !loaded {
-		request.Header["User-Agent"] = nil
-	}
-	if c.authorization != "" {
-		request.Header.Set("Proxy-Authorization", c.authorization)
-	}
-	err := request.Write(conn)
-	if err != nil {
-		return nil, E.Cause(err, "write request")
-	}
-	reader := std_bufio.NewReader(conn)
-	response, err := http.ReadResponse(reader, request)
-	if err != nil {
-		return nil, E.Cause(err, "read response")
-	}
-	if response.StatusCode != http.StatusSwitchingProtocols {
-		return nil, statusError(response)
-	}
-	if !strings.EqualFold(response.Header.Get("Upgrade"), connectUDPProtocol) {
-		return nil, E.New("unexpected upgrade protocol: ", response.Header.Get("Upgrade"))
-	}
-	if !stop() {
-		return nil, ctx.Err()
-	}
-	return newCapsuleConn(reader, conn, destination), nil
-}
-
-func (c *Client) connectUDPHTTP2(ctx context.Context, clientConn *http2ClientConn, destination M.Socksaddr) (N.PacketConn, error) {
-	request := &http.Request{
-		Method: http.MethodConnect,
-		URL:    connectUDPURL(c.authority(), destination),
-		Host:   c.authority(),
-		Header: c.headers.Clone(),
-	}
-	if request.Header == nil {
-		request.Header = make(http.Header)
-	}
-	request.Header.Set(":protocol", connectUDPProtocol)
-	request.Header.Set("Capsule-Protocol", "?1")
-	stream, err := c.roundTripHTTP2(ctx, clientConn, request, destination)
-	if err != nil {
-		return nil, err
-	}
-	return newCapsuleConn(std_bufio.NewReader(stream), stream, destination), nil
-}
-
-func (c *Client) authority() string {
-	if c.host != "" {
-		return c.host
-	}
-	return c.server.String()
 }

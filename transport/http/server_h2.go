@@ -12,7 +12,6 @@ import (
 	"github.com/sagernet/sing-box/common/badhttp"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
-	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -88,28 +87,40 @@ func (h *httpHandler) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	if !connectionSource.IsValid() {
 		connectionSource = M.ParseSocksaddr(request.RemoteAddr).Unwrap()
 	}
-	if h.server.authenticator != nil {
-		username, password, valid := badhttp.ParseBasicAuth(request.Header.Get("Proxy-Authorization"))
-		if !valid || !h.server.authenticator.Verify(username, password) {
-			var authErr error
-			if !valid {
-				authErr = E.New("authentication failed: missing or malformed Proxy-Authorization")
-			} else {
-				authErr = E.New("authentication failed: username=", username)
-			}
-			h.server.logger.ErrorContext(ctx, E.Cause(authErr, "process connection from ", connectionSource))
-			writer.Header().Set("Proxy-Authenticate", `Basic realm="`+realm+`", charset="UTF-8"`)
-			writer.WriteHeader(http.StatusProxyAuthRequired)
-			return
-		}
-		ctx = auth.ContextWithUser(ctx, username)
-	}
-	source := badhttp.ForwardedSource(request, connectionSource)
+	var protocol string
 	if request.Method == http.MethodConnect {
-		protocol := request.Header.Get(":protocol")
+		protocol = request.Header.Get(":protocol")
 		if protocol == "" && request.ProtoMajor == 3 && !strings.HasPrefix(request.Proto, "HTTP/") {
 			protocol = request.Proto
 		}
+	}
+	tunnelHandler := h.server.tunnels[protocol]
+	if tunnelHandler != nil {
+		tunnelCtx, authErr := h.server.authenticate(ctx, request, "Authorization")
+		if authErr != nil {
+			h.server.logger.ErrorContext(ctx, E.Cause(authErr, "process connection from ", connectionSource))
+			writer.Header().Set("WWW-Authenticate", `Basic realm="`+realm+`", charset="UTF-8"`)
+			writer.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		h.serveTunnel(tunnelCtx, writer, request, badhttp.ForwardedSource(request, connectionSource), tunnelHandler)
+		return
+	}
+	if h.handler == nil {
+		h.server.logger.ErrorContext(ctx, "process connection from ", connectionSource, ": unexpected request: ", request.Method, " ", request.URL)
+		writer.WriteHeader(http.StatusNotFound)
+		return
+	}
+	proxyCtx, authErr := h.server.authenticate(ctx, request, "Proxy-Authorization")
+	if authErr != nil {
+		h.server.logger.ErrorContext(ctx, E.Cause(authErr, "process connection from ", connectionSource))
+		writer.Header().Set("Proxy-Authenticate", `Basic realm="`+realm+`", charset="UTF-8"`)
+		writer.WriteHeader(http.StatusProxyAuthRequired)
+		return
+	}
+	ctx = proxyCtx
+	source := badhttp.ForwardedSource(request, connectionSource)
+	if request.Method == http.MethodConnect {
 		switch {
 		case protocol == "":
 			h.serveConnect(ctx, writer, request, source)
