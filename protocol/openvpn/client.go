@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/service/oomkiller"
+	"github.com/sagernet/sing-box/transport/device"
 	ovpntransport "github.com/sagernet/sing-box/transport/openvpn"
 	ovpn "github.com/sagernet/sing-openvpn"
 	"github.com/sagernet/sing-tun"
@@ -51,8 +52,8 @@ type ClientEndpoint struct {
 	outboundDialer N.Dialer
 	queryOptions   adapter.DNSQueryOptions
 	client         *ovpn.Client
-	deviceOptions  *ovpntransport.DeviceOptions
-	device         ovpntransport.Device
+	deviceOptions  *device.Options
+	device         device.Device
 	onDemand       bool
 	stateAccess    sync.Mutex
 	state          atomic.Pointer[clientState]
@@ -122,7 +123,11 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 	if options.UDPTimeout != 0 {
 		udpTimeout = time.Duration(options.UDPTimeout)
 	}
-	clientEndpoint.deviceOptions = &ovpntransport.DeviceOptions{
+	deviceMTU := options.MTU
+	if deviceMTU == 0 {
+		deviceMTU = ovpntransport.DefaultMTU
+	}
+	clientEndpoint.deviceOptions = &device.Options{
 		Context:         ctx,
 		Logger:          logger,
 		System:          options.System,
@@ -134,9 +139,11 @@ func NewClientEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		UDPNATMax:       options.UDPNATMax,
 		InterfaceFinder: service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
 		Name:            options.Name,
-		MTU:             options.MTU,
-		Configuration: ovpntransport.Configuration{
-			MTU:     options.MTU,
+		NamePrefix:      "ovpn",
+		MTU:             deviceMTU,
+		PacketHeadroom:  ovpntransport.PacketHeadroom,
+		Configuration: device.Configuration{
+			MTU:     deviceMTU,
 			Address: clientOptions.Tunnel.LocalAddress,
 		},
 	}
@@ -507,7 +514,7 @@ func (c *ClientEndpoint) handleTunnelConfiguration(event ovpn.TunnelConfiguratio
 	c.updateState(func(state *clientState) {
 		state.tunnelConfigured = false
 	})
-	deviceConfiguration := ovpntransport.Configuration{
+	deviceConfiguration := device.Configuration{
 		MTU:       configuration.MTU,
 		Address:   configuration.Address,
 		BlockIPv6: configuration.BlockIPv6,
@@ -603,13 +610,13 @@ func (c *ClientEndpoint) Start(stage adapter.StartStage, scope *adapter.Scope) e
 			return nil
 		})
 		c.deviceOptions.MemoryPressure = oomkiller.MemoryPressure(c.ctx)
-		device, err := ovpntransport.NewDevice(*c.deviceOptions)
+		tunnelDevice, err := device.New(*c.deviceOptions)
 		if err != nil {
 			return err
 		}
-		scope.Add(device.Close)
-		device.SetPacketWriter(c.writePacketBuffers)
-		c.device = device
+		scope.Add(tunnelDevice.Close)
+		tunnelDevice.SetPacketWriter(c.writePacketBuffers)
+		c.device = tunnelDevice
 		c.deviceOptions = nil
 	case adapter.StartStatePostStart:
 		var loopGroup sync.WaitGroup
