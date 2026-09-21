@@ -1,7 +1,6 @@
 package mixed
 
 import (
-	std_bufio "bufio"
 	"context"
 	"net"
 	"time"
@@ -14,12 +13,12 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/transport/http"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/protocol/http"
 	"github.com/sagernet/sing/protocol/socks"
 	"github.com/sagernet/sing/protocol/socks/socks4"
 	"github.com/sagernet/sing/protocol/socks/socks5"
@@ -37,6 +36,7 @@ type Inbound struct {
 	logger        log.ContextLogger
 	listener      *listener.Listener
 	authenticator *auth.Authenticator
+	server        *http.Server
 	tlsConfig     tls.ServerConfig
 	udpTimeout    time.Duration
 }
@@ -55,6 +55,13 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		authenticator: auth.NewAuthenticator(options.Users),
 		udpTimeout:    udpTimeout,
 	}
+	inbound.server = http.NewServer(http.ServerOptions{
+		Authenticator: inbound.authenticator,
+		Logger:        logger,
+		HTTP1:         true,
+		HTTP2:         true,
+		UDP:           true,
+	})
 	if options.TLS != nil {
 		tlsConfig, err := tls.NewServerWithOptions(tls.ServerOptions{
 			Context:        ctx,
@@ -100,35 +107,40 @@ func (h *Inbound) Close() error {
 }
 
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	err := h.newConnection(ctx, conn, metadata, onClose)
-	N.CloseOnHandshakeFailure(conn, onClose, err)
-	if err != nil {
-		if E.IsClosedOrCanceled(err) {
-			h.logger.DebugContext(ctx, "connection closed: ", err)
-		} else {
-			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
-		}
-	}
-}
-
-func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
 	if h.tlsConfig != nil {
 		tlsConn, err := tls.ServerHandshake(ctx, conn, h.tlsConfig)
 		if err != nil {
-			return E.Cause(err, "TLS handshake")
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source, ": TLS handshake"))
+			return
 		}
 		conn = tlsConn
 	}
-	reader := std_bufio.NewReader(conn)
+	reader := http.NewReader(conn)
 	headerBytes, err := reader.Peek(1)
 	if err != nil {
-		return E.Cause(err, "peek first byte")
+		N.CloseOnHandshakeFailure(conn, onClose, err)
+		if E.IsClosedOrCanceled(err) {
+			h.logger.DebugContext(ctx, "connection closed: ", err)
+		} else {
+			h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source, ": peek first byte"))
+		}
+		return
 	}
+	handler := adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection)
 	switch headerBytes[0] {
 	case socks4.Version, socks5.Version:
-		return socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
+		err = socks.HandleConnectionEx(ctx, conn, reader.Reader, h.authenticator, handler, h.listener, h.udpTimeout, metadata.Source, onClose)
+		if err != nil {
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			if E.IsClosedOrCanceled(err) {
+				h.logger.DebugContext(ctx, "connection closed: ", err)
+			} else {
+				h.logger.ErrorContext(ctx, E.Cause(err, "process connection from ", metadata.Source))
+			}
+		}
 	default:
-		return http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+		h.server.ServeConnection(ctx, conn, reader, handler, metadata.Source, onClose)
 	}
 }
 
