@@ -1,4 +1,4 @@
-package openconnect
+package device
 
 import (
 	"context"
@@ -19,7 +19,7 @@ var _ Device = (*stackDevice)(nil)
 type stackDevice struct {
 	baseDevice
 	stateAccess  sync.RWMutex
-	options      DeviceOptions
+	options      Options
 	stack        *tun.Go
 	memoryTun    *tun.MemoryTun
 	inet4Address netip.Addr
@@ -27,17 +27,15 @@ type stackDevice struct {
 	closeOnce    sync.Once
 }
 
-func newStackDevice(options DeviceOptions) (*stackDevice, error) {
-	if options.MTU == 0 {
-		options.MTU = DefaultMTU
-	}
+func newStackDevice(options Options) (*stackDevice, error) {
 	device := &stackDevice{
-		options: options,
+		baseDevice: baseDevice{packetHeadroom: options.PacketHeadroom},
+		options:    options,
 	}
-	device.inet4Address, device.inet6Address = firstAddresses(options.Configuration.Addresses)
+	device.inet4Address, device.inet6Address = firstAddresses(options.Configuration.Address)
 	device.memoryTun = tun.NewMemoryTun(tun.MemoryTunOptions{
 		MTU:       int(options.MTU),
-		Headroom:  PacketHeadroom,
+		Headroom:  options.PacketHeadroom,
 		RearSpace: systemDevicePacketRearSpace,
 		Outbound:  device.writeOutbound,
 	})
@@ -61,7 +59,7 @@ func (d *stackDevice) UpdateConfiguration(configuration Configuration) error {
 		d.memoryTun.UpdateMTU(int(configuration.MTU))
 	}
 	d.options.Configuration = configuration
-	d.inet4Address, d.inet6Address = firstAddresses(configuration.Addresses)
+	d.inet4Address, d.inet6Address = firstAddresses(configuration.Address)
 	return nil
 }
 
@@ -119,6 +117,9 @@ func (d *stackDevice) bindAddress(destination M.Socksaddr) (netip.Addr, error) {
 			return netip.Addr{}, E.New("missing IPv4 local address")
 		}
 		return d.inet4Address, nil
+	}
+	if d.options.Configuration.BlockIPv6 {
+		return netip.Addr{}, E.New("IPv6 is blocked")
 	}
 	if !d.inet6Address.IsValid() {
 		return netip.Addr{}, E.New("missing IPv6 local address")

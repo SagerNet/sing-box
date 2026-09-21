@@ -1,4 +1,4 @@
-package openconnect
+package device
 
 import (
 	"context"
@@ -30,7 +30,7 @@ const (
 type systemDevice struct {
 	baseDevice
 	stateAccess  sync.RWMutex
-	options      DeviceOptions
+	options      Options
 	dialer       N.Dialer
 	device       tun.Tun
 	inet4Address netip.Addr
@@ -38,12 +38,9 @@ type systemDevice struct {
 	closed       bool
 }
 
-func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
+func newSystemDevice(options Options) (*systemDevice, error) {
 	if options.Name == "" {
-		options.Name = tun.CalculateInterfaceName("oc")
-	}
-	if options.MTU == 0 {
-		options.MTU = DefaultMTU
+		options.Name = tun.CalculateInterfaceName(options.NamePrefix)
 	}
 	interfaceDialer, err := dialer.NewDefault(options.Context, option.DialerOptions{
 		AbstractDialerOptions: option.AbstractDialerOptions{
@@ -53,8 +50,9 @@ func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
 	if err != nil {
 		return nil, err
 	}
-	inet4Address, inet6Address := firstAddresses(options.Configuration.Addresses)
+	inet4Address, inet6Address := firstAddresses(options.Configuration.Address)
 	return &systemDevice{
+		baseDevice:   baseDevice{packetHeadroom: options.PacketHeadroom},
 		options:      options,
 		dialer:       interfaceDialer,
 		inet4Address: inet4Address,
@@ -92,10 +90,10 @@ func (d *systemDevice) startLocked() error {
 }
 
 func (d *systemDevice) buildTunOptions() tun.Options {
-	inet4Address, inet6Address := firstAddresses(d.options.Configuration.Addresses)
+	inet4Address, inet6Address := firstAddresses(d.options.Configuration.Address)
 	d.inet4Address = inet4Address
 	d.inet6Address = inet6Address
-	inet4Addresses, inet6Addresses := splitPrefixes(d.options.Configuration.Addresses)
+	inet4Addresses, inet6Addresses := splitPrefixes(d.options.Configuration.Address)
 	networkManager := service.FromContext[adapter.NetworkManager](d.options.Context)
 	tunOptions := tun.Options{
 		Name:                 d.options.Name,
@@ -130,11 +128,11 @@ func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
 		d.readLoopDarwin(darwinTUN)
 		return
 	}
-	packetBuffer := buf.NewSize(PacketHeadroom + systemDeviceReadBufferSize + systemDevicePacketRearSpace)
+	packetBuffer := buf.NewSize(d.packetHeadroom + systemDeviceReadBufferSize + systemDevicePacketRearSpace)
 	defer packetBuffer.Release()
 	for {
 		packetBuffer.Reset()
-		packetBuffer.Resize(PacketHeadroom, 0)
+		packetBuffer.Resize(d.packetHeadroom, 0)
 		readN, err := tunInterface.Read(packetBuffer.FreeBytes()[:systemDeviceReadBufferSize])
 		if err != nil {
 			if E.IsClosed(err) {
@@ -148,6 +146,9 @@ func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
 		}
 		packetBuffer.Truncate(readN)
 		packetBuffer.Advance(tun.PacketOffset)
+		if d.blockIPv6Enabled() && header.IPVersion(packetBuffer.Bytes()) == header.IPv6Version {
+			continue
+		}
 		packetBuffer.IncRef()
 		err = d.writeOutbound([]*buf.Buffer{packetBuffer})
 		packetBuffer.DecRef()
@@ -162,25 +163,32 @@ func (d *systemDevice) readLoopLinux(tunInterface tun.LinuxTUN, batchSize int, m
 	packetBuffers := make([]*buf.Buffer, batchSize)
 	readBuffers := make([][]byte, batchSize)
 	packetSizes := make([]int, batchSize)
+	outboundBuffers := make([]*buf.Buffer, 0, batchSize)
 	for i := range packetBuffers {
-		packetBuffers[i] = buf.NewSize(PacketHeadroom + mtu + systemDevicePacketRearSpace)
+		packetBuffers[i] = buf.NewSize(d.packetHeadroom + mtu + systemDevicePacketRearSpace)
 	}
 	defer buf.ReleaseMulti(packetBuffers)
 	for {
 		for i, packetBuffer := range packetBuffers {
 			packetBuffer.Reset()
-			packetBuffer.Resize(PacketHeadroom, 0)
+			packetBuffer.Resize(d.packetHeadroom, 0)
 			readBuffers[i] = packetBuffer.FreeBytes()[:mtu]
 		}
 		packetCount, readErr := tunInterface.BatchRead(readBuffers, 0, packetSizes)
+		outboundBuffers = outboundBuffers[:0]
+		blockIPv6 := d.blockIPv6Enabled()
 		for i := range packetCount {
 			packetBuffers[i].Truncate(packetSizes[i])
+			if blockIPv6 && header.IPVersion(packetBuffers[i].Bytes()) == header.IPv6Version {
+				continue
+			}
 			packetBuffers[i].IncRef()
+			outboundBuffers = append(outboundBuffers, packetBuffers[i])
 		}
-		if packetCount > 0 {
-			writeErr := d.writeOutbound(packetBuffers[:packetCount])
-			for i := range packetCount {
-				packetBuffers[i].DecRef()
+		if len(outboundBuffers) > 0 {
+			writeErr := d.writeOutbound(outboundBuffers)
+			for _, packetBuffer := range outboundBuffers {
+				packetBuffer.DecRef()
 			}
 			if writeErr != nil {
 				d.options.Logger.Error(E.Cause(writeErr, "write packet batch"))
@@ -201,8 +209,13 @@ func (d *systemDevice) readLoopDarwin(tunInterface tun.DarwinTUN) {
 	for {
 		packetBuffers, readErr := tunInterface.BatchRead()
 		outboundBuffers := packetBuffers[:0]
+		blockIPv6 := d.blockIPv6Enabled()
 		for _, packetBuffer := range packetBuffers {
 			if packetBuffer.IsEmpty() {
+				packetBuffer.Release()
+				continue
+			}
+			if blockIPv6 && header.IPVersion(packetBuffer.Bytes()) == header.IPv6Version {
 				packetBuffer.Release()
 				continue
 			}
@@ -237,18 +250,24 @@ func (d *systemDevice) UpdateConfiguration(configuration Configuration) error {
 	d.options.MTU = updatedMTU
 	d.options.Configuration = configuration
 	if d.device == nil {
-		inet4Address, inet6Address := firstAddresses(configuration.Addresses)
+		inet4Address, inet6Address := firstAddresses(configuration.Address)
 		d.inet4Address = inet4Address
 		d.inet6Address = inet6Address
 		return nil
 	}
-	if !slices.Equal(previousConfiguration.Addresses, configuration.Addresses) ||
+	if !slices.Equal(previousConfiguration.Address, configuration.Address) ||
 		previousMTU != updatedMTU {
 		d.device.Close()
 		d.device = nil
 		return d.startLocked()
 	}
 	return nil
+}
+
+func (d *systemDevice) blockIPv6Enabled() bool {
+	d.stateAccess.RLock()
+	defer d.stateAccess.RUnlock()
+	return d.options.Configuration.BlockIPv6
 }
 
 func (d *systemDevice) WriteInboundBuffers(packetBuffers []*buf.Buffer) error {
@@ -357,5 +376,5 @@ func (d *systemDevice) Close() error {
 func (d *systemDevice) configurationAddresses() []netip.Prefix {
 	d.stateAccess.RLock()
 	defer d.stateAccess.RUnlock()
-	return slices.Clone(d.options.Configuration.Addresses)
+	return slices.Clone(d.options.Configuration.Address)
 }

@@ -1,4 +1,4 @@
-package openconnect
+package device
 
 import (
 	"context"
@@ -6,18 +6,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sagernet/sing-openconnect"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	N "github.com/sagernet/sing/common/network"
-)
-
-const (
-	DefaultMTU     = 1500
-	PacketHeadroom = openconnect.PacketHeadroom
 )
 
 type PacketWriter func(packetBuffers []*buf.Buffer) error
@@ -36,7 +30,7 @@ type Device interface {
 	Close() error
 }
 
-type DeviceOptions struct {
+type Options struct {
 	Context         context.Context
 	Logger          logger.ContextLogger
 	System          bool
@@ -49,47 +43,26 @@ type DeviceOptions struct {
 	InterfaceFinder control.InterfaceFinder
 	MemoryPressure  func() tun.MemoryPressure
 	Name            string
+	NamePrefix      string
 	MTU             uint32
+	PacketHeadroom  int
 	Configuration   Configuration
 }
 
 type Configuration struct {
-	MTU                      uint32
-	Addresses                []netip.Prefix
-	Routes                   []Route
-	ExcludedRoutes           []Route
-	DNS                      []netip.Addr
-	NBNS                     []netip.Addr
-	SearchDomains            []string
-	SplitDNS                 []string
-	SplitDNSRules            []SplitDNSRule
-	ProxyAutoConfigURL       string
-	Banner                   string
-	TunnelAllDNS             bool
-	ClientBypassProtocol     bool
-	IdleTimeout              time.Duration
-	AuthenticationExpiration time.Time
+	MTU       uint32
+	Address   []netip.Prefix
+	BlockIPv6 bool
 }
 
-type Route struct {
-	Prefix  netip.Prefix
-	Gateway netip.Addr
-	Metric  int
-}
-
-type SplitDNSRule struct {
-	Domains []string
-	Servers []netip.Addr
-}
-
-func NewDevice(options DeviceOptions) (Device, error) {
+func New(options Options) (Device, error) {
 	if !options.System {
 		return newStackDevice(options)
 	}
 	return newSystemStackDevice(options)
 }
 
-func newStack(options DeviceOptions, memoryTun *tun.MemoryTun) (*tun.Go, error) {
+func newStack(options Options, memoryTun *tun.MemoryTun) (*tun.Go, error) {
 	return tun.NewGo(tun.StackOptions{
 		Context:         options.Context,
 		Tun:             memoryTun,
@@ -107,8 +80,9 @@ func newStack(options DeviceOptions, memoryTun *tun.MemoryTun) (*tun.Go, error) 
 }
 
 type baseDevice struct {
-	packetWriter PacketWriter
-	returnState  atomic.Pointer[returnPathState]
+	packetHeadroom int
+	packetWriter   PacketWriter
+	returnState    atomic.Pointer[returnPathState]
 }
 
 func (d *baseDevice) SetPacketWriter(writer PacketWriter) {
@@ -151,8 +125,8 @@ func (d *baseDevice) processInboundBuffers(packetBuffers []*buf.Buffer, writeBuf
 
 func (d *baseDevice) AttachReturn(returnPath tun.Return) error {
 	headroom := returnPath.ReturnHeadroom()
-	if headroom > PacketHeadroom {
-		return E.New("return path headroom ", headroom, " exceeds available ", PacketHeadroom)
+	if headroom > d.packetHeadroom {
+		return E.New("return path headroom ", headroom, " exceeds available ", d.packetHeadroom)
 	}
 	newState := &returnPathState{
 		returnPath: returnPath,
