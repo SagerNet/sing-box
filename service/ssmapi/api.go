@@ -3,9 +3,9 @@ package ssmapi
 import (
 	"net/http"
 
+	"github.com/sagernet/sing-box/common/badhttp"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/logger"
-	sHTTP "github.com/sagernet/sing/protocol/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -29,7 +29,7 @@ func (s *APIServer) Route(r chi.Router) {
 	r.Route("/server/v1", func(r chi.Router) {
 		r.Use(func(handler http.Handler) http.Handler {
 			return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-				s.logger.Debug(request.Method, " ", request.RequestURI, " ", sHTTP.SourceAddress(request))
+				s.logger.Debug(request.Method, " ", request.RequestURI, " ", badhttp.SourceAddress(request))
 				handler.ServeHTTP(writer, request)
 			})
 		})
