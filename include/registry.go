@@ -25,6 +25,7 @@ import (
 	"github.com/sagernet/sing-box/protocol/direct"
 	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing-box/protocol/http"
+	"github.com/sagernet/sing-box/protocol/masque"
 	"github.com/sagernet/sing-box/protocol/mixed"
 	"github.com/sagernet/sing-box/protocol/naive"
 	"github.com/sagernet/sing-box/protocol/redirect"
@@ -115,6 +116,7 @@ func EndpointRegistry() *endpoint.Registry {
 	registerWireGuardEndpoint(registry)
 	registerOpenConnectEndpoint(registry)
 	registerOpenVPNEndpoints(registry)
+	masque.RegisterEndpoint(registry)
 	registerTailscaleEndpoint(registry)
 
 	return registry

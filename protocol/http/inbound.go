@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net"
-	std_http "net/http"
 	"slices"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -19,13 +18,8 @@ import (
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	E "github.com/sagernet/sing/common/exceptions"
-	"github.com/sagernet/sing/common/logger"
 	N "github.com/sagernet/sing/common/network"
-
-	"golang.org/x/net/http2"
 )
-
-var ConfigureHTTP3ListenerFunc func(ctx context.Context, logger logger.Logger, listener *listener.Listener, handler std_http.Handler, tlsConfig tls.ServerConfig, options option.QUICOptions) (io.Closer, error)
 
 func RegisterInbound(registry *inbound.Registry) {
 	inbound.Register[option.HTTPInboundOptions](registry, C.TypeHTTP, NewInbound)
@@ -83,15 +77,8 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if err != nil {
 			return nil, err
 		}
-		if tlsConfig != nil && len(tlsConfig.NextProtos()) == 0 {
-			var nextProtos []string
-			if serveHTTP2 {
-				nextProtos = append(nextProtos, http2.NextProtoTLS)
-			}
-			if serveHTTP1 {
-				nextProtos = append(nextProtos, "http/1.1")
-			}
-			tlsConfig.SetNextProtos(nextProtos)
+		if tlsConfig != nil {
+			inbound.server.ConfigureTLS(tlsConfig)
 		}
 		inbound.tlsConfig = tlsConfig
 	}
@@ -132,16 +119,10 @@ func (h *Inbound) Start(stage adapter.StartStage) error {
 }
 
 func (h *Inbound) startHTTP3() error {
-	if ConfigureHTTP3ListenerFunc == nil {
-		return C.ErrQUICNotIncluded
-	}
-	if !slices.Contains(h.tlsConfig.NextProtos(), "h3") {
-		h.tlsConfig.SetNextProtos(append([]string{"h3"}, h.tlsConfig.NextProtos()...))
-	}
 	var metadata adapter.InboundContext
 	//nolint:staticcheck
 	metadata.InboundDetour = h.listener.ListenOptions().Detour
-	http3Server, err := ConfigureHTTP3ListenerFunc(h.ctx, h.logger, h.listener, h.server.HTTP3Handler(adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection)), h.tlsConfig, h.quicOptions)
+	http3Server, err := h.server.ListenHTTP3(h.ctx, h.logger, h.listener, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.tlsConfig, h.quicOptions)
 	if err != nil {
 		return err
 	}

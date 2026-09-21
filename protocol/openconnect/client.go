@@ -20,6 +20,7 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/service/oomkiller"
+	"github.com/sagernet/sing-box/transport/device"
 	openconnecttransport "github.com/sagernet/sing-box/transport/openconnect"
 	"github.com/sagernet/sing-openconnect"
 	"github.com/sagernet/sing-tun"
@@ -49,8 +50,8 @@ type Endpoint struct {
 	cancelLoop              context.CancelFunc
 	dnsRouter               adapter.DNSRouter
 	client                  *openconnect.Client
-	deviceOptions           *openconnecttransport.DeviceOptions
-	device                  openconnecttransport.Device
+	deviceOptions           *device.Options
+	device                  device.Device
 	onDemand                bool
 	server                  string
 	flavor                  string
@@ -162,7 +163,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		udpTimeout = time.Duration(options.UDPTimeout)
 	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
-	openConnectEndpoint.deviceOptions = &openconnecttransport.DeviceOptions{
+	openConnectEndpoint.deviceOptions = &device.Options{
 		Context:         ctx,
 		Logger:          logger,
 		System:          options.System,
@@ -174,8 +175,10 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		UDPNATMax:       options.UDPNATMax,
 		InterfaceFinder: networkManager.InterfaceFinder(),
 		Name:            options.Name,
+		NamePrefix:      "oc",
 		MTU:             openconnecttransport.DefaultMTU,
-		Configuration: openconnecttransport.Configuration{
+		PacketHeadroom:  openconnecttransport.PacketHeadroom,
+		Configuration: device.Configuration{
 			MTU: openconnecttransport.DefaultMTU,
 		},
 	}
@@ -353,9 +356,9 @@ func (e *Endpoint) handleTunnelConfiguration(event openconnect.TunnelConfigurati
 	if err != nil {
 		return E.Cause(err, "build route set")
 	}
-	err = e.device.UpdateConfiguration(openconnecttransport.Configuration{
-		MTU:       configuration.MTU,
-		Addresses: configuration.Addresses,
+	err = e.device.UpdateConfiguration(device.Configuration{
+		MTU:     configuration.MTU,
+		Address: configuration.Addresses,
 	})
 	if err != nil {
 		return E.Cause(err, "update device configuration")
@@ -418,12 +421,12 @@ func (e *Endpoint) updateState(update func(state *clientState)) {
 func (e *Endpoint) Start(stage adapter.StartStage) error {
 	if stage == adapter.StartStateInitialize {
 		e.deviceOptions.MemoryPressure = oomkiller.MemoryPressure(e.loopContext)
-		device, err := openconnecttransport.NewDevice(*e.deviceOptions)
+		tunnelDevice, err := device.New(*e.deviceOptions)
 		if err != nil {
 			return err
 		}
-		device.SetPacketWriter(e.writePacketBuffers)
-		e.device = device
+		tunnelDevice.SetPacketWriter(e.writePacketBuffers)
+		e.device = tunnelDevice
 		e.deviceOptions = nil
 		return nil
 	}

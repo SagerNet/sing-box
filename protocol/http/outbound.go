@@ -3,12 +3,10 @@ package http
 import (
 	"context"
 	"net"
-	"slices"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
-	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
@@ -19,8 +17,6 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-
-	"golang.org/x/net/http2"
 )
 
 func RegisterOutbound(registry *outbound.Registry) {
@@ -39,54 +35,12 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, err
 	}
 	headers := options.Headers.Build()
-	version := http.ResolveVersion(options.Version, options.Path, headers.Get("Host"))
-	tlsOptions := common.PtrValueOrDefault(options.TLS)
-	if version == 3 && !tlsOptions.Enabled {
-		return nil, C.ErrTLSRequired
-	}
-	alpnIsDefault := tlsOptions.Enabled && len(tlsOptions.ALPN) == 0
-	if alpnIsDefault {
-		switch version {
-		case 1:
-			tlsOptions.ALPN = []string{"http/1.1"}
-		default:
-			tlsOptions.ALPN = []string{http2.NextProtoTLS, "http/1.1"}
-		}
-	}
-	detour, err := tls.NewDialerFromOptions(ctx, logger, outboundDialer, options.Server, tlsOptions)
-	if err != nil {
-		return nil, err
-	}
-	var http1Detour N.Dialer
-	if version >= 2 && (alpnIsDefault || slices.Contains(tlsOptions.ALPN, "http/1.1")) {
-		http1TLSOptions := tlsOptions
-		http1TLSOptions.ALPN = []string{"http/1.1"}
-		http1Detour, err = tls.NewDialerFromOptions(ctx, logger, outboundDialer, options.Server, http1TLSOptions)
-		if err != nil {
-			return nil, err
-		}
-	}
-	var quicTLSConfig tls.Config
-	if version == 3 {
-		if alpnIsDefault {
-			tlsOptions.ALPN = []string{"h3"}
-		}
-		quicTLSConfig, err = tls.NewClient(ctx, logger, options.Server, tlsOptions)
-		if err != nil {
-			return nil, err
-		}
-	}
-	client, err := http.NewClient(http.ClientOptions{
-		Dialer:                 detour,
-		HTTP1Dialer:            http1Detour,
-		RawDialer:              outboundDialer,
-		TLSConfig:              quicTLSConfig,
-		Server:                 options.ServerOptions.Build(),
+	client, err := http.NewClientWithTLS(ctx, logger, outboundDialer, options.ServerOptions, common.PtrValueOrDefault(options.TLS), http.ClientOptions{
 		Username:               options.Username,
 		Password:               options.Password,
 		Path:                   options.Path,
 		Headers:                headers,
-		Version:                version,
+		Version:                http.ResolveVersion(options.Version, options.Path, headers.Get("Host")),
 		DisableVersionFallback: options.DisableVersionFallback,
 		HTTP2Options:           options.HTTP2Options,
 		HTTP3Options:           options.HTTP3Options,

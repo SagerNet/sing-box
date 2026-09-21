@@ -69,7 +69,7 @@ func (c *serverConn) openUpstream(ctx context.Context, source M.Socksaddr, desti
 func (c *serverConn) serveForward(ctx context.Context, request *http.Request, source M.Socksaddr, upgrade bool) (requestResult, error) {
 	destination, valid := forwardDestination(request)
 	if !valid {
-		return c.reject(request, requestKeepAlive(request), http.StatusBadRequest, E.New("invalid forward target: ", request.URL.String()))
+		return c.reject(request, requestKeepAlive(request), http.StatusBadRequest, nil, E.New("invalid forward target: ", request.URL.String()))
 	}
 	keepAlive := requestKeepAlive(request)
 	upgradeProtocol := request.Header.Get("Upgrade")
@@ -105,7 +105,7 @@ func (c *serverConn) serveForward(ctx context.Context, request *http.Request, so
 				return c.rejectAndClose(request, http.StatusBadGateway, err)
 			}
 			request.Body = http.NoBody
-			return c.reject(request, true, http.StatusBadGateway, err)
+			return c.reject(request, true, http.StatusBadGateway, nil, err)
 		}
 		if response.StatusCode >= 200 || response.StatusCode == http.StatusSwitchingProtocols {
 			break
