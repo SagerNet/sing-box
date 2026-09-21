@@ -189,14 +189,15 @@ func (c *CacheFile) FakeIPLoadDomain(domain string, isIPv6 bool) (netip.Addr, bo
 
 func (c *CacheFile) FakeIPReset() error {
 	return c.batch(func(tx *bbolt.Tx) error {
-		err := tx.DeleteBucket(bucketFakeIP)
-		if err != nil {
-			return err
+		for _, bucketName := range [][]byte{bucketFakeIP, bucketFakeIPDomain4, bucketFakeIPDomain6} {
+			if tx.Bucket(bucketName) == nil {
+				continue
+			}
+			err := tx.DeleteBucket(bucketName)
+			if err != nil {
+				return err
+			}
 		}
-		err = tx.DeleteBucket(bucketFakeIPDomain4)
-		if err != nil {
-			return err
-		}
-		return tx.DeleteBucket(bucketFakeIPDomain6)
+		return nil
 	})
 }
