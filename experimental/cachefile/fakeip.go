@@ -130,23 +130,24 @@ func (c *CacheFile) FakeIPStoreAsync(address netip.Addr, domain string, logger l
 }
 
 func (c *CacheFile) queueFakeIP(address netip.Addr, domain string) {
+	oldDomain, loaded := c.FakeIPLoad(address)
 	c.pendingAccess.Lock()
 	defer c.pendingAccess.Unlock()
-	oldDomain, loaded := c.pending.fakeIPDomain[address]
 	if loaded {
 		if address.Is4() {
-			delete(c.pending.fakeIPAddress4, oldDomain)
+			c.pending.fakeIPAddress4[oldDomain] = netip.Addr{}
 		} else {
-			delete(c.pending.fakeIPAddress6, oldDomain)
+			c.pending.fakeIPAddress6[oldDomain] = netip.Addr{}
 		}
 	}
+	pendingDomain, pendingLoaded := c.pending.fakeIPDomain[address]
 	c.pending.fakeIPDomain[address] = domain
 	if address.Is4() {
 		c.pending.fakeIPAddress4[domain] = address
 	} else {
 		c.pending.fakeIPAddress6[domain] = address
 	}
-	c.enqueueLocked(!loaded, len(domain)-len(oldDomain))
+	c.enqueueLocked(!pendingLoaded, len(domain)-len(pendingDomain))
 }
 
 func putFakeIP(tx *bbolt.Tx, address netip.Addr, domain string) error {
@@ -215,7 +216,7 @@ func (c *CacheFile) FakeIPLoadDomain(domain string, isIPv6 bool) (netip.Addr, bo
 	}
 	c.pendingAccess.RUnlock()
 	if cached {
-		return address, true
+		return address, address.IsValid()
 	}
 	_ = c.view(func(tx *bbolt.Tx) error {
 		var bucket *bbolt.Bucket
