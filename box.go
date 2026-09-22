@@ -246,7 +246,7 @@ func New(options Options) (*Box, error) {
 		return nil, E.Cause(err, "initialize router")
 	}
 	if needClashAPI || needAPIService || options.PlatformLogWriter != nil {
-		trafficManager := trafficcontrol.NewManager(outboundManager)
+		trafficManager := trafficcontrol.NewManager()
 		service.MustRegisterPtr(ctx, trafficManager)
 		router.AppendTracker(trafficManager)
 		internalServices = append(internalServices, trafficManager)

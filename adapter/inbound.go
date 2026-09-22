@@ -58,6 +58,7 @@ type InboundContext struct {
 
 	RouteRule     string
 	RouteOutbound string
+	OutboundChain []Outbound
 
 	// sniffer
 

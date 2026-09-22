@@ -22,6 +22,17 @@ func NewGroup() *Group {
 	return &Group{}
 }
 
+func (g *Group) Add(closer io.Closer, isExternal bool) (remove func()) {
+	g.access.Lock()
+	defer g.access.Unlock()
+	element := g.connections.PushBack(&groupConnItem{closer, isExternal})
+	return func() {
+		g.access.Lock()
+		defer g.access.Unlock()
+		g.connections.Remove(element)
+	}
+}
+
 func (g *Group) NewConn(conn net.Conn, isExternal bool) net.Conn {
 	g.access.Lock()
 	defer g.access.Unlock()
@@ -38,15 +49,17 @@ func (g *Group) NewPacketConn(conn net.PacketConn, isExternal bool) net.PacketCo
 
 func (g *Group) Interrupt(interruptExternalConnections bool) {
 	g.access.Lock()
-	defer g.access.Unlock()
-	var toDelete []*list.Element[*groupConnItem]
-	for element := g.connections.Front(); element != nil; element = element.Next() {
+	var closers []io.Closer
+	for element := g.connections.Front(); element != nil; {
+		nextElement := element.Next()
 		if !element.Value.isExternal || interruptExternalConnections {
-			element.Value.conn.Close()
-			toDelete = append(toDelete, element)
+			closers = append(closers, element.Value.conn)
+			g.connections.Remove(element)
 		}
+		element = nextElement
 	}
-	for _, element := range toDelete {
-		g.connections.Remove(element)
+	g.access.Unlock()
+	for _, closer := range closers {
+		closer.Close()
 	}
 }
