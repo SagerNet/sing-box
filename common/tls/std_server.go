@@ -467,18 +467,23 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 				}
 			}
 			tlsConfig.ClientCAs = clientCertificateCA
-		} else if len(options.ClientCertificatePublicKeySHA256) > 0 {
+		} else if len(options.ClientCertificateSHA256) > 0 || len(options.ClientCertificatePublicKeySHA256) > 0 {
+			var certificateOptional bool
 			switch tlsConfig.ClientAuth {
 			case tls.RequireAndVerifyClientCert:
 				tlsConfig.ClientAuth = tls.RequireAnyClientCert
 			case tls.VerifyClientCertIfGiven:
 				tlsConfig.ClientAuth = tls.RequestClientCert
+				certificateOptional = true
 			}
 			tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-				return VerifyPublicKeySHA256(options.ClientCertificatePublicKeySHA256, rawCerts)
+				if certificateOptional && len(rawCerts) == 0 {
+					return nil
+				}
+				return VerifyPinnedCertificate(options.ClientCertificateSHA256, options.ClientCertificatePublicKeySHA256, rawCerts)
 			}
 		} else {
-			return nil, E.New("missing client_certificate, client_certificate_path or client_certificate_public_key_sha256 for client authentication")
+			return nil, E.New("missing client_certificate, client_certificate_path, client_certificate_sha256 or client_certificate_public_key_sha256 for client authentication")
 		}
 	}
 	var echKeyPath string
