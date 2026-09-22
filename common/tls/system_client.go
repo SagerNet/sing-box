@@ -52,8 +52,8 @@ func ValidateSystemTLSOptions(ctx context.Context, options option.OutboundTLSOpt
 	if options.Spoof != "" || options.SpoofMethod != "" {
 		return SystemTLSValidated{}, E.New("spoof is unsupported in ", engineName)
 	}
-	if len(options.CertificatePublicKeySHA256) > 0 && (len(options.Certificate) > 0 || options.CertificatePath != "") {
-		return SystemTLSValidated{}, E.New("certificate_public_key_sha256 is conflict with certificate or certificate_path")
+	if (len(options.CertificateSHA256) > 0 || len(options.CertificatePublicKeySHA256) > 0) && (len(options.Certificate) > 0 || options.CertificatePath != "") {
+		return SystemTLSValidated{}, E.New("certificate_sha256 or certificate_public_key_sha256 is conflict with certificate or certificate_path")
 	}
 	var minVersion uint16
 	if options.MinVersion != "" {
