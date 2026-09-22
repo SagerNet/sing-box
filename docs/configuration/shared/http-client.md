@@ -52,6 +52,7 @@ Supported fields:
 * `tls.insecure`
 * `tls.min_version` / `tls.max_version`
 * `tls.certificate` / `tls.certificate_path`
+* `tls.certificate_sha256`
 * `tls.certificate_public_key_sha256`
 * Dial Fields
 
