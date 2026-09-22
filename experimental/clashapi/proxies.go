@@ -70,14 +70,18 @@ func proxyInfo(server *Server, detour adapter.Outbound) *badjson.JSONObject {
 	info.Put("type", clashType)
 	info.Put("name", detour.Tag())
 	info.Put("udp", common.Contains(detour.Network(), N.NetworkUDP))
-	delayHistory := server.urlTestHistory.LoadURLTestHistory(group.RealTag(server.outbound, detour))
+	delayHistory := server.urlTestHistory.LoadURLTestHistory(group.RealTag(detour, N.NetworkTCP))
 	if delayHistory != nil {
 		info.Put("history", []*adapter.URLTestHistory{delayHistory})
 	} else {
 		info.Put("history", []*adapter.URLTestHistory{})
 	}
 	if group, isGroup := detour.(adapter.OutboundGroup); isGroup {
-		info.Put("now", group.Now())
+		var now string
+		if selected := group.Selected(N.NetworkTCP); selected != nil {
+			now = selected.Tag()
+		}
+		info.Put("now", now)
 		info.Put("all", group.All())
 	}
 	return &info
@@ -193,7 +197,7 @@ func groupContains(outboundManager adapter.OutboundManager, outboundGroup adapte
 		if !loaded {
 			continue
 		}
-		if group.RealTag(outboundManager, member) == tag {
+		if group.RealTag(member, N.NetworkTCP) == tag {
 			return true
 		}
 		memberGroup, isGroup := member.(adapter.OutboundGroup)
@@ -228,7 +232,7 @@ func getProxyDelay(server *Server) func(w http.ResponseWriter, r *http.Request) 
 
 		delay, err := urltest.URLTest(ctx, url, proxy)
 		defer func() {
-			realTag := group.RealTag(server.outbound, proxy)
+			realTag := group.RealTag(proxy, N.NetworkTCP)
 			if err != nil {
 				server.urlTestHistory.DeleteURLTestHistory(realTag)
 			} else {
