@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "sing-box 1.15.0 中的更改"
+
+    :material-plus: [certificate_sha256](#certificate_sha256)  
+    :material-plus: [client_certificate_sha256](#client_certificate_sha256)
+
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [certificate_provider](#certificate_provider)  
@@ -53,6 +58,7 @@ icon: material/new-box
   "client_authentication": "",
   "client_certificate": [],
   "client_certificate_path": [],
+  "client_certificate_sha256": [],
   "client_certificate_public_key_sha256": [],
   "key": [],
   "key_path": "",
@@ -122,6 +128,7 @@ icon: material/new-box
   "curve_preferences": [],
   "certificate": "",
   "certificate_path": "",
+  "certificate_sha256": [],
   "certificate_public_key_sha256": [],
   "client_certificate": [],
   "client_certificate_path": "",
@@ -216,6 +223,7 @@ TLS 版本值：
 * `min_version`
 * `max_version`
 * `certificate` / `certificate_path`
+* `certificate_sha256`
 * `certificate_public_key_sha256`
 * `handshake_timeout`
 
@@ -249,6 +257,7 @@ TLS 版本值：
 * `min_version`
 * `max_version`
 * `certificate` / `certificate_path`
+* `certificate_sha256`
 * `certificate_public_key_sha256`
 * `handshake_timeout`
 
@@ -333,6 +342,27 @@ TLS 版本值：
     文件更改时将自动重新加载。
 
 服务器证书链路径，PEM 格式。
+
+#### certificate_sha256
+
+!!! question "自 sing-box 1.15.0 起"
+
+==仅客户端==
+
+服务器证书的 SHA-256 哈希列表，base64 格式。
+
+哈希基于整个 DER 编码的证书计算，因此即使密钥不变，证书续期后哈希也会改变。
+如果只需要固定密钥，请使用 `certificate_public_key_sha256`。
+
+要生成证书的 SHA-256 哈希，请使用以下命令：
+
+```bash
+# 对于证书文件
+openssl x509 -in certificate.pem -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+
+# 对于远程服务器的证书
+echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/null | openssl x509 -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+```
 
 #### certificate_public_key_sha256
 
@@ -421,7 +451,7 @@ echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/
 * `require-and-verify`
 
 如果此选项设置为 `verify-if-given` 或 `require-and-verify`，
-则需要 `client_certificate`、`client_certificate_path` 或 `client_certificate_public_key_sha256` 中的一个。
+则需要 `client_certificate`、`client_certificate_path`、`client_certificate_sha256` 或 `client_certificate_public_key_sha256` 中的一个。
 
 #### client_certificate
 
@@ -442,6 +472,16 @@ echo | openssl s_client -servername example.com -connect example.com:443 2>/dev/
     文件更改时将自动重新加载。
 
 客户端证书链路径列表，PEM 格式。
+
+#### client_certificate_sha256
+
+!!! question "自 sing-box 1.15.0 起"
+
+==仅服务器==
+
+客户端证书的 SHA-256 哈希列表，base64 格式。
+
+哈希基于整个 DER 编码的证书计算，参阅 [certificate_sha256](#certificate_sha256)。
 
 #### client_certificate_public_key_sha256
 
