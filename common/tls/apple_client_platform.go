@@ -130,8 +130,8 @@ func (c *appleClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) 
 		C.box_apple_tls_client_free(client)
 		return nil, err
 	}
-	if len(c.certificatePublicKeySHA256) > 0 {
-		err = VerifyPublicKeySHA256(c.certificatePublicKeySHA256, rawCerts)
+	if len(c.certificateSHA256) > 0 || len(c.certificatePublicKeySHA256) > 0 {
+		err = VerifyPinnedCertificate(c.certificateSHA256, c.certificatePublicKeySHA256, rawCerts)
 		if err != nil {
 			C.box_apple_tls_client_cancel(client)
 			C.box_apple_tls_client_free(client)
