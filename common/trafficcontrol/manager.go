@@ -35,8 +35,6 @@ var (
 )
 
 type Manager struct {
-	outbound adapter.OutboundManager
-
 	connections             compatible.Map[uuid.UUID, Tracker]
 	closedConnectionsAccess sync.Mutex
 	closedConnections       list.List[TrackerMetadata]
@@ -48,9 +46,8 @@ type Manager struct {
 	cleaner         *cleanup.Cleaner
 }
 
-func NewManager(outbound adapter.OutboundManager) *Manager {
+func NewManager() *Manager {
 	return &Manager{
-		outbound:        outbound,
 		eventSubscriber: observable.NewSubscriber[ConnectionEvent](256),
 	}
 }
