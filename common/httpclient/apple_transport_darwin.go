@@ -48,22 +48,35 @@ var (
 	}
 )
 
-func verifyApplePinnedPublicKeySHA256(flatHashes []byte, leafCertificate []byte) error {
+func splitApplePinnedHashes(flatHashes []byte) ([][]byte, error) {
 	if len(flatHashes)%applePinnedHashSize != 0 {
-		return E.New("invalid pinned public key list")
+		return nil, E.New("invalid pinned hash list")
 	}
 	knownHashes := make([][]byte, 0, len(flatHashes)/applePinnedHashSize)
 	for offset := 0; offset < len(flatHashes); offset += applePinnedHashSize {
 		knownHashes = append(knownHashes, append([]byte(nil), flatHashes[offset:offset+applePinnedHashSize]...))
 	}
-	return boxTLS.VerifyPublicKeySHA256(knownHashes, [][]byte{leafCertificate})
+	return knownHashes, nil
 }
 
-//export box_apple_http_verify_public_key_sha256
-func box_apple_http_verify_public_key_sha256(knownHashValues *C.uint8_t, knownHashValuesLen C.size_t, leafCert *C.uint8_t, leafCertLen C.size_t) *C.char {
-	flatHashes := C.GoBytes(unsafe.Pointer(knownHashValues), C.int(knownHashValuesLen))
+func verifyApplePinnedCertificate(flatCertificateHashes []byte, flatPublicKeyHashes []byte, leafCertificate []byte) error {
+	certificateHashes, err := splitApplePinnedHashes(flatCertificateHashes)
+	if err != nil {
+		return err
+	}
+	publicKeyHashes, err := splitApplePinnedHashes(flatPublicKeyHashes)
+	if err != nil {
+		return err
+	}
+	return boxTLS.VerifyPinnedCertificate(certificateHashes, publicKeyHashes, [][]byte{leafCertificate})
+}
+
+//export box_apple_http_verify_pinned_certificate
+func box_apple_http_verify_pinned_certificate(certificateHashValues *C.uint8_t, certificateHashValuesLen C.size_t, publicKeyHashValues *C.uint8_t, publicKeyHashValuesLen C.size_t, leafCert *C.uint8_t, leafCertLen C.size_t) *C.char {
+	flatCertificateHashes := C.GoBytes(unsafe.Pointer(certificateHashValues), C.int(certificateHashValuesLen))
+	flatPublicKeyHashes := C.GoBytes(unsafe.Pointer(publicKeyHashValues), C.int(publicKeyHashValuesLen))
 	leafCertificate := C.GoBytes(unsafe.Pointer(leafCert), C.int(leafCertLen))
-	err := verifyApplePinnedPublicKeySHA256(flatHashes, leafCertificate)
+	err := verifyApplePinnedCertificate(flatCertificateHashes, flatPublicKeyHashes, leafCertificate)
 	if err == nil {
 		return nil
 	}
@@ -71,14 +84,15 @@ func box_apple_http_verify_public_key_sha256(knownHashValues *C.uint8_t, knownHa
 }
 
 type appleSessionConfig struct {
-	serverName             string
-	minVersion             uint16
-	maxVersion             uint16
-	insecure               bool
-	anchorOnly             bool
-	userAnchors            adapter.AppleAnchors
-	store                  adapter.CertificateStore
-	pinnedPublicKeySHA256s []byte
+	serverName               string
+	minVersion               uint16
+	maxVersion               uint16
+	insecure                 bool
+	anchorOnly               bool
+	userAnchors              adapter.AppleAnchors
+	store                    adapter.CertificateStore
+	pinnedCertificateSHA256s []byte
+	pinnedPublicKeySHA256s   []byte
 }
 
 type appleTransportShared struct {
@@ -184,7 +198,7 @@ func newAppleSessionConfig(ctx context.Context, options option.HTTPClientOptions
 		serverName: tlsOptions.ServerName,
 		minVersion: validated.MinVersion,
 		maxVersion: validated.MaxVersion,
-		insecure:   tlsOptions.Insecure || len(tlsOptions.CertificatePublicKeySHA256) > 0,
+		insecure:   tlsOptions.Insecure || len(tlsOptions.CertificateSHA256) > 0 || len(tlsOptions.CertificatePublicKeySHA256) > 0,
 		anchorOnly: validated.Exclusive,
 		store:      validated.Store,
 	}
@@ -195,19 +209,31 @@ func newAppleSessionConfig(ctx context.Context, options option.HTTPClientOptions
 		}
 		config.userAnchors = userAnchors
 	}
-	if len(tlsOptions.CertificatePublicKeySHA256) > 0 {
-		config.pinnedPublicKeySHA256s = make([]byte, 0, len(tlsOptions.CertificatePublicKeySHA256)*applePinnedHashSize)
-		for _, hashValue := range tlsOptions.CertificatePublicKeySHA256 {
-			if len(hashValue) != applePinnedHashSize {
-				if config.userAnchors != nil {
-					config.userAnchors.Release()
-				}
-				return appleSessionConfig{}, E.New("invalid certificate_public_key_sha256 length: ", len(hashValue))
-			}
-			config.pinnedPublicKeySHA256s = append(config.pinnedPublicKeySHA256s, hashValue...)
+	config.pinnedCertificateSHA256s, err = flattenApplePinnedHashes(tlsOptions.CertificateSHA256, "certificate_sha256")
+	if err == nil {
+		config.pinnedPublicKeySHA256s, err = flattenApplePinnedHashes(tlsOptions.CertificatePublicKeySHA256, "certificate_public_key_sha256")
+	}
+	if err != nil {
+		if config.userAnchors != nil {
+			config.userAnchors.Release()
 		}
+		return appleSessionConfig{}, err
 	}
 	return config, nil
+}
+
+func flattenApplePinnedHashes(hashValues [][]byte, optionName string) ([]byte, error) {
+	if len(hashValues) == 0 {
+		return nil, nil
+	}
+	flatHashes := make([]byte, 0, len(hashValues)*applePinnedHashSize)
+	for _, hashValue := range hashValues {
+		if len(hashValue) != applePinnedHashSize {
+			return nil, E.New("invalid ", optionName, " length: ", len(hashValue))
+		}
+		flatHashes = append(flatHashes, hashValue...)
+	}
+	return flatHashes, nil
 }
 
 func (c *appleSessionConfig) close() {
@@ -236,10 +262,15 @@ func (s *appleTransportShared) newSession() (*C.box_apple_http_session_t, error)
 	defer C.free(unsafe.Pointer(cProxyUsername))
 	cProxyPassword := C.CString(s.bridge.Password())
 	defer C.free(unsafe.Pointer(cProxyPassword))
-	var pinnedPointer *C.uint8_t
+	var pinnedCertificatePointer *C.uint8_t
+	if len(s.config.pinnedCertificateSHA256s) > 0 {
+		pinnedCertificatePointer = (*C.uint8_t)(C.CBytes(s.config.pinnedCertificateSHA256s))
+		defer C.free(unsafe.Pointer(pinnedCertificatePointer))
+	}
+	var pinnedPublicKeyPointer *C.uint8_t
 	if len(s.config.pinnedPublicKeySHA256s) > 0 {
-		pinnedPointer = (*C.uint8_t)(C.CBytes(s.config.pinnedPublicKeySHA256s))
-		defer C.free(unsafe.Pointer(pinnedPointer))
+		pinnedPublicKeyPointer = (*C.uint8_t)(C.CBytes(s.config.pinnedPublicKeySHA256s))
+		defer C.free(unsafe.Pointer(pinnedPublicKeyPointer))
 	}
 	anchors := certificate.AcquireAnchors(s.config.userAnchors, s.config.store)
 	var anchorsRef unsafe.Pointer
@@ -248,17 +279,19 @@ func (s *appleTransportShared) newSession() (*C.box_apple_http_session_t, error)
 		defer anchors.Release()
 	}
 	cConfig := C.box_apple_http_session_config_t{
-		proxy_host:                   cProxyHost,
-		proxy_port:                   C.int(s.bridge.Port()),
-		proxy_username:               cProxyUsername,
-		proxy_password:               cProxyPassword,
-		min_tls_version:              C.uint16_t(s.config.minVersion),
-		max_tls_version:              C.uint16_t(s.config.maxVersion),
-		insecure:                     C.bool(s.config.insecure),
-		anchors_cf:                   anchorsRef,
-		anchor_only:                  C.bool(s.config.anchorOnly),
-		pinned_public_key_sha256:     pinnedPointer,
-		pinned_public_key_sha256_len: C.size_t(len(s.config.pinnedPublicKeySHA256s)),
+		proxy_host:                    cProxyHost,
+		proxy_port:                    C.int(s.bridge.Port()),
+		proxy_username:                cProxyUsername,
+		proxy_password:                cProxyPassword,
+		min_tls_version:               C.uint16_t(s.config.minVersion),
+		max_tls_version:               C.uint16_t(s.config.maxVersion),
+		insecure:                      C.bool(s.config.insecure),
+		anchors_cf:                    anchorsRef,
+		anchor_only:                   C.bool(s.config.anchorOnly),
+		pinned_certificate_sha256:     pinnedCertificatePointer,
+		pinned_certificate_sha256_len: C.size_t(len(s.config.pinnedCertificateSHA256s)),
+		pinned_public_key_sha256:      pinnedPublicKeyPointer,
+		pinned_public_key_sha256_len:  C.size_t(len(s.config.pinnedPublicKeySHA256s)),
 	}
 	var cErr *C.char
 	session := C.box_apple_http_session_create(&cConfig, &cErr)
