@@ -1,4 +1,4 @@
-//go:build !go1.27
+//go:build !go1.27 || http2legacy
 
 package v2rayhttp
 
