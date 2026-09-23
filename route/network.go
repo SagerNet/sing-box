@@ -65,6 +65,7 @@ type NetworkManager struct {
 	interfaceUpdateElement  *list.Element[tun.DefaultInterfaceUpdateCallback]
 	interfaceUpdateAccess   sync.Mutex
 	interfaceUpdateCancel   context.CancelFunc
+	networkResetPending     bool
 	resetRunAccess          sync.Mutex
 	powerUpdateAccess       sync.Mutex
 	powerUpdateCancel       context.CancelFunc
@@ -165,6 +166,7 @@ func (r *NetworkManager) Start(stage adapter.StartStage) error {
 			if err != nil {
 				return err
 			}
+			r.interfaceUpdateElement = r.interfaceMonitor.RegisterCallback(r.notifyInterfaceUpdate)
 		}
 	case adapter.StartStateStart:
 		if C.IsAndroid && r.platformInterface == nil {
@@ -201,7 +203,12 @@ func (r *NetworkManager) Start(stage adapter.StartStage) error {
 				}
 			}
 		}
+		r.interfaceUpdateAccess.Lock()
 		r.startedCtx, r.startedCancel = context.WithCancel(r.ctx)
+		if r.interfaceMonitor != nil {
+			r.dispatchInterfaceUpdateLocked()
+		}
+		r.interfaceUpdateAccess.Unlock()
 		if runtime.GOOS == "windows" {
 			powerListener, err := winpowrprof.NewEventListener(r.notifyWindowsPowerEvent)
 			if err == nil {
@@ -217,13 +224,6 @@ func (r *NetworkManager) Start(stage adapter.StartStage) error {
 			if err != nil {
 				return E.Cause(err, "start power listener")
 			}
-		}
-		if r.interfaceMonitor != nil {
-			r.interfaceUpdateElement = r.interfaceMonitor.RegisterCallback(r.notifyInterfaceUpdate)
-			// Every monitor implementation has already delivered the initial state when Start returned:
-			// sing-tun checks routes synchronously, the Apple client blocks on the first NWPathMonitor update,
-			// and the Android client resolves the active network before setListener returns.
-			r.notifyInterfaceUpdate(r.interfaceMonitor.DefaultInterface(), 0)
 		}
 	}
 	return nil
@@ -519,21 +519,28 @@ func (r *NetworkManager) ResetNetwork(ctx context.Context) {
 	r.router.ResetNetwork()
 }
 
-func (r *NetworkManager) notifyInterfaceUpdate(defaultInterface *control.Interface, flags int) {
+func (r *NetworkManager) notifyInterfaceUpdate(_ *control.Interface, _ int) {
+	r.interfaceUpdateAccess.Lock()
+	defer r.interfaceUpdateAccess.Unlock()
+	r.networkResetPending = true
+	if r.startedCtx != nil {
+		r.dispatchInterfaceUpdateLocked()
+	}
+}
+
+func (r *NetworkManager) dispatchInterfaceUpdateLocked() {
+	defaultInterface := r.interfaceMonitor.DefaultInterface()
 	if defaultInterface == nil {
 		r.pauseManager.NetworkPause()
 		r.logger.Error("missing default interface")
 		return
 	}
 	r.pauseManager.NetworkWake()
-	updateContext, updateCancel := context.WithCancel(r.startedCtx)
-	r.interfaceUpdateAccess.Lock()
-	previousCancel := r.interfaceUpdateCancel
-	r.interfaceUpdateCancel = updateCancel
-	r.interfaceUpdateAccess.Unlock()
-	if previousCancel != nil {
-		previousCancel()
+	if r.interfaceUpdateCancel != nil {
+		r.interfaceUpdateCancel()
 	}
+	updateContext, updateCancel := context.WithCancel(r.startedCtx)
+	r.interfaceUpdateCancel = updateCancel
 	go r.updateInterface(updateContext, defaultInterface)
 }
 
@@ -575,10 +582,15 @@ func (r *NetworkManager) updateInterface(ctx context.Context, defaultInterface *
 		return
 	}
 	r.updateNetworkEnvironment()
-	if ctx.Err() != nil {
-		return
+	r.interfaceUpdateAccess.Lock()
+	resetNetwork := ctx.Err() == nil && r.networkResetPending
+	if resetNetwork {
+		r.networkResetPending = false
 	}
-	r.ResetNetwork(ctx)
+	r.interfaceUpdateAccess.Unlock()
+	if resetNetwork {
+		r.ResetNetwork(ctx)
+	}
 }
 
 func (r *NetworkManager) notifyWindowsPowerEvent(event int) {
