@@ -15,16 +15,12 @@ import (
 	"golang.org/x/net/http2"
 )
 
-type http2ClientConn struct {
-	*http2.ClientConn
-}
-
 func (c *Client) acquireHTTP2(ctx context.Context) (*http2ClientConn, net.Conn, error) {
 	c.http2Access.Lock()
 	defer c.http2Access.Unlock()
-	c.http2Conns = slices.DeleteFunc(c.http2Conns, func(it *http2ClientConn) bool { return it.State().Closed })
+	c.http2Conns = slices.DeleteFunc(c.http2Conns, func(it *http2ClientConn) bool { return it.isClosed() })
 	for _, clientConn := range c.http2Conns {
-		if clientConn.ReserveNewRequest() {
+		if clientConn.reserveNewRequest() {
 			return clientConn, nil, nil
 		}
 	}
@@ -38,13 +34,12 @@ func (c *Client) acquireHTTP2(ctx context.Context) (*http2ClientConn, net.Conn, 
 		}
 		return nil, conn, nil
 	}
-	rawClientConn, err := c.http2Transport.NewClientConn(conn)
+	clientConn, err := newHTTP2ClientConn(c.http2Transport, conn)
 	if err != nil {
 		conn.Close()
 		return nil, nil, E.Cause(err, "create HTTP/2 connection")
 	}
-	clientConn := &http2ClientConn{ClientConn: rawClientConn}
-	clientConn.ReserveNewRequest()
+	clientConn.reserveNewRequest()
 	c.http2Conns = append(c.http2Conns, clientConn)
 	return clientConn, nil, nil
 }
@@ -69,7 +64,7 @@ func (c *Client) roundTripHTTP2(ctx context.Context, clientConn *http2ClientConn
 	request.Body = pipeReader
 	request = request.WithContext(streamCtx)
 	stop := context.AfterFunc(ctx, cancel)
-	response, err := clientConn.RoundTrip(request)
+	response, err := clientConn.roundTrip(request)
 	stopped := stop()
 	if err == nil && !stopped {
 		response.Body.Close()
