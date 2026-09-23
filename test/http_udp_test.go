@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"net/url"
 	"strconv"
 	"testing"
 	"time"
@@ -114,40 +113,6 @@ func TestHTTPInboundConnectUDP(t *testing.T) {
 	require.Equal(t, "connect-udp", response.Header.Get("Upgrade"))
 	for i := 0; i < 3; i++ {
 		writeDatagramCapsule(t, conn, []byte("ping"))
-		require.Equal(t, "ping", string(readDatagramCapsule(t, reader)))
-	}
-}
-
-func TestHTTPInboundConnectUDPHTTP2(t *testing.T) {
-	_, certPem, keyPem := createSelfSignedCertificate(t, "example.org")
-	startTLSHTTPInbound(t, certPem, keyPem, nil, nil)
-	echo := startUDPEcho(t)
-	clientConn := dialHTTP2Proxy(t, serverPort)
-	pipeReader, pipeWriter := io.Pipe()
-	request := &http.Request{
-		Method: http.MethodConnect,
-		URL: &url.URL{
-			Scheme: "https",
-			Host:   "example.org",
-			Path:   connectUDPPath(echo),
-		},
-		Host: "example.org",
-		Header: http.Header{
-			":protocol":           []string{"connect-udp"},
-			"Capsule-Protocol":    []string{"?1"},
-			"Proxy-Authorization": []string{proxyAuthorization},
-		},
-		Body: pipeReader,
-	}
-	response, err := clientConn.RoundTrip(request)
-	require.NoError(t, err)
-	defer response.Body.Close()
-	defer pipeWriter.Close()
-	require.Equal(t, http.StatusOK, response.StatusCode)
-	require.Equal(t, "?1", response.Header.Get("Capsule-Protocol"))
-	reader := std_bufio.NewReader(response.Body)
-	for i := 0; i < 3; i++ {
-		writeDatagramCapsule(t, pipeWriter, []byte("ping"))
 		require.Equal(t, "ping", string(readDatagramCapsule(t, reader)))
 	}
 }

@@ -1,4 +1,4 @@
-//go:build go1.27 && !badlinkname
+//go:build go1.27 && !http2legacy && !badlinkname
 
 package v2rayhttp
 

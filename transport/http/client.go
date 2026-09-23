@@ -359,6 +359,7 @@ var (
 	ErrHTTP2Unsupported           = E.New("server does not support HTTP/2")
 	ErrHTTP3Unavailable           = E.New("HTTP/3 unavailable")
 	errExtendedConnectUnsupported = E.New("server does not support HTTP/2 extended CONNECT")
+	errExtendedConnectUnavailable = E.New("HTTP/2 extended CONNECT is unavailable in this build: Go 1.27+ requires the badlinkname build tag")
 )
 
 func statusError(response *http.Response) error {
