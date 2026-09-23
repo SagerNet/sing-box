@@ -185,21 +185,18 @@ func (i *Service) exchangePacket0(ctx context.Context, buffer *buf.Buffer, oob [
 func (i *Service) onNetworkUpdate() {
 	i.linkAccess.Lock()
 	defer i.linkAccess.Unlock()
-	var deleteIfIndex []int
 	for ifIndex, link := range i.links {
-		iif, err := i.network.InterfaceFinder().ByIndex(int(ifIndex))
-		if err != nil || iif != link.iif {
-			deleteIfIndex = append(deleteIfIndex, int(ifIndex))
+		netInterface, err := net.InterfaceByIndex(int(ifIndex))
+		if err == nil && netInterface.Name == link.iif.Name {
+			continue
 		}
+		delete(i.links, ifIndex)
 		i.defaultRouteSequence = common.Filter(i.defaultRouteSequence, func(it int32) bool {
 			return it != ifIndex
 		})
 		if i.deleteCallback != nil {
 			i.deleteCallback(link)
 		}
-	}
-	for _, ifIndex := range deleteIfIndex {
-		delete(i.links, int32(ifIndex))
 	}
 }
 
