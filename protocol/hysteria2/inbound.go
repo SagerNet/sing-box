@@ -12,6 +12,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/inbound"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing-box/common/tls"
 	C "github.com/sagernet/sing-box/constant"
@@ -141,11 +142,15 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 				return nil, E.New("realm.ip_version 4 conflicts with listen address ", listenAddr)
 			}
 		}
-		queryOptions, err := adapter.DNSQueryOptionsFrom(ctx, options.Realm.STUNDomainResolver)
-		if err != nil {
-			return nil, err
+		var queryOptions adapter.DNSQueryOptions
+		if options.Realm.STUNServersIsDomain() {
+			queryOptions, err = dialer.NewDNSQueryOptions(ctx, options.Realm.STUNDomainResolver, true)
+			if err != nil {
+				return nil, E.Cause(err, "create realm STUN domain resolver")
+			}
 		}
-		httpClientTransport, err := service.FromContext[adapter.HTTPClientManager](ctx).ResolveTransport(ctx, logger, common.PtrValueOrDefault(options.Realm.HTTPClient))
+		var httpClientTransport adapter.HTTPTransport
+		httpClientTransport, err = service.FromContext[adapter.HTTPClientManager](ctx).ResolveTransport(ctx, logger, common.PtrValueOrDefault(options.Realm.HTTPClient))
 		if err != nil {
 			return nil, E.Cause(err, "create realm http client")
 		}

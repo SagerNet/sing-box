@@ -3,6 +3,7 @@ package option
 import (
 	"net/url"
 	"reflect"
+	"slices"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/schema"
@@ -10,6 +11,7 @@ import (
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
 	"github.com/sagernet/sing/common/json/badoption"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 type Hysteria2InboundOptions struct {
@@ -35,6 +37,12 @@ type Hysteria2Realm struct {
 	IPVersion   int                        `json:"ip_version,omitempty" enum:"0,4,6"`
 	PortMapping *Hysteria2RealmPortMapping `json:"port_mapping,omitempty"`
 	HTTPClient  *HTTPClientOptions         `json:"http_client,omitempty"`
+}
+
+func (r Hysteria2Realm) STUNServersIsDomain() bool {
+	return slices.ContainsFunc(r.STUNServers, func(server string) bool {
+		return M.ParseSocksaddr(server).IsDomain()
+	})
 }
 
 type Hysteria2RealmPortMapping struct {
