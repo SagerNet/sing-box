@@ -56,7 +56,10 @@ func (c *Client) openTunnel(ctx context.Context, request tunnelRequest) (net.Con
 		}
 		c.markHTTP3Broken()
 	}
-	if c.tlsDialer != nil && !c.http2Unsupported.Load() && !c.http2ExtendedConnectUnsupported.Load() {
+	if !extendedConnectAvailable && c.tlsDialer != nil && c.disableVersionFallback {
+		return nil, nil, errExtendedConnectUnavailable
+	}
+	if extendedConnectAvailable && c.tlsDialer != nil && !c.http2Unsupported.Load() && !c.http2ExtendedConnectUnsupported.Load() {
 		clientConn, conn, err := c.acquireHTTP2(ctx)
 		if err != nil {
 			return nil, nil, err
