@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
+	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 
 	mDNS "github.com/miekg/dns"
@@ -27,6 +29,7 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 var (
 	_ adapter.DNSTransport                    = (*Transport)(nil)
 	_ adapter.DNSTransportWithPreferredDomain = (*Transport)(nil)
+	_ adapter.DNSTransportWithConfiguration   = (*Transport)(nil)
 	_ adapter.DNSTransportWithEnvironment     = (*Transport)(nil)
 )
 
@@ -124,6 +127,19 @@ func (t *Transport) Reset() {
 
 func (t *Transport) PreferredDomain(domain string) bool {
 	return t.preferredResolver.PreferredDomain(domain)
+}
+
+func (t *Transport) ServerAddresses() []netip.Addr {
+	if t.resolved != nil {
+		return t.resolved.ServerAddresses()
+	}
+	return common.Map(t.configSource.Configuration().Servers, func(it M.Socksaddr) netip.Addr {
+		return it.Addr
+	})
+}
+
+func (t *Transport) SearchDomains() []string {
+	return t.configSource.Configuration().Search
 }
 
 func (t *Transport) Environment() []string {
