@@ -58,6 +58,7 @@ type DNSTransport struct {
 	hosts                  map[string][]netip.Addr
 	magicHosts             nDNSResolver.MagicDNSHosts
 	searchDomains          []string
+	serverAddresses        []netip.Addr
 	defaultResolvers       []adapter.DNSTransport
 	resolverScope          *adapter.Scope
 }
@@ -102,6 +103,7 @@ func (t *DNSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) err
 		t.routes = nil
 		t.hosts = nil
 		t.magicHosts = nil
+		t.serverAddresses = nil
 		t.defaultResolvers = nil
 		t.resolverScope = nil
 		t.access.Unlock()
@@ -137,6 +139,7 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 	})
 	resolverScope := adapter.NewScope(t.ctx, t.logger)
 	routes := make(map[string][]adapter.DNSTransport)
+	var serverAddresses []netip.Addr
 	for domain, resolvers := range dnsConfig.Routes {
 		var myResolvers []adapter.DNSTransport
 		for _, resolver := range resolvers {
@@ -145,6 +148,10 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 				return E.Errors(err, resolverScope.Close())
 			}
 			myResolvers = append(myResolvers, myResolver)
+			serverAddrPort, isIPResolver := resolver.IPPort()
+			if isIPResolver {
+				serverAddresses = append(serverAddresses, serverAddrPort.Addr())
+			}
 		}
 		routes[mDNS.CanonicalName(domain.WithTrailingDot())] = myResolvers
 	}
@@ -162,6 +169,10 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 			return E.Errors(err, resolverScope.Close())
 		}
 		defaultResolvers = append(defaultResolvers, myResolver)
+		serverAddrPort, isIPResolver := resolver.IPPort()
+		if isIPResolver {
+			serverAddresses = append(serverAddresses, serverAddrPort.Addr())
+		}
 	}
 
 	t.access.Lock()
@@ -171,6 +182,7 @@ func (t *DNSTransport) updateDNSServers(routeConfig *router.Config, dnsConfig *n
 	t.hosts = hosts
 	t.magicHosts = t.endpoint.server.ExportLocalBackend().ExportMagicDNSHosts()
 	t.searchDomains = searchDomains
+	t.serverAddresses = common.Uniq(serverAddresses)
 	t.defaultResolvers = defaultResolvers
 	t.resolverScope = resolverScope
 	t.access.Unlock()
@@ -283,6 +295,18 @@ func buildRoutePrefixes(routeConfig *router.Config) []netip.Prefix {
 
 func (t *DNSTransport) Raw() bool {
 	return true
+}
+
+func (t *DNSTransport) ServerAddresses() []netip.Addr {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.serverAddresses
+}
+
+func (t *DNSTransport) SearchDomains() []string {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.searchDomains
 }
 
 func (t *DNSTransport) PreferredDomain(domain string) bool {
@@ -515,3 +539,8 @@ func (t *DNSTransport) routePrefixesSnapshot() []netip.Prefix {
 	defer t.access.RUnlock()
 	return append([]netip.Prefix(nil), t.routePrefixes...)
 }
+
+var (
+	_ adapter.DNSTransportWithPreferredDomain = (*DNSTransport)(nil)
+	_ adapter.DNSTransportWithConfiguration   = (*DNSTransport)(nil)
+)

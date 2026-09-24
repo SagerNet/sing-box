@@ -2,6 +2,11 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.15.0"
+
+    :material-plus: [dns_server_address](#dns_server_address)  
+    :material-plus: [dns_search_domain](#dns_search_domain)
+
 !!! quote "Changes in sing-box 1.14.0"
 
     :material-plus: [source_mac_address](#source_mac_address)  
@@ -168,6 +173,16 @@ icon: material/new-box
           "tailscale",
           "wireguard"
         ],
+        "dns_server_address": {
+          "local": [
+            "192.168.1.1/32"
+          ]
+        },
+        "dns_search_domain": {
+          "ts-dns": [
+            "example.ts.net"
+          ]
+        },
         "source_mac_address": [
           "00:11:22:33:44:55"
         ],
@@ -470,6 +485,36 @@ Match specified outbounds' preferred routes.
 | `tailscale` | Match MagicDNS domains and peers' allowed IPs      |
 | `wireguard` | Match peers's allowed IPs                          |
 | `bridge`    | Match all addresses except local addresses of the machine, only in [pre-match](/configuration/shared/pre-match/) |
+
+#### dns_server_address
+
+!!! question "Since sing-box 1.15.0"
+
+Match specified DNS servers' server addresses.
+
+| Type          | Match                                         |
+|---------------|-----------------------------------------------|
+| `local`       | Match system DNS servers                      |
+| `dhcp`        | Match DNS servers from DHCP                   |
+| `resolved`    | Match DNS servers from systemd-resolved links |
+| `tailscale`   | Match DNS resolvers of the tailnet            |
+| `openvpn`     | Match DNS servers pushed by the VPN server    |
+| `openconnect` | Match DNS servers pushed by the VPN server    |
+
+#### dns_search_domain
+
+!!! question "Since sing-box 1.15.0"
+
+Match specified DNS servers' search domains.
+
+| Type          | Match                                            |
+|---------------|--------------------------------------------------|
+| `local`       | Match system search domains                      |
+| `dhcp`        | Match search domains from DHCP                   |
+| `resolved`    | Match search domains from systemd-resolved links |
+| `tailscale`   | Match search domains of the tailnet              |
+| `openvpn`     | Match search domains pushed by the VPN server    |
+| `openconnect` | Match search domains pushed by the VPN server    |
 
 #### source_mac_address
 

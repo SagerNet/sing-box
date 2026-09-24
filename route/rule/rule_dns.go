@@ -377,6 +377,16 @@ func NewDefaultDNSRule(ctx context.Context, logger log.ContextLogger, options op
 		rule.items = append(rule.items, item)
 		rule.allItems = append(rule.allItems, item)
 	}
+	if options.DNSServerAddress != nil && options.DNSServerAddress.Size() > 0 {
+		item := NewDNSServerAddressItem(ctx, options.DNSServerAddress)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
+	if options.DNSSearchDomain != nil && options.DNSSearchDomain.Size() > 0 {
+		item := NewDNSSearchDomainItem(ctx, options.DNSSearchDomain)
+		rule.items = append(rule.items, item)
+		rule.allItems = append(rule.allItems, item)
+	}
 	if options.RuleSetIPCIDRAcceptEmpty { //nolint:staticcheck
 		if legacyDNSMode {
 			deprecated.Report(ctx, deprecated.OptionRuleSetIPCIDRAcceptEmpty)
