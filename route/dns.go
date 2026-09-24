@@ -20,9 +20,13 @@ import (
 func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	r.searchProcessInfo(ctx, &metadata)
 	metadata.Destination = M.Socksaddr{}
+	err := N.ReportConnHandshakeSuccess(conn, conn)
+	if err != nil {
+		return E.Cause(err, "report handshake success")
+	}
 	for {
 		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
-		err := dnsOutbound.HandleStreamDNSRequest(ctx, r.dns, conn, metadata)
+		err = dnsOutbound.HandleStreamDNSRequest(ctx, r.dns, conn, metadata)
 		if err != nil {
 			if !E.IsClosedOrCanceled(err) {
 				return err
@@ -35,7 +39,13 @@ func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata ad
 
 func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
 	r.searchProcessInfo(ctx, &metadata)
-	err := dnsOutbound.NewDNSPacketConnection(ctx, r.dns, conn, packetBuffers, metadata)
+	err := N.ReportPacketConnHandshakeSuccess(conn, nil)
+	if err != nil {
+		N.ReleaseMultiPacketBuffer(packetBuffers)
+		err = E.Cause(err, "report handshake success")
+	} else {
+		err = dnsOutbound.NewDNSPacketConnection(ctx, r.dns, conn, packetBuffers, metadata)
+	}
 	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil && !E.IsClosedOrCanceled(err) {
 		return E.Cause(err, "process DNS packet")
