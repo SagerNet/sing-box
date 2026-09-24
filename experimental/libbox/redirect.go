@@ -36,6 +36,7 @@ type autoRedirectOptions struct {
 	Inet6RouteExcludeAddress []netip.Prefix         `json:"inet6_route_exclude_address,omitempty"`
 	IncludeInterface         []string               `json:"include_interface,omitempty"`
 	ExcludeInterface         []string               `json:"exclude_interface,omitempty"`
+	BridgeInterface          []string               `json:"bridge_interface,omitempty"`
 	IncludeUID               []ranges.Range[uint32] `json:"include_uid,omitempty"`
 	ExcludeUID               []ranges.Range[uint32] `json:"exclude_uid,omitempty"`
 	IncludeMACAddress        []net.HardwareAddr     `json:"include_mac_address,omitempty"`
@@ -70,6 +71,7 @@ func encodeAutoRedirectOptions(options adapter.AutoRedirectOptions) ([]byte, err
 		Inet6RouteExcludeAddress: tunOptions.Inet6RouteExcludeAddress,
 		IncludeInterface:         tunOptions.IncludeInterface,
 		ExcludeInterface:         tunOptions.ExcludeInterface,
+		BridgeInterface:          tunOptions.BridgeInterface,
 		IncludeUID:               tunOptions.IncludeUID,
 		ExcludeUID:               tunOptions.ExcludeUID,
 		IncludeMACAddress:        tunOptions.IncludeMACAddress,
@@ -113,6 +115,7 @@ func decodeAutoRedirectOptions(content []byte) (*tun.Options, string, uint16, er
 		Inet6RouteExcludeAddress: options.Inet6RouteExcludeAddress,
 		IncludeInterface:         options.IncludeInterface,
 		ExcludeInterface:         options.ExcludeInterface,
+		BridgeInterface:          options.BridgeInterface,
 		IncludeUID:               options.IncludeUID,
 		ExcludeUID:               options.ExcludeUID,
 		IncludeMACAddress:        options.IncludeMACAddress,

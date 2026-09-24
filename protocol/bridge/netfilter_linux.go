@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -289,7 +290,7 @@ func cleanupBridgeIptablesTable(binary string, table string, hookChain string, t
 	_ = exec.Command(path, "-t", table, "-X", tableName).Run()
 }
 
-func setupBridgeFamily(tunName string, ruleIndex int, routeTable int, family int, port netip.Addr) error {
+func setupBridgeFamily(tunName string, ruleIndex int, routeTable int, preferMainTable bool, family int, port netip.Addr) error {
 	if !port.IsValid() {
 		return nil
 	}
@@ -301,7 +302,7 @@ func setupBridgeFamily(tunName string, ruleIndex int, routeTable int, family int
 	if err != nil {
 		return E.Cause(err, "add route")
 	}
-	for _, rule := range bridgeFamilyRules(tunName, ruleIndex, routeTable, family, port) {
+	for _, rule := range bridgeFamilyRules(tunName, ruleIndex, routeTable, preferMainTable, family, port) {
 		_ = netlink.RuleDel(rule)
 		err = netlink.RuleAdd(rule)
 		if err != nil {
@@ -311,7 +312,7 @@ func setupBridgeFamily(tunName string, ruleIndex int, routeTable int, family int
 	return nil
 }
 
-func removeBridgeFamily(tunName string, ruleIndex int, routeTable int, family int, port netip.Addr) {
+func removeBridgeFamily(tunName string, ruleIndex int, routeTable int, preferMainTable bool, family int, port netip.Addr) {
 	if !port.IsValid() {
 		return
 	}
@@ -319,7 +320,7 @@ func removeBridgeFamily(tunName string, ruleIndex int, routeTable int, family in
 	if err == nil {
 		_ = netlink.RouteDel(bridgeFamilyRoute(link.Attrs().Index, family, port))
 	}
-	for _, rule := range bridgeFamilyRules(tunName, ruleIndex, routeTable, family, port) {
+	for _, rule := range bridgeFamilyRules(tunName, ruleIndex, routeTable, preferMainTable, family, port) {
 		_ = netlink.RuleDel(rule)
 	}
 }
@@ -337,47 +338,174 @@ func bridgeFamilyRoute(linkIndex int, family int, port netip.Addr) *netlink.Rout
 	return route
 }
 
-func bridgeFamilyRules(tunName string, ruleIndex int, routeTable int, family int, port netip.Addr) []*netlink.Rule {
-	forwardTable := unix.RT_TABLE_MAIN
-	if routeTable != 0 {
-		forwardTable = routeTable
+// The rules sit ahead of sing-tun auto_route's rules (9000 by default) so forwarded
+// packets never loop back into a tun. netd keeps every network's routes in the
+// network's own table behind fwmark and "iif lo" rules that forwarded packets
+// never satisfy, so with preferMainTable the main lookup finds nothing on Android
+// and the bridge table, filled from the egress interface, takes over.
+func bridgeFamilyRules(tunName string, ruleIndex int, routeTable int, preferMainTable bool, family int, port netip.Addr) []*netlink.Rule {
+	var rules []*netlink.Rule
+	priority := ruleIndex
+	if preferMainTable {
+		mainRule := netlink.NewRule()
+		mainRule.Priority = priority
+		mainRule.IifName = tunName
+		mainRule.Table = unix.RT_TABLE_MAIN
+		mainRule.Family = family
+		rules = append(rules, mainRule)
+		priority++
 	}
 
 	iifRule := netlink.NewRule()
-	iifRule.Priority = ruleIndex
+	iifRule.Priority = priority
 	iifRule.IifName = tunName
-	iifRule.Table = forwardTable
+	iifRule.Table = routeTable
 	iifRule.Family = family
+	priority++
 
 	toRule := netlink.NewRule()
-	toRule.Priority = ruleIndex + 1
+	toRule.Priority = priority
 	toRule.Dst = netip.PrefixFrom(port, port.BitLen())
 	toRule.Table = unix.RT_TABLE_MAIN
 	toRule.Family = family
 
-	return []*netlink.Rule{iifRule, toRule}
+	return append(rules, iifRule, toRule)
 }
 
-func flushBridgeRouteTable(routeTable int) {
+// Default routes are dumped without RTA_DST, and the netlink client refuses to
+// delete a route with neither destination nor gateway.
+func listBridgeRoutes(routeTable int) []netlink.Route {
+	var routes []netlink.Route
 	for _, family := range []int{unix.AF_INET, unix.AF_INET6} {
-		routes, err := netlink.RouteListFiltered(family, &netlink.Route{Table: routeTable}, netlink.RT_FILTER_TABLE)
+		familyRoutes, err := netlink.RouteListFiltered(family, &netlink.Route{Table: routeTable}, netlink.RT_FILTER_TABLE)
 		if err != nil {
 			continue
 		}
-		for _, route := range routes {
-			toDelete := route
-			_ = netlink.RouteDel(&toDelete)
+		for _, route := range familyRoutes {
+			if route.Dst == nil {
+				route.Dst = defaultDestination(family)
+			}
+			routes = append(routes, route)
 		}
+	}
+	return routes
+}
+
+func flushBridgeRouteTable(routeTable int) {
+	for _, route := range listBridgeRoutes(routeTable) {
+		_ = netlink.RouteDel(&route)
 	}
 }
 
-func blackholeBridgeDefault(routeTable int, family int) {
-	_ = netlink.RouteReplace(&netlink.Route{
+func unroutableBridgeDefault(routeTable int, family int, routeType int) {
+	route := unroutableBridgeRoute(routeTable, family, routeType)
+	_ = netlink.RouteReplace(&route)
+}
+
+func unroutableBridgeRoute(routeTable int, family int, routeType int) netlink.Route {
+	return netlink.Route{
 		Table:  routeTable,
 		Family: family,
-		Type:   unix.RTN_BLACKHOLE,
+		Type:   routeType,
 		Dst:    defaultDestination(family),
-	})
+	}
+}
+
+func applyBridgeRoutes(routeTable int, routes []netlink.Route, fallbackType int) error {
+	flushBridgeRouteTable(routeTable)
+	var applyErr error
+	for index := range routes {
+		err := netlink.RouteReplace(&routes[index])
+		if err != nil && routes[index].Type == unix.RTN_UNICAST && isDefaultDestination(routes[index].Dst) {
+			unroutableBridgeDefault(routeTable, routes[index].Family, fallbackType)
+			applyErr = E.Errors(applyErr, err)
+		}
+	}
+	return applyErr
+}
+
+// The kernel drops routes through a link that goes down and routes whose
+// preferred source is removed, so the table is compared against what the kernel
+// holds rather than against what was last written.
+func bridgeRoutesEqual(current []netlink.Route, desired []netlink.Route) bool {
+	if len(current) != len(desired) {
+		return false
+	}
+	matched := make([]bool, len(current))
+	for _, route := range desired {
+		found := false
+		for index := range current {
+			if matched[index] || !bridgeRouteEqual(current[index], route) {
+				continue
+			}
+			matched[index] = true
+			found = true
+			break
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func bridgeRouteEqual(left netlink.Route, right netlink.Route) bool {
+	if left.Family != right.Family || left.Type != right.Type {
+		return false
+	}
+	if left.Type == unix.RTN_UNICAST && left.LinkIndex != right.LinkIndex {
+		return false
+	}
+	return left.Dst.String() == right.Dst.String() && left.Gw.Equal(right.Gw)
+}
+
+// The connected routes are collected from every table because netd stores them
+// in the network's own table instead of main.
+func egressRoutes(routeTable int, family int, link netlink.Link, fallbackType int) []netlink.Route {
+	var routes []netlink.Route
+	linkRoutes, err := netlink.RouteListFiltered(family, &netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Table:     unix.RT_TABLE_UNSPEC,
+	}, netlink.RT_FILTER_OIF|netlink.RT_FILTER_TABLE)
+	if err == nil {
+		for _, route := range linkRoutes {
+			if route.Table == unix.RT_TABLE_LOCAL || route.Table == routeTable ||
+				route.Type != unix.RTN_UNICAST || route.Gw != nil || isDefaultDestination(route.Dst) {
+				continue
+			}
+			connected := netlink.Route{
+				LinkIndex: link.Attrs().Index,
+				Table:     routeTable,
+				Family:    family,
+				Type:      unix.RTN_UNICAST,
+				Scope:     route.Scope,
+				Dst:       route.Dst,
+				Priority:  route.Priority,
+			}
+			if slices.ContainsFunc(routes, func(existing netlink.Route) bool {
+				return existing.Dst.String() == connected.Dst.String() && existing.Priority == connected.Priority
+			}) {
+				continue
+			}
+			routes = append(routes, connected)
+		}
+	}
+	resolved, err := netlink.RouteGetWithOptions(probeAddress(family), &netlink.RouteGetOptions{Oif: link.Attrs().Name})
+	if err != nil || len(resolved) == 0 {
+		return append(routes, unroutableBridgeRoute(routeTable, family, fallbackType))
+	}
+	defaultRoute := netlink.Route{
+		LinkIndex: link.Attrs().Index,
+		Table:     routeTable,
+		Family:    family,
+		Type:      unix.RTN_UNICAST,
+		Dst:       defaultDestination(family),
+	}
+	if len(resolved[0].Gw) > 0 {
+		defaultRoute.Gw = resolved[0].Gw
+		defaultRoute.Flags = int(unix.RTNH_F_ONLINK)
+	}
+	return append(routes, defaultRoute)
 }
 
 func activeBridgeFamilies(inet6Port netip.Addr) []int {
