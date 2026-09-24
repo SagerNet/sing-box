@@ -10,6 +10,8 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/convertor/adguard"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/json/badoption"
 	slogger "github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -1432,7 +1434,7 @@ func addOtherItem(rule *abstractDefaultRule, item RuleItem) {
 
 func addSourceAddressItem(t *testing.T, rule *abstractDefaultRule, cidrs []string) {
 	t.Helper()
-	item, err := NewIPCIDRItem(true, cidrs)
+	item, err := NewIPCIDRItem(true, parsePrefixables(cidrs))
 	require.NoError(t, err)
 	rule.sourceAddressItems = append(rule.sourceAddressItems, item)
 	rule.allItems = append(rule.allItems, item)
@@ -1462,7 +1464,7 @@ func addDestinationRegexItem(t *testing.T, rule *abstractDefaultRule, regexes []
 
 func addDestinationIPCIDRItem(t *testing.T, rule *abstractDefaultRule, cidrs []string) {
 	t.Helper()
-	item, err := NewIPCIDRItem(false, cidrs)
+	item, err := NewIPCIDRItem(false, parsePrefixables(cidrs))
 	require.NoError(t, err)
 	rule.destinationIPCIDRItems = append(rule.destinationIPCIDRItems, item)
 	rule.allItems = append(rule.allItems, item)
@@ -1506,4 +1508,10 @@ func addDestinationPortRangeItem(t *testing.T, rule *abstractDefaultRule, ranges
 	require.NoError(t, err)
 	rule.destinationPortItems = append(rule.destinationPortItems, item)
 	rule.allItems = append(rule.allItems, item)
+}
+
+func parsePrefixables(cidrs []string) []*badoption.Prefixable {
+	return common.Map(cidrs, func(it string) *badoption.Prefixable {
+		return common.Ptr(badoption.Prefixable(netip.MustParsePrefix(it)))
+	})
 }
