@@ -99,93 +99,50 @@ func (s *Service) start(bridgeName string) error {
 		s.inet6Port = netip.Addr{}
 	}
 	s.forwardingRestore = enableBridgeForwarding(s.logger, s.tunName, s.inet4Port.IsValid(), s.inet6Port.IsValid())
-	err = setupBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, unix.AF_INET, s.inet4Port)
+	err = setupBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, false, unix.AF_INET, s.inet4Port)
 	if err != nil {
 		return E.Cause(err, "set up bridge routing")
 	}
-	err = setupBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, unix.AF_INET6, s.inet6Port)
+	err = setupBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, false, unix.AF_INET6, s.inet6Port)
 	if err != nil {
 		s.logger.Debug(E.Cause(err, "IPv6 bridge routing unavailable, disabling IPv6 forwarding"))
-		removeBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, unix.AF_INET6, s.inet6Port)
+		removeBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, false, unix.AF_INET6, s.inet6Port)
 		s.inet6Port = netip.Addr{}
 	}
 	for _, family := range activeBridgeFamilies(s.inet6Port) {
-		blackholeBridgeDefault(s.routeTable, family)
+		unroutableBridgeDefault(s.routeTable, family, unix.RTN_BLACKHOLE)
 	}
 	s.startNetworkMonitor()
 	return nil
 }
 
 func (s *Service) syncEgressLocked() error {
-	flushBridgeRouteTable(s.routeTable)
-	if s.egressName == "" {
-		for _, family := range activeBridgeFamilies(s.inet6Port) {
-			blackholeBridgeDefault(s.routeTable, family)
-		}
-		return nil
+	var link netlink.Link
+	if s.egressName != "" {
+		link, _ = netlink.LinkByName(s.egressName)
 	}
-	link, err := netlink.LinkByName(s.egressName)
-	if err != nil {
-		for _, family := range activeBridgeFamilies(s.inet6Port) {
-			blackholeBridgeDefault(s.routeTable, family)
-		}
-		s.logger.Debug("bridge egress ", s.egressName, " absent, dropping forwarded traffic")
-		return nil
-	}
+	var routes []netlink.Route
 	for _, family := range activeBridgeFamilies(s.inet6Port) {
-		s.syncEgressFamilyLocked(family, link.Attrs().Index)
+		if link == nil {
+			routes = append(routes, unroutableBridgeRoute(s.routeTable, family, unix.RTN_BLACKHOLE))
+		} else {
+			routes = append(routes, egressRoutes(s.routeTable, family, link, unix.RTN_BLACKHOLE)...)
+		}
 	}
-	s.updateClampLocked(link.Attrs().MTU)
-	return nil
-}
-
-// Unlike the in-process backend this copies routes from every table: on Android
-// netd leaves the main table empty and keeps each network's routes in its own
-// table, resolvable only through fwmark rules that forwarded packets never carry.
-func (s *Service) syncEgressFamilyLocked(family int, linkIndex int) {
-	routes, err := netlink.RouteListFiltered(family, &netlink.Route{
-		LinkIndex: linkIndex,
-		Table:     unix.RT_TABLE_UNSPEC,
-	}, netlink.RT_FILTER_OIF|netlink.RT_FILTER_TABLE)
+	if link != nil {
+		s.updateClampLocked(link.Attrs().MTU)
+	}
+	if bridgeRoutesEqual(listBridgeRoutes(s.routeTable), routes) {
+		return nil
+	}
+	if s.egressName != "" && link == nil {
+		s.logger.Debug("bridge egress ", s.egressName, " absent, dropping forwarded traffic")
+	}
+	err := applyBridgeRoutes(s.routeTable, routes, unix.RTN_BLACKHOLE)
 	if err != nil {
-		blackholeBridgeDefault(s.routeTable, family)
-		return
-	}
-	var defaultRoute *netlink.Route
-	for _, route := range routes {
-		if route.Table == unix.RT_TABLE_LOCAL || route.Table == s.routeTable {
-			continue
-		}
-		if route.Type != unix.RTN_UNICAST {
-			continue
-		}
-		if isDefaultDestination(route.Dst) {
-			if defaultRoute == nil {
-				pinned := route
-				defaultRoute = &pinned
-			}
-			continue
-		}
-		if route.Gw != nil {
-			continue
-		}
-		connected := route
-		connected.Table = s.routeTable
-		connected.ILinkIndex = 0
-		_ = netlink.RouteReplace(&connected)
-	}
-	if defaultRoute == nil {
-		blackholeBridgeDefault(s.routeTable, family)
-		s.logger.Debug("no default route on bridge egress ", s.egressName)
-		return
-	}
-	defaultRoute.Table = s.routeTable
-	defaultRoute.ILinkIndex = 0
-	err = netlink.RouteReplace(defaultRoute)
-	if err != nil {
-		blackholeBridgeDefault(s.routeTable, family)
 		s.logger.Debug(E.Cause(err, "pin bridge egress default route"))
 	}
+	return nil
 }
 
 func (s *Service) updateClampLocked(egressMTU int) {
@@ -212,8 +169,8 @@ func (s *Service) Close() error {
 	defer s.access.Unlock()
 	if s.tunName != "" {
 		cleanupBridgeNetfilter(s.nftTableName)
-		removeBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, unix.AF_INET, s.inet4Port)
-		removeBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, unix.AF_INET6, s.inet6Port)
+		removeBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, false, unix.AF_INET, s.inet4Port)
+		removeBridgeFamily(s.tunName, s.ruleIndex, s.routeTable, false, unix.AF_INET6, s.inet6Port)
 		flushBridgeRouteTable(s.routeTable)
 	}
 	restoreBridgeForwarding(s.forwardingRestore)
