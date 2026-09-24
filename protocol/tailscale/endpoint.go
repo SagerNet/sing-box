@@ -626,9 +626,7 @@ func (t *Endpoint) SetKeepIdleConnections(keep bool) {
 		t.suspendAccess.Unlock()
 		return
 	}
-	if t.systemInterface {
-		t.requestResume()
-	}
+	t.requestResume()
 }
 
 func (t *Endpoint) requestResume() {
@@ -734,6 +732,14 @@ func (t *Endpoint) awaitRunning(localBackend *ipnlocal.LocalBackend, resumeDone 
 		t.suspended.Store(false)
 		if t.idleRequested.Load() {
 			t.suspendLocked()
+		}
+	} else {
+		_, err := localBackend.EditPrefs(&ipn.MaskedPrefs{
+			Prefs:          ipn.Prefs{WantRunning: false},
+			WantRunningSet: true,
+		})
+		if err != nil {
+			t.logger.Error(E.Cause(err, "revert resume"))
 		}
 	}
 	t.suspendAccess.Unlock()

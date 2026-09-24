@@ -216,7 +216,9 @@ func (c *ClientEndpoint) OnDemand() bool {
 }
 
 func (c *ClientEndpoint) SetKeepIdleConnections(keep bool) {
-	if !keep {
+	if keep {
+		c.client.Resume()
+	} else {
 		c.client.Suspend()
 	}
 }
