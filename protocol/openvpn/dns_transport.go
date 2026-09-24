@@ -49,6 +49,7 @@ type DNSTransport struct {
 	closed                 bool
 	routes                 map[string][]adapter.DNSTransport
 	searchDomains          []string
+	serverAddresses        []netip.Addr
 	defaultResolvers       []adapter.DNSTransport
 	resolverScope          *adapter.Scope
 }
@@ -88,6 +89,7 @@ func (t *DNSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) err
 		t.closed = true
 		t.routes = nil
 		t.searchDomains = nil
+		t.serverAddresses = nil
 		t.defaultResolvers = nil
 		t.resolverScope = nil
 		t.access.Unlock()
@@ -133,6 +135,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 		return left.Priority - right.Priority
 	})
 	var selectedResolvers []adapter.DNSTransport
+	var serverAddresses []netip.Addr
 	if len(servers) > 0 {
 		server := servers[0]
 		if server.DNSSEC == "yes" {
@@ -148,6 +151,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 				return t.failResolverUpdate(resolverScope, err)
 			}
 			selectedResolvers = append(selectedResolvers, resolver)
+			serverAddresses = append(serverAddresses, address.Addr())
 		}
 		if len(selectedResolvers) == 0 {
 			return t.failResolverUpdate(resolverScope, E.New("DNS server ", server.Priority, " has no addresses"))
@@ -170,6 +174,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 				return t.failResolverUpdate(resolverScope, err)
 			}
 			selectedResolvers = append(selectedResolvers, resolver)
+			serverAddresses = append(serverAddresses, address)
 		}
 		if len(configuration.DNSRoutes) > 0 {
 			if len(selectedResolvers) == 0 {
@@ -196,6 +201,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 	oldResolverScope := t.resolverScope
 	t.routes = routes
 	t.searchDomains = searchDomains
+	t.serverAddresses = serverAddresses
 	t.defaultResolvers = defaultResolvers
 	t.resolverScope = resolverScope
 	t.access.Unlock()
@@ -213,6 +219,7 @@ func (t *DNSTransport) failResolverUpdate(resolverScope *adapter.Scope, updateEr
 	oldResolverScope := t.resolverScope
 	t.routes = nil
 	t.searchDomains = nil
+	t.serverAddresses = nil
 	t.defaultResolvers = nil
 	t.resolverScope = nil
 	t.access.Unlock()
@@ -288,6 +295,18 @@ func (t *DNSTransport) Reset() {
 
 func (t *DNSTransport) Raw() bool {
 	return true
+}
+
+func (t *DNSTransport) ServerAddresses() []netip.Addr {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.serverAddresses
+}
+
+func (t *DNSTransport) SearchDomains() []string {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.searchDomains
 }
 
 func (t *DNSTransport) PreferredDomain(domain string) bool {
@@ -428,3 +447,8 @@ func restoreOpenVPNOriginalQuestion(response *mDNS.Msg, expandedName string, ori
 		}
 	}
 }
+
+var (
+	_ adapter.DNSTransportWithPreferredDomain = (*DNSTransport)(nil)
+	_ adapter.DNSTransportWithConfiguration   = (*DNSTransport)(nil)
+)
