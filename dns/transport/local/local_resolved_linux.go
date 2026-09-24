@@ -66,8 +66,9 @@ type DBusResolvedResolver struct {
 }
 
 type resolvedServerSet struct {
-	servers   []resolvedServer
-	signature []string
+	servers         []resolvedServer
+	serverAddresses []netip.Addr
+	signature       []string
 }
 
 type resolvedServer struct {
@@ -169,6 +170,14 @@ func (t *DBusResolvedResolver) Environment() []string {
 		return nil
 	}
 	return serverSet.signature
+}
+
+func (t *DBusResolvedResolver) ServerAddresses() []netip.Addr {
+	serverSet := t.savedServerSet.Load()
+	if serverSet == nil {
+		return nil
+	}
+	return serverSet.serverAddresses
 }
 
 func (t *DBusResolvedResolver) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
@@ -417,6 +426,9 @@ func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServ
 	}
 	serverSet := &resolvedServerSet{
 		servers: make([]resolvedServer, 0, len(serverSpecifications)),
+		serverAddresses: common.Map(serverSpecifications, func(it resolvedServerSpecification) netip.Addr {
+			return it.address
+		}),
 		signature: common.Map(serverSpecifications, func(it resolvedServerSpecification) string {
 			return M.SocksaddrFrom(it.address, it.port).String()
 		}),

@@ -50,6 +50,7 @@ type DNSTransport struct {
 	closed                 bool
 	routes                 map[string][]adapter.DNSTransport
 	searchDomains          []string
+	serverAddresses        []netip.Addr
 	defaultResolvers       []adapter.DNSTransport
 }
 
@@ -116,6 +117,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 		return left.Priority - right.Priority
 	})
 	var selectedResolvers []adapter.DNSTransport
+	var serverAddresses []netip.Addr
 	if len(servers) > 0 {
 		server := servers[0]
 		if server.DNSSEC == "yes" {
@@ -128,6 +130,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 			}
 			selectedResolvers = append(selectedResolvers, resolver)
 			newResolvers = append(newResolvers, resolver)
+			serverAddresses = append(serverAddresses, address.Addr())
 		}
 		if len(selectedResolvers) == 0 {
 			return t.failResolverUpdate(newResolvers, E.New("DNS server ", server.Priority, " has no addresses"))
@@ -147,6 +150,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 			resolver := dnsTransport.NewUDPRaw(t.logger, t.TransportAdapter, t.dialer, M.SocksaddrFrom(address, 53))
 			selectedResolvers = append(selectedResolvers, resolver)
 			newResolvers = append(newResolvers, resolver)
+			serverAddresses = append(serverAddresses, address)
 		}
 		if len(configuration.DNSRoutes) > 0 {
 			if len(selectedResolvers) == 0 {
@@ -173,6 +177,7 @@ func (t *DNSTransport) updateResolvers(configuration ovpntransport.Configuration
 	oldResolvers := t.collectResolversLocked()
 	t.routes = routes
 	t.searchDomains = searchDomains
+	t.serverAddresses = serverAddresses
 	t.defaultResolvers = defaultResolvers
 	t.access.Unlock()
 	closeErr := closeDNSTransports(oldResolvers)
@@ -186,6 +191,7 @@ func (t *DNSTransport) failResolverUpdate(newResolvers []adapter.DNSTransport, u
 	oldResolvers := t.collectResolversLocked()
 	t.routes = nil
 	t.searchDomains = nil
+	t.serverAddresses = nil
 	t.defaultResolvers = nil
 	t.access.Unlock()
 	oldCloseErr := closeDNSTransports(oldResolvers)
@@ -265,6 +271,7 @@ func (t *DNSTransport) Close() error {
 	t.closed = true
 	t.routes = nil
 	t.searchDomains = nil
+	t.serverAddresses = nil
 	t.defaultResolvers = nil
 	t.access.Unlock()
 	t.endpoint = nil
@@ -275,6 +282,18 @@ func (t *DNSTransport) Close() error {
 
 func (t *DNSTransport) Raw() bool {
 	return true
+}
+
+func (t *DNSTransport) ServerAddresses() []netip.Addr {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.serverAddresses
+}
+
+func (t *DNSTransport) SearchDomains() []string {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.searchDomains
 }
 
 func (t *DNSTransport) PreferredDomain(domain string) bool {
@@ -425,3 +444,8 @@ func restoreOpenVPNOriginalQuestion(response *mDNS.Msg, expandedName string, ori
 		}
 	}
 }
+
+var (
+	_ adapter.DNSTransportWithPreferredDomain = (*DNSTransport)(nil)
+	_ adapter.DNSTransportWithConfiguration   = (*DNSTransport)(nil)
+)

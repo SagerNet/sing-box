@@ -2,6 +2,11 @@
 icon: material/alert-decagram
 ---
 
+!!! quote "sing-box 1.15.0 中的更改"
+
+    :material-plus: [dns_server_address](#dns_server_address)  
+    :material-plus: [dns_search_domain](#dns_search_domain)
+
 !!! quote "sing-box 1.14.0 中的更改"
 
     :material-plus: [source_mac_address](#source_mac_address)  
@@ -178,6 +183,16 @@ icon: material/alert-decagram
           "local",
           "ts-dns"
         ],
+        "dns_server_address": {
+          "local": [
+            "192.168.1.1/32"
+          ]
+        },
+        "dns_search_domain": {
+          "ts-dns": [
+            "example.ts.net"
+          ]
+        },
         "wifi_ssid": [
           "My WIFI"
         ],
@@ -530,6 +545,36 @@ Available values: `wifi`, `cellular`, `ethernet` and `other`.
 | `tailscale`   | 匹配 MagicDNS 主机和 DNS 路由后缀                                    |
 | `openconnect` | 匹配 VPN 服务器推送的分流 DNS 和搜索域                                  |
 | `resolved`    | 匹配 systemd-resolved 链路中的分流域名和搜索域                            |
+
+#### dns_server_address
+
+!!! question "自 sing-box 1.15.0 起"
+
+匹配指定 DNS 服务器的服务器地址。
+
+| 类型            | 匹配                               |
+|---------------|----------------------------------|
+| `local`       | 匹配系统 DNS 服务器                     |
+| `dhcp`        | 匹配通过 DHCP 获取的 DNS 服务器             |
+| `resolved`    | 匹配 systemd-resolved 链路中的 DNS 服务器  |
+| `tailscale`   | 匹配 tailnet 的 DNS 解析器              |
+| `openvpn`     | 匹配 VPN 服务器推送的 DNS 服务器             |
+| `openconnect` | 匹配 VPN 服务器推送的 DNS 服务器             |
+
+#### dns_search_domain
+
+!!! question "自 sing-box 1.15.0 起"
+
+匹配指定 DNS 服务器的搜索域。
+
+| 类型            | 匹配                            |
+|---------------|-------------------------------|
+| `local`       | 匹配系统搜索域                       |
+| `dhcp`        | 匹配通过 DHCP 获取的搜索域              |
+| `resolved`    | 匹配 systemd-resolved 链路中的搜索域    |
+| `tailscale`   | 匹配 tailnet 的搜索域                |
+| `openvpn`     | 匹配 VPN 服务器推送的搜索域              |
+| `openconnect` | 匹配 VPN 服务器推送的搜索域              |
 
 #### wifi_ssid
 

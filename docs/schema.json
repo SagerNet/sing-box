@@ -1534,6 +1534,38 @@
                     }
                   ]
                 },
+                "dns_server_address": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/IPAddressOrPrefix"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/IPAddressOrPrefix"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "dns_search_domain": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
+                },
                 "rule_set": {
                   "anyOf": [
                     {
@@ -9955,6 +9987,38 @@
                 }
               ]
             },
+            "dns_server_address": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/IPAddressOrPrefix"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/IPAddressOrPrefix"
+                    }
+                  }
+                ]
+              }
+            },
+            "dns_search_domain": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
+            },
             "rule_set": {
               "anyOf": [
                 {
@@ -10571,6 +10635,38 @@
                   }
                 }
               ]
+            },
+            "dns_server_address": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/IPAddressOrPrefix"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/IPAddressOrPrefix"
+                    }
+                  }
+                ]
+              }
+            },
+            "dns_search_domain": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                ]
+              }
             },
             "rule_set": {
               "anyOf": [
@@ -15874,6 +15970,38 @@
                       }
                     }
                   ]
+                },
+                "dns_server_address": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/IPAddressOrPrefix"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/$defs/IPAddressOrPrefix"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "dns_search_domain": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ]
+                  }
                 },
                 "rule_set": {
                   "anyOf": [

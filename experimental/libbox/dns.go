@@ -62,6 +62,35 @@ func (p *platformTransport) PreferredDomain(domain string) bool {
 	return p.preferredResolver.PreferredDomain(domain)
 }
 
+func (p *platformTransport) ServerAddresses() []netip.Addr {
+	if p.networkManager == nil {
+		return nil
+	}
+	defaultInterface := p.networkManager.DefaultNetworkInterface()
+	if defaultInterface == nil {
+		return nil
+	}
+	var serverAddresses []netip.Addr
+	for _, server := range defaultInterface.DNSServers {
+		serverAddr, err := netip.ParseAddr(server)
+		if err == nil {
+			serverAddresses = append(serverAddresses, serverAddr)
+		}
+	}
+	return serverAddresses
+}
+
+func (p *platformTransport) SearchDomains() []string {
+	if p.networkManager == nil {
+		return nil
+	}
+	defaultInterface := p.networkManager.DefaultNetworkInterface()
+	if defaultInterface == nil {
+		return nil
+	}
+	return defaultInterface.DNSSearchDomains
+}
+
 func (p *platformTransport) Environment() []string {
 	if p.networkManager == nil {
 		return nil
@@ -184,5 +213,6 @@ func (c *ExchangeContext) ErrnoCode(code int32) {
 var (
 	_ adapter.DNSTransport                    = (*platformTransport)(nil)
 	_ adapter.DNSTransportWithPreferredDomain = (*platformTransport)(nil)
+	_ adapter.DNSTransportWithConfiguration   = (*platformTransport)(nil)
 	_ adapter.DNSTransportWithEnvironment     = (*platformTransport)(nil)
 )
