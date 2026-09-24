@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"net/netip"
 	"runtime"
 	"strings"
 	"sync"
@@ -38,8 +39,9 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 }
 
 var (
-	_ adapter.DNSTransport                = (*Transport)(nil)
-	_ adapter.DNSTransportWithEnvironment = (*Transport)(nil)
+	_ adapter.DNSTransport                  = (*Transport)(nil)
+	_ adapter.DNSTransportWithConfiguration = (*Transport)(nil)
+	_ adapter.DNSTransportWithEnvironment   = (*Transport)(nil)
 )
 
 var errInterfaceIsCellular = E.New("interface is cellular")
@@ -139,10 +141,35 @@ func (t *Transport) Start(stage adapter.StartStage, scope *adapter.Scope) error 
 func (t *Transport) Reset() {
 	t.refreshAccess.Lock()
 	defer t.refreshAccess.Unlock()
-	state := t.savedState.Swap(nil)
-	if state != nil && state.serverScope != nil {
+	state := t.savedState.Load()
+	if state == nil {
+		return
+	}
+	t.savedState.Store(&transportState{
+		search:  state.search,
+		servers: state.servers,
+	})
+	if state.serverScope != nil {
 		state.serverScope.Close()
 	}
+}
+
+func (t *Transport) ServerAddresses() []netip.Addr {
+	state := t.loadState()
+	if state == nil {
+		return nil
+	}
+	return common.Map(state.servers, func(it M.Socksaddr) netip.Addr {
+		return it.Addr
+	})
+}
+
+func (t *Transport) SearchDomains() []string {
+	state := t.loadState()
+	if state == nil {
+		return nil
+	}
+	return state.search
 }
 
 func (t *Transport) Environment() []string {
@@ -207,14 +234,22 @@ func (t *Transport) exchangeCold(ctx context.Context, message *mDNS.Msg, callbac
 }
 
 func (t *Transport) Fetch() []M.Socksaddr {
+	state := t.loadState()
+	if state == nil {
+		return nil
+	}
+	return state.servers
+}
+
+func (t *Transport) loadState() *transportState {
 	state := t.savedState.Load()
 	if state == nil || state.lastError != nil {
 		return nil
 	}
-	if len(state.servers) > 0 && time.Since(state.updatedAt) >= C.DHCPTTL {
+	if time.Since(state.updatedAt) >= C.DHCPTTL {
 		t.startRefresh()
 	}
-	return state.servers
+	return state
 }
 
 func (t *Transport) fetch(ctx context.Context) error {
