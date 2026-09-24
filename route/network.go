@@ -43,6 +43,8 @@ type NetworkManager struct {
 	autoDetectInterface     bool
 	defaultOptions          adapter.NetworkOptions
 	autoRedirectOutputMark  uint32
+	bridgeInterfaceAccess   sync.Mutex
+	bridgeInterfaces        []string
 	networkMonitor          tun.NetworkUpdateMonitor
 	interfaceMonitor        tun.DefaultInterfaceMonitor
 	packageManager          tun.PackageManager
@@ -428,6 +430,20 @@ func (r *NetworkManager) RegisterAutoRedirectOutputMark(mark uint32) error {
 
 func (r *NetworkManager) AutoRedirectOutputMark() uint32 {
 	return r.autoRedirectOutputMark
+}
+
+func (r *NetworkManager) RegisterBridgeInterface(interfaceName string) {
+	r.bridgeInterfaceAccess.Lock()
+	defer r.bridgeInterfaceAccess.Unlock()
+	if !slices.Contains(r.bridgeInterfaces, interfaceName) {
+		r.bridgeInterfaces = append(r.bridgeInterfaces, interfaceName)
+	}
+}
+
+func (r *NetworkManager) BridgeInterfaces() []string {
+	r.bridgeInterfaceAccess.Lock()
+	defer r.bridgeInterfaceAccess.Unlock()
+	return slices.Clone(r.bridgeInterfaces)
 }
 
 func (r *NetworkManager) AutoRedirectOutputMarkFunc() control.Func {
