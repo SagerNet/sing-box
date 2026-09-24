@@ -36,6 +36,7 @@ func RegisterTransport(registry *dns.TransportRegistry) {
 var (
 	_ adapter.DNSTransport                    = (*Transport)(nil)
 	_ adapter.DNSTransportWithPreferredDomain = (*Transport)(nil)
+	_ adapter.DNSTransportWithConfiguration   = (*Transport)(nil)
 	_ adapter.DNSTransportWithEnvironment     = (*Transport)(nil)
 )
 
@@ -165,6 +166,47 @@ func (t *Transport) Environment() []string {
 		}
 	}
 	return environment
+}
+
+func (t *Transport) ServerAddresses() []netip.Addr {
+	if t.service == nil {
+		return nil
+	}
+	t.service.linkAccess.RLock()
+	defer t.service.linkAccess.RUnlock()
+	var serverAddresses []netip.Addr
+	for _, link := range t.service.links {
+		for _, address := range link.address {
+			serverAddr, loaded := netip.AddrFromSlice(address.Address)
+			if loaded {
+				serverAddresses = append(serverAddresses, serverAddr)
+			}
+		}
+		for _, address := range link.addressEx {
+			serverAddr, loaded := netip.AddrFromSlice(address.Address)
+			if loaded {
+				serverAddresses = append(serverAddresses, serverAddr)
+			}
+		}
+	}
+	return serverAddresses
+}
+
+func (t *Transport) SearchDomains() []string {
+	if t.service == nil {
+		return nil
+	}
+	t.service.linkAccess.RLock()
+	defer t.service.linkAccess.RUnlock()
+	var searchDomains []string
+	for _, link := range t.service.links {
+		for _, domain := range link.domain {
+			if !domain.RoutingOnly && domain.Domain != "." {
+				searchDomains = append(searchDomains, domain.Domain)
+			}
+		}
+	}
+	return searchDomains
 }
 
 func (t *Transport) updateTransports(link *TransportLink) error {
