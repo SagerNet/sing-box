@@ -369,6 +369,7 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		if t.tunOptions.Name == "" {
 			t.tunOptions.Name = tun.CalculateInterfaceName("")
 		}
+		t.tunOptions.BridgeInterface = t.networkManager.BridgeInterfaces()
 		if t.tunOptions.NetNs != "" {
 			manager := service.FromContext[adapter.NetworkNamespaceManager](t.ctx)
 			if manager != nil {
