@@ -41,6 +41,7 @@ type DNSTransport struct {
 	closed                 bool
 	routes                 []openConnectDNSRoute
 	searchDomains          []string
+	serverAddresses        []netip.Addr
 	defaultResolvers       []adapter.DNSTransport
 	resolverScope          *adapter.Scope
 }
@@ -83,6 +84,7 @@ func (t *DNSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) err
 		t.closed = true
 		t.routes = nil
 		t.searchDomains = nil
+		t.serverAddresses = nil
 		t.defaultResolvers = nil
 		t.resolverScope = nil
 		t.access.Unlock()
@@ -116,6 +118,7 @@ func (t *DNSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) err
 
 func (t *DNSTransport) updateConfiguration(configuration openconnecttransport.Configuration) {
 	resolverByAddress := make(map[netip.Addr]adapter.DNSTransport)
+	var serverAddresses []netip.Addr
 	resolverFor := func(address netip.Addr) adapter.DNSTransport {
 		if !address.IsValid() {
 			return nil
@@ -124,6 +127,7 @@ func (t *DNSTransport) updateConfiguration(configuration openconnecttransport.Co
 		if loaded {
 			return resolver
 		}
+		serverAddresses = append(serverAddresses, address)
 		resolver = transport.NewUDPRaw(
 			t.logger,
 			dns.NewTransportAdapter(C.DNSTypeUDP, t.Tag()+"/"+address.String(), nil),
@@ -217,6 +221,7 @@ func (t *DNSTransport) updateConfiguration(configuration openconnecttransport.Co
 	oldResolverScope := t.resolverScope
 	t.routes = routes
 	t.searchDomains = searchDomains
+	t.serverAddresses = serverAddresses
 	t.defaultResolvers = defaultResolvers
 	t.resolverScope = resolverScope
 	t.access.Unlock()
@@ -237,6 +242,18 @@ func (t *DNSTransport) Reset() {
 	for _, resolver := range resolvers {
 		resolver.Reset()
 	}
+}
+
+func (t *DNSTransport) ServerAddresses() []netip.Addr {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.serverAddresses
+}
+
+func (t *DNSTransport) SearchDomains() []string {
+	t.access.RLock()
+	defer t.access.RUnlock()
+	return t.searchDomains
 }
 
 func (t *DNSTransport) PreferredDomain(domain string) bool {
@@ -369,3 +386,8 @@ func (t *DNSTransport) collectResolversLocked() []adapter.DNSTransport {
 	}
 	return resolvers
 }
+
+var (
+	_ adapter.DNSTransportWithPreferredDomain = (*DNSTransport)(nil)
+	_ adapter.DNSTransportWithConfiguration   = (*DNSTransport)(nil)
+)
