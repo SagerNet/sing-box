@@ -128,10 +128,11 @@ type NetworkInterface struct {
 	Addresses StringIterator
 	Flags     int32
 
-	Type      int32
-	DNSServer StringIterator
-	Gateway   StringIterator
-	Metered   bool
+	Type            int32
+	DNSServer       StringIterator
+	DNSSearchDomain StringIterator
+	Gateway         StringIterator
+	Metered         bool
 }
 
 type WIFIState struct {
