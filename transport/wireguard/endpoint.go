@@ -300,7 +300,7 @@ func (e *Endpoint) SetIdle(idle bool) {
 		}
 		e.suspended.Store(true)
 		wgDevice.Down()
-	} else if e.options.System {
+	} else {
 		e.resumeLocked(wgDevice)
 	}
 }
