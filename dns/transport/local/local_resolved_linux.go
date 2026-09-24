@@ -69,9 +69,10 @@ type DBusResolvedResolver struct {
 }
 
 type resolvedServerSet struct {
-	scopes      []*resolvedScope
-	signature   []string
-	serverScope *adapter.Scope
+	scopes          []*resolvedScope
+	serverAddresses []netip.Addr
+	signature       []string
+	serverScope     *adapter.Scope
 }
 
 // Match levels of dns_scope_good_domain() in systemd-resolved: a routing or search
@@ -242,6 +243,14 @@ func (t *DBusResolvedResolver) Environment() []string {
 		return nil
 	}
 	return serverSet.signature
+}
+
+func (t *DBusResolvedResolver) ServerAddresses() []netip.Addr {
+	serverSet := t.savedServerSet.Load()
+	if serverSet == nil {
+		return nil
+	}
+	return serverSet.serverAddresses
 }
 
 func (t *DBusResolvedResolver) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
@@ -569,6 +578,7 @@ func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServ
 		}
 		serverSet.scopes = append(serverSet.scopes, scope)
 		for _, serverSpecification := range scopeSpecification.servers {
+			serverSet.serverAddresses = append(serverSet.serverAddresses, serverSpecification.address)
 			serverSet.signature = append(serverSet.signature, scopeSpecification.interfaceName+"/"+M.SocksaddrFrom(serverSpecification.address, serverSpecification.port).String())
 		}
 	}
