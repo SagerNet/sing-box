@@ -151,9 +151,9 @@ type RawDefaultRule struct {
 	Geosite                  badoption.Listable[string]                                                  `json:"geosite,omitempty" schema:"omit"`
 	SourceGeoIP              badoption.Listable[string]                                                  `json:"source_geoip,omitempty" schema:"omit"`
 	GeoIP                    badoption.Listable[string]                                                  `json:"geoip,omitempty" schema:"omit"`
-	SourceIPCIDR             badoption.Listable[string]                                                  `json:"source_ip_cidr,omitempty" schema:"prefixable"`
+	SourceIPCIDR             badoption.Listable[*badoption.Prefixable]                                   `json:"source_ip_cidr,omitempty"`
 	SourceIPIsPrivate        bool                                                                        `json:"source_ip_is_private,omitempty"`
-	IPCIDR                   badoption.Listable[string]                                                  `json:"ip_cidr,omitempty" schema:"prefixable"`
+	IPCIDR                   badoption.Listable[*badoption.Prefixable]                                   `json:"ip_cidr,omitempty"`
 	IPIsPrivate              bool                                                                        `json:"ip_is_private,omitempty"`
 	SourcePort               badoption.Listable[uint16]                                                  `json:"source_port,omitempty"`
 	SourcePortRange          badoption.Listable[string]                                                  `json:"source_port_range,omitempty"`
