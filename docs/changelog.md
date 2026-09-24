@@ -2,13 +2,128 @@
 icon: material/alert-decagram
 ---
 
+#### 1.15.0-alpha.8
+
+* Add `dns_server_address` and `dns_search_domain` rule items **1**
+* Fixes and improvements
+
+**1**:
+
+Match the server addresses and search domains that DNS servers obtain from the system, DHCP or VPN.
+
+See [Route Rule](/configuration/route/rule/#dns_server_address) and
+[DNS Rule](/configuration/dns/rule/#dns_server_address).
+
 #### 1.14.2
+
+* Fixes and improvements
+
+#### 1.15.0-alpha.7
+
+* Add MASQUE client and server support **1**
+* Add HTTP/2, HTTP/3 and UDP support for HTTP proxy **2**
+* Add full certificate pinning for TLS **3**
+* Fixes and improvements
+
+**1**:
+
+The new [MASQUE Client](/configuration/endpoint/masque-client/) and
+[MASQUE Server](/configuration/endpoint/masque-server/) endpoints provide IP proxying over HTTP
+(CONNECT-IP), supporting HTTP/1.1, HTTP/2 and HTTP/3, address assignment and route advertisement.
+They can use the internal network stack or a system TUN interface.
+
+**2**:
+
+The HTTP proxy implementation has been rewritten, adding HTTP/2, HTTP/3 and UDP proxying through
+CONNECT-UDP to HTTP inbounds and outbounds.
+
+HTTP outbounds now use HTTP/2 by default with automatic fallback to HTTP/1.1. Configurations using
+`path` or the `Host` header continue to use HTTP/1.1. HTTP/3 can be enabled through the `version` option.
+
+The term "MASQUE VPN" usually refers to CONNECT-IP, rather than a combination of CONNECT and
+CONNECT-UDP, which is an enhancement to HTTP proxying. CONNECT-UDP and CONNECT-IP are collectively
+known as [MASQUE](https://datatracker.ietf.org/wg/masque/about/) in the IETF; the traditional CONNECT
+method for TCP proxying is not itself a MASQUE protocol.
+
+See [HTTP Inbound](/configuration/inbound/http/) and [HTTP Outbound](/configuration/outbound/http/).
+
+**3**:
+
+The new `certificate_sha256` and `client_certificate_sha256` TLS options pin the SHA-256 hash of the whole
+certificate, complementing the existing public key pinning options.
+
+See [TLS](/configuration/shared/tls/).
+
+#### 1.15.0-alpha.6
+
+* Fixes and improvements
+
+#### 1.15.0-alpha.5
+
+* Add Tailcat support **1**
+* Fixes and improvements
+
+**1**:
+
+[Tailcat](https://github.com/tailscale/tailcat) is Tailscale's data plane without its control plane:
+point-to-point WireGuard tunnels bootstrapped through DERP, with NAT traversal.
+
+See [Tailcat Inbound](/configuration/inbound/tailcat/) and [Tailcat Outbound](/configuration/outbound/tailcat/).
+
+The DERP service can verify Tailcat clients with the new `verify_client_inbound` and `verify_client_key` options,
+see [DERP Service](/configuration/service/derp/#verify_client_inbound).
+
+#### 1.15.0-alpha.4
 
 * Fixes and improvements
 
 #### 1.14.1
 
 * Fixes and improvements
+
+#### 1.15.0-alpha.3
+
+* Significantly improve TUN performance with a new TCP/IP stack **1**
+* Fixes and improvements
+
+**1**:
+
+Since 1.15.0, sing-tun uses its own TCP/IP stack, with substantial improvements over all previous
+implementations in peak performance, energy efficiency, and memory usage.
+Remove the `stack` option to use it.
+
+The `stack` option is deprecated and will be removed in sing-box 1.17.0.
+See [Migration](/migration/#migrate-tun-stack).
+
+#### 1.15.0-alpha.1
+
+* Implement fully functional `auto_redirect` for Android **1**
+* Add `on_demand` endpoint option **2**
+* Add cache file write buffering **3**
+* Fixes and improvements
+
+**1**:
+
+`auto_redirect` is now fully supported on Android through the root service of the graphical client
+or a root shell.
+
+See [TUN](/configuration/inbound/tun/#auto_redirect).
+
+**2**:
+
+Allow the endpoint to be disconnected when necessary.
+
+See [WireGuard](/configuration/endpoint/wireguard/#on_demand),
+[Tailscale](/configuration/endpoint/tailscale/#on_demand),
+[OpenVPN Client](/configuration/endpoint/openvpn-client/#on_demand) and
+[OpenConnect](/configuration/endpoint/openconnect/#on_demand).
+
+**3**:
+
+Changes to the cache file are now collected in a write buffer and committed in one transaction
+when the buffer is full, on memory pressure, or when sing-box exits.
+
+See [Cache File](/configuration/experimental/cache-file/#buffer_size).
 
 #### 1.14.0
 
