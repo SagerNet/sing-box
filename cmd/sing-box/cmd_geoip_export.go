@@ -9,11 +9,14 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
+	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/oschwald/maxminddb-golang"
 	"github.com/spf13/cobra"
+	"go4.org/netipx"
 )
 
 var flagGeoipExportOutput string
@@ -83,9 +86,13 @@ func geoipExport(countryCode string) error {
 	encoder := json.NewEncoder(outputWriter)
 	encoder.SetIndent("", "  ")
 	var headlessRule option.DefaultHeadlessRule
-	headlessRule.IPCIDR = make([]string, 0, len(ipNets))
+	headlessRule.IPCIDR = make([]*badoption.Prefixable, 0, len(ipNets))
 	for _, cidr := range ipNets {
-		headlessRule.IPCIDR = append(headlessRule.IPCIDR, cidr.String())
+		prefix, loaded := netipx.FromStdIPNet(cidr)
+		if !loaded {
+			return E.New("invalid network: ", cidr)
+		}
+		headlessRule.IPCIDR = append(headlessRule.IPCIDR, common.Ptr(badoption.Prefixable(prefix)))
 	}
 	var plainRuleSet option.PlainRuleSetCompat
 	plainRuleSet.Version = C.RuleSetVersion2
