@@ -55,9 +55,9 @@ icon: material/new-box
 
 !!! quote ""
 
-    仅支持 Linux，且仅在设置了 `interface` 时生效。
+    仅支持 Linux。
 
-用于固定出口路由的 Linux iproute2 路由表索引。
+Linux iproute2 路由表索引。
 
 默认使用 `2200` + 实例索引。
 
