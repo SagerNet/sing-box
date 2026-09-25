@@ -119,8 +119,6 @@ When `version` contains `3` (default), [HTTP2 Fields](#http2-fields) are replace
 
 See [QUIC Fields](/configuration/shared/quic/) for details.
 
-`initial_packet_size` is `mtu + 51` by default, so that IP packets up to the tunnel MTU fit into a QUIC datagram. QUIC packets cannot exceed 1452 bytes; with a larger `mtu`, IP packets that do not fit are answered with ICMP Packet Too Big.
-
 ## UDP NAT Fields
 
 See [UDP NAT Fields](/configuration/shared/udp-nat/) for details.
