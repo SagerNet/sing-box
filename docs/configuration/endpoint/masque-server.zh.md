@@ -119,8 +119,6 @@ IP 代理资源的 URI 模板路径，可以包含 `target` 和 `ipproto` 变量
 
 参阅 [QUIC 字段](/zh/configuration/shared/quic/)。
 
-`initial_packet_size` 默认为 `mtu + 51`，使不超过隧道 MTU 的 IP 数据包能放入一个 QUIC 数据报。QUIC 数据包最大为 1452 字节，`mtu` 更大时，放不下的 IP 数据包会收到 ICMP Packet Too Big 回复。
-
 ## UDP NAT 字段
 
 参阅 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)。
