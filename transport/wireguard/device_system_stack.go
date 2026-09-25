@@ -3,11 +3,9 @@ package wireguard
 import (
 	"net/netip"
 	"sync"
-	"sync/atomic"
 
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
-	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/wireguard-go/device"
 )
@@ -17,8 +15,7 @@ var _ Device = (*systemStackDevice)(nil)
 type systemStackDevice struct {
 	*systemDevice
 	stack     *tun.Go
-	memoryTun *tun.MemoryTun
-	device    atomic.Pointer[device.Device]
+	router    *peerRouter
 	closeOnce sync.Once
 }
 
@@ -27,17 +24,21 @@ func newSystemStackDevice(options DeviceOptions) (*systemStackDevice, error) {
 	if err != nil {
 		return nil, err
 	}
-	stackDevice := &systemStackDevice{systemDevice: system}
-	stackDevice.memoryTun = tun.NewMemoryTun(tun.MemoryTunOptions{MTU: int(options.MTU), Outbound: stackDevice.inputPackets})
-	stackDevice.stack, err = newStack(options, stackDevice.memoryTun)
+	router := newPeerRouter(options)
+	stack, err := newStack(options, router.memoryTun)
 	if err != nil {
+		router.close()
 		return nil, err
 	}
-	return stackDevice, nil
+	return &systemStackDevice{
+		systemDevice: system,
+		stack:        stack,
+		router:       router,
+	}, nil
 }
 
-func (w *systemStackDevice) SetDevice(device *device.Device) {
-	w.device.Store(device)
+func (w *systemStackDevice) SetDevice(device *device.Device, peers []*device.Peer) {
+	w.router.setPeers(device.AllowedIPs(), peers)
 }
 
 func (w *systemStackDevice) Start() error {
@@ -63,7 +64,7 @@ func (w *systemStackDevice) Write(bufs [][]byte, offset int) (int, error) {
 		}
 	}
 	if len(stackPackets) > 0 {
-		_, err := w.memoryTun.WritePackets(stackPackets)
+		_, err := w.router.memoryTun.WritePackets(stackPackets)
 		if err != nil {
 			return 0, err
 		}
@@ -92,33 +93,10 @@ func (w *systemStackDevice) isLocalDestination(packet []byte) bool {
 	return false
 }
 
-func (w *systemStackDevice) inputPackets(packets []*buf.Buffer) error {
-	defer buf.ReleaseMulti(packets)
-	wgDevice := w.device.Load()
-	if wgDevice == nil {
-		return nil
-	}
-	references := make([]*device.InputPacketRef, 0, len(packets))
-	for _, packet := range packets {
-		var destination []byte
-		switch header.IPVersion(packet.Bytes()) {
-		case header.IPv4Version:
-			destination = header.IPv4(packet.Bytes()).DestinationAddressSlice()
-		case header.IPv6Version:
-			destination = header.IPv6(packet.Bytes()).DestinationAddressSlice()
-		default:
-			continue
-		}
-		references = append(references, &device.InputPacketRef{Destination: destination, PacketSlices: [][]byte{packet.Bytes()}})
-	}
-	wgDevice.InputPackets(references)
-	return nil
-}
-
 func (w *systemStackDevice) Close() error {
 	var err error
 	w.closeOnce.Do(func() {
-		err = E.Errors(w.stack.Close(), w.memoryTun.Close(), w.systemDevice.Close())
+		err = E.Errors(w.stack.Close(), w.router.close(), w.systemDevice.Close())
 	})
 	return err
 }

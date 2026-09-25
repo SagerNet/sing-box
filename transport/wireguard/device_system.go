@@ -62,7 +62,7 @@ func (w *systemDevice) Inet6Address() netip.Addr {
 	return w.inet6Address
 }
 
-func (w *systemDevice) SetDevice(device *device.Device) {
+func (w *systemDevice) SetDevice(device *device.Device, peers []*device.Peer) {
 }
 
 func (w *systemDevice) Start() error {
