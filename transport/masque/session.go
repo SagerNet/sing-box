@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	transportHTTP "github.com/sagernet/sing-box/transport/http"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -15,11 +16,10 @@ import (
 const (
 	upgradeToken       = "connect-ip"
 	DefaultMTU         = 1280
-	PacketHeadroom     = 64
+	PacketHeadroom     = transportHTTP.CapsuleHeadroom
 	QUICPacketOverhead = 51
 	minimumLinkMTU     = 1280
 	maxPacketSize      = 65535
-	sendQueueSize      = 256
 )
 
 type sessionHandler interface {
@@ -31,29 +31,27 @@ type sessionHandler interface {
 }
 
 type session struct {
-	ctx         context.Context
-	cancel      context.CancelCauseFunc
-	stream      io.ReadWriteCloser
-	datagrams   transportHTTP.DatagramStream
-	reader      *std_bufio.Reader
-	handler     sessionHandler
-	sendQueue   chan *buf.Buffer
-	writeAccess sync.Mutex
+	ctx            context.Context
+	cancel         context.CancelCauseFunc
+	stream         io.ReadWriteCloser
+	datagrams      transportHTTP.DatagramStream
+	reader         *std_bufio.Reader
+	handler        sessionHandler
+	packetHeadroom func() int
+	writeAccess    sync.Mutex
 }
 
-func newSession(ctx context.Context, stream io.ReadWriteCloser, handler sessionHandler, queued bool) *session {
+func newSession(ctx context.Context, stream io.ReadWriteCloser, handler sessionHandler, packetHeadroom func() int) *session {
 	sessionCtx, cancel := context.WithCancelCause(ctx)
 	datagrams, _ := stream.(transportHTTP.DatagramStream)
 	current := &session{
-		ctx:       sessionCtx,
-		cancel:    cancel,
-		stream:    stream,
-		datagrams: datagrams,
-		reader:    std_bufio.NewReader(stream),
-		handler:   handler,
-	}
-	if queued {
-		current.sendQueue = make(chan *buf.Buffer, sendQueueSize)
+		ctx:            sessionCtx,
+		cancel:         cancel,
+		stream:         stream,
+		datagrams:      datagrams,
+		reader:         std_bufio.NewReader(stream),
+		handler:        handler,
+		packetHeadroom: packetHeadroom,
 	}
 	return current
 }
@@ -66,9 +64,6 @@ func (s *session) run() error {
 	var loops sync.WaitGroup
 	if s.datagrams != nil {
 		loops.Go(s.loopDatagram)
-	}
-	if s.sendQueue != nil {
-		loops.Go(s.loopSend)
 	}
 	err := s.loopCapsule()
 	s.cancel(err)
@@ -88,31 +83,11 @@ func (s *session) loopDatagram() {
 		if !valid || contextID != 0 || len(datagram) == contextLength {
 			continue
 		}
-		buffer := buf.NewSize(PacketHeadroom + len(datagram) - contextLength)
-		buffer.Resize(PacketHeadroom, 0)
-		buffer.Write(datagram[contextLength:])
+		headroom := s.packetHeadroom()
+		buffer := buf.NewSize(headroom + len(datagram) - contextLength)
+		buffer.Resize(headroom, 0)
+		common.Must1(buffer.Write(datagram[contextLength:]))
 		s.handler.handlePacket(buffer)
-	}
-}
-
-func (s *session) loopSend() {
-	for {
-		select {
-		case buffer := <-s.sendQueue:
-			err := s.writePacket(buffer)
-			if err != nil {
-				s.cancel(err)
-			}
-		case <-s.ctx.Done():
-			for {
-				select {
-				case buffer := <-s.sendQueue:
-					buffer.Release()
-				default:
-					return
-				}
-			}
-		}
 	}
 }
 
@@ -156,8 +131,9 @@ func (s *session) readDatagramCapsule(length int) error {
 		_, err = s.reader.Discard(payloadLength)
 		return err
 	}
-	buffer := buf.NewSize(PacketHeadroom + payloadLength)
-	buffer.Resize(PacketHeadroom, 0)
+	headroom := s.packetHeadroom()
+	buffer := buf.NewSize(headroom + payloadLength)
+	buffer.Resize(headroom, 0)
 	_, err = buffer.ReadFullFrom(s.reader, payloadLength)
 	if err != nil {
 		buffer.Release()
@@ -211,39 +187,40 @@ func (s *session) writeCapsule(capsule *buf.Buffer) error {
 	return err
 }
 
-func (s *session) queuePacket(buffer *buf.Buffer) {
-	select {
-	case s.sendQueue <- buffer:
-	default:
-		buffer.Release()
-	}
-}
-
-func (s *session) writePacket(buffer *buf.Buffer) error {
-	datagram := transportHTTP.PrependContextID(buffer)
-	if s.datagrams != nil {
-		err := s.datagrams.SendDatagram(datagram.Bytes())
-		var tooLarge *transportHTTP.DatagramTooLargeError
-		switch {
-		case err == nil:
-			datagram.Release()
-			return nil
-		case errors.As(err, &tooLarge):
-			mtu := tooLarge.MaxPayloadSize - 1
-			if mtu < minimumLinkMTU {
+func (s *session) writePackets(buffers []*buf.Buffer) error {
+	capsules := buffers[:0]
+	for i, buffer := range buffers {
+		datagram := transportHTTP.PrependContextID(buffer)
+		if s.datagrams != nil {
+			err := s.datagrams.SendDatagram(datagram.Bytes())
+			var tooLarge *transportHTTP.DatagramTooLargeError
+			switch {
+			case err == nil:
 				datagram.Release()
-				return E.New("QUIC connection is unable to carry ", minimumLinkMTU, " bytes packets")
+				continue
+			case errors.As(err, &tooLarge):
+				mtu := tooLarge.MaxPayloadSize - 1
+				if mtu >= minimumLinkMTU {
+					datagram.Advance(1)
+					s.handler.handlePacketTooBig(datagram, mtu)
+					continue
+				}
+				err = E.New("QUIC connection is unable to carry ", minimumLinkMTU, " bytes packets")
+			case errors.Is(err, transportHTTP.ErrDatagramUnsupported):
+				capsules = append(capsules, datagram)
+				continue
 			}
-			datagram.Advance(1)
-			s.handler.handlePacketTooBig(datagram, mtu)
-			return nil
-		case errors.Is(err, transportHTTP.ErrDatagramUnsupported):
-		default:
 			datagram.Release()
+			buf.ReleaseMulti(capsules)
+			buf.ReleaseMulti(buffers[i+1:])
 			return err
 		}
+		capsules = append(capsules, datagram)
+	}
+	if len(capsules) == 0 {
+		return nil
 	}
 	s.writeAccess.Lock()
 	defer s.writeAccess.Unlock()
-	return transportHTTP.WriteDatagramCapsule(s.stream, datagram)
+	return transportHTTP.WriteDatagramCapsules(s.stream, capsules)
 }
