@@ -105,21 +105,24 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 	if options.UDPTimeout != 0 {
 		udpTimeout = time.Duration(options.UDPTimeout)
 	}
+	packetFrontHeadroom, packetRearHeadroom := serverOptions.DataPacketHeadroom()
 	serverEndpoint.deviceOptions = &device.Options{
-		Context:         ctx,
-		Logger:          logger,
-		System:          options.System,
-		Handler:         serverEndpoint,
-		UDPTimeout:      udpTimeout,
-		ICMPTimeout:     C.ICMPTimeout,
-		UDPMapping:      tun.NATMapping(options.UDPMapping),
-		UDPFiltering:    tun.NATFiltering(options.UDPFiltering),
-		UDPNATMax:       options.UDPNATMax,
-		InterfaceFinder: service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
-		Name:            options.Name,
-		NamePrefix:      "ovpn",
-		MTU:             options.MTU,
-		PacketHeadroom:  ovpntransport.PacketHeadroom,
+		Context:             ctx,
+		Logger:              logger,
+		System:              options.System,
+		Handler:             serverEndpoint,
+		UDPTimeout:          udpTimeout,
+		ICMPTimeout:         C.ICMPTimeout,
+		UDPMapping:          tun.NATMapping(options.UDPMapping),
+		UDPFiltering:        tun.NATFiltering(options.UDPFiltering),
+		UDPNATMax:           options.UDPNATMax,
+		InterfaceFinder:     service.FromContext[adapter.NetworkManager](ctx).InterfaceFinder(),
+		Name:                options.Name,
+		NamePrefix:          "ovpn",
+		MTU:                 options.MTU,
+		PacketFrontHeadroom: packetFrontHeadroom,
+		PacketRearHeadroom:  packetRearHeadroom,
+		Route:               serverEndpoint.routeOutbound,
 		Configuration: device.Configuration{
 			MTU:     options.MTU,
 			Address: options.Address,
@@ -241,6 +244,10 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
 	}
 	serverOptions.Transport.Listener = streamListener
 	serverOptions.Transport.PacketConn = packetConn
+	serverOptions.NewOutboundQueue = func(write func(buffers []*buf.Buffer)) ovpn.OutboundQueue {
+		return s.device.NewOutboundQueue(write)
+	}
+	serverOptions.IncomingPacketHeadroom = s.device.FrontHeadroom
 	server, err := ovpn.NewServer(serverOptions)
 	if err != nil {
 		if packetConn != nil {
@@ -331,7 +338,6 @@ func buildServerOptions(options option.OpenVPNServerEndpointOptions) (ovpn.Serve
 			Auth:             options.Auth,
 			ReplayWindow:     options.ReplayWindow,
 			ReplayWindowTime: time.Duration(options.ReplayWindowTime),
-			PacketHeadroom:   ovpntransport.PacketHeadroom,
 		},
 		TLS: tlsOptions,
 		Timing: ovpn.ServerTimingOptions{
@@ -432,7 +438,6 @@ func buildStaticKeyServerOptions(options option.OpenVPNServerEndpointOptions, pr
 			Auth:             options.Auth,
 			ReplayWindow:     options.ReplayWindow,
 			ReplayWindowTime: time.Duration(options.ReplayWindowTime),
-			PacketHeadroom:   ovpntransport.PacketHeadroom,
 		},
 		Timing: ovpn.ServerTimingOptions{
 			PingInterval: time.Duration(options.PingInterval),
@@ -683,15 +688,16 @@ func (s *ServerEndpoint) WritePackets(packets [][]byte) error {
 	if !s.started.Load() {
 		return E.New("endpoint is not ready yet")
 	}
-	packetBuffers := make([]*buf.Buffer, len(packets))
-	for i, packet := range packets {
-		packetBuffers[i] = buf.As(packet)
-	}
-	routeMisses, err := s.server.WriteDataPacketBuffersByDestination(packetBuffers)
+	routeMisses, err := s.server.WriteDataPacketsByDestination(packets)
 	if len(routeMisses) > 0 {
 		s.writeRouteMisses(routeMisses)
 	}
 	return err
+}
+
+func (s *ServerEndpoint) routeOutbound(packet []byte) *tun.OutboundQueue {
+	outboundQueue, _ := s.server.RouteOutbound(packet).(*tun.OutboundQueue)
+	return outboundQueue
 }
 
 func (s *ServerEndpoint) writePacketBuffersByDestination(packetBuffers []*buf.Buffer) error {
@@ -703,21 +709,25 @@ func (s *ServerEndpoint) writePacketBuffersByDestination(packetBuffers []*buf.Bu
 }
 
 func (s *ServerEndpoint) writeRouteMisses(routeMisses []*ovpn.RouteMissError) {
-	returnPath, headroom := s.device.ReturnPath()
-	if returnPath == nil {
-		return
-	}
+	headroom := s.device.FrontHeadroom()
 	inet4Address, inet6Address := s.PortAddresses()
-	replies := make([][]byte, 0, len(routeMisses))
+	replies := make([]*buf.Buffer, 0, len(routeMisses))
 	for _, routeMiss := range routeMisses {
 		sourceAddress := packetSourceAddress(routeMiss.Packet, inet4Address, inet6Address)
 		reply, built := tun.BuildICMPError(routeMiss.Packet, tun.ICMPErrorNoRoute, sourceAddress, 0, headroom)
-		if built {
-			replies = append(replies, reply)
+		if !built {
+			continue
 		}
+		replyBuffer := buf.As(reply)
+		replyBuffer.Advance(headroom)
+		replies = append(replies, replyBuffer)
 	}
-	if len(replies) > 0 {
-		returnPath.ReturnPackets(replies)
+	if len(replies) == 0 {
+		return
+	}
+	err := s.device.WriteInboundBuffers(replies)
+	if err != nil {
+		s.logger.Debug(E.Cause(err, "write ICMP error"))
 	}
 }
 

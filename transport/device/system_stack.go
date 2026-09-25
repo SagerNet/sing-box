@@ -3,6 +3,7 @@ package device
 import (
 	"net/netip"
 
+	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -103,6 +104,10 @@ func packetDestination(packet []byte) netip.Addr {
 	default:
 		return netip.Addr{}
 	}
+}
+
+func (d *systemStackDevice) NewOutboundQueue(handler func(packetBuffers []*buf.Buffer)) *tun.OutboundQueue {
+	return d.stackDevice.NewOutboundQueue(handler)
 }
 
 func (d *systemStackDevice) Close() error {
