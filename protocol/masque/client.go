@@ -207,6 +207,10 @@ func (c *ClientEndpoint) WriteInboundBuffers(packetBuffers []*buf.Buffer) error 
 	return err
 }
 
+func (c *ClientEndpoint) FrontHeadroom() int {
+	return c.device.FrontHeadroom()
+}
+
 func (c *ClientEndpoint) InterfaceUpdated(ctx context.Context) {
 	c.client.RestartSession()
 }
@@ -274,7 +278,7 @@ func (c *ClientEndpoint) WritePackets(packets [][]byte) error {
 	return c.client.WritePacketBuffers(common.Map(packets, func(packet []byte) *buf.Buffer {
 		packetBuffer := buf.NewSize(masque.PacketHeadroom + len(packet))
 		packetBuffer.Resize(masque.PacketHeadroom, 0)
-		packetBuffer.Write(packet)
+		common.Must1(packetBuffer.Write(packet))
 		return packetBuffer
 	}), true)
 }

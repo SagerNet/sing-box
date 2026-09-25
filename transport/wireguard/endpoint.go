@@ -73,7 +73,10 @@ func NewEndpoint(options EndpointOptions) (*Endpoint, error) {
 		if err != nil {
 			return nil, E.Cause(err, "decode public key for peer ", peerIndex)
 		}
-		peer.publicKeyHex = hex.EncodeToString(publicKeyBytes)
+		if len(publicKeyBytes) != device.NoisePublicKeySize {
+			return nil, E.New("invalid public key for peer ", peerIndex, ", required ", device.NoisePublicKeySize, " bytes, got ", len(publicKeyBytes))
+		}
+		peer.publicKey = device.NoisePublicKey(publicKeyBytes)
 		if rawPeer.PreSharedKey != "" {
 			preSharedKeyBytes, err := base64.StdEncoding.DecodeString(rawPeer.PreSharedKey)
 			if err != nil {
@@ -215,19 +218,11 @@ func (e *Endpoint) Start(postStart bool) error {
 		},
 	}
 	wgDevice := device.NewDevice(e.options.Context, e.returnDevice, bind, logger, e.options.Workers)
-	e.tunDevice.SetDevice(wgDevice)
 	domainPeers := make(map[device.NoisePublicKey]*peerConfig)
 	for peerIndex, peer := range e.peers {
-		if !peer.destination.IsDomain() {
-			continue
+		if peer.destination.IsDomain() {
+			domainPeers[peer.publicKey] = &e.peers[peerIndex]
 		}
-		var publicKey device.NoisePublicKey
-		err = publicKey.FromHex(peer.publicKeyHex)
-		if err != nil {
-			wgDevice.Close()
-			return E.Cause(err, "decode public key for peer ", peerIndex)
-		}
-		domainPeers[publicKey] = &e.peers[peerIndex]
 	}
 	if len(domainPeers) > 0 {
 		wgDevice.SetEndpointResolverFunc(func(publicKey device.NoisePublicKey) ([]conn.Endpoint, error) {
@@ -264,6 +259,14 @@ func (e *Endpoint) Start(postStart bool) error {
 		wgDevice.Close()
 		return E.Cause(err, "setup wireguard: \n", ipcConf.String())
 	}
+	wgPeers := make([]*device.Peer, 0, len(e.peers))
+	for _, peer := range e.peers {
+		wgPeer, loaded := wgDevice.LookupActivePeer(peer.publicKey)
+		if loaded {
+			wgPeers = append(wgPeers, wgPeer)
+		}
+	}
+	e.tunDevice.SetDevice(wgDevice, wgPeers)
 	e.device.Store(wgDevice)
 	e.pause = service.FromContext[pause.Manager](e.options.Context)
 	if e.pause != nil {
@@ -389,7 +392,7 @@ func (e *Endpoint) onPauseUpdated(event int) {
 type peerConfig struct {
 	destination     M.Socksaddr
 	endpoint        netip.AddrPort
-	publicKeyHex    string
+	publicKey       device.NoisePublicKey
 	preSharedKeyHex string
 	allowedIPs      []netip.Prefix
 	keepalive       uint16
@@ -398,7 +401,7 @@ type peerConfig struct {
 
 func (c peerConfig) GenerateIpcLines() string {
 	var ipcLines strings.Builder
-	ipcLines.WriteString("\npublic_key=" + c.publicKeyHex)
+	ipcLines.WriteString("\npublic_key=" + hex.EncodeToString(c.publicKey[:]))
 	if c.endpoint.IsValid() {
 		ipcLines.WriteString("\nendpoint=" + c.endpoint.String())
 	}

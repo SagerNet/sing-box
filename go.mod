@@ -47,19 +47,19 @@ require (
 	github.com/sagernet/sing-anytls v0.0.0-20260924021732-7ca72921ac6a
 	github.com/sagernet/sing-cloudflared v0.1.3-0.20260706062323-d9787e794aa3
 	github.com/sagernet/sing-mux v0.3.9-0.20260919141002-baf887b90a62
-	github.com/sagernet/sing-openconnect v0.0.0-20260903200519-8b89c968949d
-	github.com/sagernet/sing-openvpn v0.0.0-20260903200517-e060dda5b1f1
+	github.com/sagernet/sing-openconnect v0.0.0-20260925112412-098ce1337fbe
+	github.com/sagernet/sing-openvpn v0.0.0-20260925112415-fe3a4fdc2e64
 	github.com/sagernet/sing-quic v0.7.1-0.20260924092235-4f371c86a365
 	github.com/sagernet/sing-shadowsocks v0.2.8
 	github.com/sagernet/sing-shadowsocks2 v0.2.1
 	github.com/sagernet/sing-shadowtls v0.2.1
 	github.com/sagernet/sing-snell v0.0.0-20260904135315-bc5a12ac736f
-	github.com/sagernet/sing-tun v0.9.6-0.20260924073434-3077c705bbdb
+	github.com/sagernet/sing-tun v0.9.6-0.20260925112405-97d11460f2ea
 	github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca
 	github.com/sagernet/sing-vmess v0.2.8
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
-	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260916060041-a8fbeb4b0838
-	github.com/sagernet/wireguard-go v0.0.8-0.20260917055437-bc6039037038
+	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20260925112514-35e61219dedd
+	github.com/sagernet/wireguard-go v0.0.8-0.20260925112423-da3fb928cdc1
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.0

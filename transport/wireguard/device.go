@@ -18,7 +18,7 @@ type Device interface {
 	wgTun.Device
 	N.Dialer
 	Start() error
-	SetDevice(device *device.Device)
+	SetDevice(device *device.Device, peers []*device.Peer)
 	Inet4Address() netip.Addr
 	Inet6Address() netip.Addr
 }

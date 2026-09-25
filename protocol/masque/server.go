@@ -137,6 +137,7 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 		ConnectionHandler: (*serverConnectionHandler)(serverEndpoint),
 	})
 	serverEndpoint.deviceOptions = newDeviceOptions(ctx, logger, serverEndpoint, options.MASQUEEndpointOptions, time.Duration(options.UDPTimeout), options.Address)
+	serverEndpoint.deviceOptions.Route = server.RouteOutbound
 	return serverEndpoint, nil
 }
 
@@ -213,6 +214,14 @@ func (s *ServerEndpoint) WriteInboundBuffers(packetBuffers []*buf.Buffer) error 
 	return err
 }
 
+func (s *ServerEndpoint) FrontHeadroom() int {
+	return s.device.FrontHeadroom()
+}
+
+func (s *ServerEndpoint) NewOutboundQueue(handler func(packetBuffers []*buf.Buffer)) *tun.OutboundQueue {
+	return s.device.NewOutboundQueue(handler)
+}
+
 func (s *ServerEndpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
 	return adapter.PreMatchFlow
 }
@@ -245,7 +254,12 @@ func (s *ServerEndpoint) WritePackets(packets [][]byte) error {
 	if !s.started.Load() {
 		return E.New("endpoint is not ready yet")
 	}
-	return s.server.WritePacketBuffers(common.Map(packets, buf.As), true)
+	return s.server.WritePacketBuffers(common.Map(packets, func(packet []byte) *buf.Buffer {
+		packetBuffer := buf.NewSize(masque.PacketHeadroom + len(packet))
+		packetBuffer.Resize(masque.PacketHeadroom, 0)
+		common.Must1(packetBuffer.Write(packet))
+		return packetBuffer
+	}), true)
 }
 
 func (s *ServerEndpoint) writePacketBuffers(packetBuffers []*buf.Buffer) error {

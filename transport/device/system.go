@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -20,12 +21,7 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
-var _ Device = (*systemDevice)(nil)
-
-const (
-	systemDeviceReadBufferSize  = 65535 + tun.PacketOffset
-	systemDevicePacketRearSpace = 64
-)
+const systemDeviceReadBufferSize = 65535 + tun.PacketOffset
 
 type systemDevice struct {
 	baseDevice
@@ -52,7 +48,6 @@ func newSystemDevice(options Options) (*systemDevice, error) {
 	}
 	inet4Address, inet6Address := firstAddresses(options.Configuration.Address)
 	return &systemDevice{
-		baseDevice:   baseDevice{packetHeadroom: options.PacketHeadroom},
 		options:      options,
 		dialer:       interfaceDialer,
 		inet4Address: inet4Address,
@@ -128,12 +123,11 @@ func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
 		d.readLoopDarwin(darwinTUN)
 		return
 	}
-	packetBuffer := buf.NewSize(d.packetHeadroom + systemDeviceReadBufferSize + systemDevicePacketRearSpace)
-	defer packetBuffer.Release()
+	frontHeadroom := d.options.PacketFrontHeadroom
+	rearHeadroom := d.options.PacketRearHeadroom
+	readBuffer := make([]byte, systemDeviceReadBufferSize)
 	for {
-		packetBuffer.Reset()
-		packetBuffer.Resize(d.packetHeadroom, 0)
-		readN, err := tunInterface.Read(packetBuffer.FreeBytes()[:systemDeviceReadBufferSize])
+		readN, err := tunInterface.Read(readBuffer)
 		if err != nil {
 			if E.IsClosed(err) {
 				return
@@ -144,14 +138,14 @@ func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
 		if readN <= tun.PacketOffset {
 			continue
 		}
-		packetBuffer.Truncate(readN)
-		packetBuffer.Advance(tun.PacketOffset)
-		if d.blockIPv6Enabled() && header.IPVersion(packetBuffer.Bytes()) == header.IPv6Version {
+		packet := readBuffer[tun.PacketOffset:readN]
+		if d.blockIPv6Enabled() && header.IPVersion(packet) == header.IPv6Version {
 			continue
 		}
-		packetBuffer.IncRef()
+		packetBuffer := buf.NewSize(frontHeadroom + len(packet) + rearHeadroom)
+		packetBuffer.Resize(frontHeadroom, 0)
+		common.Must1(packetBuffer.Write(packet))
 		err = d.writeOutbound([]*buf.Buffer{packetBuffer})
-		packetBuffer.DecRef()
 		if err != nil {
 			d.options.Logger.Debug(E.Cause(err, "write packet"))
 		}
@@ -159,39 +153,39 @@ func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
 }
 
 func (d *systemDevice) readLoopLinux(tunInterface tun.LinuxTUN, batchSize int, mtu int) {
+	frontHeadroom := d.options.PacketFrontHeadroom
+	packetSize := frontHeadroom + mtu + d.options.PacketRearHeadroom
 	packetBuffers := make([]*buf.Buffer, batchSize)
 	readBuffers := make([][]byte, batchSize)
 	packetSizes := make([]int, batchSize)
 	outboundBuffers := make([]*buf.Buffer, 0, batchSize)
 	for i := range packetBuffers {
-		packetBuffers[i] = buf.NewSize(d.packetHeadroom + mtu + systemDevicePacketRearSpace)
+		packetBuffers[i] = buf.NewSize(packetSize)
 	}
 	defer buf.ReleaseMulti(packetBuffers)
 	for {
 		for i, packetBuffer := range packetBuffers {
 			packetBuffer.Reset()
-			packetBuffer.Resize(d.packetHeadroom, 0)
+			packetBuffer.Resize(frontHeadroom, 0)
 			readBuffers[i] = packetBuffer.FreeBytes()[:mtu]
 		}
 		packetCount, readErr := tunInterface.BatchRead(readBuffers, 0, packetSizes)
-		outboundBuffers = outboundBuffers[:0]
 		blockIPv6 := d.blockIPv6Enabled()
 		for i := range packetCount {
 			packetBuffers[i].Truncate(packetSizes[i])
 			if blockIPv6 && header.IPVersion(packetBuffers[i].Bytes()) == header.IPv6Version {
 				continue
 			}
-			packetBuffers[i].IncRef()
 			outboundBuffers = append(outboundBuffers, packetBuffers[i])
+			packetBuffers[i] = buf.NewSize(packetSize)
 		}
 		if len(outboundBuffers) > 0 {
 			writeErr := d.writeOutbound(outboundBuffers)
-			for _, packetBuffer := range outboundBuffers {
-				packetBuffer.DecRef()
-			}
 			if writeErr != nil {
 				d.options.Logger.Debug(E.Cause(writeErr, "write packet batch"))
 			}
+			clear(outboundBuffers)
+			outboundBuffers = outboundBuffers[:0]
 		}
 		if readErr != nil {
 			if E.IsClosed(readErr) {
@@ -204,8 +198,10 @@ func (d *systemDevice) readLoopLinux(tunInterface tun.LinuxTUN, batchSize int, m
 }
 
 func (d *systemDevice) readLoopDarwin(tunInterface tun.DarwinTUN) {
+	frontHeadroom := d.options.PacketFrontHeadroom
+	rearHeadroom := d.options.PacketRearHeadroom
 	for {
-		packetBuffers, readErr := tunInterface.BatchRead()
+		packetBuffers, readErr := tunInterface.BatchRead(frontHeadroom, rearHeadroom)
 		outboundBuffers := packetBuffers[:0]
 		blockIPv6 := d.blockIPv6Enabled()
 		for _, packetBuffer := range packetBuffers {
@@ -265,6 +261,17 @@ func (d *systemDevice) blockIPv6Enabled() bool {
 	d.stateAccess.RLock()
 	defer d.stateAccess.RUnlock()
 	return d.options.Configuration.BlockIPv6
+}
+
+func (d *systemDevice) FrontHeadroom() int {
+	d.stateAccess.RLock()
+	tunInterface := d.device
+	d.stateAccess.RUnlock()
+	linuxTUN, isLinuxTUN := tunInterface.(tun.LinuxTUN)
+	if !isLinuxTUN {
+		return d.baseDevice.FrontHeadroom()
+	}
+	return max(d.baseDevice.FrontHeadroom(), linuxTUN.FrontHeadroom())
 }
 
 func (d *systemDevice) WriteInboundBuffers(packetBuffers []*buf.Buffer) error {
