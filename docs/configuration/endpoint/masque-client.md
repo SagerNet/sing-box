@@ -124,17 +124,11 @@ When `version` is `2`.
 
 See [HTTP2 Fields](/configuration/shared/http2/) for details.
 
-`keep_alive_period` is `10s` by default.
-
 ## QUIC Fields
 
 When `version` is `3` (default).
 
 See [QUIC Fields](/configuration/shared/quic/) for details.
-
-`keep_alive_period` is `10s` by default.
-
-`initial_packet_size` is `mtu + 51` by default, so that IP packets up to the tunnel MTU fit into a QUIC datagram. QUIC packets cannot exceed 1452 bytes; with a larger `mtu`, IP packets that do not fit are answered with ICMP Packet Too Big. If the path cannot carry packets of that size, the QUIC handshake fails and the client falls back to a lower HTTP version.
 
 ## UDP NAT Fields
 
