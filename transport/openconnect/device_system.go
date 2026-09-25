@@ -152,8 +152,7 @@ func (d *systemDevice) readLoop(tunInterface tun.Tun, mtu int) {
 		err = d.writeOutbound([]*buf.Buffer{packetBuffer})
 		packetBuffer.DecRef()
 		if err != nil {
-			d.options.Logger.Error(E.Cause(err, "write packet"))
-			return
+			d.options.Logger.Debug(E.Cause(err, "write packet"))
 		}
 	}
 }
@@ -183,8 +182,7 @@ func (d *systemDevice) readLoopLinux(tunInterface tun.LinuxTUN, batchSize int, m
 				packetBuffers[i].DecRef()
 			}
 			if writeErr != nil {
-				d.options.Logger.Error(E.Cause(writeErr, "write packet batch"))
-				return
+				d.options.Logger.Debug(E.Cause(writeErr, "write packet batch"))
 			}
 		}
 		if readErr != nil {
@@ -211,8 +209,7 @@ func (d *systemDevice) readLoopDarwin(tunInterface tun.DarwinTUN) {
 		if len(outboundBuffers) > 0 {
 			writeErr := d.writeOutbound(outboundBuffers)
 			if writeErr != nil {
-				d.options.Logger.Error(E.Cause(writeErr, "write packet batch"))
-				return
+				d.options.Logger.Debug(E.Cause(writeErr, "write packet batch"))
 			}
 		}
 		if readErr != nil {
