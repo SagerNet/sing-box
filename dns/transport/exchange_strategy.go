@@ -82,6 +82,70 @@ type sequentialCallState struct {
 	continued bool
 }
 
+func ExchangeParallel(ctx context.Context, exchangers []AsyncExchanger, accept func(response *mDNS.Msg, err error) bool, callback func(response *mDNS.Msg, err error)) {
+	if len(exchangers) == 0 {
+		callback(nil, E.New("missing exchangers"))
+		return
+	}
+	exchangeCtx, cancel := context.WithCancel(ctx)
+	parallel := &parallelExchange{
+		accept:    accept,
+		callback:  callback,
+		cancel:    cancel,
+		responses: make([]*mDNS.Msg, len(exchangers)),
+		errors:    make([]error, len(exchangers)),
+		pending:   len(exchangers),
+	}
+	for i, exchanger := range exchangers {
+		exchanger(exchangeCtx, func(response *mDNS.Msg, err error) {
+			parallel.complete(i, response, err)
+		})
+	}
+}
+
+type parallelExchange struct {
+	access    sync.Mutex
+	accept    func(response *mDNS.Msg, err error) bool
+	callback  func(response *mDNS.Msg, err error)
+	cancel    context.CancelFunc
+	responses []*mDNS.Msg
+	errors    []error
+	pending   int
+	completed bool
+}
+
+func (p *parallelExchange) complete(index int, response *mDNS.Msg, err error) {
+	p.access.Lock()
+	if p.completed {
+		p.access.Unlock()
+		return
+	}
+	accepted := p.accept(response, err)
+	if !accepted {
+		p.responses[index] = response
+		p.errors[index] = err
+		p.pending--
+		if p.pending > 0 {
+			p.access.Unlock()
+			return
+		}
+	}
+	p.completed = true
+	p.access.Unlock()
+	p.cancel()
+	if accepted {
+		p.callback(response, err)
+		return
+	}
+	for i, finalResponse := range p.responses {
+		if p.errors[i] == nil {
+			p.callback(finalResponse, nil)
+			return
+		}
+	}
+	p.callback(nil, E.Errors(p.errors...))
+}
+
 func ExchangeNames(ctx context.Context, names []string, question mDNS.Question, exchangerFor func(fqdn string) AsyncExchanger, callback func(response *mDNS.Msg, err error)) {
 	if len(names) == 0 {
 		callback(nil, E.New("missing name candidates"))
