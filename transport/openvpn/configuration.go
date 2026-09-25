@@ -2,10 +2,7 @@ package openvpn
 
 import "net/netip"
 
-const (
-	DefaultMTU     = 1500
-	PacketHeadroom = 4096
-)
+const DefaultMTU = 1500
 
 type Configuration struct {
 	MTU            uint32
