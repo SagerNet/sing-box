@@ -124,17 +124,11 @@ HTTP/3 需要 TLS。
 
 参阅 [HTTP2 字段](/zh/configuration/shared/http2/)。
 
-`keep_alive_period` 默认为 `10s`。
-
 ## QUIC 字段
 
 当 `version` 为 `3`（默认）时。
 
 参阅 [QUIC 字段](/zh/configuration/shared/quic/)。
-
-`keep_alive_period` 默认为 `10s`。
-
-`initial_packet_size` 默认为 `mtu + 51`，使不超过隧道 MTU 的 IP 数据包能放入一个 QUIC 数据报。QUIC 数据包最大为 1452 字节，`mtu` 更大时，放不下的 IP 数据包会收到 ICMP Packet Too Big 回复。如果路径无法传输这个大小的数据包，QUIC 握手会失败，客户端将回退到更低的 HTTP 版本。
 
 ## UDP NAT 字段
 
