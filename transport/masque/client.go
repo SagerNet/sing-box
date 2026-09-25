@@ -29,6 +29,7 @@ type Configuration struct {
 type ClientHandler interface {
 	UpdateConfiguration(configuration Configuration) error
 	WriteInboundBuffers(packetBuffers []*buf.Buffer) error
+	FrontHeadroom() int
 }
 
 type ClientOptions struct {
@@ -178,7 +179,7 @@ func (c *Client) connect() (bool, error) {
 		}
 		return false, nil
 	}
-	current.session = newSession(c.ctx, stream, current, false)
+	current.session = newSession(c.ctx, stream, current, c.handler.FrontHeadroom)
 	c.current = current
 	c.access.Unlock()
 	err = current.writeCapsule(newAddressCapsule(capsuleTypeAddressRequest, []AssignedAddress{
@@ -299,7 +300,8 @@ func (c *Client) WritePacketBuffers(packetBuffers []*buf.Buffer, forwarded bool)
 	}
 	inet4Address, inet6Address := firstAddresses(configuration.Address)
 	var replies []*buf.Buffer
-	for i, packetBuffer := range packetBuffers {
+	routedBuffers := packetBuffers[:0]
+	for _, packetBuffer := range packetBuffers {
 		_, destination, protocol, valid := packetAddresses(packetBuffer.Bytes())
 		if !valid {
 			packetBuffer.Release()
@@ -312,19 +314,18 @@ func (c *Client) WritePacketBuffers(packetBuffers []*buf.Buffer, forwarded bool)
 			errorType = tun.ICMPErrorHopLimitExceeded
 		}
 		if !routed {
-			reply, built := buildICMPError(packetBuffer.Bytes(), errorType, inet4Address, inet6Address, 0, PacketHeadroom)
+			reply, built := buildICMPError(packetBuffer.Bytes(), errorType, inet4Address, inet6Address, 0, c.handler.FrontHeadroom())
 			if built {
 				replies = append(replies, reply)
 			}
 			packetBuffer.Release()
 			continue
 		}
-		err := current.writePacket(packetBuffer)
-		if err != nil {
-			current.cancel(err)
-			buf.ReleaseMulti(packetBuffers[i+1:])
-			break
-		}
+		routedBuffers = append(routedBuffers, packetBuffer)
+	}
+	err := current.writePackets(routedBuffers)
+	if err != nil {
+		current.cancel(err)
 	}
 	if len(replies) > 0 {
 		return c.handler.WriteInboundBuffers(replies)
@@ -421,7 +422,7 @@ func (s *clientSession) handlePacket(buffer *buf.Buffer) {
 		reply, built := buildICMPError(buffer.Bytes(), tun.ICMPErrorNoRoute, inet4Address, inet6Address, 0, transportHTTP.CapsuleHeadroom)
 		buffer.Release()
 		if built {
-			_ = s.writePacket(reply)
+			_ = s.writePackets([]*buf.Buffer{reply})
 		}
 		return
 	}
@@ -435,7 +436,7 @@ func (s *clientSession) handlePacketTooBig(buffer *buf.Buffer, mtu int) {
 	s.access.Lock()
 	inet4Address, inet6Address := firstAddresses(s.configuration.Address)
 	s.access.Unlock()
-	reply, built := buildICMPError(buffer.Bytes(), tun.ICMPErrorPacketTooBig, inet4Address, inet6Address, mtu, PacketHeadroom)
+	reply, built := buildICMPError(buffer.Bytes(), tun.ICMPErrorPacketTooBig, inet4Address, inet6Address, mtu, s.client.handler.FrontHeadroom())
 	buffer.Release()
 	if !built {
 		return
