@@ -12,7 +12,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/wireguard-go/conn"
 	"github.com/sagernet/wireguard-go/device"
 	wgTun "github.com/sagernet/wireguard-go/tun"
 )
@@ -21,26 +20,29 @@ var _ Device = (*stackDevice)(nil)
 
 type stackDevice struct {
 	stack        *tun.Go
-	memoryTun    *tun.MemoryTun
+	router       *peerRouter
 	mtu          uint32
 	events       chan wgTun.Event
+	closed       chan struct{}
 	closeOnce    sync.Once
 	inet4Address netip.Addr
 	inet6Address netip.Addr
 }
 
 func newStackDevice(options DeviceOptions) (*stackDevice, error) {
-	memoryTun := tun.NewMemoryTun(tun.MemoryTunOptions{MTU: int(options.MTU)})
-	stack, err := newStack(options, memoryTun)
+	router := newPeerRouter(options)
+	stack, err := newStack(options, router.memoryTun)
 	if err != nil {
+		router.close()
 		return nil, err
 	}
 	inet4Address, inet6Address := deviceAddresses(options.Address)
 	return &stackDevice{
 		stack:        stack,
-		memoryTun:    memoryTun,
+		router:       router,
 		mtu:          options.MTU,
 		events:       make(chan wgTun.Event, 1),
+		closed:       make(chan struct{}),
 		inet4Address: inet4Address,
 		inet6Address: inet6Address,
 	}, nil
@@ -105,7 +107,8 @@ func (w *stackDevice) Inet6Address() netip.Addr {
 	return w.inet6Address
 }
 
-func (w *stackDevice) SetDevice(device *device.Device) {
+func (w *stackDevice) SetDevice(device *device.Device, peers []*device.Peer) {
+	w.router.setPeers(device.AllowedIPs(), peers)
 }
 
 func (w *stackDevice) Start() error {
@@ -122,7 +125,8 @@ func (w *stackDevice) File() *os.File {
 }
 
 func (w *stackDevice) Read(bufs [][]byte, sizes []int, offset int) (int, error) {
-	return w.memoryTun.ReadPackets(bufs, sizes, offset)
+	<-w.closed
+	return 0, os.ErrClosed
 }
 
 func (w *stackDevice) Write(bufs [][]byte, offset int) (int, error) {
@@ -130,7 +134,7 @@ func (w *stackDevice) Write(bufs [][]byte, offset int) (int, error) {
 	for _, packet := range bufs {
 		packets = append(packets, packet[offset:])
 	}
-	return w.memoryTun.WritePackets(packets)
+	return w.router.memoryTun.WritePackets(packets)
 }
 
 func (w *stackDevice) Flush() error {
@@ -153,11 +157,12 @@ func (w *stackDevice) Close() error {
 	var err error
 	w.closeOnce.Do(func() {
 		close(w.events)
-		err = E.Errors(w.stack.Close(), w.memoryTun.Close())
+		close(w.closed)
+		err = E.Errors(w.stack.Close(), w.router.close())
 	})
 	return err
 }
 
 func (w *stackDevice) BatchSize() int {
-	return conn.IdealBatchSize
+	return 1
 }
