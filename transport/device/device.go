@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -26,27 +27,30 @@ type Device interface {
 	PortMTU() uint32
 	AttachReturn(returnPath tun.Return) error
 	DetachReturn(returnPath tun.Return) error
-	ReturnPath() (tun.Return, int)
+	FrontHeadroom() int
+	NewOutboundQueue(handler func(packetBuffers []*buf.Buffer)) *tun.OutboundQueue
 	Close() error
 }
 
 type Options struct {
-	Context         context.Context
-	Logger          logger.ContextLogger
-	System          bool
-	Handler         tun.Handler
-	UDPTimeout      time.Duration
-	ICMPTimeout     time.Duration
-	UDPMapping      tun.NATMapping
-	UDPFiltering    tun.NATFiltering
-	UDPNATMax       uint32
-	InterfaceFinder control.InterfaceFinder
-	MemoryPressure  func() tun.MemoryPressure
-	Name            string
-	NamePrefix      string
-	MTU             uint32
-	PacketHeadroom  int
-	Configuration   Configuration
+	Context             context.Context
+	Logger              logger.ContextLogger
+	System              bool
+	Handler             tun.Handler
+	UDPTimeout          time.Duration
+	ICMPTimeout         time.Duration
+	UDPMapping          tun.NATMapping
+	UDPFiltering        tun.NATFiltering
+	UDPNATMax           uint32
+	InterfaceFinder     control.InterfaceFinder
+	MemoryPressure      func() tun.MemoryPressure
+	Name                string
+	NamePrefix          string
+	MTU                 uint32
+	PacketFrontHeadroom int
+	PacketRearHeadroom  int
+	Route               func(packet []byte) *tun.OutboundQueue
+	Configuration       Configuration
 }
 
 type Configuration struct {
@@ -80,9 +84,8 @@ func newStack(options Options, memoryTun *tun.MemoryTun) (*tun.Go, error) {
 }
 
 type baseDevice struct {
-	packetHeadroom int
-	packetWriter   PacketWriter
-	returnState    atomic.Pointer[returnPathState]
+	packetWriter PacketWriter
+	returnState  atomic.Pointer[returnPathState]
 }
 
 func (d *baseDevice) SetPacketWriter(writer PacketWriter) {
@@ -106,7 +109,18 @@ func (d *baseDevice) processInboundBuffers(packetBuffers []*buf.Buffer, writeBuf
 		return writeBuffers(packetBuffers)
 	}
 	packets := make([][]byte, len(packetBuffers))
+	var temporaryBuffers []*buf.Buffer
+	defer func() {
+		buf.ReleaseMulti(temporaryBuffers)
+	}()
 	for i, packetBuffer := range packetBuffers {
+		if packetBuffer.Start() < state.headroom {
+			temporaryBuffer := buf.NewSize(state.headroom + packetBuffer.Len())
+			temporaryBuffer.Resize(state.headroom, 0)
+			common.Must1(temporaryBuffer.Write(packetBuffer.Bytes()))
+			temporaryBuffers = append(temporaryBuffers, temporaryBuffer)
+			packetBuffer = temporaryBuffer
+		}
 		packetBuffer.ExtendHeader(state.headroom)
 		packets[i] = packetBuffer.Bytes()
 	}
@@ -124,13 +138,9 @@ func (d *baseDevice) processInboundBuffers(packetBuffers []*buf.Buffer, writeBuf
 }
 
 func (d *baseDevice) AttachReturn(returnPath tun.Return) error {
-	headroom := returnPath.ReturnHeadroom()
-	if headroom > d.packetHeadroom {
-		return E.New("return path headroom ", headroom, " exceeds available ", d.packetHeadroom)
-	}
 	newState := &returnPathState{
 		returnPath: returnPath,
-		headroom:   headroom,
+		headroom:   returnPath.ReturnHeadroom(),
 	}
 	for {
 		currentState := d.returnState.Load()
@@ -154,12 +164,12 @@ func (d *baseDevice) DetachReturn(returnPath tun.Return) error {
 	return nil
 }
 
-func (d *baseDevice) ReturnPath() (tun.Return, int) {
+func (d *baseDevice) FrontHeadroom() int {
 	state := d.returnState.Load()
 	if state == nil {
-		return nil, 0
+		return 0
 	}
-	return state.returnPath, state.headroom
+	return state.headroom
 }
 
 type returnPathState struct {
