@@ -58,8 +58,7 @@ See [route](/configuration/route/rule_action/#route) for details.
 
 !!! question "Since sing-box 1.14.0"
 
-For UDP connections, the first packet is available in pre-match,
-so protocol sniffing runs on it directly and rule matching continues with the sniffed metadata.
+For UDP connections, sniffing runs on the first packet and rule matching continues with the sniffed metadata.
 
 When sniffers require more data (like a fragmented QUIC Client Hello), pre-match stops at that rule.
 

@@ -120,7 +120,7 @@ Reuse listener address.
 Set network namespace, name or path.
 
 Since sing-box 1.14.0, the tag of a [network namespace](/configuration/network-namespace/) can also be used.
-Referencing an `unshare` network namespace should be avoided, since its only route out is the tun interface managed by sing-box itself.
+Referencing an `unshare` network namespace should be avoided.
 
 #### connect_timeout
 

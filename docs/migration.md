@@ -107,7 +107,8 @@ See [ACME](/configuration/shared/certificate-provider/acme/) for fields newly ad
 Legacy Address Filter Fields (`ip_cidr`, `ip_is_private` without `match_response`) in DNS rules are deprecated,
 along with the Legacy `rule_set_ip_cidr_accept_empty` DNS rule item. A DNS rule that references a rule-set
 containing only `ip_cidr` items (for example, a GeoIP rule-set) without `match_response` is also rejected
-at startup when legacy DNS mode is disabled.
+at startup when DNS rules use features added in sing-box 1.14.0, such as `evaluate`, `match_response`
+or `ip_version`.
 
 In sing-box 1.14.0, use the [`evaluate`](/configuration/dns/rule_action/#evaluate) action
 to fetch a DNS response, then match against it explicitly with `match_response`.
@@ -164,8 +165,7 @@ to fetch a DNS response, then match against it explicitly with `match_response`.
 
 ### Migrate independent DNS cache
 
-The DNS cache now always keys by transport name, making `independent_cache` unnecessary.
-Simply remove the field.
+`independent_cache` is deprecated, remove the field.
 
 !!! info "References"
 
@@ -232,31 +232,10 @@ In sing-box 1.14.0, the behavior of
 [`query_type`](/configuration/rule-set/headless-rule/#query_type) in referenced
 rule-sets, changes in two ways.
 
-First, these fields now take effect on every DNS rule evaluation. In earlier
-versions they were evaluated only for DNS queries received from a client
-(for example, from a DNS inbound or intercepted by `tun`), and were silently
-ignored when a DNS rule was matched from an internal domain resolution that
-did not target a specific DNS server. Such internal resolutions include:
-
-- The [`resolve`](/configuration/route/rule_action/#resolve) route rule
-  action without a `server` set.
-- ICMP traffic routed to a domain destination through a `direct` outbound.
-- A [WireGuard](/configuration/endpoint/wireguard/) or
-  [Tailscale](/configuration/endpoint/tailscale/) endpoint used as an
-  outbound, when resolving its own destination address.
-- A [SOCKS4](/configuration/outbound/socks/) outbound, which must resolve
-  the destination locally because the protocol has no in-protocol domain
-  support.
-- The [DERP](/configuration/service/derp/) `bootstrap-dns` endpoint and the
-  [`resolved`](/configuration/service/resolved/) service (when resolving a
-  hostname or an SRV target).
-
-Resolutions that target a specific DNS server — via
-[`domain_resolver`](/configuration/shared/dial/#domain_resolver) on a dial
-field, [`default_domain_resolver`](/configuration/route/#default_domain_resolver)
-in route options, or an explicit `server` on a DNS rule action or the
-`resolve` route rule action — do not go through DNS rule matching and are
-unaffected.
+First, these fields now also take effect when a DNS rule is matched from an
+internal domain resolution that does not target a specific DNS server, such as
+the [`resolve`](/configuration/route/rule_action/#resolve) route rule action
+without a `server` set.
 
 Second, setting `ip_version` or `query_type` in a DNS rule, or referencing a
 rule-set containing `query_type`, is no longer compatible in the same DNS

@@ -120,7 +120,7 @@ icon: material/new-box
 设置网络命名空间，名称或路径。
 
 自 sing-box 1.14.0 起，也可以使用[网络命名空间](/zh/configuration/network-namespace/)的标签。
-应避免引用 `unshare` 类型的网络命名空间，因为其唯一出口是由 sing-box 自身管理的 tun 接口。
+应避免引用 `unshare` 类型的网络命名空间。
 
 #### connect_timeout
 

@@ -33,11 +33,9 @@ icon: material/new-box
 
 [OpenVPN 客户端端点](/zh/configuration/endpoint/openvpn-client) 的标签。
 
-DNS 查询会通过该端点发送到 OpenVPN 服务器推送的解析器。现代 OpenVPN `dns server` 选项支持普通 DNS、DNS over TLS、DNS over HTTPS、自定义端口、SNI 和 `resolve-domains`。只有优先级数字最低的服务器组会生效。没有现代服务器组时，使用传统的 `dhcp-option DNS`/`DNS6` 和 `DOMAIN-ROUTE`。
+DNS 查询会通过该端点发送到 OpenVPN 服务器推送的解析器。
 
-现代服务器组会覆盖传统 DHCP DNS 解析器及相关域选项。只有现代 `dns search-domains` 而没有现代服务器组时，不会移除传统解析器。由于此传输不提供 DNSSEC 验证，需要强制验证的 `dnssec yes` 会被拒绝。
-
-推送的 DNS 设置不会安装到操作系统中。
+支持现代 `dns` 选项，以及传统的 `dhcp-option DNS`/`DNS6` 和 `DOMAIN-ROUTE` 选项。不支持 `dnssec yes`。
 
 #### accept_default_resolvers
 

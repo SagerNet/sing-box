@@ -33,9 +33,7 @@ icon: material/new-box
 
 The tag of the [OpenConnect Endpoint](/configuration/endpoint/openconnect).
 
-DNS queries are sent to the resolvers pushed by the VPN server through the OpenConnect endpoint. Pushed split-DNS rules use their dedicated resolvers, while pushed split-DNS and search-domain suffixes use the general pushed resolvers. The most specific matching suffix takes precedence.
-
-Pushed DNS settings are not installed into the operating system.
+DNS queries are sent to the resolvers pushed by the VPN server through the OpenConnect endpoint.
 
 #### accept_default_resolvers
 

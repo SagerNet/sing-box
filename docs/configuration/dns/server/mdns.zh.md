@@ -27,7 +27,7 @@ icon: material/new-box
 
 !!! info ""
 
-    通常不需要在 [Local](./local/) 服务器之外再添加显式的 `mdns` 服务器：本地服务器已经会在非 Apple 平台通过 mDNS、在 Apple 平台通过系统解析器来回答 `*.local.` 与 IPv4/IPv6 链路本地反向区域的查询。仅当需要从 [`preferred_by`](../rule/#preferred_by) 引用，或独立使用时，才需要显式添加 `mdns` 服务器。
+    [Local](./local/) 服务器也会解析 `*.local.` 与 IPv4/IPv6 链路本地反向区域。
 
 ### 字段
 

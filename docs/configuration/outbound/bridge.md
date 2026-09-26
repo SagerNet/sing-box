@@ -48,8 +48,6 @@ Interface name for forwarded traffic to egress.
 
 The default interface will be used by default.
 
-Forwarded traffic will be dropped while the interface is unavailable.
-
 #### bridge_name
 
 Custom bridge TUN interface name prefix, `bridge` is used by default.

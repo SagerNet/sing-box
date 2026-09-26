@@ -120,9 +120,7 @@ OpenVPN session mode, one of `tls` or `static_key`.
 `tls` is used by default.
 
 `static_key` is a deprecated OpenVPN mode without a TLS control channel or
-forward secrecy. It is retained as an explicit compatibility option for
-immutable enterprise VPN servers. It does not use `tls`, username/password
-authentication, pull options, or TLS renegotiation options.
+forward secrecy.
 
 ### server
 
@@ -264,7 +262,7 @@ OpenVPN control channel TLS configuration.
 
 Expected server certificate name.
 
-Certificate name verification is disabled if empty. The certificate chain or fingerprint and server certificate usage are still verified.
+Certificate name verification is disabled if empty.
 
 ### tls.server_name_type
 
@@ -322,13 +320,9 @@ Allowed SHA-256 fingerprints of the server leaf certificate.
 
 Each fingerprint must be 64 lowercase hexadecimal characters without separators.
 
-When a trusted CA is also configured, both the certificate chain and fingerprint are verified. Without a trusted CA, the fingerprint, certificate validity period, configured name, and certificate usage are verified, but the certificate chain is not.
-
 ### tls.crl_path
 
 Path to a PEM or DER certificate revocation list used to reject revoked server certificates.
-
-The CRL signature and validity period are verified against the trusted certificate chain.
 
 Disabled by default.
 
@@ -371,7 +365,7 @@ keys for compatibility with immutable peers. Use it only when the peer cannot
 be upgraded. `legacy` accepts SHA-1 but rejects MD5 signatures; `preferred`
 requires stronger signatures and keys.
 
-When `suiteb` is selected and `tls.cipher` is empty, the TLS 1.2 cipher list defaults to the Suite B ECDHE-ECDSA AES-GCM suites. Explicit `tls.cipher` and `tls.groups` values are not restricted by the profile.
+When `suiteb` is selected and `tls.cipher` is empty, the TLS 1.2 cipher list defaults to the Suite B ECDHE-ECDSA AES-GCM suites.
 
 ### tls.ns_certificate_type
 
@@ -397,7 +391,7 @@ The value cannot be lower than `tls.version_min`.
 
 Colon-separated OpenSSL cipher suite names allowed for TLS 1.2 and earlier.
 
-The default TLS cipher suites are used when empty. TLS 1.3 cipher suites are not controlled by this field.
+The default TLS cipher suites are used when empty.
 
 ### tls.groups
 
@@ -441,13 +435,11 @@ Only available when `tls.control_wrap.type` is `tls_auth`. The key is used bidir
 
 Data-channel cipher used in `static_key` mode.
 
-The upstream static-key default `BF-CBC` is used when empty. `BF-CBC` is a
-legacy cipher with a 64-bit block size; configure the cipher required by the
-server explicitly whenever possible. Static-key ciphers include `BF-CBC`,
+The upstream static-key default `BF-CBC` is used when empty. Static-key ciphers include `BF-CBC`,
 `CAST5-CBC`, `DES-CBC`, `DES-EDE-CBC`, `DES-EDE3-CBC`, the AES-CBC,
 ARIA-CBC, and Camellia-CBC families, `SEED-CBC`, `SM4-CBC`, and `NONE`.
 
-Only available in `static_key` mode. `NONE` provides no confidentiality.
+Only available in `static_key` mode.
 
 ### data_ciphers
 
@@ -460,8 +452,7 @@ Only available in TLS mode.
 The AES-GCM family includes `AES-192-GCM`. Retained ciphers include the CBC,
 CFB, and OFB forms of AES, ARIA, Camellia, DES, Blowfish, and CAST5, the CBC,
 CFB, and OFB forms of SEED and SM4, and `NONE`. CFB and OFB are available only
-in TLS mode. Legacy ciphers provide weaker or no confidentiality and are not
-enabled by default.
+in TLS mode.
 
 ### data_ciphers_fallback
 
@@ -477,14 +468,9 @@ OpenVPN data channel authentication digest.
 
 `SHA1` is used by default. It only applies to non-AEAD data ciphers and `tls_auth`.
 
-Legacy digests including `MD5` and `RIPEMD160` remain available when explicitly
-configured for compatibility.
-
 ### mss_fix
 
 Maximum OpenVPN UDP packet size used to clamp the MSS of TCP connections sent through the tunnel.
-
-This prevents TCP packets from exceeding the path MTU after OpenVPN encapsulation.
 
 When empty, the upstream OpenVPN default is used: `fragment` when configured,
 otherwise `1492` for the default tunnel MTU or the configured tunnel MTU.
@@ -515,8 +501,6 @@ Conflict with TCP transport.
 
 UDP data-channel replay window size. `64` is used by default. The maximum is `65536`.
 
-TCP always requires strictly consecutive packet IDs.
-
 ### replay_window_time
 
 UDP data-channel replay window duration. `15s` is used by default and the maximum is `10m`.
@@ -529,21 +513,17 @@ OpenVPN `compress` framing mode, one of `none`, `no`, `lz4`, `lz4-v2`, `stub`, `
 
 Disabled by default.
 
-Compression can weaken traffic confidentiality. Prefer `stub` or `stub-v2` only when framing compatibility is required.
-
 ### compression_lzo
 
 OpenVPN `comp-lzo` mode, one of `none`, `no`, `yes`, `adaptive`, `asym`, `disabled`, or `off`.
 
 Disabled by default.
 
-Compression can weaken traffic confidentiality. Enable it only when required by the server.
-
 ### allow_compression
 
 Policy for compression pushed by the server, one of `no`, `asym`, or `yes`.
 
-`no` is used by default and permits only compression stub framing. `asym` accepts compressed packets from the server but does not compress outgoing packets. For OpenVPN 2.7 compatibility, `yes` is accepted as a legacy alias for `asym`; the client never sends compressed packets.
+`no` is used by default and permits only compression stub framing. `asym` accepts compressed packets from the server but does not compress outgoing packets. `yes` is a legacy alias for `asym`.
 
 Conflict with non-stub compression enabled by `compression` or `compression_lzo` when set to `no`.
 
@@ -551,8 +531,6 @@ Conflict with non-stub compression enabled by `compression` or `compression_lzo`
 
 Ignore routes, DNS and DHCP settings, route metrics, `redirect-gateway`,
 `redirect-private`, `block-ipv6`, and `block-outside-dns` pushed by the server.
-
-Interface configuration, topology, tunnel MTU, `route-gateway`, and locally configured routes are still used.
 
 Disabled by default.
 
@@ -584,17 +562,11 @@ IPv4 and IPv6 prefixes preferred by sing-box routing for this OpenVPN endpoint.
 
 These routes are used in addition to routes accepted from the server.
 
-They do not install operating-system routes. Select the endpoint through
-sing-box route rules or its preferred-route behavior.
-
 ### route_gateway
 
 IPv4 gateway for routes through the OpenVPN endpoint.
 
 When empty, the VPN gateway received from the server is used.
-
-The value is retained for OpenVPN configuration compatibility; endpoint route
-preference is prefix-based and does not install a system gateway route.
 
 ### route_metric
 
@@ -602,35 +574,26 @@ Default metric for routes through the OpenVPN endpoint.
 
 The platform default is used when `0`.
 
-The value is retained for OpenVPN configuration compatibility and does not
-install a system route.
-
 ### redirect_gateway
 
 Prefer the OpenVPN endpoint for all IPv4 destinations in sing-box routing.
 
 Disabled by default.
 
-This does not install an operating-system default route.
-
 ### redirect_gateway_flags
 
 OpenVPN `redirect-gateway` flags.
 
 `!ipv4` disables IPv4 preference, `def1` represents it with two `/1`
-prefixes, and `ipv6` also prefers the upstream-specific IPv6 prefixes. The
-OpenVPN control connection always uses its configured outbound dialer rather
-than endpoint routes, so `local` and `autolocal` require no system-route
-exception. `bypass-dhcp` and `bypass-dns` are not applicable because sing-box
-does not install pushed DHCP or DNS settings into the operating system.
-`block-local` is unsupported because the endpoint has no cross-platform source
-for the physical default gateway needed to preserve the gateway exception.
+prefixes, and `ipv6` also prefers the upstream-specific IPv6 prefixes.
+`local`, `autolocal`, `bypass-dhcp` and `bypass-dns` have no effect.
+`block-local` is not supported.
 
 Empty by default.
 
 ### redirect_private
 
-Accept `redirect_gateway_flags` without adding a default-route preference. Routes pushed or configured separately still affect the endpoint's preferred addresses, but no operating-system routes are installed.
+Accept `redirect_gateway_flags` without adding a default-route preference.
 
 Disabled by default.
 
@@ -706,9 +669,6 @@ Notifications are sent one second apart. Disabled when `0`.
 Use a system interface.
 
 Requires privilege and cannot conflict with existing system interfaces.
-
-The endpoint configures interface addresses and MTU but does not install
-operating-system routes or DNS settings.
 
 If disabled, sing-box uses the internal network stack.
 

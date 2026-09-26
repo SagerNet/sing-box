@@ -136,8 +136,7 @@ icon: material/new-box
 !!! quote "sing-box 1.14.0 中的更改"
 
     当 DNS 规则引用此规则集时，此字段现在也会在 DNS 规则被未指定具体
-    DNS 服务器的内部域名解析匹配时生效。此前只有来自客户端的 DNS 查询
-    才会评估此字段。完整列表参阅
+    DNS 服务器的内部域名解析匹配时生效。参阅
     [迁移指南](/zh/migration/#dns-规则中的-ip_version-和-query_type-行为更改)。
 
     当 DNS 规则引用了包含此字段的规则集时，该 DNS 规则在同一 DNS 配置中

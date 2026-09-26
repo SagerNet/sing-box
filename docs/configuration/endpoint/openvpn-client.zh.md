@@ -120,8 +120,6 @@ OpenVPN 会话模式，可选值为 `tls` 或 `static_key`。
 默认使用 `tls`。
 
 `static_key` 是已弃用的 OpenVPN 模式，不使用 TLS 控制通道且不提供前向保密。
-为兼容无法修改的企业 VPN 服务器，此模式仍作为显式兼容选项保留。该模式不使用
-`tls`、用户名/密码认证、拉取选项或 TLS 重协商选项。
 
 ### server
 
@@ -261,7 +259,7 @@ OpenVPN 控制通道 TLS 配置。
 
 预期的服务器证书名称。
 
-为空时禁用证书名称验证，但仍会验证证书链或 fingerprint 与服务器证书用途。
+为空时禁用证书名称验证。
 
 ### tls.server_name_type
 
@@ -319,13 +317,9 @@ OpenVPN 控制通道 TLS 配置。
 
 每个 fingerprint 必须是不带分隔符的 64 字符小写十六进制字符串。
 
-同时配置受信任 CA 时，会同时验证证书链和 fingerprint。未配置受信任 CA 时，会验证 fingerprint、证书有效期、配置的名称和证书用途，但不验证证书链。
-
 ### tls.crl_path
 
 用于拒绝已吊销服务器证书的 PEM 或 DER CRL 文件路径。
-
-根据受信任证书链验证 CRL 签名和有效期。
 
 默认禁用。
 
@@ -365,7 +359,7 @@ OpenVPN 控制通道 TLS 配置。
 
 `insecure` 为兼容不可变对端而接受使用 MD5 或 SHA-1 签名的证书链和较小的旧密钥，仅应在对端无法升级时使用。`legacy` 接受 SHA-1 但拒绝 MD5 签名；`preferred` 要求更强的签名和密钥。
 
-选择 `suiteb` 且 `tls.cipher` 为空时，TLS 1.2 cipher 列表默认使用 Suite B ECDHE-ECDSA AES-GCM 套件。该 profile 不限制显式配置的 `tls.cipher` 和 `tls.groups`。
+选择 `suiteb` 且 `tls.cipher` 为空时，TLS 1.2 cipher 列表默认使用 Suite B ECDHE-ECDSA AES-GCM 套件。
 
 ### tls.ns_certificate_type
 
@@ -391,7 +385,7 @@ OpenVPN 控制通道 TLS 配置。
 
 TLS 1.2 及更低版本允许的 OpenSSL cipher suite 名称，以冒号分隔。
 
-为空时使用默认 TLS cipher suite。该字段不控制 TLS 1.3 cipher suite。
+为空时使用默认 TLS cipher suite。
 
 ### tls.groups
 
@@ -435,12 +429,11 @@ OpenVPN 控制通道封装。
 
 `static_key` 模式使用的数据通道 cipher。
 
-为空时使用上游静态密钥模式的默认值 `BF-CBC`。`BF-CBC` 是采用 64 位 block size
-的旧 cipher；应尽可能显式配置服务器要求的 cipher。静态密钥 cipher 包括
+为空时使用上游静态密钥模式的默认值 `BF-CBC`。静态密钥 cipher 包括
 `BF-CBC`、`CAST5-CBC`、`DES-CBC`、`DES-EDE-CBC`、`DES-EDE3-CBC`、
 AES-CBC、ARIA-CBC、Camellia-CBC 系列，以及 `SEED-CBC`、`SM4-CBC` 和 `NONE`。
 
-仅在 `static_key` 模式下可用。`NONE` 不提供机密性。
+仅在 `static_key` 模式下可用。
 
 ### data_ciphers
 
@@ -450,7 +443,7 @@ AES-CBC、ARIA-CBC、Camellia-CBC 系列，以及 `SEED-CBC`、`SM4-CBC` 和 `NO
 
 默认使用 `AES-256-GCM`、`AES-128-GCM` 和 `CHACHA20-POLY1305`。
 
-AES-GCM 系列还包括 `AES-192-GCM`。保留的 cipher 包括 AES、ARIA、Camellia、DES、Blowfish、CAST5、SEED 和 SM4 的 CBC、CFB、OFB 形式，以及 `NONE`。CFB 和 OFB 仅可用于 TLS 模式。旧 cipher 只能提供较弱的机密性或完全不加密，因此默认不启用。
+AES-GCM 系列还包括 `AES-192-GCM`。保留的 cipher 包括 AES、ARIA、Camellia、DES、Blowfish、CAST5、SEED 和 SM4 的 CBC、CFB、OFB 形式，以及 `NONE`。CFB 和 OFB 仅可用于 TLS 模式。
 
 ### data_ciphers_fallback
 
@@ -466,13 +459,9 @@ OpenVPN 数据通道认证摘要。
 
 默认使用 `SHA1`，仅应用于非 AEAD 数据 cipher 和 `tls_auth`。
 
-为兼容既有服务器，显式配置时仍可使用 `MD5` 和 `RIPEMD160` 等旧摘要。
-
 ### mss_fix
 
 OpenVPN UDP packet 的最大大小，用于限制通过隧道发送的 TCP 连接 MSS。
-
-这可以避免 TCP packet 在 OpenVPN 封装后超过 path MTU。
 
 为空时使用上游 OpenVPN 默认值：配置了 `fragment` 时使用其值；否则默认 tunnel MTU 使用 `1492`，自定义 tunnel MTU 使用该 MTU。
 
@@ -502,8 +491,6 @@ OpenVPN UDP packet 的最大大小，用于限制通过隧道发送的 TCP 连�
 
 UDP 数据通道重放窗口大小。默认使用 `64`，最大值为 `65536`。
 
-TCP 始终要求数据包 ID 严格连续。
-
 ### replay_window_time
 
 UDP 数据通道重放窗口时长。默认使用 `15s`，最大值为 `10m`。
@@ -516,21 +503,17 @@ OpenVPN `compress` framing 模式，可选值为 `none`、`no`、`lz4`、`lz4-v2
 
 默认禁用。
 
-Compression 可能削弱流量机密性。仅在需要 framing 兼容性时使用 `stub` 或 `stub-v2`。
-
 ### compression_lzo
 
 OpenVPN `comp-lzo` 模式，可选值为 `none`、`no`、`yes`、`adaptive`、`asym`、`disabled` 或 `off`。
 
 默认禁用。
 
-Compression 可能削弱流量机密性。仅在服务器要求时启用。
-
 ### allow_compression
 
 服务器推送的 compression 策略，可选值为 `no`、`asym` 或 `yes`。
 
-默认使用 `no`，仅允许 compression stub framing。`asym` 接受来自服务器的 compressed packet，但不压缩出站 packet。为兼容 OpenVPN 2.7，`yes` 作为 `asym` 的旧别名接受；客户端绝不会发送 compressed packet。
+默认使用 `no`，仅允许 compression stub framing。`asym` 接受来自服务器的 compressed packet，但不压缩出站 packet。`yes` 是 `asym` 的旧别名。
 
 当设为 `no` 时，与通过 `compression` 或 `compression_lzo` 启用的非 stub compression 冲突。
 
@@ -538,8 +521,6 @@ Compression 可能削弱流量机密性。仅在服务器要求时启用。
 
 忽略服务器推送的 route、DNS 和 DHCP 设置、route metric、`redirect-gateway`、
 `redirect-private`、`block-ipv6` 和 `block-outside-dns`。
-
-仍会使用接口配置、topology、tunnel MTU、`route-gateway` 和本地配置的 route。
 
 默认禁用。
 
@@ -571,15 +552,11 @@ sing-box 路由优先选择此 OpenVPN endpoint 的 IPv4 和 IPv6 前缀。
 
 这些 route 会与从服务器接受的 route 一起使用。
 
-它们不会安装操作系统路由。请通过 sing-box 路由规则或 endpoint 的首选路由行为选择此 endpoint。
-
 ### route_gateway
 
 通过 OpenVPN endpoint 路由的 IPv4 gateway。
 
 为空时使用从服务器接收的 VPN gateway。
-
-该值仅为兼容 OpenVPN 配置而保留；endpoint 的路由偏好只按前缀判断，不会安装系统 gateway 路由。
 
 ### route_metric
 
@@ -587,27 +564,23 @@ sing-box 路由优先选择此 OpenVPN endpoint 的 IPv4 和 IPv6 前缀。
 
 设为 `0` 时使用平台默认值。
 
-该值仅为兼容 OpenVPN 配置而保留，不会安装系统路由。
-
 ### redirect_gateway
 
 在 sing-box 路由中对所有 IPv4 目的地优先选择 OpenVPN endpoint。
 
 默认禁用。
 
-这不会安装操作系统默认路由。
-
 ### redirect_gateway_flags
 
 OpenVPN `redirect-gateway` flag。
 
-`!ipv4` 禁用 IPv4 偏好，`def1` 使用两个 `/1` 前缀表示，`ipv6` 还会优先选择上游特定的 IPv6 前缀。OpenVPN 控制连接始终使用其配置的出站拨号器，不经过 endpoint 路由，因此 `local` 和 `autolocal` 不需要系统路由例外。由于 sing-box 不会把推送的 DHCP 或 DNS 设置安装到操作系统，`bypass-dhcp` 和 `bypass-dns` 不适用。`block-local` 不受支持，因为 endpoint 没有可跨平台获取物理默认网关的来源，无法保留网关例外。
+`!ipv4` 禁用 IPv4 偏好，`def1` 使用两个 `/1` 前缀表示，`ipv6` 还会优先选择上游特定的 IPv6 前缀。`local`、`autolocal`、`bypass-dhcp` 和 `bypass-dns` 无效果。不支持 `block-local`。
 
 默认为空。
 
 ### redirect_private
 
-接受 `redirect_gateway_flags`，但不添加默认路由偏好。单独推送或配置的路由仍会影响 endpoint 的首选地址，但不会安装操作系统路由。
+接受 `redirect_gateway_flags`，但不添加默认路由偏好。
 
 默认禁用。
 
@@ -682,8 +655,6 @@ Notification 之间间隔一秒。设为 `0` 时禁用。
 使用系统接口。
 
 需要权限，且不能与现有系统接口冲突。
-
-endpoint 会配置接口地址和 MTU，但不会安装操作系统路由或 DNS 设置。
 
 禁用时，sing-box 使用内部网络栈。
 

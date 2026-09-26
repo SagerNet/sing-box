@@ -129,9 +129,7 @@ Download URL of rule-set.
 
 File path of the initial rule-set content.
 
-Read once at startup when no cached rule-set is available, so startup is not
-blocked by the initial download. The rule-set is still updated in the background
-immediately after startup.
+Used at startup when no cached rule-set is available.
 
 #### http_client
 

@@ -237,32 +237,9 @@ Unsupported fields:
 
 !!! note ""
 
-    TLS 1.3 is only negotiated on Windows 11 or Windows Server 2022 and newer. On older Windows versions, Schannel caps the connection at TLS 1.2 even when `max_version` is `1.3`.
+    TLS 1.3 is only negotiated on Windows 11 or Windows Server 2022 and newer.
 
 The default version range is TLS 1.2 to TLS 1.3, matching the `go` engine.
-
-Supported fields:
-
-* `server_name`
-* `insecure`
-* `alpn`
-* `min_version`
-* `max_version`
-* `certificate` / `certificate_path`
-* `certificate_public_key_sha256`
-* `handshake_timeout`
-
-Unsupported fields:
-
-* `disable_sni`
-* `cipher_suites`
-* `curve_preferences`
-* `client_certificate` / `client_certificate_path` / `client_key` / `client_key_path`
-* `fragment` / `record_fragment`
-* `kernel_tx` / `kernel_rx`
-* `ech`
-* `utls`
-* `reality`
 
 #### disable_sni
 
@@ -686,16 +663,8 @@ Fragment TLS handshake into multiple TLS records to bypass firewalls.
 Inject a forged TLS ClientHello carrying a whitelisted SNI before the real one,
 to fool SNI-filtering middleboxes that permit specific hostnames.
 
-The forged segment is a copy of the real ClientHello with only the SNI value
-replaced by the value of this field, so TLS fingerprinting cannot distinguish
-it from the real one. The receiving server drops the forged segment
-(see `spoof_method`) while the middlebox treats it as a legitimate session.
-
-Requires raw-socket access (`CAP_NET_RAW` on Linux, root on macOS);
-on Linux, `CAP_NET_ADMIN` is additionally required because the send sequence
-number is read via `TCP_REPAIR`.
-On Windows, Administrator is required to install the embedded WinDivert kernel
-driver on first use. Windows on ARM64 is not supported.
+Requires `CAP_NET_RAW` and `CAP_NET_ADMIN` on Linux, root on macOS, and
+Administrator on Windows. Windows on ARM64 is not supported.
 
 #### spoof_method
 
@@ -710,8 +679,8 @@ How the forged segment is rejected by the real server.
 | `wrong-sequence` (default) | The forged segment's TCP sequence number is placed before the server's receive window.                         |
 | `wrong-checksum`           | The forged segment's TCP checksum is deliberately invalid.                                                     |
 | `wrong-ack`                | The forged segment's TCP acknowledgment number is placed before the server's send window.                      |
-| `wrong-md5`                | The forged segment carries a TCP-MD5 signature option, which the server rejects since no MD5 key is negotiated. |
-| `wrong-timestamp`          | The forged segment carries a backdated TCP timestamp, which the server rejects as a PAWS replay. Linux/Windows only; not supported on macOS. |
+| `wrong-md5`                | The forged segment carries a TCP-MD5 signature option.                                                         |
+| `wrong-timestamp`          | The forged segment carries a backdated TCP timestamp. Linux/Windows only; not supported on macOS.              |
 
 ### ACME Fields
 

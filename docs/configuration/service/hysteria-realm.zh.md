@@ -8,9 +8,7 @@ icon: material/new-box
 
 Hysteria Realm 是用于 Hysteria2 NAT 穿透的会合服务。
 
-位于 NAT 后面的 Hysteria2 服务器将其通过 STUN 发现的公网地址注册到一个稳定的 realm 端点；客户端从 realm 查询服务器当前的地址并执行 UDP 打洞，以建立直连的 QUIC 连接。
-
-Realm 只承载控制信令。打洞成功后，所有代理流量在客户端和服务器之间直连传输。
+位于 NAT 后面的 Hysteria2 服务器通过 [`realm`](/zh/configuration/inbound/hysteria2/#realm) 入站字段注册到 realm，客户端通过 [`realm`](/zh/configuration/outbound/hysteria2/#realm) 出站字段经由 realm 连接到这些服务器。
 
 ### 结构
 

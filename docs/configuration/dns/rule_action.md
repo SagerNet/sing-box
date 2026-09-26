@@ -55,7 +55,7 @@ immediately; the remaining queries are canceled.
 
 Rules without `race` still take effect strictly in listed order: while a preceding race rule is
 not yet judged, the action of any other matched rule is held until none of the race rules
-matched. The result may therefore depend on server speed only among race rules.
+matched.
 
 ### route
 
@@ -92,8 +92,7 @@ By default, no query is sent in parallel with pending race rules: a matched `rou
 holds its query until none of the race rules matched.
 
 When `speculative` is enabled, the query is sent as soon as the rule matches, in parallel with
-the pending race rules, and may be wasted: its response is still used only after none of the
-race rules matched.
+the pending race rules; its response is used only after none of the race rules matched.
 
 #### strategy
 
@@ -170,8 +169,7 @@ Unlike `route`, it does **not** terminate rule evaluation.
 
 Only allowed on top-level DNS rules (not inside logical sub-rules).
 Rules that use [`match_response`](/configuration/dns/rule/#match_response) or Response Match Fields
-require a preceding top-level rule with `evaluate` action. A rule's own `evaluate` action
-does not satisfy this requirement, because matching happens before the action runs.
+require a preceding top-level rule with `evaluate` action.
 
 #### server
 
@@ -196,7 +194,7 @@ By default, no query is sent in parallel with pending race rules: a matched `eva
 holds its query, and rule matching stops there, until none of the race rules matched.
 
 When `speculative` is enabled, the query is sent as soon as the rule matches, in parallel with
-the pending race rules, and may be wasted: rule matching continues without waiting for them.
+the pending race rules, and rule matching continues without waiting for them.
 
 #### disable_cache
 
@@ -247,8 +245,6 @@ Conflict with `client_subnet`.
 ```
 
 `respond` terminates rule evaluation and returns the evaluated response from a preceding [`evaluate`](/configuration/dns/rule_action/#evaluate) action.
-
-This action does not send a new DNS query.
 
 Only allowed after a preceding top-level `evaluate` rule. If the action is reached without an evaluated response at runtime, the request fails with an error instead of falling through to later rules.
 

@@ -8,9 +8,7 @@ icon: material/new-box
 
 Hysteria Realm is a rendezvous service for Hysteria2 NAT traversal.
 
-A Hysteria2 server behind NAT registers its STUN-discovered public addresses to a stable realm endpoint; clients query the realm to learn the server's current addresses and perform UDP hole-punching to establish a direct QUIC connection.
-
-The realm only carries control-plane signaling. Once hole-punching succeeds, all proxy traffic flows directly between client and server.
+Hysteria2 servers behind NAT register on the realm via the [`realm`](/configuration/inbound/hysteria2/#realm) inbound field, and clients connect to them through the realm via the [`realm`](/configuration/outbound/hysteria2/#realm) outbound field.
 
 ### Structure
 

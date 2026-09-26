@@ -259,21 +259,16 @@ How DNS is handled on the TUN interface.
 
 `hijack` adds the following on top of `native`:
 
-*On Linux*: only DNS sent to non-local destinations can be intercepted.
-Traffic destined to addresses on the host's own interfaces (such as
-`127.0.0.53` or the host's LAN-side IP) is delivered through the kernel
-`local` routing table before any user rule applies, and `OUTPUT` NAT cannot
-redirect packets going through `lo`.
+*On Linux*: DNS sent to addresses on the host's own interfaces (such as
+`127.0.0.53` or the host's LAN-side IP) is not hijacked.
 
-- Without `auto_redirect`, an `iproute2` rule makes port 53 skip the `main`
-  table's specific-route lookup, forcing DNS that would otherwise be
-  delivered through a directly-attached subnet through the TUN. Destination
-  addresses are not rewritten.
-- With `auto_redirect`, an nftables rule DNATs port 53 traffic directly to
+- Without `auto_redirect`, port 53 traffic to directly-attached subnets is
+  also routed through the TUN.
+- With `auto_redirect`, port 53 traffic is redirected to
   [`dns_address`](#dns_address).
 
-*On Windows with [`strict_route`](#strict_route)*: a WFP filter blocks port
-53 traffic going through interfaces other than the TUN.
+*On Windows with [`strict_route`](#strict_route)*: port 53 traffic going
+through interfaces other than the TUN is blocked.
 
 #### dns_address
 
@@ -281,15 +276,12 @@ redirect packets going through `lo`.
 
 List of DNS server addresses used by [`dns_mode`](#dns_mode).
 
-When unset, sing-box derives one address per family by taking the next IP after
-the first IPv4/IPv6 entry in [`address`](#address). Connections toward those
-derived addresses are additionally hijacked into the sing-box DNS module,
-equivalent to a [`hijack-dns`](/configuration/route/rule_action/#hijack-dns)
-route action; this preserves the behaviour from before this option was added.
+When unset, the next address after the first IPv4 and IPv6 entry in
+[`address`](#address) is used, and connections to it are handled as a
+[`hijack-dns`](/configuration/route/rule_action/#hijack-dns) route action.
 
-When set, this auto-hijack is not applied; configure an explicit
-[`hijack-dns`](/configuration/route/rule_action/#hijack-dns) route rule if the
-behaviour is still required.
+When set, configure a [`hijack-dns`](/configuration/route/rule_action/#hijack-dns)
+route rule to handle DNS traffic to these addresses.
 
 #### gso
 

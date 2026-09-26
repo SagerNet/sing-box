@@ -153,5 +153,3 @@ ACME DNS01 质询字段。如果配置，将禁用其他质询方法。
 用于所有提供者 HTTP 请求的 HTTP 客户端。
 
 参阅 [HTTP 客户端字段](/zh/configuration/shared/http-client/) 了解详情。
-
-所有提供者 HTTP 请求将使用此出站。

@@ -26,12 +26,6 @@ requires disabling System Integrity Protection). Not available on iOS.
 }
 ```
 
-!!! info "Difference from the official USB/IP protocol"
-
-    sing-box uses [sing-usbip](https://github.com/SagerNet/sing-usbip), which uses an additional
-    set of protocols to support enhancements such as hotplug, while remaining interoperable with
-    the standard USB/IP protocol.
-
 ### Listen Fields
 
 See [Listen Fields](/configuration/shared/listen/) for details.
