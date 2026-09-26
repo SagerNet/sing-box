@@ -198,7 +198,7 @@ For `totp` and `hotp`, this can be a Base32 secret, a `base32:`-prefixed secret,
 
 For `stoken`, this is the encoded RSA SecurID CTF token content.
 
-For `oidc`, this is the access token value. It is sent only after the VPN server requests HTTP Bearer authentication.
+For `oidc`, this is the access token value.
 
 Conflict with `token.secret_path`.
 
@@ -244,7 +244,7 @@ The default is flavor-specific. AnyConnect, Network Connect, Pulse, and F5 use `
 
 Client version reported separately from `user_agent` when supported by the selected flavor.
 
-`v9.21` is used by default. Currently used by AnyConnect XML authentication.
+`v9.21` is used by default.
 
 ### local_hostname
 
@@ -254,7 +254,7 @@ The system hostname is used by default, or `localhost` if it is unavailable.
 
 ### mobile
 
-AnyConnect mobile client identity. When configured, all three fields are required and are reported during XML authentication and tunnel establishment.
+AnyConnect mobile client identity. When configured, all three fields are required.
 
 ### mobile.platform_version
 
@@ -348,11 +348,9 @@ Conflict with `tncc.certificates.certificate`.
 
 ### fortinet_host_check
 
-Fortinet hostcheck result override.
+Fortinet hostcheck result override, submitted when requested by the server.
 
-Hostcheck is disabled by default. It is enabled only when `fortinet_host_check.hostcheck` is non-empty. No operating system, security product, or network interface information is collected automatically.
-
-When enabled and a successful Fortinet login response requests hostcheck, both configured values are submitted to the server before the VPN session is used. The values are sent unchanged as `application/x-www-form-urlencoded` fields.
+Disabled if `fortinet_host_check.hostcheck` is empty.
 
 Some Fortinet servers only request hostcheck from recognized FortiClient user agents. Configure `user_agent` when required by the server policy.
 
@@ -362,13 +360,11 @@ Fortinet hostcheck result string.
 
 The conventional format is `<security-status>,<os-version>`, for example `0100,10.0.19042`. `security-status` contains four `0` or `1` characters representing, in order, third-party firewall, third-party antivirus, FortiClient firewall, and FortiClient antivirus.
 
-An empty value disables Fortinet hostcheck, even if `fortinet_host_check.check_virtual_desktop` is configured.
-
 ### fortinet_host_check.check_virtual_desktop
 
 Fortinet virtual desktop check result string.
 
-FortiClient conventionally sends colon-separated MAC addresses joined by `|`, for example `74:78:27:4d:81:93|84:1b:77:3a:95:84`. An empty value is submitted as an empty field when hostcheck is enabled.
+FortiClient conventionally sends colon-separated MAC addresses joined by `|`, for example `74:78:27:4d:81:93|84:1b:77:3a:95:84`.
 
 ### no_udp
 
@@ -386,8 +382,6 @@ Disable AnyConnect compression negotiation.
 
 By default, stateless `oc-lz4` and `lzs` compression is negotiated for CSTP and DTLS when supported by the server.
 
-Compression can weaken traffic confidentiality when an attacker can influence plaintext sent through the VPN tunnel.
-
 Conflict with `compression_mode` set to `all`.
 
 ### compression_mode
@@ -397,9 +391,7 @@ AnyConnect compression mode, one of:
 - `stateless`: Advertise stateless `oc-lz4` and `lzs` compression.
 - `all`: Additionally advertise stateful `deflate` compression for CSTP.
 
-`stateless` is used by default. DTLS always uses stateless compression, including when `all` is selected.
-
-Stateful compression has additional traffic confidentiality risks and should only be enabled when required by the VPN server.
+`stateless` is used by default.
 
 ### ipv6_disabled
 
@@ -417,19 +409,15 @@ Disable AnyConnect XML POST authentication and start authentication with the leg
 
 Disable external browser authentication such as SSO and SAML for AnyConnect, GlobalProtect, and Fortinet.
 
-When enabled, external authentication is not advertised for AnyConnect or GlobalProtect, and any unexpected external authentication request, including Fortinet SAML, is rejected.
-
 ### password_authentication_disabled
 
 Abort AnyConnect authentication if the server returns a non-success authentication form, matching OpenConnect `--no-passwd` behavior.
-
-This does not affect the other flavors or a session supplied by `cookie`.
 
 ### tcp_keep_alive_enabled
 
 Enable TCP keep alive for direct VPN server connections.
 
-Disabled by default to match OpenConnect. Setting `tcp_keep_alive` or `tcp_keep_alive_interval` also enables it without requiring this field. When enabled without either duration, the operating system TCP keep alive timing is retained.
+Setting `tcp_keep_alive` or `tcp_keep_alive_interval` also enables it. When enabled without either duration, the operating system defaults are used.
 
 Conflict with `disable_tcp_keep_alive`.
 
@@ -437,13 +425,11 @@ Conflict with `disable_tcp_keep_alive`.
 
 Require forward-secret TLS cipher suites for TLS 1.2 and earlier.
 
-Disabled by default for compatibility with VPN servers that require RSA key exchange. This does not enable deprecated cipher suites; see `allow_insecure_crypto` for legacy crypto support.
-
 ### mtu
 
 Preferred tunnel MTU.
 
-The negotiated MTU is limited to this value for all flavors. For AnyConnect, this value is also sent to the server. GlobalProtect, F5, and Fortinet remove their protocol overhead before using it as the tunnel MTU.
+The negotiated MTU is limited to this value.
 
 Non-zero values below `576` are treated as `576`. The maximum value is `65535`.
 
@@ -465,7 +451,7 @@ Positive values below `2s` are treated as `2s`. The value must not be negative.
 
 ### reconnect_timeout
 
-Maximum accumulated backoff time after failed reconnect attempts. The first reconnect attempt starts immediately, and this timeout does not cancel an attempt already in progress.
+Maximum accumulated backoff time after failed reconnect attempts.
 
 `300s` is used by default.
 
@@ -483,13 +469,13 @@ The value must not be negative.
 
 Inbound and outbound packet queue length between the VPN transport and the tunnel interface.
 
-`32` is used by default. A full queue applies backpressure until its consumer makes room; queued packets are not discarded.
+`32` is used by default.
 
 ### allow_insecure_crypto
 
 Enable weak TLS and DTLS cipher suites and TLS 1.0 compatibility required by legacy VPN servers.
 
-Disabled by default; TLS versions below 1.2 are otherwise rejected. This option does not disable server certificate verification.
+Disabled by default; TLS versions below 1.2 are otherwise rejected.
 
 ### tls
 
@@ -499,7 +485,7 @@ OpenConnect TLS configuration.
 
 Disable verification of the VPN server certificate and hostname.
 
-Disabled by default. Enabling this permits an active attacker to impersonate the VPN server. Prefer `tls.certificate_authority` or `tls.peer_fingerprint` when possible.
+Disabled by default. Prefer `tls.certificate_authority` or `tls.peer_fingerprint` when possible.
 
 ### tls.server_name
 
@@ -648,4 +634,4 @@ Use `Tools` > `Endpoints` in the sing-box dashboard or any sing-box graphical cl
 
 ## DNS
 
-Pushed DNS settings are not installed into the operating system. Configure an [OpenConnect DNS server](/configuration/dns/server/openconnect/) to use them through sing-box.
+Configure an [OpenConnect DNS server](/configuration/dns/server/openconnect/) to use the pushed DNS settings.

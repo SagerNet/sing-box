@@ -42,8 +42,7 @@ icon: material/new-box
 
 !!! warning ""
 
-    仅供实验用途：由于 CGO 和 Network.framework 占用的内存都很多，
-    不应在 iOS 和 tvOS 的热路径中使用。
+    仅供实验用途：不应在 iOS 和 tvOS 的热路径中使用。
 
 支持的字段：
 

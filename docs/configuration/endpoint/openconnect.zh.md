@@ -198,7 +198,7 @@ Token 模式，可选值为：
 
 对于 `stoken`，这是编码后的 RSA SecurID CTF token 内容。
 
-对于 `oidc`，这是 access token 值。仅在 VPN 服务器请求 HTTP Bearer 认证后发送。
+对于 `oidc`，这是 access token 值。
 
 与 `token.secret_path` 冲突。
 
@@ -244,7 +244,7 @@ Token 模式，可选值为：
 
 所选 flavor 支持时，与 `user_agent` 分开报告的客户端版本。
 
-默认使用 `v9.21`。当前用于 AnyConnect XML 认证。
+默认使用 `v9.21`。
 
 ### local_hostname
 
@@ -254,7 +254,7 @@ Token 模式，可选值为：
 
 ### mobile
 
-AnyConnect 移动客户端身份。配置时三个字段均为必填，并会在 XML 认证和隧道建立阶段报告。
+AnyConnect 移动客户端身份。配置时三个字段均为必填。
 
 ### mobile.platform_version
 
@@ -348,11 +348,9 @@ PEM 格式的 TNCC 机器证书路径。
 
 ### fortinet_host_check
 
-Fortinet hostcheck 结果覆盖选项。
+Fortinet hostcheck 结果覆盖选项，在服务器要求时提交。
 
-默认禁用 hostcheck。仅当 `fortinet_host_check.hostcheck` 非空时启用。不会自动收集操作系统、安全产品或网络接口信息。
-
-启用后，如果成功的 Fortinet 登录响应要求 hostcheck，将在使用 VPN 会话前向服务器提交两个配置值。这些值不经修改，作为 `application/x-www-form-urlencoded` 字段发送。
+`fortinet_host_check.hostcheck` 为空时禁用。
 
 部分 Fortinet 服务器只会要求可识别的 FortiClient User-Agent 执行 hostcheck。服务器策略有要求时请配置 `user_agent`。
 
@@ -362,13 +360,11 @@ Fortinet hostcheck 结果字符串。
 
 通常格式为 `<security-status>,<os-version>`，例如 `0100,10.0.19042`。`security-status` 包含四个 `0` 或 `1` 字符，依次表示第三方防火墙、第三方杀毒软件、FortiClient 防火墙和 FortiClient 杀毒软件。
 
-空值会禁用 Fortinet hostcheck，即使配置了 `fortinet_host_check.check_virtual_desktop`。
-
 ### fortinet_host_check.check_virtual_desktop
 
 Fortinet virtual desktop 检查结果字符串。
 
-FortiClient 通常发送以冒号分隔的 MAC 地址，多个地址使用 `|` 连接，例如 `74:78:27:4d:81:93|84:1b:77:3a:95:84`。启用 hostcheck 时，空值会作为空字段提交。
+FortiClient 通常发送以冒号分隔的 MAC 地址，多个地址使用 `|` 连接，例如 `74:78:27:4d:81:93|84:1b:77:3a:95:84`。
 
 ### no_udp
 
@@ -386,8 +382,6 @@ FortiClient 通常发送以冒号分隔的 MAC 地址，多个地址使用 `|` �
 
 默认情况下，当服务器支持时，CSTP 和 DTLS 会协商无状态 `oc-lz4` 和 `lzs` 压缩。
 
-当攻击者能够影响通过 VPN 隧道发送的明文时，压缩可能削弱流量机密性。
-
 与设置为 `all` 的 `compression_mode` 冲突。
 
 ### compression_mode
@@ -397,9 +391,7 @@ AnyConnect 压缩模式，可选值为：
 - `stateless`：声明支持无状态 `oc-lz4` 和 `lzs` 压缩。
 - `all`：额外声明支持 CSTP 有状态 `deflate` 压缩。
 
-默认使用 `stateless`。即使选择 `all`，DTLS 也始终使用无状态压缩。
-
-有状态压缩存在额外的流量机密性风险，仅应在 VPN 服务器需要时启用。
+默认使用 `stateless`。
 
 ### ipv6_disabled
 
@@ -417,19 +409,15 @@ AnyConnect 压缩模式，可选值为：
 
 禁用 AnyConnect、GlobalProtect 和 Fortinet 的 SSO、SAML 等外部浏览器认证。
 
-启用时不会为 AnyConnect 或 GlobalProtect 向服务器声明外部认证支持，并会拒绝任何意外收到的外部认证请求，包括 Fortinet SAML。
-
 ### password_authentication_disabled
 
 如果服务器返回非成功的认证表单，则中止 AnyConnect 认证，与 OpenConnect `--no-passwd` 行为一致。
-
-此选项不影响其他 flavor，也不影响由 `cookie` 提供的会话。
 
 ### tcp_keep_alive_enabled
 
 为直接 VPN 服务器连接启用 TCP keep alive。
 
-默认禁用以匹配 OpenConnect。设置 `tcp_keep_alive` 或 `tcp_keep_alive_interval` 也会启用，无需同时设置此字段。启用但未设置这两个时间值时，保留操作系统的 TCP keep alive 时间设置。
+设置 `tcp_keep_alive` 或 `tcp_keep_alive_interval` 也会启用。启用但未设置这两个时间值时，使用操作系统默认值。
 
 与 `disable_tcp_keep_alive` 冲突。
 
@@ -437,13 +425,11 @@ AnyConnect 压缩模式，可选值为：
 
 要求 TLS 1.2 及更早版本使用具有前向保密性的 TLS 密码套件。
 
-默认禁用，以兼容需要 RSA 密钥交换的 VPN 服务器。此选项不会启用已弃用的密码套件；旧版加密支持参阅 `allow_insecure_crypto`。
-
 ### mtu
 
 首选隧道 MTU。
 
-所有 flavor 协商的 MTU 都不会超过此值。对于 AnyConnect，此值还会发送给服务器。GlobalProtect、F5 和 Fortinet 会先扣除各自的协议开销，再将结果作为隧道 MTU。
+协商的 MTU 不超过此值。
 
 非零值小于 `576` 时按 `576` 处理。最大值为 `65535`。
 
@@ -465,7 +451,7 @@ AnyConnect 压缩模式，可选值为：
 
 ### reconnect_timeout
 
-重连尝试失败后允许累计使用的最大退避时间。断线后的第一次重连会立即开始，且此超时不会取消已经进行中的尝试。
+重连尝试失败后允许累计使用的最大退避时间。
 
 默认使用 `300s`。
 
@@ -483,13 +469,13 @@ AnyConnect 压缩模式，可选值为：
 
 VPN transport 与隧道接口之间的入站和出站数据包队列长度。
 
-默认使用 `32`。队列已满时会施加反压并等待消费者腾出空间，不会丢弃已排队的数据包。
+默认使用 `32`。
 
 ### allow_insecure_crypto
 
 启用旧版 VPN 服务器所需的弱 TLS 和 DTLS 密码套件及 TLS 1.0 兼容性。
 
-默认禁用；未启用时会拒绝低于 TLS 1.2 的版本。此选项不会禁用服务器证书验证。
+默认禁用；未启用时会拒绝低于 TLS 1.2 的版本。
 
 ### tls
 
@@ -499,7 +485,7 @@ OpenConnect TLS 配置。
 
 禁用 VPN 服务器证书和主机名验证。
 
-默认禁用。启用后，主动攻击者可以冒充 VPN 服务器。应尽可能使用 `tls.certificate_authority` 或 `tls.peer_fingerprint`。
+默认禁用。应尽可能使用 `tls.certificate_authority` 或 `tls.peer_fingerprint`。
 
 ### tls.server_name
 
@@ -648,4 +634,4 @@ MCA 证书和私钥必须同时设置或同时为空。
 
 ## DNS
 
-推送的 DNS 设置不会安装到操作系统中。配置 [OpenConnect DNS 服务器](/zh/configuration/dns/server/openconnect/) 以通过 sing-box 使用这些设置。
+配置 [OpenConnect DNS 服务器](/zh/configuration/dns/server/openconnect/) 以使用推送的 DNS 设置。

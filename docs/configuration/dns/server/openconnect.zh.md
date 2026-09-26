@@ -33,9 +33,7 @@ icon: material/new-box
 
 [OpenConnect 端点](/zh/configuration/endpoint/openconnect) 的标签。
 
-DNS 查询会通过 OpenConnect 端点发送到 VPN 服务器推送的解析器。推送的分流 DNS 规则使用各自的专用解析器，推送的分流 DNS 和搜索域后缀则使用通用推送解析器。匹配时优先使用最具体的后缀。
-
-推送的 DNS 设置不会安装到操作系统中。
+DNS 查询会通过 OpenConnect 端点发送到 VPN 服务器推送的解析器。
 
 #### accept_default_resolvers
 

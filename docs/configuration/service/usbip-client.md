@@ -27,12 +27,6 @@ The server must be a sing-box (or sing-usbip) server.
 }
 ```
 
-!!! info "Difference from the official USB/IP protocol"
-
-    sing-box uses [sing-usbip](https://github.com/SagerNet/sing-usbip), which uses an additional
-    set of protocols to support enhancements such as hotplug, while remaining interoperable with
-    the standard USB/IP protocol.
-
 ### Dial Fields
 
 See [Dial Fields](/configuration/shared/dial/) for details.

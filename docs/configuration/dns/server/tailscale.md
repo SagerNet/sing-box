@@ -49,8 +49,6 @@ if not enabled, `NXDOMAIN` will be returned for non-Tailscale domain queries.
 
 When enabled, single-label queries (e.g. `my-device`) are retried against each Tailscale search domain until one resolves.
 
-Default resolvers are not consulted for single-label queries regardless of `accept_default_resolvers`.
-
 ### Examples
 
 === "MagicDNS only"

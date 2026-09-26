@@ -237,32 +237,9 @@ TLS 版本值：
 
 !!! note ""
 
-    TLS 1.3 仅在 Windows 11 或 Windows Server 2022 及后续版本上协商。在更早的 Windows 版本上，即使 `max_version` 设为 `1.3`，Schannel 也会把连接上限固定在 TLS 1.2。
+    TLS 1.3 仅在 Windows 11 或 Windows Server 2022 及后续版本上协商。
 
-默认版本范围为 TLS 1.2 到 TLS 1.3，与 `go` 引擎一致。证书验证在 Go 侧基于 Schannel 返回的证书链执行，默认使用系统证书存储。当设置了 `certificate` 或 `certificate_path` 时，这些根证书会替代系统存储。
-
-支持的字段：
-
-* `server_name`
-* `insecure`
-* `alpn`
-* `min_version`
-* `max_version`
-* `certificate` / `certificate_path`
-* `certificate_public_key_sha256`
-* `handshake_timeout`
-
-不支持的字段：
-
-* `disable_sni`
-* `cipher_suites`
-* `curve_preferences`
-* `client_certificate` / `client_certificate_path` / `client_key` / `client_key_path`
-* `fragment` / `record_fragment`
-* `kernel_tx` / `kernel_rx`
-* `ech`
-* `utls`
-* `reality`
+默认版本范围为 TLS 1.2 到 TLS 1.3，与 `go` 引擎一致。
 
 #### disable_sni
 
@@ -682,13 +659,7 @@ ECH 配置路径，PEM 格式。
 在真实 ClientHello 之前注入一个伪造的、携带白名单 SNI 的 TLS ClientHello，
 以欺骗基于 SNI 过滤的中间盒放行连接。
 
-伪造报文是真实 ClientHello 的副本，仅将 SNI 值替换为本字段的值，
-因此 TLS 指纹无法区分伪造与真实报文。真实服务器会丢弃伪造报文（见 `spoof_method`），
-而中间盒将该连接视为合法会话。
-
-需要原始套接字权限（Linux 上需 `CAP_NET_RAW`，macOS 上需 root）；
-在 Linux 上还需 `CAP_NET_ADMIN`，因为需要通过 `TCP_REPAIR` 读取发送序列号。
-Windows 上首次使用时需要 Administrator 以安装内嵌的 WinDivert 内核驱动，
+Linux 上需要 `CAP_NET_RAW` 和 `CAP_NET_ADMIN`，macOS 上需要 root，Windows 上需要 Administrator。
 不支持 Windows ARM64。
 
 #### spoof_method
@@ -704,8 +675,8 @@ Windows 上首次使用时需要 Administrator 以安装内嵌的 WinDivert 内�
 | `wrong-sequence`（默认） | 伪造报文的 TCP 序列号位于服务器接收窗口之前。                     |
 | `wrong-checksum`         | 伪造报文的 TCP 校验和被故意设为无效。                             |
 | `wrong-ack`              | 伪造报文的 TCP 确认号位于服务器发送窗口之前。                     |
-| `wrong-md5`              | 伪造报文携带 TCP-MD5 签名选项，未协商 MD5 密钥的服务器将拒绝。    |
-| `wrong-timestamp`        | 伪造报文携带回退的 TCP 时间戳，服务器按 PAWS 规则视为重放并拒绝。仅支持 Linux/Windows，不支持 macOS。 |
+| `wrong-md5`              | 伪造报文携带 TCP-MD5 签名选项。                                   |
+| `wrong-timestamp`        | 伪造报文携带回退的 TCP 时间戳。仅支持 Linux/Windows，不支持 macOS。 |
 
 ### ACME 字段
 

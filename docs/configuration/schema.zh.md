@@ -22,7 +22,6 @@ sing-box 为配置文件提供 JSON Schema Draft 2020-12。
 #### $schema
 
 兼容编辑器使用的 Schema URI。
-该字段不影响 sing-box 的运行行为。
 
 随本文档发布的 Schema 位于
 [sing-box.sagernet.org/schema.json](https://sing-box.sagernet.org/schema.json)。

@@ -66,8 +66,8 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 | `with_ocm`                         | :material-check:  | 构建 OpenAI Codex Multiplexer 服务支持。                                                                                                                                                                                                                                                                                             |
 | `with_naive_outbound`              | :material-check:  | 构建 NaiveProxy 出站支持，参阅 [NaiveProxy 出站](/zh/configuration/outbound/naive/)。                                                                                                                                                                                                                                                         |
 | `with_cloudflared`                 | :material-check:  | 构建 Cloudflare Tunnel 入站支持，参阅 [Cloudflared 入站](/zh/configuration/inbound/cloudflared/)。                                                                                                                                                                                                                                              |
-| `badlinkname`                      | :material-check:  | 启用 `go:linkname` 以访问标准库内部函数。Go 标准库未提供本项目需要的许多底层 API，且在外部重新实现不切实际。用于 kTLS（内核 TLS 卸载）和原始 TLS 记录操作。                                                                                                                                                                                                                           |
-| `tfogo_checklinkname0`             | :material-check:  | `badlinkname` 的伴随标记。Go 1.23+ 链接器强制限制 `go:linkname` 使用；此标记表示构建使用 `-checklinkname=0` 以绕过该限制。                                                                                                                                                                                                                                |
+| `badlinkname`                      | :material-check:  | 启用 `go:linkname` 以访问标准库内部函数。                                                                                                                                                                                                                                                                                        |
+| `tfogo_checklinkname0`             | :material-check:  | 表示构建使用 `-checklinkname=0` 链接器标志，需要与 `badlinkname` 一起使用。                                                                                                                                                                                                                                                          |
 
 除非您确实知道您正在启用什么，否则不建议更改默认构建标签列表。
 
@@ -77,7 +77,7 @@ go build -tags "tag_a tag_b" ./cmd/sing-box
 
 | 标志                                                          | 说明                                                                                                                                                         |
 |-------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `-checklinkname=0`                                          | Go 1.23+ 链接器拒绝未授权的 `go:linkname` 使用。此标志禁用该检查，需要与 `badlinkname` 构建标记一起使用。                                                                                   |
+| `-checklinkname=0`                                          | 需要与 `badlinkname` 构建标记一起使用。                                                                                                                                  |
 
 ## :material-package-variant: 下游打包者
 

@@ -111,8 +111,6 @@
 
 需要特权且不能与已有系统接口冲突。
 
-endpoint 会配置接口地址和 MTU，但不会安装操作系统路由或 DNS 设置。
-
 如果禁用，sing-box 将使用内部网络栈。
 
 ### name
@@ -133,7 +131,7 @@ OpenVPN 会话模式，`tls` 或 `static_key` 之一。
 
 默认使用 `tls`。
 
-`static_key` 在没有 TLS 控制信道和前向保密的情况下服务一个对端，仅作为不可变部署的显式兼容选项保留。该模式不使用 `tls`、`users`、推送选项或 TLS 重协商选项。
+`static_key` 在没有 TLS 控制信道和前向保密的情况下服务一个对端。
 
 ### network
 
@@ -142,14 +140,13 @@ OpenVPN 传输网络，`udp` 或 `tcp` 之一。
 默认使用 `udp`。
 
 每个端点仅服务一种传输网络；如需同时服务 TCP 与 UDP，
-需要配置两个端点并使用互不重叠的 `address` 子网，
-与上游 OpenVPN 需要两个服务进程一致。
+需要配置两个端点并使用互不重叠的 `address` 子网。
 
 ### remote
 
 UDP `static_key` 服务器的固定远端地址。
 
-在 UDP `static_key` 模式下与 `remote_port` 一起必填。TCP 服务器从监听套接字接受单个对端，不使用此字段。
+在 UDP `static_key` 模式下与 `remote_port` 一起必填。
 
 ### remote_port
 
@@ -161,9 +158,9 @@ UDP `static_key` 服务器的固定远端端口。
 
 已建立与握手中的 TLS 客户端会话的最大数量。
 
-默认使用 `1024`。该值必须小于 OpenVPN peer-id 空间的大小 `16777216`。
+默认使用 `1024`。最大值为 `16777215`。
 
-`static_key` 模式仅支持一个对端，因此此值必须为 `0` 或 `1`。
+在 `static_key` 模式下必须为 `0` 或 `1`。
 
 ### address
 
@@ -311,8 +308,6 @@ OpenVPN 客户端证书策略，`require`、`optional` 或 `none` 之一。
 
 设为 `none` 时，不请求客户端证书。
 
-该字段不替代 `users`；设置 `users` 后仍然要求用户名/密码认证。
-
 ### tls.client_name
 
 期望的客户端证书名称。为空时禁用。
@@ -351,7 +346,7 @@ OpenVPN `remote-cert-ku` 格式的客户端证书 Key Usage mask。
 
 `insecure` 为兼容不可变对端而接受使用 MD5 或 SHA-1 签名的证书链和较小的旧密钥，仅应在对端无法升级时使用。`legacy` 接受 SHA-1 但拒绝 MD5 签名；`preferred` 要求更强的签名和密钥。
 
-选择 `suiteb` 且 `tls.cipher` 为空时，TLS 1.2 cipher 列表默认使用 Suite B ECDHE-ECDSA AES-GCM 套件。该 profile 不限制显式配置的 `tls.cipher` 和 `tls.groups`。
+选择 `suiteb` 且 `tls.cipher` 为空时，TLS 1.2 cipher 列表默认使用 Suite B ECDHE-ECDSA AES-GCM 套件。
 
 ### tls.ns_certificate_type
 
@@ -369,7 +364,7 @@ OpenVPN `remote-cert-ku` 格式的客户端证书 Key Usage mask。
 
 TLS 1.2 及更低版本允许的 OpenSSL cipher suite 名称，以冒号分隔。
 
-为空时使用默认 TLS cipher suite。该字段不控制 TLS 1.3 cipher suite。
+为空时使用默认 TLS cipher suite。
 
 ### tls.groups
 
@@ -431,7 +426,7 @@ OpenVPN `tls-auth` 密钥方向，`server` 或 `client` 之一。
 
 为空时使用上游静态密钥模式的默认值 `BF-CBC`。支持 AES-CBC、ARIA-CBC、Camellia-CBC、DES-CBC、Blowfish-CBC、CAST5-CBC 系列，以及 `SEED-CBC`、`SM4-CBC` 和 `NONE`。
 
-仅在 `static_key` 模式下可用。`NONE` 不提供机密性。
+仅在 `static_key` 模式下可用。
 
 ### data_ciphers
 
@@ -439,7 +434,7 @@ OpenVPN `tls-auth` 密钥方向，`server` 或 `client` 之一。
 
 默认使用 `AES-256-GCM`、`AES-128-GCM` 和 `CHACHA20-POLY1305`。
 
-AES-GCM 系列还包括 `AES-192-GCM`。保留的 cipher 包括 AES、ARIA、Camellia、DES、Blowfish、CAST5、SEED 和 SM4 的 CBC、CFB、OFB 形式，以及 `NONE`。CFB 和 OFB 仅可用于 TLS 模式。旧 cipher 只能提供较弱的机密性或完全不加密，因此默认不启用。
+AES-GCM 系列还包括 `AES-192-GCM`。保留的 cipher 包括 AES、ARIA、Camellia、DES、Blowfish、CAST5、SEED 和 SM4 的 CBC、CFB、OFB 形式，以及 `NONE`。CFB 和 OFB 仅可用于 TLS 模式。
 
 仅在 TLS 模式下可用。
 
@@ -457,9 +452,7 @@ AES-GCM 系列还包括 `AES-192-GCM`。保留的 cipher 包括 AES、ARIA、Cam
 
 OpenVPN 数据信道认证摘要。
 
-默认使用 `SHA1`，与上游默认值一致；仅对非 AEAD 数据信道加密方式和 `tls_auth` 生效。
-
-为兼容既有客户端，显式配置时仍可使用 `MD5` 和 `RIPEMD160` 等旧摘要。
+默认使用 `SHA1`，仅对非 AEAD 数据信道加密方式和 `tls_auth` 生效。
 
 ### mss_fix
 
@@ -475,7 +468,7 @@ OpenVPN 数据信道认证摘要。
 
 ### replay_window
 
-UDP 数据通道重放窗口大小。默认使用 `64`；TCP 数据包 ID 始终严格连续。
+UDP 数据通道重放窗口大小。默认使用 `64`。
 
 ### replay_window_time
 
@@ -564,8 +557,6 @@ IPv4 和 IPv6 前缀可以混用。
 服务器未收到任何 packet 后关闭客户端会话的时间。
 
 该值应用于服务器。使用 `push.ping_restart` 配置客户端。
-
-服务器超时应长于客户端超时，以便客户端在服务器丢弃其会话前重新连接。
 
 该值必须使用整秒。
 

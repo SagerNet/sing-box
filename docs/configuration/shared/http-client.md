@@ -42,8 +42,7 @@ Values:
 
 !!! warning ""
 
-    Experimental only: due to the high memory overhead of both CGO and Network.framework,
-    do not use in hot paths on iOS and tvOS.
+    Experimental only: do not use in hot paths on iOS and tvOS.
 
 Supported fields:
 

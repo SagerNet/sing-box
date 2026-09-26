@@ -49,8 +49,6 @@ icon: material/new-box
 
 启用后，单标签查询（例如 `my-device`）将依次附加 Tailscale 搜索域进行重试，直到其中一个解析成功。
 
-对于单标签查询，无论 `accept_default_resolvers` 是否启用，都不会使用默认 DNS 解析器。
-
 ### 示例
 
 === "仅 MagicDNS"

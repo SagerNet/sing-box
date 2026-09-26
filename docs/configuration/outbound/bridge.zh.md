@@ -43,8 +43,6 @@ icon: material/new-box
 
 默认使用默认接口。
 
-接口不可用期间，转发流量将被丢弃。
-
 #### bridge_name
 
 自定义 bridge TUN 接口名前缀，默认使用 `bridge`。

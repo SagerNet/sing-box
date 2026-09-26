@@ -2,7 +2,7 @@
 
 #### Service
 
-SFW runs sing-box as a system service, so no administrator elevation is required for daily use.
+SFW runs sing-box as a system service.
 
 ### Chore
 

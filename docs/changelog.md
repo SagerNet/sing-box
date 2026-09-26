@@ -185,14 +185,11 @@ supplied at runtime through the API service by the graphical clients or the
 **10**:
 
 The new [Hysteria Realm service](/configuration/service/hysteria-realm/)
-is a rendezvous service for Hysteria2 NAT traversal. A Hysteria2 server
-behind NAT registers its STUN-discovered public addresses on a stable
-realm endpoint via the new
-[`realm`](/configuration/inbound/hysteria2/#realm) inbound field;
-clients query the realm via the new
-[`realm`](/configuration/outbound/hysteria2/#realm) outbound field to
-learn the server's current addresses and perform UDP hole-punching to
-establish a direct QUIC connection.
+is a rendezvous service for Hysteria2 NAT traversal. Hysteria2 servers behind
+NAT register on the realm via the new
+[`realm`](/configuration/inbound/hysteria2/#realm) inbound field, and clients
+connect to them through the realm via the new
+[`realm`](/configuration/outbound/hysteria2/#realm) outbound field.
 [`realm.ip_version`](/configuration/outbound/hysteria2/#realmip_version)
 restricts realm connections to a single IP version, and
 [`realm.port_mapping`](/configuration/outbound/hysteria2/#realmport_mapping)
@@ -247,8 +244,7 @@ See [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 referenced rule-sets, now take effect on every DNS rule evaluation,
 including matches from internal domain resolutions that do not target a
 specific DNS server (for example a `resolve` route rule action without
-`server` set). In earlier versions they were silently ignored in that
-path. Combining these fields with any of the legacy DNS fields deprecated
+`server` set). Combining these fields with any of the legacy DNS fields deprecated
 in **12** in the same DNS configuration is no longer supported and is
 rejected at startup.
 See [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules).
@@ -278,8 +274,7 @@ file option. A per-query
 field is also available on DNS rule actions and the `resolve` route rule
 action.
 
-This deprecates the `independent_cache` DNS option (the DNS cache now
-always keys by transport) and the `store_rdrc` cache file option
+This deprecates the `independent_cache` DNS option and the `store_rdrc` cache file option
 (replaced by `store_dns`); both will be removed in sing-box 1.16.0.
 See [Migration](/migration/#migrate-independent-dns-cache).
 
@@ -295,9 +290,8 @@ and a `timeout` field on
 
 The new [mDNS DNS server](/configuration/dns/server/mdns/) sends queries via
 multicast on the local network. The default
-[local DNS server](/configuration/dns/server/local/) also routes queries for
-`*.local.` and IPv4/IPv6 link-local reverse zones via mDNS on non-Apple
-platforms (and via the system resolver on Apple), and the new
+[local DNS server](/configuration/dns/server/local/) also resolves
+`*.local.` and IPv4/IPv6 link-local reverse zones, and the new
 [`neighbor_domain`](/configuration/dns/server/local/#neighbor_domain) option
 answers single-label hosts from the
 [neighbor resolver](/configuration/shared/neighbor/).
@@ -331,8 +325,7 @@ The default `hijack` mode now sets the platform's native interface DNS
 (`systemd-resolved` on Linux, per-interface DNS on Windows and Apple) and
 installs platform-level DNS hijacking (an `iproute2` rule on Linux,
 nftables DNAT when `auto_redirect` is enabled, WFP filters on Windows when
-`strict_route` is enabled). Earlier versions did not touch the interface
-DNS or the platform firewall.
+`strict_route` is enabled).
 
 **20**:
 
@@ -345,9 +338,7 @@ TUN and TProxy inbounds and the WireGuard endpoint.
 
 **21**:
 
-For UDP connections, the first packet is available in pre-match, so protocol
-sniffing runs on it directly and rule matching continues with the sniffed
-metadata.
+The `sniff` action now works in pre-match for UDP connections.
 
 See [Pre-match](/configuration/shared/pre-match/#sniff).
 
@@ -364,8 +355,8 @@ previously inlined in each component.
 [`route.default_http_client`](/configuration/route/#default_http_client)
 selects the default client for remote rule-sets. The legacy fallback
 (use the default outbound when `http_clients` is empty altogether) is
-preserved with a deprecation warning and will be removed in sing-box
-1.16.0, together with the legacy `download_detour` remote rule-set option.
+deprecated and will be removed in sing-box 1.16.0, together with the legacy
+`download_detour` remote rule-set option.
 
 **23**:
 
@@ -419,7 +410,7 @@ through Schannel via SSPI on Windows build 17763 or later.
 The new `apple` value for outbound TLS `engine` routes the TLS handshake
 through `Network.framework`, and the new `apple`
 [HTTP client `engine`](/configuration/shared/http-client/#engine) routes HTTP
-requests through `NSURLSession`. The default remains `go`.
+requests through `NSURLSession`.
 
 **28**:
 
@@ -448,8 +439,7 @@ The rule-set [`tag`](/configuration/rule-set/#tag) field now accepts a list of
 tags to define multiple rule-sets sharing other options at once, with the
 `{tag}` placeholder in `path` or `url` replaced by each tag. The new
 [`initial_path`](/configuration/rule-set/#initial_path) option provides
-initial content for remote rule-sets so startup is not blocked by the initial
-download.
+initial content for remote rule-sets.
 
 **31**:
 
@@ -696,9 +686,7 @@ split-DNS resolvers and, when enabled, general pushed resolvers.
 The [OpenConnect Client](/configuration/endpoint/openconnect/) endpoint can now
 submit Fortinet host check results using the new
 [`fortinet_host_check`](/configuration/endpoint/openconnect/#fortinet_host_check)
-option. This behavior is modeled after openfortivpn and is not an OpenConnect
-feature. sing-box only submits explicitly configured values when requested by
-the Fortinet server and does not collect system information automatically.
+option.
 
 #### 1.14.0-alpha.48
 
@@ -1040,15 +1028,11 @@ The `control_http_client` field on
 **1**:
 
 The new [Hysteria Realm service](/configuration/service/hysteria-realm/)
-is a rendezvous service for Hysteria2 NAT traversal. A Hysteria2 server
-behind NAT registers its STUN-discovered public addresses on a stable
-realm endpoint via the new
-[`realm`](/configuration/inbound/hysteria2/#realm) inbound field;
-clients query the realm via the new
-[`realm`](/configuration/outbound/hysteria2/#realm) outbound field to
-learn the server's current addresses and perform UDP hole-punching to
-establish a direct QUIC connection. Once hole-punching succeeds, all
-proxy traffic flows directly between client and server.
+is a rendezvous service for Hysteria2 NAT traversal. Hysteria2 servers behind
+NAT register on the realm via the new
+[`realm`](/configuration/inbound/hysteria2/#realm) inbound field, and clients
+connect to them through the realm via the new
+[`realm`](/configuration/outbound/hysteria2/#realm) outbound field.
 
 #### 1.14.0-alpha.21
 
@@ -1068,19 +1052,14 @@ The default `hijack` mode now sets the platform's native interface DNS
 (`systemd-resolved` on Linux, per-interface DNS on Windows and Apple) and
 installs platform-level DNS hijacking (an `iproute2` rule on Linux,
 nftables DNAT when `auto_redirect` is enabled, WFP filters on Windows when
-`strict_route` is enabled). Earlier versions did not touch the interface
-DNS or the platform firewall.
+`strict_route` is enabled).
 
 **2**:
 
 The new [mDNS DNS server](/configuration/dns/server/mdns/) sends queries via
 multicast on the local network. The default
-[local DNS server](/configuration/dns/server/local/) also routes queries for
-`*.local.` and IPv4/IPv6 link-local reverse zones via mDNS on non-Apple
-platforms (and via the system resolver on Apple), so an explicit `mdns`
-server is only needed to reference it from
-[`preferred_by`](/configuration/dns/rule/#preferred_by) or to use it
-standalone.
+[local DNS server](/configuration/dns/server/local/) also resolves
+`*.local.` and IPv4/IPv6 link-local reverse zones.
 
 **3**:
 
@@ -1193,20 +1172,13 @@ HTTP/2 and QUIC parameters). Components that make outbound HTTP requests
 DERP `verify_client_url`, and the Tailscale `control_http_client` — now
 accept an inline HTTP client object or the tag of an `http_clients`
 entry, replacing the dial and TLS fields previously inlined in each
-component. When the field is omitted, ACME, Cloudflare Origin CA, DERP
-and Tailscale dial direct (their existing default).
+component.
 
-Remote rule-sets are the only HTTP-using component whose default for an
-omitted `http_client` has historically resolved to the default outbound,
-not to direct, and a typical configuration contains many of them. To
-avoid repeating the same `http_client` block in every rule-set,
 [`route.default_http_client`](/configuration/route/#default_http_client)
-selects a default rule-set client by tag and is the only field that
-consults it. If `default_http_client` is empty and `http_clients` is
-non-empty, the first entry is used automatically. The legacy fallback
-(use the default outbound when `http_clients` is empty altogether) is
-preserved with a deprecation warning and will be removed in sing-box
-1.16.0, together with the legacy `download_detour` remote rule-set
+selects the default HTTP client for remote rule-sets; if empty, the first
+`http_clients` entry is used. The legacy fallback (use the default outbound
+when `http_clients` is empty altogether) is deprecated and will be removed in
+sing-box 1.16.0, together with the legacy `download_detour` remote rule-set
 option and the legacy dialer fields on Tailscale endpoints.
 
 **2**:
@@ -1220,9 +1192,7 @@ places:
   the TLS handshake through `Network.framework` for direct TCP TLS
   client connections.
 
-The default remains `go`. Both engines come with additional CGO and
-framework memory overhead and platform restrictions documented on each
-field.
+Both engines have platform restrictions documented on each field.
 
 **3**:
 
@@ -1280,8 +1250,7 @@ file option. A per-query
 field is also available on DNS rule actions and the `resolve` route rule
 action.
 
-This deprecates the `independent_cache` DNS option (the DNS cache now
-always keys by transport) and the `store_rdrc` cache file option
+This deprecates the `independent_cache` DNS option and the `store_rdrc` cache file option
 (replaced by `store_dns`); both will be removed in sing-box 1.16.0.
 See [Migration](/migration/#migrate-independent-dns-cache).
 
@@ -1320,8 +1289,7 @@ See [Migration](/migration/#migrate-address-filter-fields-to-response-matching).
 referenced rule-sets, now take effect on every DNS rule evaluation,
 including matches from internal domain resolutions that do not target a
 specific DNS server (for example a `resolve` route rule action without
-`server` set). In earlier versions they were silently ignored in that
-path. Combining these fields with any of the legacy DNS fields deprecated
+`server` set). Combining these fields with any of the legacy DNS fields deprecated
 in **1** in the same DNS configuration is no longer supported and is
 rejected at startup.
 See [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules).

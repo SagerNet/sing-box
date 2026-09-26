@@ -23,10 +23,6 @@ USB/IP Server 服务通过 [USB/IP](https://usbip.sourceforge.net/) 导出本地
 }
 ```
 
-!!! info "与官方 USB/IP 协议的区别"
-
-    sing-box 使用 [sing-usbip](https://github.com/SagerNet/sing-usbip)，它使用一套附加协议来支持热插拔等增强功能，但仍然可以与标准 USB/IP 互操作。
-
 ### 监听字段
 
 参阅 [监听字段](/zh/configuration/shared/listen/) 了解详情。

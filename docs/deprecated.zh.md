@@ -43,8 +43,7 @@ TLS 中的内联 ACME 选项（`tls.acme`）已废弃，
 
 #### `independent_cache` DNS 选项
 
-`independent_cache` DNS 选项已废弃。
-DNS 缓存现在始终按传输分离，使此选项不再需要，
+`independent_cache` DNS 选项已废弃，
 参阅[迁移指南](/zh/migration/#迁移-independent-dns-cache)。
 
 旧字段将在 sing-box 1.16.0 中被移除。

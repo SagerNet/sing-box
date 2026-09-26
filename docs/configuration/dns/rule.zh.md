@@ -260,8 +260,7 @@ icon: material/alert-decagram
 !!! quote "sing-box 1.14.0 中的更改"
 
     此字段现在也会在 DNS 规则被未指定具体 DNS 服务器的内部域名解析匹配时生效，
-    例如未设置 `server` 的 [`resolve`](../../route/rule_action/#resolve) 路由规则动作。
-    此前只有来自客户端的 DNS 查询才会评估此字段。完整列表参阅
+    例如未设置 `server` 的 [`resolve`](../../route/rule_action/#resolve) 路由规则动作。参阅
     [迁移指南](/zh/migration/#dns-规则中的-ip_version-和-query_type-行为更改)。
 
     在 DNS 规则中设置此字段后，该 DNS 规则在同一 DNS 配置中不能与
@@ -279,8 +278,7 @@ icon: material/alert-decagram
 !!! quote "sing-box 1.14.0 中的更改"
 
     此字段现在也会在 DNS 规则被未指定具体 DNS 服务器的内部域名解析匹配时生效，
-    例如未设置 `server` 的 [`resolve`](../../route/rule_action/#resolve) 路由规则动作。
-    此前只有来自客户端的 DNS 查询才会评估此字段。完整列表参阅
+    例如未设置 `server` 的 [`resolve`](../../route/rule_action/#resolve) 路由规则动作。参阅
     [迁移指南](/zh/migration/#dns-规则中的-ip_version-和-query_type-行为更改)。
 
     在 DNS 规则中设置此字段后，该 DNS 规则在同一 DNS 配置中不能与

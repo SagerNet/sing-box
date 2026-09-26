@@ -111,9 +111,6 @@ Use system interface.
 
 Requires privilege and cannot conflict with existing system interfaces.
 
-The endpoint configures interface addresses and MTU but does not install
-operating-system routes or DNS settings.
-
 If disabled, sing-box uses the internal network stack.
 
 ### name
@@ -135,8 +132,6 @@ OpenVPN session mode, one of `tls` or `static_key`.
 `tls` is used by default.
 
 `static_key` serves one peer without a TLS control channel or forward secrecy.
-It is retained as an explicit compatibility option for immutable deployments.
-It does not use `tls`, `users`, push options, or TLS renegotiation options.
 
 ### network
 
@@ -145,15 +140,13 @@ OpenVPN transport network, one of `udp` or `tcp`.
 `udp` will be used by default.
 
 Only one transport network is served per endpoint; to serve both TCP and UDP,
-configure two endpoints with separate `address` subnets,
-matching upstream OpenVPN which requires two server processes.
+configure two endpoints with separate `address` subnets.
 
 ### remote
 
 Fixed remote peer address for a UDP `static_key` server.
 
-Required with `remote_port` in UDP `static_key` mode. TCP servers accept the
-single peer from the listening socket and do not use this field.
+Required with `remote_port` in UDP `static_key` mode.
 
 ### remote_port
 
@@ -165,9 +158,9 @@ Required with `remote` in UDP `static_key` mode.
 
 Maximum number of established and pending TLS client sessions.
 
-`1024` is used by default. The value must be smaller than `16777216`, the size of the OpenVPN peer-id space.
+`1024` is used by default. The maximum value is `16777215`.
 
-`static_key` mode supports one peer, so this value must be `0` or `1`.
+Must be `0` or `1` in `static_key` mode.
 
 ### address
 
@@ -317,8 +310,6 @@ If set to `optional`, a client certificate is verified when provided, but client
 
 If set to `none`, client certificates are not requested.
 
-This field does not replace `users`; when `users` is set, username/password authentication is still required.
-
 ### tls.client_name
 
 Expected client certificate name. Disabled when empty.
@@ -360,7 +351,7 @@ keys for compatibility with immutable peers. Use it only when the peer cannot
 be upgraded. `legacy` accepts SHA-1 but rejects MD5 signatures; `preferred`
 requires stronger signatures and keys.
 
-When `suiteb` is selected and `tls.cipher` is empty, the TLS 1.2 cipher list defaults to the Suite B ECDHE-ECDSA AES-GCM suites. Explicit `tls.cipher` and `tls.groups` values are not restricted by the profile.
+When `suiteb` is selected and `tls.cipher` is empty, the TLS 1.2 cipher list defaults to the Suite B ECDHE-ECDSA AES-GCM suites.
 
 ### tls.ns_certificate_type
 
@@ -378,7 +369,7 @@ Maximum TLS version. The maximum supported version is used by default.
 
 Colon-separated OpenSSL cipher suite names allowed for TLS 1.2 and earlier.
 
-The default TLS cipher suites are used when empty. TLS 1.3 cipher suites are not controlled by this field.
+The default TLS cipher suites are used when empty.
 
 ### tls.groups
 
@@ -443,7 +434,7 @@ The upstream static-key default `BF-CBC` is used when empty. Supported
 static-key ciphers are the AES-CBC, ARIA-CBC, Camellia-CBC, DES-CBC,
 Blowfish-CBC, CAST5-CBC families, `SEED-CBC`, `SM4-CBC`, and `NONE`.
 
-Only available in `static_key` mode. `NONE` provides no confidentiality.
+Only available in `static_key` mode.
 
 ### data_ciphers
 
@@ -454,8 +445,7 @@ Allowed OpenVPN data channel ciphers.
 The AES-GCM family includes `AES-192-GCM`. Retained ciphers include the CBC,
 CFB, and OFB forms of AES, ARIA, Camellia, DES, Blowfish, and CAST5, the CBC,
 CFB, and OFB forms of SEED and SM4, and `NONE`. CFB and OFB are available only
-in TLS mode. Legacy ciphers provide weaker or no confidentiality and are not
-enabled by default.
+in TLS mode.
 
 Only available in TLS mode.
 
@@ -473,10 +463,7 @@ Only available in TLS mode.
 
 OpenVPN data channel authentication digest.
 
-`SHA1` will be used by default, matching the upstream default; it only applies to non-AEAD data ciphers and `tls_auth`.
-
-Legacy digests including `MD5` and `RIPEMD160` remain available when explicitly
-configured for compatibility.
+`SHA1` will be used by default. It only applies to non-AEAD data ciphers and `tls_auth`.
 
 ### mss_fix
 
@@ -492,7 +479,7 @@ Calculation mode for an explicit `mss_fix`, one of `mtu` or `fixed`. Requires `m
 
 ### replay_window
 
-UDP data-channel replay window size. `64` is used by default; TCP packet IDs remain strictly consecutive.
+UDP data-channel replay window size. `64` is used by default.
 
 ### replay_window_time
 
@@ -581,8 +568,6 @@ Disabled by default.
 Time without receiving a packet after which the server closes the client session.
 
 This value applies to the server. Use `push.ping_restart` to configure clients.
-
-The server timeout should be longer than the client timeout so the client can reconnect before the server discards its session.
 
 The value must use whole seconds.
 

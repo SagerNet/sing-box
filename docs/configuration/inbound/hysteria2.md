@@ -203,8 +203,6 @@ Enable debug information logging for Hysteria Brutal CC.
 
 Register this inbound to a Hysteria Realm rendezvous service to enable NAT traversal.
 
-The inbound discovers its public addresses via STUN, registers them on the realm, and uses UDP hole-punching to accept incoming clients without a publicly reachable listen address.
-
 See [Hysteria Realm](/configuration/service/hysteria-realm/) for the rendezvous service.
 
 #### realm.server_url
@@ -255,7 +253,7 @@ The `listen` address must be compatible with the selected version.
 
 Maintain a UDP port mapping on the local gateway via UPnP or NAT-PMP.
 
-The mapping is established before STUN discovery and improves hole-punching reliability behind gateways that support it; failures are non-fatal.
+Improves hole-punching reliability behind gateways that support it.
 
 Requires IPv4: conflicts with `"ip_version": 6`.
 
@@ -271,7 +269,7 @@ Timeout for gateway discovery and mapping operations.
 
 #### realm.port_mapping.lifetime
 
-Lease lifetime of the mapping; it is renewed at half the lifetime.
+Lease lifetime of the mapping.
 
 `10m` is used by default.
 

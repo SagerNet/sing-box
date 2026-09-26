@@ -193,15 +193,13 @@ BBR 拥塞控制算法配置，可选 `conservative` `standard` `aggressive`。
 !!! warning ""
 
     Chrome 不声明支持 Ed25519，因此使用 Ed25519 证书的服务端将无法完成握手。
-    请改用 ECDSA 或 RSA 证书；由 ACME 签发的证书不受影响。
+    请改用 ECDSA 或 RSA 证书。
 
 #### realm
 
 !!! question "自 sing-box 1.14.0 起"
 
 通过 Hysteria Realm 会合服务连接 Hysteria2 服务器。
-
-出站从 realm 查询服务器当前的公网地址，执行 UDP 打洞，然后进行常规的 QUIC 握手。
 
 与 `server`、`server_port` 和 `server_ports` 冲突。
 
@@ -243,7 +241,7 @@ Realm 的 Bearer 令牌，需与 realm 上配置的 `users[].token` 之一匹配
 
 通过 UPnP 或 NAT-PMP 在本地网关上维护 UDP 端口映射。
 
-映射在 STUN 发现之前建立，可在支持的网关后提升打洞成功率；失败不影响正常流程。
+可在支持的网关后提升打洞成功率。
 
 需要 IPv4：与 `"ip_version": 6` 冲突。
 
@@ -259,7 +257,7 @@ Realm 的 Bearer 令牌，需与 realm 上配置的 `users[].token` 之一匹配
 
 #### realm.port_mapping.lifetime
 
-映射的租约时长；每过一半时长续期一次。
+映射的租约时长。
 
 默认使用 `10m`。
 

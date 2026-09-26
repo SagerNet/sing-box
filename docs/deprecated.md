@@ -43,8 +43,7 @@ Old fields will be removed in sing-box 1.16.0.
 
 #### `independent_cache` DNS option
 
-`independent_cache` DNS option is deprecated.
-The DNS cache now always keys by transport, making this option unnecessary,
+`independent_cache` DNS option is deprecated,
 check [Migration](../migration/#migrate-independent-dns-cache).
 
 Old fields will be removed in sing-box 1.16.0.

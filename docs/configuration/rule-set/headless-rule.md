@@ -137,10 +137,8 @@ icon: material/new-box
 
     When a DNS rule references this rule-set, this field now also applies
     when the DNS rule is matched from an internal domain resolution that
-    does not target a specific DNS server. In earlier versions, only DNS
-    queries received from a client evaluated this field. See
-    [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules)
-    for the full list.
+    does not target a specific DNS server. See
+    [Migration](/migration/#ip_version-and-query_type-behavior-changes-in-dns-rules).
 
     When a DNS rule references a rule-set containing this field, the DNS
     rule is incompatible in the same DNS configuration with Legacy Address

@@ -27,7 +27,7 @@ icon: material/new-box
 
 !!! info ""
 
-    You usually do not need an explicit `mdns` server in addition to a [Local](./local/) server: the local server already routes queries for `*.local.` and IPv4/IPv6 link-local reverse zones via mDNS on non-Apple platforms and via the system resolver on Apple platforms. Add an explicit `mdns` server only when you want to reference it from [`preferred_by`](../rule/#preferred_by) or use it standalone.
+    `*.local.` and IPv4/IPv6 link-local reverse zones are also resolved by the [Local](./local/) server.
 
 ### Fields
 
