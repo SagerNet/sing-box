@@ -16,8 +16,8 @@ type Conn struct {
 
 func (c *Conn) Close() error {
 	c.group.access.Lock()
-	defer c.group.access.Unlock()
 	c.group.connections.Remove(c.element)
+	c.group.access.Unlock()
 	return c.Conn.Close()
 }
 
@@ -45,8 +45,8 @@ func newPacketConn(group *Group, conn net.PacketConn, element *list.Element[*gro
 
 func (c *PacketConn) Close() error {
 	c.group.access.Lock()
-	defer c.group.access.Unlock()
 	c.group.connections.Remove(c.element)
+	c.group.access.Unlock()
 	return c.NetPacketConn.Close()
 }
 
