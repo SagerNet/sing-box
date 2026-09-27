@@ -10,7 +10,7 @@ type RouteOptions struct {
 	Final                      string                            `json:"final,omitempty" reference:"outbound"`
 	FindProcess                bool                              `json:"find_process,omitempty"`
 	FindNeighbor               bool                              `json:"find_neighbor,omitempty"`
-	DHCPLeaseFiles             badoption.Listable[string]        `json:"dhcp_lease_files,omitempty"`
+	DHCPLeaseFiles             LegacyListable[string]            `json:"dhcp_lease_files,omitempty"`
 	AutoDetectInterface        bool                              `json:"auto_detect_interface,omitempty"`
 	OverrideAndroidVPN         bool                              `json:"override_android_vpn,omitempty"`
 	DefaultInterface           string                            `json:"default_interface,omitempty"`

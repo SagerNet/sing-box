@@ -24,7 +24,7 @@ type TailscaleEndpointOptions struct {
 	ExitNodeAllowLANAccess     bool                       `json:"exit_node_allow_lan_access,omitempty"`
 	AdvertiseRoutes            []netip.Prefix             `json:"advertise_routes,omitempty"`
 	AdvertiseExitNode          bool                       `json:"advertise_exit_node,omitempty"`
-	AdvertiseTags              badoption.Listable[string] `json:"advertise_tags,omitempty"`
+	AdvertiseTags              LegacyListable[string]     `json:"advertise_tags,omitempty"`
 	ListenPort                 uint16                     `json:"listen_port,omitempty"`
 	RelayServerPort            *uint16                    `json:"relay_server_port,omitempty"`
 	RelayServerStaticEndpoints []netip.AddrPort           `json:"relay_server_static_endpoints,omitempty"`
