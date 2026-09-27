@@ -33,7 +33,7 @@ type Hysteria2Realm struct {
 	ServerURL   string                     `json:"server_url"`
 	Token       string                     `json:"token,omitempty"`
 	RealmID     string                     `json:"realm_id"`
-	STUNServers badoption.Listable[string] `json:"stun_servers"`
+	STUNServers LegacyListable[string]     `json:"stun_servers"`
 	IPVersion   int                        `json:"ip_version,omitempty" enum:"0,4,6"`
 	PortMapping *Hysteria2RealmPortMapping `json:"port_mapping,omitempty"`
 	HTTPClient  *HTTPClientOptions         `json:"http_client,omitempty"`
@@ -210,14 +210,14 @@ type Hysteria2MasqueradeString struct {
 type Hysteria2OutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	ServerPorts    badoption.Listable[string] `json:"server_ports,omitempty"`
-	HopInterval    badoption.Duration         `json:"hop_interval,omitempty"`
-	HopIntervalMax badoption.Duration         `json:"hop_interval_max,omitempty"`
-	UpMbps         int                        `json:"up_mbps,omitempty"`
-	DownMbps       int                        `json:"down_mbps,omitempty"`
-	Obfs           *Hysteria2Obfs             `json:"obfs,omitempty"`
-	Password       string                     `json:"password,omitempty"`
-	Network        NetworkList                `json:"network,omitempty"`
+	ServerPorts    LegacyListable[string] `json:"server_ports,omitempty"`
+	HopInterval    badoption.Duration     `json:"hop_interval,omitempty"`
+	HopIntervalMax badoption.Duration     `json:"hop_interval_max,omitempty"`
+	UpMbps         int                    `json:"up_mbps,omitempty"`
+	DownMbps       int                    `json:"down_mbps,omitempty"`
+	Obfs           *Hysteria2Obfs         `json:"obfs,omitempty"`
+	Password       string                 `json:"password,omitempty"`
+	Network        NetworkList            `json:"network,omitempty"`
 	OutboundTLSOptionsContainer
 	QUICOptions
 	BBRProfile          string          `json:"bbr_profile,omitempty" enum:"standard,conservative,aggressive"`
