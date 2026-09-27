@@ -34,7 +34,7 @@ type HysteriaUser struct {
 type HysteriaOutboundOptions struct {
 	DialerOptions
 	ServerOptions
-	ServerPorts badoption.Listable[string]      `json:"server_ports,omitempty"`
+	ServerPorts LegacyListable[string]          `json:"server_ports,omitempty"`
 	HopInterval badoption.Duration              `json:"hop_interval,omitempty"`
 	Up          *byteformats.NetworkBytesCompat `json:"up,omitempty"`
 	UpMbps      int                             `json:"up_mbps,omitempty"`
