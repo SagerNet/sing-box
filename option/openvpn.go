@@ -38,7 +38,7 @@ type OpenVPNClientEndpointOptions struct {
 	KeyDirection         string                           `json:"key_direction,omitempty" enum:"server,client"`
 	TLS                  *OpenVPNOutboundTLSOptions       `json:"tls,omitempty"`
 	Cipher               string                           `json:"cipher,omitempty"`
-	DataCiphers          badoption.Listable[string]       `json:"data_ciphers,omitempty"`
+	DataCiphers          LegacyListable[string]           `json:"data_ciphers,omitempty"`
 	DataCiphersFallback  string                           `json:"data_ciphers_fallback,omitempty"`
 	Auth                 string                           `json:"auth,omitempty"`
 	MSSFix               uint32                           `json:"mss_fix,omitempty"`
@@ -52,11 +52,11 @@ type OpenVPNClientEndpointOptions struct {
 	AllowCompression     string                           `json:"allow_compression,omitempty" enum:"no,asym,yes"`
 	RouteNoPull          bool                             `json:"route_no_pull,omitempty"`
 	PullFilters          []OpenVPNPullFilterOptions       `json:"pull_filters,omitempty"`
-	Routes               badoption.Listable[netip.Prefix] `json:"routes,omitempty"`
+	Routes               LegacyListable[netip.Prefix]     `json:"routes,omitempty"`
 	RouteGateway         *badoption.Addr                  `json:"route_gateway,omitempty"`
 	RouteMetric          int                              `json:"route_metric,omitempty"`
 	RedirectGateway      bool                             `json:"redirect_gateway,omitempty"`
-	RedirectGatewayFlags badoption.Listable[string]       `json:"redirect_gateway_flags,omitempty"`
+	RedirectGatewayFlags LegacyListable[string]           `json:"redirect_gateway_flags,omitempty"`
 	RedirectPrivate      bool                             `json:"redirect_private,omitempty"`
 	BlockIPv6            bool                             `json:"block_ipv6,omitempty"`
 	PingInterval         badoption.Duration               `json:"ping_interval,omitempty"`
@@ -91,7 +91,7 @@ type OpenVPNServerEndpointOptions struct {
 	KeyDirection        string                           `json:"key_direction,omitempty" enum:"server,client"`
 	TLS                 *OpenVPNInboundTLSOptions        `json:"tls,omitempty"`
 	Cipher              string                           `json:"cipher,omitempty"`
-	DataCiphers         badoption.Listable[string]       `json:"data_ciphers,omitempty"`
+	DataCiphers         LegacyListable[string]           `json:"data_ciphers,omitempty"`
 	DataCiphersFallback string                           `json:"data_ciphers_fallback,omitempty"`
 	Auth                string                           `json:"auth,omitempty"`
 	MSSFix              uint32                           `json:"mss_fix,omitempty"`
@@ -182,25 +182,25 @@ type OpenVPNInboundControlWrapOptions struct {
 }
 
 type OpenVPNPushOptions struct {
-	Routes               badoption.Listable[netip.Prefix] `json:"routes,omitempty"`
-	DNS                  badoption.Listable[netip.Addr]   `json:"dns,omitempty"`
-	DNSServers           []OpenVPNPushDNSServerOptions    `json:"dns_servers,omitempty"`
-	SearchDomains        badoption.Listable[string]       `json:"search_domains,omitempty"`
-	DHCPOptions          badoption.Listable[string]       `json:"dhcp_options,omitempty"`
-	RedirectGateway      bool                             `json:"redirect_gateway,omitempty"`
-	RedirectGatewayFlags badoption.Listable[string]       `json:"redirect_gateway_flags,omitempty"`
-	BlockOutsideDNS      bool                             `json:"block_outside_dns,omitempty"`
-	PingInterval         badoption.Duration               `json:"ping_interval,omitempty"`
-	PingRestart          badoption.Duration               `json:"ping_restart,omitempty"`
+	Routes               LegacyListable[netip.Prefix]   `json:"routes,omitempty"`
+	DNS                  badoption.Listable[netip.Addr] `json:"dns,omitempty"`
+	DNSServers           []OpenVPNPushDNSServerOptions  `json:"dns_servers,omitempty"`
+	SearchDomains        LegacyListable[string]         `json:"search_domains,omitempty"`
+	DHCPOptions          LegacyListable[string]         `json:"dhcp_options,omitempty"`
+	RedirectGateway      bool                           `json:"redirect_gateway,omitempty"`
+	RedirectGatewayFlags LegacyListable[string]         `json:"redirect_gateway_flags,omitempty"`
+	BlockOutsideDNS      bool                           `json:"block_outside_dns,omitempty"`
+	PingInterval         badoption.Duration             `json:"ping_interval,omitempty"`
+	PingRestart          badoption.Duration             `json:"ping_restart,omitempty"`
 }
 
 type OpenVPNPushDNSServerOptions struct {
-	Priority       int                        `json:"priority"`
-	Addresses      badoption.Listable[string] `json:"addresses"`
-	ResolveDomains badoption.Listable[string] `json:"resolve_domains,omitempty"`
-	DNSSEC         string                     `json:"dnssec,omitempty" enum:"yes,optional,no"`
-	Transport      string                     `json:"transport,omitempty" enum:"plain,dot,doh"`
-	SNI            string                     `json:"sni,omitempty"`
+	Priority       int                    `json:"priority"`
+	Addresses      LegacyListable[string] `json:"addresses"`
+	ResolveDomains LegacyListable[string] `json:"resolve_domains,omitempty"`
+	DNSSEC         string                 `json:"dnssec,omitempty" enum:"yes,optional,no"`
+	Transport      string                 `json:"transport,omitempty" enum:"plain,dot,doh"`
+	SNI            string                 `json:"sni,omitempty"`
 }
 
 type OpenVPNDNSServerOptions struct {
