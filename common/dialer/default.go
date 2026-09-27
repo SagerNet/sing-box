@@ -188,7 +188,10 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 	} else {
 		udpFragment = options.UDPFragmentDefault
 	}
-	if !udpFragment {
+	if udpFragment {
+		dialer.Control = control.Append(dialer.Control, control.EnableUDPFragment())
+		listener.Control = control.Append(listener.Control, control.EnableUDPFragment())
+	} else {
 		dialer.Control = control.Append(dialer.Control, control.DisableUDPFragment())
 		listener.Control = control.Append(listener.Control, control.DisableUDPFragment())
 	}
