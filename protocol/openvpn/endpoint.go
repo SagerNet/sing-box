@@ -38,10 +38,6 @@ type endpointBase struct {
 	logger log.ContextLogger
 }
 
-func (e *endpointBase) SupportsFlow(network string) bool {
-	return slices.Contains(e.Network(), network)
-}
-
 func (e *endpointBase) newConnection(ctx context.Context, endpoint adapter.Endpoint, localAddresses []netip.Prefix, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	var metadata adapter.InboundContext
 	metadata.Inbound = endpoint.Tag()
