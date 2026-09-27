@@ -11,26 +11,26 @@ import (
 )
 
 type InboundTLSOptions struct {
-	Enabled                          bool                                `json:"enabled,omitempty"`
-	ServerName                       string                              `json:"server_name,omitempty"`
-	Insecure                         bool                                `json:"insecure,omitempty"`
-	ALPN                             badoption.Listable[string]          `json:"alpn,omitempty" examples:"http/1.1,h2,h3"`
-	MinVersion                       string                              `json:"min_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
-	MaxVersion                       string                              `json:"max_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
-	CipherSuites                     badoption.Listable[string]          `json:"cipher_suites,omitempty"`
-	CurvePreferences                 badoption.Listable[CurvePreference] `json:"curve_preferences,omitempty"`
-	Certificate                      badoption.Listable[string]          `json:"certificate,omitempty"`
-	CertificatePath                  string                              `json:"certificate_path,omitempty"`
-	ClientAuthentication             ClientAuthType                      `json:"client_authentication,omitempty"`
-	ClientCertificate                badoption.Listable[string]          `json:"client_certificate,omitempty"`
-	ClientCertificatePath            badoption.Listable[string]          `json:"client_certificate_path,omitempty"`
-	ClientCertificatePublicKeySHA256 badoption.Listable[[]byte]          `json:"client_certificate_public_key_sha256,omitempty"`
-	Key                              badoption.Listable[string]          `json:"key,omitempty"`
-	KeyPath                          string                              `json:"key_path,omitempty"`
-	KernelTx                         bool                                `json:"kernel_tx,omitempty"`
-	KernelRx                         bool                                `json:"kernel_rx,omitempty"`
-	HandshakeTimeout                 badoption.Duration                  `json:"handshake_timeout,omitempty"`
-	CertificateProvider              *CertificateProviderOptions         `json:"certificate_provider,omitempty"`
+	Enabled                          bool                            `json:"enabled,omitempty"`
+	ServerName                       string                          `json:"server_name,omitempty"`
+	Insecure                         bool                            `json:"insecure,omitempty"`
+	ALPN                             badoption.Listable[string]      `json:"alpn,omitempty" examples:"http/1.1,h2,h3"`
+	MinVersion                       string                          `json:"min_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
+	MaxVersion                       string                          `json:"max_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
+	CipherSuites                     LegacyListable[string]          `json:"cipher_suites,omitempty"`
+	CurvePreferences                 LegacyListable[CurvePreference] `json:"curve_preferences,omitempty"`
+	Certificate                      badoption.Listable[string]      `json:"certificate,omitempty"`
+	CertificatePath                  string                          `json:"certificate_path,omitempty"`
+	ClientAuthentication             ClientAuthType                  `json:"client_authentication,omitempty"`
+	ClientCertificate                badoption.Listable[string]      `json:"client_certificate,omitempty"`
+	ClientCertificatePath            badoption.Listable[string]      `json:"client_certificate_path,omitempty"`
+	ClientCertificatePublicKeySHA256 badoption.Listable[[]byte]      `json:"client_certificate_public_key_sha256,omitempty"`
+	Key                              badoption.Listable[string]      `json:"key,omitempty"`
+	KeyPath                          string                          `json:"key_path,omitempty"`
+	KernelTx                         bool                            `json:"kernel_tx,omitempty"`
+	KernelRx                         bool                            `json:"kernel_rx,omitempty"`
+	HandshakeTimeout                 badoption.Duration              `json:"handshake_timeout,omitempty"`
+	CertificateProvider              *CertificateProviderOptions     `json:"certificate_provider,omitempty"`
 
 	// Deprecated: use certificate_provider
 	ACME *InboundACMEOptions `json:"acme,omitempty" schema:"omit"`
@@ -105,34 +105,34 @@ func (o *InboundTLSOptionsContainer) ReplaceInboundTLSOptions(options *InboundTL
 }
 
 type OutboundTLSOptions struct {
-	Enabled                    bool                                `json:"enabled,omitempty"`
-	Engine                     string                              `json:"engine,omitempty" enum:"go,apple,windows"`
-	DisableSNI                 bool                                `json:"disable_sni,omitempty"`
-	ServerName                 string                              `json:"server_name,omitempty"`
-	Insecure                   bool                                `json:"insecure,omitempty"`
-	ALPN                       badoption.Listable[string]          `json:"alpn,omitempty" examples:"http/1.1,h2,h3"`
-	MinVersion                 string                              `json:"min_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
-	MaxVersion                 string                              `json:"max_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
-	CipherSuites               badoption.Listable[string]          `json:"cipher_suites,omitempty"`
-	CurvePreferences           badoption.Listable[CurvePreference] `json:"curve_preferences,omitempty"`
-	Certificate                badoption.Listable[string]          `json:"certificate,omitempty"`
-	CertificatePath            string                              `json:"certificate_path,omitempty"`
-	CertificatePublicKeySHA256 badoption.Listable[[]byte]          `json:"certificate_public_key_sha256,omitempty"`
-	ClientCertificate          badoption.Listable[string]          `json:"client_certificate,omitempty"`
-	ClientCertificatePath      string                              `json:"client_certificate_path,omitempty"`
-	ClientKey                  badoption.Listable[string]          `json:"client_key,omitempty"`
-	ClientKeyPath              string                              `json:"client_key_path,omitempty"`
-	Fragment                   bool                                `json:"fragment,omitempty"`
-	FragmentFallbackDelay      badoption.Duration                  `json:"fragment_fallback_delay,omitempty"`
-	RecordFragment             bool                                `json:"record_fragment,omitempty"`
-	Spoof                      string                              `json:"spoof,omitempty"`
-	SpoofMethod                string                              `json:"spoof_method,omitempty" enum:"wrong-sequence,wrong-checksum,wrong-ack,wrong-md5,wrong-timestamp"`
-	KernelTx                   bool                                `json:"kernel_tx,omitempty"`
-	KernelRx                   bool                                `json:"kernel_rx,omitempty"`
-	HandshakeTimeout           badoption.Duration                  `json:"handshake_timeout,omitempty"`
-	ECH                        *OutboundECHOptions                 `json:"ech,omitempty"`
-	UTLS                       *OutboundUTLSOptions                `json:"utls,omitempty"`
-	Reality                    *OutboundRealityOptions             `json:"reality,omitempty"`
+	Enabled                    bool                            `json:"enabled,omitempty"`
+	Engine                     string                          `json:"engine,omitempty" enum:"go,apple,windows"`
+	DisableSNI                 bool                            `json:"disable_sni,omitempty"`
+	ServerName                 string                          `json:"server_name,omitempty"`
+	Insecure                   bool                            `json:"insecure,omitempty"`
+	ALPN                       badoption.Listable[string]      `json:"alpn,omitempty" examples:"http/1.1,h2,h3"`
+	MinVersion                 string                          `json:"min_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
+	MaxVersion                 string                          `json:"max_version,omitempty" enum:"1.0,1.1,1.2,1.3"`
+	CipherSuites               LegacyListable[string]          `json:"cipher_suites,omitempty"`
+	CurvePreferences           LegacyListable[CurvePreference] `json:"curve_preferences,omitempty"`
+	Certificate                badoption.Listable[string]      `json:"certificate,omitempty"`
+	CertificatePath            string                          `json:"certificate_path,omitempty"`
+	CertificatePublicKeySHA256 badoption.Listable[[]byte]      `json:"certificate_public_key_sha256,omitempty"`
+	ClientCertificate          badoption.Listable[string]      `json:"client_certificate,omitempty"`
+	ClientCertificatePath      string                          `json:"client_certificate_path,omitempty"`
+	ClientKey                  badoption.Listable[string]      `json:"client_key,omitempty"`
+	ClientKeyPath              string                          `json:"client_key_path,omitempty"`
+	Fragment                   bool                            `json:"fragment,omitempty"`
+	FragmentFallbackDelay      badoption.Duration              `json:"fragment_fallback_delay,omitempty"`
+	RecordFragment             bool                            `json:"record_fragment,omitempty"`
+	Spoof                      string                          `json:"spoof,omitempty"`
+	SpoofMethod                string                          `json:"spoof_method,omitempty" enum:"wrong-sequence,wrong-checksum,wrong-ack,wrong-md5,wrong-timestamp"`
+	KernelTx                   bool                            `json:"kernel_tx,omitempty"`
+	KernelRx                   bool                            `json:"kernel_rx,omitempty"`
+	HandshakeTimeout           badoption.Duration              `json:"handshake_timeout,omitempty"`
+	ECH                        *OutboundECHOptions             `json:"ech,omitempty"`
+	UTLS                       *OutboundUTLSOptions            `json:"utls,omitempty"`
+	Reality                    *OutboundRealityOptions         `json:"reality,omitempty"`
 }
 
 type OutboundTLSOptionsContainer struct {
