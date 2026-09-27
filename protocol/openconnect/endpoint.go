@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/netip"
-	"slices"
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -31,10 +30,6 @@ type endpointBase struct {
 	endpoint.Adapter
 	router adapter.Router
 	logger log.ContextLogger
-}
-
-func (e *endpointBase) SupportsFlow(network string) bool {
-	return slices.Contains(e.Network(), network)
 }
 
 func (e *endpointBase) newConnection(ctx context.Context, endpoint adapter.Endpoint, localAddresses []netip.Prefix, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
