@@ -182,16 +182,20 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 			Interval: keepInterval,
 		}
 	}
-	var udpFragment bool
+	var udpFragmentControl control.Func
 	if options.UDPFragment != nil {
-		udpFragment = *options.UDPFragment
-	} else {
-		udpFragment = options.UDPFragmentDefault
+		if *options.UDPFragment {
+			udpFragmentControl = control.EnableUDPFragment()
+		} else {
+			udpFragmentControl = control.DisableUDPFragment()
+		}
+	} else if options.UDPFragmentDefault {
+		udpFragmentControl = control.EnableUDPFragment()
+	} else if !options.UDPFragmentSystemDefaults {
+		udpFragmentControl = control.DisableUDPFragment()
 	}
-	if !udpFragment {
-		dialer.Control = control.Append(dialer.Control, control.DisableUDPFragment())
-		listener.Control = control.Append(listener.Control, control.DisableUDPFragment())
-	}
+	dialer.Control = control.Append(dialer.Control, udpFragmentControl)
+	listener.Control = control.Append(listener.Control, udpFragmentControl)
 	var (
 		dialer4    = dialer
 		udpDialer4 = dialer

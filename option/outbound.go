@@ -101,6 +101,7 @@ type AbstractDialerOptions struct {
 	UDPBindPort                uint16                            `json:"-"`
 	UDPFragment                *bool                             `json:"udp_fragment,omitempty"`
 	UDPFragmentDefault         bool                              `json:"-"`
+	UDPFragmentSystemDefaults  bool                              `json:"-"`
 	DomainResolver             *DomainResolveOptions             `json:"domain_resolver,omitempty"`
 	NetworkStrategy            *NetworkStrategy                  `json:"network_strategy,omitempty"`
 	NetworkType                badoption.Listable[InterfaceType] `json:"network_type,omitempty"`

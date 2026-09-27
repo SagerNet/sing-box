@@ -36,15 +36,19 @@ func (l *Listener) ListenUDPWithConfig(listenConfig net.ListenConfig) (net.Packe
 	if l.listenOptions.ReuseAddr {
 		listenConfig.Control = control.Append(listenConfig.Control, control.ReuseAddr())
 	}
-	var udpFragment bool
+	var udpFragmentControl control.Func
 	if l.listenOptions.UDPFragment != nil {
-		udpFragment = *l.listenOptions.UDPFragment
-	} else {
-		udpFragment = l.listenOptions.UDPFragmentDefault
+		if *l.listenOptions.UDPFragment {
+			udpFragmentControl = control.EnableUDPFragment()
+		} else {
+			udpFragmentControl = control.DisableUDPFragment()
+		}
+	} else if l.listenOptions.UDPFragmentDefault {
+		udpFragmentControl = control.EnableUDPFragment()
+	} else if !l.listenOptions.UDPFragmentSystemDefaults {
+		udpFragmentControl = control.DisableUDPFragment()
 	}
-	if !udpFragment {
-		listenConfig.Control = control.Append(listenConfig.Control, control.DisableUDPFragment())
-	}
+	listenConfig.Control = control.Append(listenConfig.Control, udpFragmentControl)
 	if l.tproxy {
 		listenConfig.Control = control.Append(listenConfig.Control, func(network, address string, conn syscall.RawConn) error {
 			return control.Raw(conn, func(fd uintptr) error {
