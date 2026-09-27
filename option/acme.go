@@ -39,11 +39,11 @@ type _ACMEProviderDNS01ChallengeOptions struct {
 }
 
 type AbstractACMEProviderDNS01ChallengeOptions struct {
-	TTL                badoption.Duration         `json:"ttl,omitempty"`
-	PropagationDelay   badoption.Duration         `json:"propagation_delay,omitempty"`
-	PropagationTimeout badoption.Duration         `json:"propagation_timeout,omitempty"`
-	Resolvers          badoption.Listable[string] `json:"resolvers,omitempty"`
-	OverrideDomain     string                     `json:"override_domain,omitempty"`
+	TTL                badoption.Duration     `json:"ttl,omitempty"`
+	PropagationDelay   badoption.Duration     `json:"propagation_delay,omitempty"`
+	PropagationTimeout badoption.Duration     `json:"propagation_timeout,omitempty"`
+	Resolvers          LegacyListable[string] `json:"resolvers,omitempty"`
+	OverrideDomain     string                 `json:"override_domain,omitempty"`
 }
 
 type ACMEProviderDNS01ChallengeOptions _ACMEProviderDNS01ChallengeOptions

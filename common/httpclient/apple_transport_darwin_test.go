@@ -247,7 +247,7 @@ func TestNewAppleSessionConfig(t *testing.T) {
 			options: option.HTTPClientOptions{
 				OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
 					TLS: &option.OutboundTLSOptions{
-						CipherSuites: badoption.Listable[string]{"TLS_AES_128_GCM_SHA256"},
+						CipherSuites: option.LegacyListable[string]{"TLS_AES_128_GCM_SHA256"},
 					},
 				},
 			},
@@ -258,7 +258,7 @@ func TestNewAppleSessionConfig(t *testing.T) {
 			options: option.HTTPClientOptions{
 				OutboundTLSOptionsContainer: option.OutboundTLSOptionsContainer{
 					TLS: &option.OutboundTLSOptions{
-						CurvePreferences: badoption.Listable[option.CurvePreference]{option.CurvePreference(option.X25519)},
+						CurvePreferences: option.LegacyListable[option.CurvePreference]{option.CurvePreference(option.X25519)},
 					},
 				},
 			},
