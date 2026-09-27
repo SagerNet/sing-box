@@ -11,7 +11,7 @@ type SSHOutboundOptions struct {
 	PrivateKeyPath       string                     `json:"private_key_path,omitempty"`
 	PrivateKeyPassphrase string                     `json:"private_key_passphrase,omitempty"`
 	HostKey              badoption.Listable[string] `json:"host_key,omitempty"`
-	HostKeyAlgorithms    badoption.Listable[string] `json:"host_key_algorithms,omitempty"`
+	HostKeyAlgorithms    LegacyListable[string]     `json:"host_key_algorithms,omitempty"`
 	ClientVersion        string                     `json:"client_version,omitempty"`
 	Cipher               badoption.Listable[string] `json:"cipher,omitempty"`
 	MAC                  badoption.Listable[string] `json:"mac,omitempty"`
