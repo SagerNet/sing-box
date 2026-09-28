@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net/netip"
+	"slices"
 	"unsafe"
 
 	"github.com/sagernet/sing-box/common/ipset"
@@ -154,7 +155,7 @@ func writeRule(writer varbin.Writer, rule option.HeadlessRule, generateVersion u
 	case C.RuleTypeLogical:
 		return writeLogicalRule(writer, rule.LogicalOptions, generateVersion, mmap)
 	default:
-		panic("unknown rule type: " + rule.Type)
+		return E.New("unknown rule type: ", rule.Type)
 	}
 }
 
@@ -344,6 +345,12 @@ func writeDefaultRule(writer varbin.Writer, rule option.DefaultHeadlessRule, gen
 		}
 	}
 	if len(rule.Domain) > 0 || len(rule.DomainSuffix) > 0 || mmap != nil && rule.DomainMatcher != nil {
+		if slices.Contains(rule.Domain, "") {
+			return E.New("domain: empty item is not allowed")
+		}
+		if slices.Contains(rule.DomainSuffix, "") {
+			return E.New("domain_suffix: empty item is not allowed")
+		}
 		err = binary.Write(writer, binary.BigEndian, ruleItemDomain)
 		if err != nil {
 			return err
@@ -693,7 +700,7 @@ func writeLogicalRule(writer varbin.Writer, logicalRule option.LogicalHeadlessRu
 	case C.LogicalTypeOr:
 		err = binary.Write(writer, binary.BigEndian, uint8(1))
 	default:
-		panic("unknown logical mode: " + logicalRule.Mode)
+		return E.New("unknown logical mode: ", logicalRule.Mode)
 	}
 	if err != nil {
 		return err
