@@ -60,8 +60,9 @@ func newMuxConnection0(ctx context.Context, conn net.Conn, source M.Socksaddr, h
 	}
 	if reader.Buffered() > 0 {
 		buffer := buf.NewSize(reader.Buffered())
-		_, err = buffer.ReadFullFrom(reader, buffer.Len())
+		_, err = buffer.ReadFullFrom(reader, buffer.FreeLen())
 		if err != nil {
+			buffer.Release()
 			return err
 		}
 		conn = bufio.NewCachedConn(conn, buffer)

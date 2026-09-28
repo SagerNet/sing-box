@@ -186,16 +186,22 @@ func (t *DNSTransport) createResolver(directDialer func() N.Dialer, resolver *dn
 		myDialer = dialer.NewResolveDialer(t.ctx, myDialer, false, "", t.endpoint.queryOptions, 0)
 	}
 	if isHTTPScheme {
+		if serverURL.Hostname() == "" {
+			return nil, E.New("missing host in resolver address: ", resolver.Addr)
+		}
 		serverAddr := M.ParseSocksaddrHostPortStr(serverURL.Hostname(), serverURL.Port())
 		switch serverURL.Scheme {
 		case "https":
 			if serverAddr.Port == 0 {
 				serverAddr.Port = 443
 			}
-			tlsConfig := common.Must1(tls.NewClient(t.ctx, t.logger, serverAddr.AddrString(), option.OutboundTLSOptions{
+			tlsConfig, err := tls.NewClient(t.ctx, t.logger, serverAddr.AddrString(), option.OutboundTLSOptions{
 				Enabled: true,
 				ALPN:    []string{http2.NextProtoTLS, "http/1.1"},
-			}))
+			})
+			if err != nil {
+				return nil, E.Cause(err, "create TLS config for resolver ", resolver.Addr)
+			}
 			return transport.NewHTTPSRaw(t.TransportAdapter, t.logger, myDialer, serverURL, http.Header{}, serverAddr, tlsConfig), nil
 		case "http":
 			if serverAddr.Port == 0 {

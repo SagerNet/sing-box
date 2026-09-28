@@ -18,6 +18,8 @@ import (
 	"github.com/sagernet/sing-box/transport/v2rayhttp"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
+	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -184,10 +186,21 @@ func (n *Inbound) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	destination := M.ParseSocksaddr(hostPort).Unwrap()
 
 	if hijacker, isHijacker := writer.(http.Hijacker); isHijacker {
-		conn, _, err := hijacker.Hijack()
+		conn, reader, err := hijacker.Hijack()
 		if err != nil {
 			n.badRequest(ctx, request, E.New("hijack failed"))
 			return
+		}
+		if cacheLen := reader.Reader.Buffered(); cacheLen > 0 {
+			cache := buf.NewSize(cacheLen)
+			_, err = cache.ReadFullFrom(reader.Reader, cacheLen)
+			if err != nil {
+				cache.Release()
+				conn.Close()
+				n.badRequest(ctx, request, E.Cause(err, "read cache"))
+				return
+			}
+			conn = bufio.NewCachedConn(conn, cache)
 		}
 		n.newConnection(ctx, false, &naiveConn{Conn: conn}, userName, source, destination)
 	} else {
