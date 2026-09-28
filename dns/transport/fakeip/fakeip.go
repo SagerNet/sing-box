@@ -67,7 +67,11 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	if question.Qtype == mDNS.TypeA && !t.inet4Enabled || question.Qtype == mDNS.TypeAAAA && !t.inet6Enabled {
 		return dns.FixedResponseStatus(message, mDNS.RcodeSuccess), nil
 	}
-	address, err := t.store.Create(dns.FqdnToDomain(question.Name), question.Qtype == mDNS.TypeAAAA)
+	domain := dns.FqdnToDomain(question.Name)
+	if len(domain) > 255 {
+		return nil, E.New("domain name too long for fakeip")
+	}
+	address, err := t.store.Create(domain, question.Qtype == mDNS.TypeAAAA)
 	if err != nil {
 		return nil, err
 	}
