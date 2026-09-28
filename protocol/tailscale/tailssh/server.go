@@ -334,6 +334,9 @@ func (s *Server) authenticate(ctx gliderssh.Context, conn gossh.ConnMetadata) (*
 func (s *Server) evaluatePolicy(policy *tailcfg.SSHPolicy, sshUser string, node tailcfg.NodeView, userProfile tailcfg.UserProfile, srcIP netip.Addr) (*sshConnInfo, error) {
 	now := time.Now()
 	for _, rule := range policy.Rules {
+		if rule == nil {
+			continue
+		}
 		if rule.RuleExpires != nil && now.After(*rule.RuleExpires) {
 			continue
 		}

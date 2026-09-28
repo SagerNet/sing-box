@@ -104,8 +104,14 @@ func (d *systemStackDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 func packetDestination(packet []byte) netip.Addr {
 	switch header.IPVersion(packet) {
 	case header.IPv4Version:
+		if len(packet) < header.IPv4MinimumSize {
+			return netip.Addr{}
+		}
 		return header.IPv4(packet).DestinationAddr()
 	case header.IPv6Version:
+		if len(packet) < header.IPv6MinimumSize {
+			return netip.Addr{}
+		}
 		return header.IPv6(packet).DestinationAddr()
 	default:
 		return netip.Addr{}

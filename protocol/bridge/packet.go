@@ -75,6 +75,9 @@ func fixReturnChecksum(packet []byte) {
 			return
 		}
 		ipHdr := header.IPv6(packet)
+		if !ipHdr.IsValid(len(packet)) {
+			return
+		}
 		recomputeTransportChecksum(ipHdr.TransportProtocol(), ipHdr.Payload(), ipHdr.SourceAddressSlice(), ipHdr.DestinationAddressSlice())
 	}
 }
@@ -86,6 +89,10 @@ func recomputeTransportChecksum(protocol tcpip.TransportProtocolNumber, transpor
 			return
 		}
 		tcpHdr := header.TCP(transport)
+		dataOffset := int(tcpHdr.DataOffset())
+		if dataOffset < header.TCPMinimumSize || dataOffset > len(transport) {
+			return
+		}
 		tcpHdr.SetChecksum(0)
 		payloadChecksum := checksum.Checksum(tcpHdr.Payload(), 0)
 		pseudoChecksum := header.PseudoHeaderChecksum(header.TCPProtocolNumber, source, destination, uint16(len(transport)))

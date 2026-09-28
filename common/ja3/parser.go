@@ -264,16 +264,24 @@ func (j *ClientHello) parseExtensions(exs []byte) error {
 				return &ParseError{LengthErr, 19}
 			}
 			versionsLen := int(sex[0])
-			for i := 0; i < versionsLen; i += 2 {
-				versions = append(versions, binary.BigEndian.Uint16(sex[1:][i:]))
+			sex = sex[versionExtensionHeaderLen:]
+			if len(sex) < versionsLen {
+				return &ParseError{LengthErr, 21}
+			}
+			for i := range versionsLen / 2 {
+				versions = append(versions, binary.BigEndian.Uint16(sex[i*2:]))
 			}
 		case signatureAlgorithmsExtensionType:
 			if len(sex) < signatureAlgorithmsExtensionHeaderLen {
 				return &ParseError{LengthErr, 20}
 			}
-			ssaLen := binary.BigEndian.Uint16(sex)
-			for i := 0; i < int(ssaLen); i += 2 {
-				signatureAlgorithms = append(signatureAlgorithms, binary.BigEndian.Uint16(sex[2:][i:]))
+			ssaLen := int(binary.BigEndian.Uint16(sex))
+			sex = sex[signatureAlgorithmsExtensionHeaderLen:]
+			if len(sex) < ssaLen {
+				return &ParseError{LengthErr, 22}
+			}
+			for i := range ssaLen / 2 {
+				signatureAlgorithms = append(signatureAlgorithms, binary.BigEndian.Uint16(sex[i*2:]))
 			}
 		}
 		exs = exs[4+exLen:]

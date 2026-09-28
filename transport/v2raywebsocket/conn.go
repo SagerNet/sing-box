@@ -29,7 +29,13 @@ type WebsocketConn struct {
 }
 
 func NewConn(conn net.Conn, remoteAddr net.Addr, state ws.State) *WebsocketConn {
-	controlHandler := wsutil.ControlFrameHandler(conn, state)
+	defaultControlHandler := wsutil.ControlFrameHandler(conn, state)
+	controlHandler := func(header ws.Header, reader io.Reader) error {
+		if header.Length > ws.MaxControlFramePayloadSize {
+			return ws.ErrProtocolControlPayloadOverflow
+		}
+		return defaultControlHandler(header, reader)
+	}
 	return &WebsocketConn{
 		Conn:  conn,
 		state: state,
@@ -75,10 +81,6 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 			return
 		}
 		if header.OpCode.IsControl() {
-			if header.Length > 128 {
-				err = wsutil.ErrFrameTooLarge
-				return
-			}
 			err = wrapWsError(c.controlHandler(header, c.reader))
 			if err != nil {
 				return

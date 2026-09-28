@@ -105,11 +105,16 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 
 	source := sHttp.SourceAddress(request)
 	if h, ok := writer.(http.Hijacker); ok {
+		if request.ContentLength > buf.MaxPooledBufferSize {
+			s.invalidRequest(writer, request, http.StatusRequestEntityTooLarge, E.New("request body too large: ", request.ContentLength))
+			return
+		}
 		var requestBody *buf.Buffer
 		if contentLength := int(request.ContentLength); contentLength > 0 {
 			requestBody = buf.NewSize(contentLength)
 			_, err := requestBody.ReadFullFrom(request.Body, contentLength)
 			if err != nil {
+				requestBody.Release()
 				s.invalidRequest(writer, request, 0, E.Cause(err, "read request"))
 				return
 			}
@@ -118,6 +123,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		writer.(http.Flusher).Flush()
 		conn, reader, err := h.Hijack()
 		if err != nil {
+			requestBody.Release()
 			s.invalidRequest(writer, request, 0, E.Cause(err, "hijack conn"))
 			return
 		}
@@ -125,6 +131,8 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			cache := buf.NewSize(cacheLen)
 			_, err = cache.ReadFullFrom(reader.Reader, cacheLen)
 			if err != nil {
+				cache.Release()
+				requestBody.Release()
 				conn.Close()
 				s.invalidRequest(writer, request, 0, E.Cause(err, "read cache"))
 				return
