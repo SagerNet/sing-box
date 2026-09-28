@@ -220,9 +220,9 @@ func (h *httpHandler) serveForward(ctx context.Context, writer http.ResponseWrit
 		if response.StatusCode >= 200 {
 			break
 		}
-		if response.StatusCode == http.StatusSwitchingProtocols {
+		if response.StatusCode < 100 || response.StatusCode == http.StatusSwitchingProtocols {
 			upstream.Close()
-			h.server.logger.ErrorContext(ctx, "process connection from ", source, ": unexpected 101 response")
+			h.server.logger.ErrorContext(ctx, "process connection from ", source, ": unexpected ", response.StatusCode, " response")
 			writer.WriteHeader(http.StatusBadGateway)
 			return
 		}
