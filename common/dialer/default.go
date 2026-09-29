@@ -423,6 +423,15 @@ func (d *DefaultDialer) trackConn(ctx context.Context, destination M.Socksaddr, 
 	if err != nil {
 		return conn, err
 	}
+	if nativeConn, isUDPConn := conn.(*net.UDPConn); isUDPConn {
+		var rawConn syscall.RawConn
+		rawConn, err = nativeConn.SyscallConn()
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		conn = &udpConn{Conn: conn, rawConn: rawConn}
+	}
 	if d.connectionManager != nil {
 		conn = d.connectionManager.TrackConn(conn)
 	}
