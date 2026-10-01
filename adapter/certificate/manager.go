@@ -2,7 +2,6 @@ package certificate
 
 import (
 	"context"
-	"os"
 	"sync"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/sagernet/sing-box/common/taskmonitor"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
 )
@@ -48,7 +46,7 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 		name := "certificate-provider/" + provider.Type() + "[" + provider.Tag() + "]"
 		m.logger.Trace(stage, " ", name)
 		startTime := time.Now()
-		err := adapter.LegacyStart(provider, stage)
+		err := provider.Start(stage)
 		if err != nil {
 			return E.Cause(err, stage, " ", name)
 		}
@@ -95,29 +93,6 @@ func (m *Manager) Get(tag string) (adapter.CertificateProviderService, bool) {
 	return provider, found
 }
 
-func (m *Manager) Remove(tag string) error {
-	m.access.Lock()
-	provider, found := m.providerByTag[tag]
-	if !found {
-		m.access.Unlock()
-		return os.ErrInvalid
-	}
-	delete(m.providerByTag, tag)
-	index := common.Index(m.providers, func(it adapter.CertificateProviderService) bool {
-		return it == provider
-	})
-	if index == -1 {
-		panic("invalid certificate provider index")
-	}
-	m.providers = append(m.providers[:index], m.providers[index+1:]...)
-	started := m.started
-	m.access.Unlock()
-	if started {
-		return provider.Close()
-	}
-	return nil
-}
-
 func (m *Manager) Create(ctx context.Context, logger log.ContextLogger, tag string, providerType string, options any) error {
 	provider, err := m.registry.Create(ctx, logger, tag, providerType, options)
 	if err != nil {
@@ -125,32 +100,9 @@ func (m *Manager) Create(ctx context.Context, logger log.ContextLogger, tag stri
 	}
 	m.access.Lock()
 	defer m.access.Unlock()
-	if m.started {
-		name := "certificate-provider/" + provider.Type() + "[" + provider.Tag() + "]"
-		for _, stage := range adapter.ListStartStages {
-			m.logger.Trace(stage, " ", name)
-			startTime := time.Now()
-			err = adapter.LegacyStart(provider, stage)
-			if err != nil {
-				return E.Cause(err, stage, " ", name)
-			}
-			m.logger.Trace(stage, " ", name, " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
-		}
-	}
-	if existsProvider, loaded := m.providerByTag[tag]; loaded {
-		if m.started {
-			err = existsProvider.Close()
-			if err != nil {
-				return E.Cause(err, "close certificate-provider/", existsProvider.Type(), "[", existsProvider.Tag(), "]")
-			}
-		}
-		existsIndex := common.Index(m.providers, func(it adapter.CertificateProviderService) bool {
-			return it == existsProvider
-		})
-		if existsIndex == -1 {
-			panic("invalid certificate provider index")
-		}
-		m.providers = append(m.providers[:existsIndex], m.providers[existsIndex+1:]...)
+	_, loaded := m.providerByTag[tag]
+	if loaded {
+		return E.New("duplicate certificate provider tag: ", tag)
 	}
 	m.providers = append(m.providers, provider)
 	m.providerByTag[tag] = provider

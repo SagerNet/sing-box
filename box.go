@@ -63,6 +63,7 @@ type Box struct {
 	referenceManager    *route.ReferenceManager
 	httpClientService   adapter.LifecycleService
 	internalService     []adapter.LifecycleService
+	ntpService          *ntp.Service
 	done                chan struct{}
 }
 
@@ -448,6 +449,7 @@ func New(options Options) (*Box, error) {
 			service.MustRegister[adapter.V2RayServer](ctx, v2rayServer)
 		}
 	}
+	var ntpService *ntp.Service
 	if ntpOptions.Enabled {
 		if ntpOptions.WriteToSystem {
 			err = adapter.CheckSecurityFeature(ctx, "NTP `write_to_system`")
@@ -459,7 +461,7 @@ func New(options Options) (*Box, error) {
 		if err != nil {
 			return nil, E.Cause(err, "create NTP service")
 		}
-		ntpService := ntp.NewService(ntp.Options{
+		ntpService = ntp.NewService(ntp.Options{
 			Context:       ctx,
 			Dialer:        ntpDialer,
 			Logger:        logFactory.NewLogger("ntp"),
@@ -468,7 +470,6 @@ func New(options Options) (*Box, error) {
 			WriteToSystem: ntpOptions.WriteToSystem,
 		})
 		timeService.TimeService = ntpService
-		internalServices = append(internalServices, adapter.NewLifecycleService(ntpService, "ntp service"))
 	}
 	return &Box{
 		ctx:                 ctx,
@@ -489,6 +490,7 @@ func New(options Options) (*Box, error) {
 		logFactory:          logFactory,
 		logger:              logFactory.Logger(),
 		internalService:     internalServices,
+		ntpService:          ntpService,
 		done:                make(chan struct{}),
 	}, nil
 }
@@ -576,6 +578,14 @@ func (s *Box) start() error {
 	if err != nil {
 		return err
 	}
+	if s.ntpService != nil {
+		done := adapter.LogElapsed(s.logger, "start ntp service")
+		err = s.ntpService.Start()
+		done()
+		if err != nil {
+			return E.Cause(err, "start ntp service")
+		}
+	}
 	err = adapter.Start(s.ctx, s.logger, adapter.StartStateStart, s.endpoint)
 	if err != nil {
 		return err
@@ -654,6 +664,13 @@ func (s *Box) Close() error {
 		done := adapter.LogElapsed(s.logger, "close ", lifecycleService.Name())
 		err = E.Append(err, lifecycleService.Close(), func(err error) error {
 			return E.Cause(err, "close ", lifecycleService.Name())
+		})
+		done()
+	}
+	if s.ntpService != nil {
+		done := adapter.LogElapsed(s.logger, "close ntp service")
+		err = E.Append(err, s.ntpService.Close(), func(err error) error {
+			return E.Cause(err, "close ntp service")
 		})
 		done()
 	}

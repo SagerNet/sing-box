@@ -62,7 +62,7 @@ type inlineCertificateProvider struct {
 
 func (p *inlineCertificateProvider) Start() error {
 	for _, stage := range adapter.ListStartStages {
-		err := adapter.LegacyStart(p.provider, stage)
+		err := p.provider.Start(stage)
 		if err != nil {
 			return err
 		}

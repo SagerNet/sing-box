@@ -33,6 +33,5 @@ type CertificateProviderManager interface {
 	Lifecycle
 	CertificateProviders() []CertificateProviderService
 	Get(tag string) (CertificateProviderService, bool)
-	Remove(tag string) error
 	Create(ctx context.Context, logger log.ContextLogger, tag string, providerType string, options any) error
 }
