@@ -133,20 +133,14 @@ type backendWindows struct {
 
 func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager adapter.NetworkManager, tag string, options option.BridgeOutboundOptions) (Backend, error) {
 	instance := &backendWindows{}
-	err := instance.init(ctx, logger, networkManager, tag, options)
-	if err != nil {
-		return nil, err
-	}
+	instance.init(ctx, logger, networkManager, tag, options)
 	return instance, nil
 }
 
 func (b *backendWindows) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
-		scope.Add(func() error {
-			releaseBridgeIndex(b.index)
-			return nil
-		})
+		return b.allocateIndex(scope)
 	case adapter.StartStateStart:
 		return b.start(scope)
 	}
