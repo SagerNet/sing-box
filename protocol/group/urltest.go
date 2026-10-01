@@ -71,25 +71,25 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return outbound, nil
 }
 
-func (s *URLTest) Start() error {
-	outbounds := make([]adapter.Outbound, 0, len(s.tags))
-	for i, tag := range s.tags {
-		detour, loaded := s.outbound.Outbound(tag)
-		if !loaded {
-			return E.New("outbound ", i, " not found: ", tag)
+func (s *URLTest) Start(stage adapter.StartStage) error {
+	switch stage {
+	case adapter.StartStateStart:
+		outbounds := make([]adapter.Outbound, 0, len(s.tags))
+		for i, tag := range s.tags {
+			detour, loaded := s.outbound.Outbound(tag)
+			if !loaded {
+				return E.New("outbound ", i, " not found: ", tag)
+			}
+			outbounds = append(outbounds, detour)
 		}
-		outbounds = append(outbounds, detour)
+		group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.interruptExternalConnections)
+		if err != nil {
+			return err
+		}
+		s.group = group
+	case adapter.StartStateStarted:
+		s.group.PostStart()
 	}
-	group, err := NewURLTestGroup(s.ctx, s.outbound, s.logger, outbounds, s.link, s.interval, s.tolerance, s.idleTimeout, s.interruptExternalConnections)
-	if err != nil {
-		return err
-	}
-	s.group = group
-	return nil
-}
-
-func (s *URLTest) PostStart() error {
-	s.group.PostStart()
 	return nil
 }
 

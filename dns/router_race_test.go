@@ -115,10 +115,6 @@ func (m *fakeDNSTransportManager) FakeIP() adapter.FakeIPTransport {
 	return nil
 }
 
-func (m *fakeDNSTransportManager) Remove(tag string) error {
-	return nil
-}
-
 func (m *fakeDNSTransportManager) Create(ctx context.Context, logger log.ContextLogger, tag string, outboundType string, options any) error {
 	return nil
 }
