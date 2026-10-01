@@ -44,7 +44,7 @@ var (
 	globalServices []*Service
 )
 
-func (s *Service) Start(stage adapter.StartStage) error {
+func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
@@ -52,6 +52,10 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	if err != nil {
 		return err
 	}
+	scope.Add(func() error {
+		s.stopTimer()
+		return nil
+	})
 	if s.timerConfig.policyMode == policyModeNetworkExtension {
 		globalAccess.Lock()
 		isFirst := len(globalServices) == 0
@@ -60,25 +64,21 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		if isFirst {
 			C.startMemoryPressureMonitor()
 		}
-	}
-	return nil
-}
-
-func (s *Service) Close() error {
-	s.stopTimer()
-	if s.timerConfig.policyMode == policyModeNetworkExtension {
-		globalAccess.Lock()
-		for i, svc := range globalServices {
-			if svc == s {
-				globalServices = append(globalServices[:i], globalServices[i+1:]...)
-				break
+		scope.Add(func() error {
+			globalAccess.Lock()
+			for i, svc := range globalServices {
+				if svc == s {
+					globalServices = append(globalServices[:i], globalServices[i+1:]...)
+					break
+				}
 			}
-		}
-		isLast := len(globalServices) == 0
-		globalAccess.Unlock()
-		if isLast {
-			C.stopMemoryPressureMonitor()
-		}
+			isLast := len(globalServices) == 0
+			globalAccess.Unlock()
+			if isLast {
+				C.stopMemoryPressureMonitor()
+			}
+			return nil
+		})
 	}
 	return nil
 }

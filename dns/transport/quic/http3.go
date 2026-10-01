@@ -137,17 +137,16 @@ func (t *HTTP3Transport) newTransport() *http3.Transport {
 	}
 }
 
-func (t *HTTP3Transport) Start(stage adapter.StartStage) error {
+func (t *HTTP3Transport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	scope.Add(func() error {
+		t.transportAccess.Lock()
+		defer t.transportAccess.Unlock()
+		return t.transport.Close()
+	})
 	return dialer.InitializeDetour(t.dialer)
-}
-
-func (t *HTTP3Transport) Close() error {
-	t.transportAccess.Lock()
-	defer t.transportAccess.Unlock()
-	return t.transport.Close()
 }
 
 func (t *HTTP3Transport) Reset() {

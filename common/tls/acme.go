@@ -49,9 +49,14 @@ func (w *acmeWrapper) Start() error {
 		Logger: w.zapLogger,
 	})
 	config = certmagic.New(cache, *config)
+	err := config.ManageSync(w.ctx, w.domain)
+	if err != nil {
+		cache.Stop()
+		return err
+	}
 	w.cfg = config
 	w.cache = cache
-	return w.cfg.ManageSync(w.ctx, w.domain)
+	return nil
 }
 
 func (w *acmeWrapper) Close() error {

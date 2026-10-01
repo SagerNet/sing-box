@@ -60,8 +60,6 @@ type Service struct {
 	certificate.Adapter
 	logger            log.ContextLogger
 	ctx               context.Context
-	cancel            context.CancelFunc
-	done              chan struct{}
 	timeFunc          func() time.Time
 	httpClient        *http.Client
 	storage           certmagic.Storage
@@ -104,10 +102,8 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 	if requestedValidity == 0 {
 		requestedValidity = defaultRequestedValidity
 	}
-	ctx, cancel := context.WithCancel(ctx)
 	httpClient, err := originCAHTTPClient(ctx, logger, options)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 	var (
@@ -135,7 +131,6 @@ func NewCertificateProvider(ctx context.Context, logger log.ContextLogger, tag s
 		Adapter:           certificate.NewAdapter(C.TypeCloudflareOriginCA, tag),
 		logger:            logger,
 		ctx:               ctx,
-		cancel:            cancel,
 		timeFunc:          timeFunc,
 		httpClient:        httpClient,
 		storage:           storage,
@@ -161,7 +156,7 @@ func originCAHTTPClient(ctx context.Context, logger log.ContextLogger, options o
 	return &http.Client{Transport: transport}, nil
 }
 
-func (s *Service) Start(stage adapter.StartStage) error {
+func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage == adapter.StartStateInitialize {
 		if s.dataDirectory == "" {
 			return nil
@@ -174,33 +169,30 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	} else if stage != adapter.StartStateStart {
 		return nil
 	}
-	cachedCertificate, cachedLeaf, err := s.loadCachedCertificate()
+	ctx := scope.Context()
+	cachedCertificate, cachedLeaf, err := s.loadCachedCertificate(ctx)
 	if err != nil {
 		s.logger.Warn(E.Cause(err, "load cached Cloudflare Origin CA certificate"))
 	} else if cachedCertificate != nil {
 		s.setCurrentCertificate(cachedCertificate, cachedLeaf)
 	}
 	if cachedCertificate == nil {
-		err = s.issueAndStoreCertificate()
+		err = s.issueAndStoreCertificate(ctx)
 		if err != nil {
 			return err
 		}
 	} else if s.shouldRenew(cachedLeaf, s.timeFunc()) {
-		err = s.issueAndStoreCertificate()
+		err = s.issueAndStoreCertificate(ctx)
 		if err != nil {
 			s.logger.Warn(E.Cause(err, "renew cached Cloudflare Origin CA certificate"))
 		}
 	}
-	s.done = make(chan struct{})
-	go s.refreshLoop()
-	return nil
-}
-
-func (s *Service) Close() error {
-	s.cancel()
-	if done := s.done; done != nil {
+	done := make(chan struct{})
+	go s.refreshLoop(ctx, done)
+	scope.Add(func() error {
 		<-done
-	}
+		return nil
+	})
 	return nil
 }
 
@@ -214,8 +206,8 @@ func (s *Service) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, erro
 	return certificate, nil
 }
 
-func (s *Service) refreshLoop() {
-	defer close(s.done)
+func (s *Service) refreshLoop(ctx context.Context, done chan struct{}) {
+	defer close(done)
 	var retryDelay time.Duration
 	for {
 		waitDuration := retryDelay
@@ -232,7 +224,7 @@ func (s *Service) refreshLoop() {
 		}
 		timer := time.NewTimer(waitDuration)
 		select {
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			if !timer.Stop() {
 				select {
 				case <-timer.C:
@@ -242,7 +234,7 @@ func (s *Service) refreshLoop() {
 			return
 		case <-timer.C:
 		}
-		err := s.issueAndStoreCertificate()
+		err := s.issueAndStoreCertificate(ctx)
 		if err != nil {
 			s.logger.Error(E.Cause(err, "renew Cloudflare Origin CA certificate"))
 			s.access.RLock()
@@ -279,25 +271,25 @@ func (s *Service) effectiveRenewBefore(leaf *x509.Certificate) time.Duration {
 	return min(lifetime/3, defaultRenewBefore)
 }
 
-func (s *Service) issueAndStoreCertificate() error {
-	err := s.storage.Lock(s.ctx, s.storageLockKey)
+func (s *Service) issueAndStoreCertificate(ctx context.Context) error {
+	err := s.storage.Lock(ctx, s.storageLockKey)
 	if err != nil {
 		return E.Cause(err, "lock Cloudflare Origin CA certificate storage")
 	}
 	defer func() {
-		err = s.storage.Unlock(context.WithoutCancel(s.ctx), s.storageLockKey)
+		err = s.storage.Unlock(context.WithoutCancel(ctx), s.storageLockKey)
 		if err != nil {
 			s.logger.Warn(E.Cause(err, "unlock Cloudflare Origin CA certificate storage"))
 		}
 	}()
-	cachedCertificate, cachedLeaf, err := s.loadCachedCertificate()
+	cachedCertificate, cachedLeaf, err := s.loadCachedCertificate(ctx)
 	if err != nil {
 		s.logger.Warn(E.Cause(err, "load cached Cloudflare Origin CA certificate"))
 	} else if cachedCertificate != nil && !s.shouldRenew(cachedLeaf, s.timeFunc()) {
 		s.setCurrentCertificate(cachedCertificate, cachedLeaf)
 		return nil
 	}
-	certificatePEM, privateKeyPEM, tlsCertificate, leaf, err := s.requestCertificate(s.ctx)
+	certificatePEM, privateKeyPEM, tlsCertificate, leaf, err := s.requestCertificate(ctx)
 	if err != nil {
 		return err
 	}
@@ -308,7 +300,7 @@ func (s *Service) issueAndStoreCertificate() error {
 	if err != nil {
 		return E.Cause(err, "encode Cloudflare Origin CA certificate metadata")
 	}
-	err = storeCertificateResource(s.ctx, s.storage, s.storageIssuerKey, certmagic.CertificateResource{
+	err = storeCertificateResource(ctx, s.storage, s.storageIssuerKey, certmagic.CertificateResource{
 		SANs:           slices.Clone(s.domain),
 		CertificatePEM: certificatePEM,
 		PrivateKeyPEM:  privateKeyPEM,
@@ -415,8 +407,8 @@ func (s *Service) requestCertificate(ctx context.Context) ([]byte, []byte, *tls.
 	return certificatePEM, privateKeyPEM, tlsCertificate, leaf, nil
 }
 
-func (s *Service) loadCachedCertificate() (*tls.Certificate, *x509.Certificate, error) {
-	certificateResource, err := loadCertificateResource(s.ctx, s.storage, s.storageIssuerKey, s.storageNamesKey)
+func (s *Service) loadCachedCertificate(ctx context.Context) (*tls.Certificate, *x509.Certificate, error) {
+	certificateResource, err := loadCertificateResource(ctx, s.storage, s.storageIssuerKey, s.storageNamesKey)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil, nil

@@ -100,7 +100,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return inbound, nil
 }
 
-func (h *Inbound) Start(stage adapter.StartStage) error {
+func (h *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
@@ -108,15 +108,24 @@ func (h *Inbound) Start(stage adapter.StartStage) error {
 	if err != nil {
 		return err
 	}
+	scope.Add(h.service.Close)
 	if h.tlsConfig != nil {
 		err = h.tlsConfig.Start()
 		if err != nil {
 			return err
 		}
+		scope.Add(h.tlsConfig.Close)
 	}
 	if h.transport == nil {
-		return h.listener.Start()
+		err = h.listener.Start()
+		if err != nil {
+			return err
+		}
+		scope.Add(h.listener.Close)
+		return nil
 	}
+	scope.Add(h.transport.Close)
+	scope.Add(h.listener.Close)
 	if common.Contains(h.transport.Network(), N.NetworkTCP) {
 		tcpListener, err := h.listener.ListenTCP()
 		if err != nil {
@@ -142,15 +151,6 @@ func (h *Inbound) Start(stage adapter.StartStage) error {
 		}()
 	}
 	return nil
-}
-
-func (h *Inbound) Close() error {
-	return common.Close(
-		h.service,
-		h.listener,
-		h.tlsConfig,
-		h.transport,
-	)
 }
 
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {

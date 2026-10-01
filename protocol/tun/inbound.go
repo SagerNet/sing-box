@@ -25,7 +25,6 @@ import (
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/ranges"
-	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 
 	"go4.org/netipx"
@@ -36,29 +35,27 @@ func RegisterInbound(registry *inbound.Registry) {
 }
 
 type Inbound struct {
-	tag                         string
-	ctx                         context.Context
-	router                      adapter.Router
-	networkManager              adapter.NetworkManager
-	logger                      log.ContextLogger
-	tunOptions                  tun.Options
-	udpTimeout                  time.Duration
-	udpMapping                  tun.NATMapping
-	udpFiltering                tun.NATFiltering
-	udpNATMax                   uint32
-	dnsHijackAddress            []netip.Addr
-	stack                       string
-	tunIf                       tun.Tun
-	tunStack                    tun.Stack
-	platformInterface           adapter.PlatformInterface
-	platformOptions             option.TunPlatformOptions
-	autoRedirect                tun.AutoRedirect
-	routeRuleSet                []adapter.RuleSet
-	routeRuleSetCallback        []*list.Element[adapter.RuleSetUpdateCallback]
-	routeExcludeRuleSet         []adapter.RuleSet
-	routeExcludeRuleSetCallback []*list.Element[adapter.RuleSetUpdateCallback]
-	routeAddressSet             []*netipx.IPSet
-	routeExcludeAddressSet      []*netipx.IPSet
+	tag                    string
+	ctx                    context.Context
+	router                 adapter.Router
+	networkManager         adapter.NetworkManager
+	logger                 log.ContextLogger
+	tunOptions             tun.Options
+	udpTimeout             time.Duration
+	udpMapping             tun.NATMapping
+	udpFiltering           tun.NATFiltering
+	udpNATMax              uint32
+	dnsHijackAddress       []netip.Addr
+	stack                  string
+	tunIf                  tun.Tun
+	tunStack               tun.Stack
+	platformInterface      adapter.PlatformInterface
+	platformOptions        option.TunPlatformOptions
+	autoRedirect           tun.AutoRedirect
+	routeRuleSet           []adapter.RuleSet
+	routeExcludeRuleSet    []adapter.RuleSet
+	routeAddressSet        []*netipx.IPSet
+	routeExcludeAddressSet []*netipx.IPSet
 }
 
 func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.TunInboundOptions) (adapter.Inbound, error) {
@@ -328,9 +325,12 @@ func (t *Inbound) Tag() string {
 	return t.tag
 }
 
-func (t *Inbound) Start(stage adapter.StartStage) error {
+func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
+		if t.autoRedirect != nil {
+			scope.Add(t.autoRedirect.Close)
+		}
 		if t.tunOptions.DNSModeOrDefault() != tun.DNSModeDisabled && len(t.tunOptions.DNSAddress) == 0 {
 			inet4DNSAddress, _ := t.tunOptions.Inet4DNSAddress()
 			inet6DNSAddress, _ := t.tunOptions.Inet6DNSAddress()
@@ -383,7 +383,11 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				routeRuleSet.IncRef()
 				t.routeAddressSet = append(t.routeAddressSet, ipSets...)
 				if t.autoRedirect != nil {
-					t.routeRuleSetCallback = append(t.routeRuleSetCallback, routeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+					callback := routeRuleSet.RegisterCallback(t.updateRouteAddressSet)
+					scope.Add(func() error {
+						routeRuleSet.UnregisterCallback(callback)
+						return nil
+					})
 				}
 			}
 			for _, routeExcludeRuleSet := range t.routeExcludeRuleSet {
@@ -394,7 +398,11 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 				routeExcludeRuleSet.IncRef()
 				t.routeExcludeAddressSet = append(t.routeExcludeAddressSet, ipSets...)
 				if t.autoRedirect != nil {
-					t.routeExcludeRuleSetCallback = append(t.routeExcludeRuleSetCallback, routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet))
+					callback := routeExcludeRuleSet.RegisterCallback(t.updateRouteAddressSet)
+					scope.Add(func() error {
+						routeExcludeRuleSet.UnregisterCallback(callback)
+						return nil
+					})
 				}
 			}
 		}
@@ -435,14 +443,13 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return E.Cause(err, "configure tun interface")
 		}
+		scope.Add(tunInterface.Close)
 		t.logger.Trace("creating stack")
 		t.tunIf = tunInterface
 		if t.platformInterface != nil {
 			err = t.platformInterface.ProcessPlatformOptions(t.platformOptions)
 			if err != nil {
-				closeError := t.tunIf.Close()
-				t.tunIf = nil
-				return E.Errors(E.Cause(err, "process platform options"), closeError)
+				return E.Cause(err, "process platform options")
 			}
 		}
 		var includeAllNetworks bool
@@ -467,6 +474,7 @@ func (t *Inbound) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
+		scope.Add(tunStack.Close)
 		t.tunStack = tunStack
 		t.logger.Info("started at ", t.tunOptions.Name)
 	case adapter.StartStatePostStart:
@@ -510,14 +518,6 @@ func (t *Inbound) InterfaceUpdated(ctx context.Context) {
 	if tunStack != nil {
 		tunStack.ResetNetwork()
 	}
-}
-
-func (t *Inbound) Close() error {
-	return common.Close(
-		t.tunStack,
-		t.tunIf,
-		t.autoRedirect,
-	)
 }
 
 func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {

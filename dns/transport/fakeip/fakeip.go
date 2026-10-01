@@ -45,15 +45,16 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	}, nil
 }
 
-func (t *Transport) Start(stage adapter.StartStage) error {
+func (t *Transport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	return t.store.Start()
-}
-
-func (t *Transport) Close() error {
-	return t.store.Close()
+	err := t.store.Start()
+	if err != nil {
+		return err
+	}
+	scope.Add(t.store.Close)
+	return nil
 }
 
 func (t *Transport) Reset() {

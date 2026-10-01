@@ -93,13 +93,9 @@ func NewRawTransport(transportAdapter dns.TransportAdapter, ctx context.Context,
 	}
 }
 
-func (t *Transport) Start(stage adapter.StartStage) error {
-	return nil
-}
-
-func (t *Transport) Close() error {
-	if t.configSource != nil {
-		return t.configSource.Close()
+func (t *Transport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	if stage == adapter.StartStateInitialize && t.configSource != nil {
+		scope.Add(t.configSource.Close)
 	}
 	return nil
 }

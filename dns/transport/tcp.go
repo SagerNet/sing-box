@@ -79,15 +79,12 @@ func NewTCPRaw(adapter dns.TransportAdapter, dialer N.Dialer, serverAddr M.Socks
 	return t
 }
 
-func (t *TCPTransport) Start(stage adapter.StartStage) error {
+func (t *TCPTransport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	scope.Add(t.multiplexer.Close)
 	return dialer.InitializeDetour(t.dialer)
-}
-
-func (t *TCPTransport) Close() error {
-	return t.multiplexer.Close()
 }
 
 func (t *TCPTransport) Reset() {

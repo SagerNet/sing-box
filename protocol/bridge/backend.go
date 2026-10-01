@@ -41,16 +41,13 @@ type backendBase struct {
 	returnAccess sync.Mutex
 	returnPaths  []tun.Return
 
-	egressAccess      sync.Mutex
-	forwardingRestore []sysctlState
-	unregister        func()
+	egressAccess sync.Mutex
 
 	session       adapter.BridgeSession
 	currentEgress string
 
-	closeOnce sync.Once
-	closed    chan struct{}
-	readDone  chan struct{}
+	closed    <-chan struct{}
+	readGroup sync.WaitGroup
 }
 
 func (b *backendBase) init(ctx context.Context, logger logger.ContextLogger, networkManager adapter.NetworkManager, tag string, options option.BridgeOutboundOptions) error {
@@ -100,12 +97,14 @@ func (b *backendBase) DetachReturn(returnPath tun.Return) error {
 	return nil
 }
 
-func (b *backendBase) registerMonitors(syncFunc func()) {
-	var unregisterFuncs []func()
+func (b *backendBase) registerMonitors(scope *adapter.Scope, syncFunc func()) {
 	networkMonitor := b.networkManager.NetworkMonitor()
 	if networkMonitor != nil {
 		networkElement := networkMonitor.RegisterCallback(syncFunc)
-		unregisterFuncs = append(unregisterFuncs, func() { networkMonitor.UnregisterCallback(networkElement) })
+		scope.Add(func() error {
+			networkMonitor.UnregisterCallback(networkElement)
+			return nil
+		})
 	} else if b.boundInterface != "" {
 		b.logger.Debug("network monitor unavailable, pinned egress will not track interface changes")
 	}
@@ -113,14 +112,10 @@ func (b *backendBase) registerMonitors(syncFunc func()) {
 		interfaceMonitor := b.networkManager.InterfaceMonitor()
 		if interfaceMonitor != nil {
 			interfaceElement := interfaceMonitor.RegisterCallback(func(_ *control.Interface, _ int) { syncFunc() })
-			unregisterFuncs = append(unregisterFuncs, func() { interfaceMonitor.UnregisterCallback(interfaceElement) })
-		}
-	}
-	if len(unregisterFuncs) > 0 {
-		b.unregister = func() {
-			for _, unregisterFunc := range unregisterFuncs {
-				unregisterFunc()
-			}
+			scope.Add(func() error {
+				interfaceMonitor.UnregisterCallback(interfaceElement)
+				return nil
+			})
 		}
 	}
 }
@@ -166,7 +161,6 @@ func (b *backendBase) resolveEgress() string {
 }
 
 func (b *backendBase) readLoop() {
-	defer close(b.readDone)
 	buffer := make([]byte, tun.PacketOffset+bridgeTunMTU)
 	for {
 		n, err := b.tunInterface.Read(buffer)

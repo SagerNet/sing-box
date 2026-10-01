@@ -3,81 +3,40 @@ package certificate
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/taskmonitor"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
-	F "github.com/sagernet/sing/common/format"
 )
 
 var _ adapter.CertificateProviderManager = (*Manager)(nil)
 
 type Manager struct {
-	logger        log.ContextLogger
 	registry      adapter.CertificateProviderRegistry
 	access        sync.Mutex
-	started       bool
-	stage         adapter.StartStage
 	providers     []adapter.CertificateProviderService
 	providerByTag map[string]adapter.CertificateProviderService
 }
 
-func NewManager(logger log.ContextLogger, registry adapter.CertificateProviderRegistry) *Manager {
+func NewManager(registry adapter.CertificateProviderRegistry) *Manager {
 	return &Manager{
-		logger:        logger,
 		registry:      registry,
 		providerByTag: make(map[string]adapter.CertificateProviderService),
 	}
 }
 
-func (m *Manager) Start(stage adapter.StartStage) error {
+func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	m.access.Lock()
-	if m.started && m.stage >= stage {
-		panic("already started")
-	}
-	m.started = true
-	m.stage = stage
 	providers := m.providers
 	m.access.Unlock()
 	for _, provider := range providers {
 		name := "certificate-provider/" + provider.Type() + "[" + provider.Tag() + "]"
-		m.logger.Trace(stage, " ", name)
-		startTime := time.Now()
-		err := provider.Start(stage)
+		err := scope.Start(name, provider, stage)
 		if err != nil {
-			return E.Cause(err, stage, " ", name)
+			return err
 		}
-		m.logger.Trace(stage, " ", name, " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
 	}
 	return nil
-}
-
-func (m *Manager) Close() error {
-	m.access.Lock()
-	defer m.access.Unlock()
-	if !m.started {
-		return nil
-	}
-	m.started = false
-	providers := m.providers
-	m.providers = nil
-	monitor := taskmonitor.New(m.logger, C.StopTimeout)
-	var err error
-	for _, provider := range providers {
-		name := "certificate-provider/" + provider.Type() + "[" + provider.Tag() + "]"
-		m.logger.Trace("close ", name)
-		startTime := time.Now()
-		monitor.Start("close ", name)
-		err = E.Append(err, provider.Close(), func(err error) error {
-			return E.Cause(err, "close ", name)
-		})
-		monitor.Finish()
-		m.logger.Trace("close ", name, " completed (", F.Seconds(time.Since(startTime).Seconds()), "s)")
-	}
-	return err
 }
 
 func (m *Manager) CertificateProviders() []adapter.CertificateProviderService {

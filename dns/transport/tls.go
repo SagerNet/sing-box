@@ -85,15 +85,12 @@ func NewTLSRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 	return t
 }
 
-func (t *TLSTransport) Start(stage adapter.StartStage) error {
+func (t *TLSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	scope.Add(t.multiplexer.Close)
 	return dialer.InitializeDetour(t.dialer)
-}
-
-func (t *TLSTransport) Close() error {
-	return t.multiplexer.Close()
 }
 
 func (t *TLSTransport) Reset() {

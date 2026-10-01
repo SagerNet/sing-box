@@ -260,8 +260,14 @@ func (s *Outbound) releaseStream(client *ssh.Client, keepSession bool) {
 	common.Close(clientConn)
 }
 
-func (s *Outbound) Close() error {
-	return common.Close(s.clientConn)
+func (s *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	if stage != adapter.StartStateInitialize {
+		return nil
+	}
+	scope.Add(func() error {
+		return common.Close(s.clientConn)
+	})
+	return nil
 }
 
 func (s *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

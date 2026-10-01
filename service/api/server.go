@@ -20,7 +20,6 @@ import (
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c" //nolint:staticcheck
-	"google.golang.org/grpc"
 )
 
 func RegisterService(registry *boxService.Registry) {
@@ -29,24 +28,16 @@ func RegisterService(registry *boxService.Registry) {
 
 type Service struct {
 	boxService.Adapter
-	ctx            context.Context
-	cancel         context.CancelFunc
-	logger         log.ContextLogger
-	options        option.APIServiceOptions
-	listener       *listener.Listener
-	tlsConfig      tls.ServerConfig
-	startedService *daemon.StartedService
-	grpcServer     *grpc.Server
-	httpServer     *http.Server
-	dashboard      *dashboard
+	logger    log.ContextLogger
+	options   option.APIServiceOptions
+	listener  *listener.Listener
+	tlsConfig tls.ServerConfig
+	dashboard *dashboard
 }
 
 func NewService(ctx context.Context, logger log.ContextLogger, tag string, options option.APIServiceOptions) (adapter.Service, error) {
-	ctx, cancel := context.WithCancel(ctx)
 	s := &Service{
 		Adapter: boxService.NewAdapter(C.TypeAPI, tag),
-		ctx:     ctx,
-		cancel:  cancel,
 		logger:  logger,
 		options: options,
 		listener: listener.New(listener.Options{
@@ -59,7 +50,6 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	if options.TLS != nil {
 		tlsConfig, err := tls.NewServer(ctx, logger, common.PtrValueOrDefault(options.TLS))
 		if err != nil {
-			cancel()
 			return nil, err
 		}
 		s.tlsConfig = tlsConfig
@@ -70,23 +60,33 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	return s, nil
 }
 
-func (s *Service) Start(stage adapter.StartStage) error {
+func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStarted {
 		return nil
 	}
-	s.startedService = daemon.NewAttachedService(s.ctx)
-	s.grpcServer = daemon.NewServer(s.startedService, s.options.Secret)
+	ctx := scope.Context()
+	startedService := daemon.NewAttachedService(ctx)
+	scope.Add(func() error {
+		startedService.Close()
+		return nil
+	})
+	grpcServer := daemon.NewServer(startedService, s.options.Secret)
+	scope.Add(func() error {
+		grpcServer.Stop()
+		return nil
+	})
 	if s.dashboard != nil {
-		err := s.dashboard.start()
+		err := s.dashboard.start(ctx)
 		if err != nil {
 			return E.Cause(err, "start dashboard")
 		}
+		scope.Add(s.dashboard.close)
 	}
-	s.httpServer = &http.Server{
+	httpServer := &http.Server{
 		//nolint:staticcheck
-		Handler: h2c.NewHandler(newHTTPHandler(s.logger, s.grpcServer, s.options, s.dashboard), new(http2.Server)),
+		Handler: h2c.NewHandler(newHTTPHandler(s.logger, grpcServer, s.options, s.dashboard), new(http2.Server)),
 		BaseContext: func(net.Listener) context.Context {
-			return s.ctx
+			return ctx
 		},
 	}
 	if s.tlsConfig != nil {
@@ -94,6 +94,7 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
+		scope.Add(s.tlsConfig.Close)
 		if !common.Contains(s.tlsConfig.NextProtos(), http2.NextProtoTLS) {
 			s.tlsConfig.SetNextProtos(append([]string{http2.NextProtoTLS}, s.tlsConfig.NextProtos()...))
 		}
@@ -105,34 +106,16 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	if err != nil {
 		return err
 	}
+	scope.Add(s.listener.Close)
 	if s.tlsConfig != nil {
 		tcpListener = aTLS.NewListener(tcpListener, s.tlsConfig)
 	}
+	scope.Add(httpServer.Close)
 	go func() {
-		serveErr := s.httpServer.Serve(tcpListener)
-		if serveErr != nil && s.ctx.Err() == nil {
+		serveErr := httpServer.Serve(tcpListener)
+		if serveErr != nil && ctx.Err() == nil {
 			s.logger.Error("serve error: ", serveErr)
 		}
 	}()
 	return nil
-}
-
-func (s *Service) Close() error {
-	s.cancel()
-	if s.dashboard != nil {
-		s.dashboard.close()
-	}
-	if s.httpServer != nil {
-		s.httpServer.Close()
-	}
-	if s.grpcServer != nil {
-		s.grpcServer.Stop()
-	}
-	if s.startedService != nil {
-		s.startedService.Close()
-	}
-	return common.Close(
-		common.PtrOrNil(s.listener),
-		s.tlsConfig,
-	)
 }

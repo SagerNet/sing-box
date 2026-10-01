@@ -40,7 +40,6 @@ type Outbound struct {
 	startConf   *tor.StartConf
 	options     map[string]string
 	events      chan control.Event
-	instance    *tor.Tor
 	socksClient *socks.Client
 }
 
@@ -96,7 +95,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}, nil
 }
 
-func (t *Outbound) Start(stage adapter.StartStage) error {
+func (t *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
 		if t.startConf.DataDir == "" {
@@ -127,11 +126,8 @@ func (t *Outbound) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
-		err = t.start()
-		if err != nil {
-			t.Close()
-			return err
-		}
+		scope.Add(proxy.Close)
+		return t.start(scope)
 	}
 	return nil
 }
@@ -144,13 +140,17 @@ var torLogEvents = []control.EventCode{
 	control.EventCodeLogWarn,
 }
 
-func (t *Outbound) start() error {
+func (t *Outbound) start(scope *adapter.Scope) error {
+	t.events = make(chan control.Event, 8)
+	scope.Add(func() error {
+		close(t.events)
+		return nil
+	})
 	torInstance, err := tor.Start(t.ctx, t.startConf)
 	if err != nil {
 		return E.New(strings.ToLower(err.Error()))
 	}
-	t.instance = torInstance
-	t.events = make(chan control.Event, 8)
+	scope.Add(torInstance.Close)
 	err = torInstance.Control.AddEventListener(t.events, torLogEvents...)
 	if err != nil {
 		return err
@@ -223,18 +223,6 @@ func (t *Outbound) recvLoop() {
 			}
 		}
 	}
-}
-
-func (t *Outbound) Close() error {
-	err := common.Close(
-		common.PtrOrNil(t.proxy),
-		common.PtrOrNil(t.instance),
-	)
-	if t.events != nil {
-		close(t.events)
-		t.events = nil
-	}
-	return err
 }
 
 func (t *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

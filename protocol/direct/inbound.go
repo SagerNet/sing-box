@@ -70,19 +70,20 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return inbound, nil
 }
 
-func (i *Inbound) Start(stage adapter.StartStage) error {
+func (i *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	return i.listener.Start()
+	err := i.listener.Start()
+	if err != nil {
+		return err
+	}
+	scope.Add(i.listener.Close)
+	return nil
 }
 
 func (i *Inbound) InterfaceUpdated(ctx context.Context) {
 	i.udpNat.Purge()
-}
-
-func (i *Inbound) Close() error {
-	return i.listener.Close()
 }
 
 func (i *Inbound) NewPacket(buffer *buf.Buffer, source M.Socksaddr) {

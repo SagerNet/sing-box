@@ -57,21 +57,26 @@ func (p *sharedCertificateProvider) GetACMENextProtos() []string {
 }
 
 type inlineCertificateProvider struct {
+	ctx      context.Context
+	logger   log.ContextLogger
 	provider adapter.CertificateProviderService
+	scope    *adapter.Scope
 }
 
 func (p *inlineCertificateProvider) Start() error {
+	p.scope = adapter.NewScope(p.ctx, p.logger)
+	name := "certificate-provider/" + p.provider.Type()
 	for _, stage := range adapter.ListStartStages {
-		err := p.provider.Start(stage)
+		err := p.scope.Start(name, p.provider, stage)
 		if err != nil {
-			return err
+			return E.Errors(err, p.scope.Close())
 		}
 	}
 	return nil
 }
 
 func (p *inlineCertificateProvider) Close() error {
-	return p.provider.Close()
+	return p.scope.Close()
 }
 
 func (p *inlineCertificateProvider) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -548,6 +553,8 @@ func newCertificateProvider(ctx context.Context, logger log.ContextLogger, optio
 		return nil, E.Cause(err, "create inline certificate provider")
 	}
 	return &inlineCertificateProvider{
+		ctx:      ctx,
+		logger:   logger,
 		provider: provider,
 	}, nil
 }

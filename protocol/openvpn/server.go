@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -35,7 +36,6 @@ var (
 type ServerEndpoint struct {
 	endpointBase
 	ctx            context.Context
-	loopContext    context.Context
 	cancelLoop     context.CancelFunc
 	options        option.OpenVPNServerEndpointOptions
 	serverOptions  ovpn.ServerOptions
@@ -45,7 +45,6 @@ type ServerEndpoint struct {
 	device         ovpntransport.Device
 	localAddresses []netip.Prefix
 	started        atomic.Bool
-	readLoopDone   chan struct{}
 }
 
 type udpEgressPacketConn struct {
@@ -80,7 +79,6 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 			logger:  logger,
 		},
 		ctx:            ctx,
-		loopContext:    loopContext,
 		cancelLoop:     cancelLoop,
 		options:        options,
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
@@ -161,7 +159,15 @@ func validateServerTopology(topology string) error {
 	}
 }
 
-func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
+func (s *ServerEndpoint) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	if stage == adapter.StartStateInitialize {
+		scope.Add(s.device.Close)
+		scope.Add(func() error {
+			s.cancelLoop()
+			return nil
+		})
+		return nil
+	}
 	if stage != adapter.StartStateStart {
 		return nil
 	}
@@ -225,6 +231,7 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
 	if err != nil {
 		return err
 	}
+	scope.Add(s.listener.Close)
 	serverOptions := s.serverOptions
 	if streamListener != nil {
 		serverOptions.Transport.ListenAddress = streamListener.Addr().String()
@@ -238,26 +245,31 @@ func (s *ServerEndpoint) Start(stage adapter.StartStage) error {
 		if packetConn != nil {
 			_ = packetConn.Close()
 		}
-		s.listener.Close()
 		return err
 	}
 	s.server = server
+	var loopGroup sync.WaitGroup
+	scope.Add(func() error {
+		loopGroup.Wait()
+		return nil
+	})
+	scope.Add(server.Close)
 	err = s.device.Start()
 	if err != nil {
-		s.listener.Close()
-		server.Close()
 		return err
 	}
 	err = server.Start()
 	if err != nil {
-		s.device.Close()
-		s.listener.Close()
-		server.Close()
 		return err
 	}
 	s.started.Store(true)
-	s.readLoopDone = make(chan struct{})
-	go s.readLoop()
+	scope.Add(func() error {
+		s.started.Store(false)
+		return nil
+	})
+	loopGroup.Go(func() {
+		s.readLoop(scope.Context())
+	})
 	return nil
 }
 
@@ -598,12 +610,11 @@ func applyServerPushOptions(serverOptions *ovpn.ServerOptions, options option.Op
 	return nil
 }
 
-func (s *ServerEndpoint) readLoop() {
-	defer close(s.readLoopDone)
+func (s *ServerEndpoint) readLoop(ctx context.Context) {
 	for {
-		serverPacketBuffers, err := s.server.ReadDataPackets(s.loopContext)
+		serverPacketBuffers, err := s.server.ReadDataPackets(ctx)
 		if err != nil {
-			if E.IsClosedOrCanceled(err) || s.loopContext.Err() != nil {
+			if E.IsClosedOrCanceled(err) || ctx.Err() != nil {
 				return
 			}
 			s.logger.Error(E.Cause(err, "server terminated"))
@@ -620,27 +631,6 @@ func (s *ServerEndpoint) readLoop() {
 			return
 		}
 	}
-}
-
-func (s *ServerEndpoint) Close() error {
-	s.started.Store(false)
-	s.cancelLoop()
-	var serverErr error
-	if s.server != nil {
-		serverErr = s.server.Close()
-	}
-	if s.readLoopDone != nil {
-		<-s.readLoopDone
-	}
-	var deviceErr error
-	if s.device != nil {
-		deviceErr = s.device.Close()
-	}
-	var listenerErr error
-	if s.listener != nil {
-		listenerErr = s.listener.Close()
-	}
-	return E.Errors(serverErr, deviceErr, listenerErr)
 }
 
 func (s *ServerEndpoint) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {

@@ -24,7 +24,6 @@ var _ adapter.V2RayServer = (*Server)(nil)
 type Server struct {
 	logger       log.Logger
 	listen       string
-	tcpListener  net.Listener
 	grpcServer   *grpc.Server
 	statsService *StatsService
 }
@@ -48,33 +47,27 @@ func (s *Server) Name() string {
 	return "v2ray server"
 }
 
-func (s *Server) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStatePostStart {
-		return nil
-	}
-	listener, err := net.Listen("tcp", s.listen)
-	if err != nil {
-		return err
-	}
-	s.logger.Info("grpc server started at ", listener.Addr())
-	s.tcpListener = listener
-	go func() {
-		err = s.grpcServer.Serve(listener)
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Error(err)
+func (s *Server) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	switch stage {
+	case adapter.StartStateInitialize:
+		scope.Add(func() error {
+			s.grpcServer.Stop()
+			return nil
+		})
+	case adapter.StartStatePostStart:
+		listener, err := net.Listen("tcp", s.listen)
+		if err != nil {
+			return err
 		}
-	}()
-	return nil
-}
-
-func (s *Server) Close() error {
-	if s.grpcServer != nil {
-		s.grpcServer.Stop()
+		s.logger.Info("grpc server started at ", listener.Addr())
+		go func() {
+			err = s.grpcServer.Serve(listener)
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				s.logger.Error(err)
+			}
+		}()
 	}
-	return common.Close(
-		common.PtrOrNil(s.grpcServer),
-		s.tcpListener,
-	)
+	return nil
 }
 
 func (s *Server) StatsService() adapter.ConnectionTracker {

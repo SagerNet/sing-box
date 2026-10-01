@@ -17,14 +17,12 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	dnsOutbound "github.com/sagernet/sing-box/protocol/dns"
-	tun "github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 
 	"github.com/godbus/dbus/v5"
@@ -37,18 +35,17 @@ func RegisterService(registry *boxService.Registry) {
 
 type Service struct {
 	boxService.Adapter
-	ctx                   context.Context
-	logger                log.ContextLogger
-	network               adapter.NetworkManager
-	dnsRouter             adapter.DNSRouter
-	listener              *listener.Listener
-	systemBus             *dbus.Conn
-	linkAccess            sync.RWMutex
-	links                 map[int32]*TransportLink
-	defaultRouteSequence  []int32
-	networkUpdateCallback *list.Element[tun.NetworkUpdateCallback]
-	updateCallback        func(*TransportLink) error
-	deleteCallback        func(*TransportLink)
+	ctx                  context.Context
+	logger               log.ContextLogger
+	network              adapter.NetworkManager
+	dnsRouter            adapter.DNSRouter
+	listener             *listener.Listener
+	systemBus            *dbus.Conn
+	linkAccess           sync.RWMutex
+	links                map[int32]*TransportLink
+	defaultRouteSequence []int32
+	updateCallback       func(*TransportLink) error
+	deleteCallback       func(*TransportLink)
 }
 
 type TransportLink struct {
@@ -82,7 +79,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	return inbound, nil
 }
 
-func (i *Service) Start(stage adapter.StartStage) error {
+func (i *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
 		inboundManager := service.FromContext[adapter.ServiceManager](i.ctx)
@@ -95,6 +92,7 @@ func (i *Service) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
+		scope.Add(systemBus.Close)
 		i.systemBus = systemBus
 		err = systemBus.Export((*resolve1Manager)(i), "/org/freedesktop/resolve1", "org.freedesktop.resolve1.Manager")
 		if err != nil {
@@ -104,6 +102,10 @@ func (i *Service) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
+		scope.Add(func() error {
+			_, releaseErr := systemBus.ReleaseName("org.freedesktop.resolve1")
+			return releaseErr
+		})
 		switch reply {
 		case dbus.RequestNameReplyPrimaryOwner:
 		case dbus.RequestNameReplyExists:
@@ -111,25 +113,20 @@ func (i *Service) Start(stage adapter.StartStage) error {
 		default:
 			return E.New("unknown request name reply: ", reply)
 		}
-		i.networkUpdateCallback = i.network.NetworkMonitor().RegisterCallback(i.onNetworkUpdate)
+		networkMonitor := i.network.NetworkMonitor()
+		networkUpdateCallback := networkMonitor.RegisterCallback(i.onNetworkUpdate)
+		scope.Add(func() error {
+			networkMonitor.UnregisterCallback(networkUpdateCallback)
+			return nil
+		})
 	case adapter.StartStateStart:
 		err := i.listener.Start()
 		if err != nil {
 			return err
 		}
+		scope.Add(i.listener.Close)
 	}
 	return nil
-}
-
-func (i *Service) Close() error {
-	if i.networkUpdateCallback != nil {
-		i.network.NetworkMonitor().UnregisterCallback(i.networkUpdateCallback)
-	}
-	if i.systemBus != nil {
-		i.systemBus.ReleaseName("org.freedesktop.resolve1")
-		i.systemBus.Close()
-	}
-	return i.listener.Close()
 }
 
 func (i *Service) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {

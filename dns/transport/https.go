@@ -149,16 +149,15 @@ func NewHTTPSRaw(
 	return transport
 }
 
-func (t *HTTPSTransport) Start(stage adapter.StartStage) error {
+func (t *HTTPSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	scope.Add(func() error {
+		t.Reset()
+		return nil
+	})
 	return dialer.InitializeDetour(t.dialer)
-}
-
-func (t *HTTPSTransport) Close() error {
-	t.Reset()
-	return nil
 }
 
 func (t *HTTPSTransport) Reset() {

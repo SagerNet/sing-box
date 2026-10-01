@@ -2,10 +2,12 @@ package adapter
 
 import (
 	"context"
-	"reflect"
-	"strings"
+	"slices"
+	"sync"
 	"time"
 
+	"github.com/sagernet/sing-box/common/taskmonitor"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 	F "github.com/sagernet/sing/common/format"
@@ -48,8 +50,7 @@ func (s StartStage) String() string {
 }
 
 type Lifecycle interface {
-	Start(stage StartStage) error
-	Close() error
+	Start(stage StartStage, scope *Scope) error
 }
 
 type LifecycleService interface {
@@ -57,55 +58,84 @@ type LifecycleService interface {
 	Lifecycle
 }
 
-func getServiceName(service any) string {
-	if named, ok := service.(interface {
-		Type() string
-		Tag() string
-	}); ok {
-		tag := named.Tag()
-		if tag != "" {
-			return named.Type() + "[" + tag + "]"
-		}
-		return named.Type()
-	}
-	t := reflect.TypeOf(service)
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
-	}
-	return strings.ToLower(t.Name())
+type Scope struct {
+	ctx      context.Context
+	cancel   context.CancelFunc
+	logger   log.ContextLogger
+	access   sync.Mutex
+	cleanups []func() error
+	children map[Lifecycle]*Scope
 }
 
-func Start(ctx context.Context, logger log.ContextLogger, stage StartStage, services ...Lifecycle) error {
-	for _, service := range services {
-		err := ctx.Err()
-		if err != nil {
-			return err
-		}
-		name := getServiceName(service)
-		done := LogElapsed(logger, stage, " ", name)
-		err = service.Start(stage)
-		done()
-		if err != nil {
-			return err
-		}
+func NewScope(ctx context.Context, logger log.ContextLogger) *Scope {
+	ctx, cancel := context.WithCancel(ctx)
+	return &Scope{
+		ctx:      ctx,
+		cancel:   cancel,
+		logger:   logger,
+		children: make(map[Lifecycle]*Scope),
+	}
+}
+
+func (s *Scope) Context() context.Context {
+	return s.ctx
+}
+
+func (s *Scope) Add(cleanup func() error) {
+	s.access.Lock()
+	s.cleanups = append(s.cleanups, cleanup)
+	s.access.Unlock()
+}
+
+func (s *Scope) Start(name string, component Lifecycle, stage StartStage) error {
+	s.access.Lock()
+	err := s.ctx.Err()
+	if err != nil {
+		s.access.Unlock()
+		return err
+	}
+	child, loaded := s.children[component]
+	if !loaded {
+		child = NewScope(s.ctx, s.logger)
+		s.children[component] = child
+		s.cleanups = append(s.cleanups, func() error {
+			done := LogElapsed(s.logger, "close ", name)
+			monitor := taskmonitor.New(s.logger, C.StopTimeout)
+			monitor.Start("close ", name)
+			closeErr := child.Close()
+			monitor.Finish()
+			done()
+			if closeErr != nil {
+				return E.Cause(closeErr, "close ", name)
+			}
+			return nil
+		})
+	}
+	s.access.Unlock()
+	done := LogElapsed(s.logger, stage, " ", name)
+	monitor := taskmonitor.New(s.logger, C.StartTimeout)
+	monitor.Start(stage, " ", name)
+	err = component.Start(stage, child)
+	monitor.Finish()
+	done()
+	if err != nil {
+		return E.Cause(err, stage, " ", name)
 	}
 	return nil
 }
 
-func StartNamed(ctx context.Context, logger log.ContextLogger, stage StartStage, services []LifecycleService) error {
-	for _, service := range services {
-		err := ctx.Err()
-		if err != nil {
-			return err
-		}
-		done := LogElapsed(logger, stage, " ", service.Name())
-		err = service.Start(stage)
-		done()
-		if err != nil {
-			return E.Cause(err, stage.String(), " ", service.Name())
-		}
+func (s *Scope) Close() error {
+	s.access.Lock()
+	s.cancel()
+	cleanups := s.cleanups
+	s.cleanups = nil
+	s.children = nil
+	s.access.Unlock()
+	var err error
+	for _, cleanup := range slices.Backward(cleanups) {
+		err = E.Errors(err, cleanup())
 	}
-	return nil
+	return err
 }
 
 func LogElapsed(logger log.ContextLogger, description ...any) func() {

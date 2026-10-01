@@ -57,12 +57,8 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}, nil
 }
 
-func (o *Outbound) Start(stage adapter.StartStage) error {
-	return o.backend.Start(stage)
-}
-
-func (o *Outbound) Close() error {
-	return o.backend.Close()
+func (o *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	return o.backend.Start(stage, scope)
 }
 
 func (o *Outbound) PreferredDomain(metadata *adapter.InboundContext, domain string) bool {
