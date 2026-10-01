@@ -201,17 +201,6 @@ func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		return nil
 	}
 
-	if s.usageTracker != nil {
-		scope.Add(func() error {
-			s.usageTracker.cancelPendingSave()
-			saveErr := s.usageTracker.Save()
-			if saveErr != nil {
-				s.logger.Error("save usage statistics: ", saveErr)
-			}
-			return nil
-		})
-	}
-
 	s.userManager.UpdateUsers(s.users)
 
 	credentials, err := platformReadCredentials(s.ctx, s.credentialPath)
@@ -223,7 +212,17 @@ func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if s.usageTracker != nil {
 		err = s.usageTracker.Load()
 		if err != nil {
-			s.logger.Warn("load usage statistics: ", err)
+			s.logger.Error("load usage statistics: ", err, ", usage tracking and saving disabled")
+			s.usageTracker = nil
+		} else {
+			scope.Add(func() error {
+				s.usageTracker.cancelPendingSave()
+				saveErr := s.usageTracker.Save()
+				if saveErr != nil {
+					s.logger.Error("save usage statistics: ", saveErr)
+				}
+				return nil
+			})
 		}
 	}
 
