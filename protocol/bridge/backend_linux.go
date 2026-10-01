@@ -42,10 +42,7 @@ type backendLinux struct {
 
 func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager adapter.NetworkManager, tag string, options option.BridgeOutboundOptions) (Backend, error) {
 	instance := &backendLinux{}
-	err := instance.init(ctx, logger, networkManager, tag, options)
-	if err != nil {
-		return nil, err
-	}
+	instance.init(ctx, logger, networkManager, tag, options)
 	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
 	if platformInterface != nil && platformInterface.UsePlatformBridge() {
 		instance.platform = platformInterface
@@ -56,9 +53,6 @@ func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager
 	}
 	if instance.boundInterface != "" || instance.platform != nil {
 		instance.routeTable = options.IPRoute2TableIndex
-		if instance.routeTable == 0 {
-			instance.routeTable = defaultBridgeTableIndexBase + int(instance.index)
-		}
 	}
 	return instance, nil
 }
@@ -66,10 +60,13 @@ func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager
 func (b *backendLinux) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
-		scope.Add(func() error {
-			releaseBridgeIndex(b.index)
-			return nil
-		})
+		err := b.allocateIndex(scope)
+		if err != nil {
+			return err
+		}
+		if b.routeTable == 0 && (b.boundInterface != "" || b.platform != nil) {
+			b.routeTable = defaultBridgeTableIndexBase + int(b.index)
+		}
 	case adapter.StartStateStart:
 		b.closed = scope.Context().Done()
 		if b.platform != nil {

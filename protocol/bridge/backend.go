@@ -50,21 +50,28 @@ type backendBase struct {
 	readGroup sync.WaitGroup
 }
 
-func (b *backendBase) init(ctx context.Context, logger logger.ContextLogger, networkManager adapter.NetworkManager, tag string, options option.BridgeOutboundOptions) error {
-	index, err := allocateBridgeIndex()
-	if err != nil {
-		return err
-	}
+func (b *backendBase) init(ctx context.Context, logger logger.ContextLogger, networkManager adapter.NetworkManager, tag string, options option.BridgeOutboundOptions) {
 	b.ctx = ctx
 	b.logger = logger
 	b.networkManager = networkManager
 	b.tag = tag
-	b.index = index
 	b.bridgeName = options.BridgeName
 	if b.bridgeName == "" {
 		b.bridgeName = "bridge"
 	}
 	b.boundInterface = options.Interface
+}
+
+func (b *backendBase) allocateIndex(scope *adapter.Scope) error {
+	index, err := allocateBridgeIndex()
+	if err != nil {
+		return err
+	}
+	scope.Add(func() error {
+		releaseBridgeIndex(index)
+		return nil
+	})
+	b.index = index
 	b.inet4Port = addressAt(bridgeInet4Base, index)
 	b.inet6Port = addressAt(bridgeInet6Base, index)
 	return nil

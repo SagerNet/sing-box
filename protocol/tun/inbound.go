@@ -51,6 +51,8 @@ type Inbound struct {
 	tunStack               tun.Stack
 	platformInterface      adapter.PlatformInterface
 	platformOptions        option.TunPlatformOptions
+	enableAutoRedirect     bool
+	disableNFTables        bool
 	autoRedirect           tun.AutoRedirect
 	routeRuleSet           []adapter.RuleSet
 	routeExcludeRuleSet    []adapter.RuleSet
@@ -256,22 +258,12 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		if !options.AutoRoute {
 			return nil, E.New("`auto_route` is required by `auto_redirect`")
 		}
-		disableNFTables, dErr := strconv.ParseBool(os.Getenv("DISABLE_NFTABLES"))
-		inbound.autoRedirect, err = tun.NewAutoRedirect(tun.AutoRedirectOptions{
-			TunOptions:             &inbound.tunOptions,
-			Context:                ctx,
-			Handler:                (*autoRedirectHandler)(inbound),
-			Logger:                 logger,
-			NetworkMonitor:         networkManager.NetworkMonitor(),
-			InterfaceFinder:        networkManager.InterfaceFinder(),
-			TableName:              "sing-box",
-			DisableNFTables:        dErr == nil && disableNFTables,
-			RouteAddressSet:        &inbound.routeAddressSet,
-			RouteExcludeAddressSet: &inbound.routeExcludeAddressSet,
-		})
-		if err != nil {
-			return nil, E.Cause(err, "initialize auto-redirect")
+		if !C.IsLinux {
+			return nil, E.New("`auto_redirect` is only supported on Linux")
 		}
+		disableNFTables, parseErr := strconv.ParseBool(os.Getenv("DISABLE_NFTABLES"))
+		inbound.enableAutoRedirect = true
+		inbound.disableNFTables = parseErr == nil && disableNFTables
 		if !C.IsAndroid {
 			inbound.tunOptions.AutoRedirectMarkMode = true
 			if options.NetNs == "" {
@@ -328,9 +320,6 @@ func (t *Inbound) Tag() string {
 func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
-		if t.autoRedirect != nil {
-			scope.Add(t.autoRedirect.Close)
-		}
 		if t.tunOptions.DNSModeOrDefault() != tun.DNSModeDisabled && len(t.tunOptions.DNSAddress) == 0 {
 			inet4DNSAddress, _ := t.tunOptions.Inet4DNSAddress()
 			inet6DNSAddress, _ := t.tunOptions.Inet6DNSAddress()
@@ -374,6 +363,24 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 				t.tunOptions.NetNs = manager.ResolvePath(t.tunOptions.NetNs)
 			}
 		}
+		var err error
+		if t.enableAutoRedirect {
+			t.autoRedirect, err = tun.NewAutoRedirect(tun.AutoRedirectOptions{
+				TunOptions:             &t.tunOptions,
+				Context:                t.ctx,
+				Handler:                (*autoRedirectHandler)(t),
+				Logger:                 t.logger,
+				NetworkMonitor:         t.networkManager.NetworkMonitor(),
+				InterfaceFinder:        t.networkManager.InterfaceFinder(),
+				TableName:              "sing-box",
+				DisableNFTables:        t.disableNFTables,
+				RouteAddressSet:        &t.routeAddressSet,
+				RouteExcludeAddressSet: &t.routeExcludeAddressSet,
+			})
+			if err != nil {
+				return E.Cause(err, "initialize auto-redirect")
+			}
+		}
 		if t.platformInterface == nil || C.IsWindows {
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
@@ -406,10 +413,7 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 				}
 			}
 		}
-		var (
-			tunInterface tun.Tun
-			err          error
-		)
+		var tunInterface tun.Tun
 		monitor := taskmonitor.New(t.logger, C.StartTimeout)
 		tunOptions := t.tunOptions
 		if t.autoRedirect == nil && !(runtime.GOOS == "android" && t.platformInterface != nil) {
@@ -492,8 +496,9 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			return E.Cause(err, "starting TUN interface")
 		}
 		if t.autoRedirect != nil {
+			scope.Add(t.autoRedirect.Close)
 			monitor.Start("initialize auto-redirect")
-			err := t.autoRedirect.Start()
+			err = t.autoRedirect.Start()
 			monitor.Finish()
 			if err != nil {
 				return E.Cause(err, "auto-redirect")

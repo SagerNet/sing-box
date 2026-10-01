@@ -59,12 +59,7 @@ func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager
 	instance := &backendDarwin{
 		writeBatch: make([]*buf.Buffer, 0, bridgeWriteBatchSize),
 	}
-	err := instance.init(ctx, logger, networkManager, tag, options)
-	if err != nil {
-		return nil, err
-	}
-	instance.inet4Local = addressAt(bridgeInet4LocalBase, instance.index)
-	instance.inet6Local = addressAt(bridgeInet6LocalBase, instance.index)
+	instance.init(ctx, logger, networkManager, tag, options)
 	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
 	if platformInterface != nil && platformInterface.UsePlatformBridge() {
 		instance.platform = platformInterface
@@ -75,10 +70,12 @@ func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager
 func (b *backendDarwin) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
-		scope.Add(func() error {
-			releaseBridgeIndex(b.index)
-			return nil
-		})
+		err := b.allocateIndex(scope)
+		if err != nil {
+			return err
+		}
+		b.inet4Local = addressAt(bridgeInet4LocalBase, b.index)
+		b.inet6Local = addressAt(bridgeInet6LocalBase, b.index)
 	case adapter.StartStateStart:
 		b.closed = scope.Context().Done()
 		if b.platform != nil {
