@@ -23,7 +23,6 @@ type Manager struct {
 	namespaces []option.NetworkNamespace
 	holderArgs []string
 	paths      map[string]string
-	holders    []*holder
 }
 
 type holder struct {
@@ -64,7 +63,7 @@ func (m *Manager) Name() string {
 	return "netns"
 }
 
-func (m *Manager) Start(stage adapter.StartStage) error {
+func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateInitialize {
 		return nil
 	}
@@ -80,7 +79,7 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 				return E.Cause(err, "network namespace[", namespace.Tag, "]")
 			}
 		case C.NetNsTypeUnshare:
-			err := m.startNamespace(namespace)
+			err := m.startNamespace(namespace, scope)
 			if err != nil {
 				return E.Cause(err, "network namespace[", namespace.Tag, "]")
 			}
@@ -89,7 +88,7 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 	return nil
 }
 
-func (m *Manager) startNamespace(namespace option.NetworkNamespace) error {
+func (m *Manager) startNamespace(namespace option.NetworkNamespace, scope *adapter.Scope) error {
 	if len(m.holderArgs) == 0 {
 		return E.New("unshare network namespace is only supported in `sing-box run`")
 	}
@@ -97,7 +96,13 @@ func (m *Manager) startNamespace(namespace option.NetworkNamespace) error {
 	if err != nil {
 		return err
 	}
-	m.holders = append(m.holders, created)
+	scope.Add(func() error {
+		created.pipeWriter.Close()
+		if created.pidFile != "" {
+			os.Remove(created.pidFile)
+		}
+		return nil
+	})
 	pid := created.command.Process.Pid
 	if created.pidFile != "" {
 		err = os.WriteFile(created.pidFile, []byte(strconv.Itoa(pid)+"\n"), 0o644)
@@ -112,17 +117,6 @@ func (m *Manager) startNamespace(namespace option.NetworkNamespace) error {
 	} else {
 		m.logger.Info("enter network namespace[", namespace.Tag, "] with: nsenter -U --preserve-credentials -n -t ", pid)
 	}
-	return nil
-}
-
-func (m *Manager) Close() error {
-	for _, created := range m.holders {
-		created.pipeWriter.Close()
-		if created.pidFile != "" {
-			os.Remove(created.pidFile)
-		}
-	}
-	m.holders = nil
 	return nil
 }
 

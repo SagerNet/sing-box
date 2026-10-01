@@ -42,23 +42,21 @@ var (
 
 type ClientEndpoint struct {
 	endpointBase
-	ctx               context.Context
-	loopContext       context.Context
-	cancelLoop        context.CancelFunc
-	dnsRouter         adapter.DNSRouter
-	outboundDialer    N.Dialer
-	queryOptions      adapter.DNSQueryOptions
-	client            *ovpn.Client
-	device            ovpntransport.Device
-	stateAccess       sync.Mutex
-	state             atomic.Pointer[clientState]
-	dnsTransport      *DNSTransport
-	deviceStarted     bool
-	readLoopDone      chan struct{}
-	statusAccess      sync.Mutex
-	statusUpdated     chan struct{}
-	terminalError     string
-	challengeLoopDone chan struct{}
+	ctx            context.Context
+	loopContext    context.Context
+	cancelLoop     context.CancelFunc
+	dnsRouter      adapter.DNSRouter
+	outboundDialer N.Dialer
+	queryOptions   adapter.DNSQueryOptions
+	client         *ovpn.Client
+	device         ovpntransport.Device
+	stateAccess    sync.Mutex
+	state          atomic.Pointer[clientState]
+	dnsTransport   *DNSTransport
+	deviceStarted  bool
+	statusAccess   sync.Mutex
+	statusUpdated  chan struct{}
+	terminalError  string
 }
 
 type clientState struct {
@@ -596,32 +594,57 @@ func (c *ClientEndpoint) uninstallDNSTransport(dnsTransport *DNSTransport) {
 	c.stateAccess.Unlock()
 }
 
-func (c *ClientEndpoint) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStatePostStart {
-		return nil
+func (c *ClientEndpoint) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	switch stage {
+	case adapter.StartStateInitialize:
+		scope.Add(func() error {
+			c.notifyStatusUpdated()
+			return nil
+		})
+		scope.Add(c.device.Close)
+		scope.Add(func() error {
+			c.cancelLoop()
+			return nil
+		})
+	case adapter.StartStatePostStart:
+		var loopGroup sync.WaitGroup
+		scope.Add(func() error {
+			loopGroup.Wait()
+			return nil
+		})
+		err := c.client.Start()
+		if err != nil {
+			return err
+		}
+		scope.Add(c.client.Close)
+		c.stateAccess.Lock()
+		c.updateState(func(state *clientState) {
+			state.started = true
+		})
+		c.stateAccess.Unlock()
+		scope.Add(func() error {
+			c.stateAccess.Lock()
+			c.updateState(func(state *clientState) {
+				state.started = false
+			})
+			c.stateAccess.Unlock()
+			return nil
+		})
+		loopGroup.Go(func() {
+			c.readLoop(scope.Context())
+		})
+		loopGroup.Go(func() {
+			c.watchChallenges(scope.Context())
+		})
 	}
-	err := c.client.Start()
-	if err != nil {
-		return err
-	}
-	c.stateAccess.Lock()
-	c.updateState(func(state *clientState) {
-		state.started = true
-	})
-	c.readLoopDone = make(chan struct{})
-	c.challengeLoopDone = make(chan struct{})
-	c.stateAccess.Unlock()
-	go c.readLoop()
-	go c.watchChallenges()
 	return nil
 }
 
-func (c *ClientEndpoint) readLoop() {
-	defer close(c.readLoopDone)
+func (c *ClientEndpoint) readLoop(ctx context.Context) {
 	for {
-		packetBuffers, err := c.client.ReadDataPackets(c.loopContext)
+		packetBuffers, err := c.client.ReadDataPackets(ctx)
 		if err != nil {
-			if E.IsClosedOrCanceled(err) || c.loopContext.Err() != nil {
+			if E.IsClosedOrCanceled(err) || ctx.Err() != nil {
 				return
 			}
 			c.logger.Error(E.Cause(err, "client terminated"))
@@ -637,26 +660,6 @@ func (c *ClientEndpoint) readLoop() {
 			return
 		}
 	}
-}
-
-func (c *ClientEndpoint) Close() error {
-	c.stateAccess.Lock()
-	c.updateState(func(state *clientState) {
-		state.started = false
-	})
-	readLoopDone := c.readLoopDone
-	challengeLoopDone := c.challengeLoopDone
-	c.stateAccess.Unlock()
-	c.cancelLoop()
-	err := E.Errors(c.client.Close(), c.device.Close())
-	if readLoopDone != nil {
-		<-readLoopDone
-	}
-	if challengeLoopDone != nil {
-		<-challengeLoopDone
-	}
-	c.notifyStatusUpdated()
-	return err
 }
 
 func (c *ClientEndpoint) InterfaceUpdated(ctx context.Context) {

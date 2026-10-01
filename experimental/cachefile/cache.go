@@ -140,10 +140,16 @@ func (c *CacheFile) SetDisableExpire(disableExpire bool) {
 	c.disableExpire = disableExpire
 }
 
-func (c *CacheFile) Start(stage adapter.StartStage) error {
+func (c *CacheFile) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateInitialize:
-		return c.start()
+		err := c.start()
+		if err != nil {
+			return err
+		}
+		scope.Add(func() error {
+			return c.database().Close()
+		})
 	case adapter.StartStateStart:
 		c.startCacheCleanup()
 	}
@@ -237,16 +243,6 @@ func (c *CacheFile) start() error {
 	}
 	c.DB = db
 	return nil
-}
-
-func (c *CacheFile) Close() error {
-	c.dbAccess.RLock()
-	db := c.DB
-	c.dbAccess.RUnlock()
-	if db == nil {
-		return nil
-	}
-	return db.Close()
 }
 
 func checkDatabase(db *bbolt.DB) error {

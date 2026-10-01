@@ -92,15 +92,16 @@ type Inbound struct {
 	references []string
 }
 
-func (i *Inbound) Start(stage adapter.StartStage) error {
+func (i *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	return i.service.Start()
-}
-
-func (i *Inbound) Close() error {
-	return i.service.Close()
+	err := i.service.Start()
+	if err != nil {
+		return err
+	}
+	scope.Add(i.service.Close)
+	return nil
 }
 
 type routerDialer struct {

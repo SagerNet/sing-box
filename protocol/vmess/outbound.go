@@ -148,8 +148,17 @@ func (h *Outbound) CloseIdleConnections() {
 	}
 }
 
-func (h *Outbound) Close() error {
-	return common.Close(common.PtrOrNil(h.multiplexDialer), h.transport)
+func (h *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	if stage != adapter.StartStateInitialize {
+		return nil
+	}
+	if h.transport != nil {
+		scope.Add(h.transport.Close)
+	}
+	if h.multiplexDialer != nil {
+		scope.Add(h.multiplexDialer.Close)
+	}
+	return nil
 }
 
 func (h *Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

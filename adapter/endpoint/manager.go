@@ -5,8 +5,6 @@ import (
 	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/taskmonitor"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	E "github.com/sagernet/sing/common/exceptions"
 )
@@ -14,69 +12,41 @@ import (
 var _ adapter.EndpointManager = (*Manager)(nil)
 
 type Manager struct {
-	logger        log.ContextLogger
 	registry      adapter.EndpointRegistry
 	access        sync.Mutex
-	started       bool
-	stage         adapter.StartStage
+	scope         *adapter.Scope
 	endpoints     []adapter.Endpoint
 	endpointByTag map[string]adapter.Endpoint
 }
 
-func NewManager(logger log.ContextLogger, registry adapter.EndpointRegistry) *Manager {
+func NewManager(registry adapter.EndpointRegistry) *Manager {
 	return &Manager{
-		logger:        logger,
 		registry:      registry,
 		endpointByTag: make(map[string]adapter.Endpoint),
 	}
 }
 
-func (m *Manager) Start(stage adapter.StartStage) error {
+func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	m.access.Lock()
 	defer m.access.Unlock()
-	if m.started && m.stage >= stage {
-		panic("already started")
+	if stage == adapter.StartStateInitialize {
+		m.scope = scope
 	}
-	m.started = true
-	m.stage = stage
 	if stage == adapter.StartStateStart {
-		// started with outbound manager
 		return nil
 	}
 	for _, endpoint := range m.endpoints {
 		name := "endpoint/" + endpoint.Type() + "[" + endpoint.Tag() + "]"
-		done := adapter.LogElapsed(m.logger, stage, " ", name)
-		err := endpoint.Start(stage)
-		done()
+		err := scope.Start(name, endpoint, stage)
 		if err != nil {
-			return E.Cause(err, stage, " ", name)
+			return err
 		}
 	}
 	return nil
 }
 
-func (m *Manager) Close() error {
-	m.access.Lock()
-	defer m.access.Unlock()
-	if !m.started {
-		return nil
-	}
-	m.started = false
-	endpoints := m.endpoints
-	m.endpoints = nil
-	monitor := taskmonitor.New(m.logger, C.StopTimeout)
-	var err error
-	for _, endpoint := range endpoints {
-		name := "endpoint/" + endpoint.Type() + "[" + endpoint.Tag() + "]"
-		done := adapter.LogElapsed(m.logger, "close ", name)
-		monitor.Start("close ", name)
-		err = E.Append(err, endpoint.Close(), func(err error) error {
-			return E.Cause(err, "close ", name)
-		})
-		monitor.Finish()
-		done()
-	}
-	return nil
+func (m *Manager) StartEndpoint(endpoint adapter.Endpoint) error {
+	return m.scope.Start("endpoint/"+endpoint.Type()+"["+endpoint.Tag()+"]", endpoint, adapter.StartStateStart)
 }
 
 func (m *Manager) Endpoints() []adapter.Endpoint {

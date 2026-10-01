@@ -121,7 +121,6 @@ type Service struct {
 	httpHeaders    http.Header
 	listener       *listener.Listener
 	tlsConfig      tls.ServerConfig
-	httpServer     *http.Server
 	userManager    *UserManager
 	accessMutex    sync.RWMutex
 	usageTracker   *AggregatedUsage
@@ -197,9 +196,20 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	return service, nil
 }
 
-func (s *Service) Start(stage adapter.StartStage) error {
+func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
+	}
+
+	if s.usageTracker != nil {
+		scope.Add(func() error {
+			s.usageTracker.cancelPendingSave()
+			saveErr := s.usageTracker.Save()
+			if saveErr != nil {
+				s.logger.Error("save usage statistics: ", saveErr)
+			}
+			return nil
+		})
 	}
 
 	s.userManager.UpdateUsers(s.users)
@@ -220,19 +230,21 @@ func (s *Service) Start(stage adapter.StartStage) error {
 	router := chi.NewRouter()
 	router.Mount("/", s)
 
-	s.httpServer = &http.Server{Handler: router}
+	httpServer := &http.Server{Handler: router}
 
 	if s.tlsConfig != nil {
 		err = s.tlsConfig.Start()
 		if err != nil {
 			return E.Cause(err, "create TLS config")
 		}
+		scope.Add(s.tlsConfig.Close)
 	}
 
 	tcpListener, err := s.listener.ListenTCP()
 	if err != nil {
 		return err
 	}
+	scope.Add(s.listener.Close)
 
 	if s.tlsConfig != nil {
 		if !common.Contains(s.tlsConfig.NextProtos(), http2.NextProtoTLS) {
@@ -241,8 +253,9 @@ func (s *Service) Start(stage adapter.StartStage) error {
 		tcpListener = aTLS.NewListener(tcpListener, s.tlsConfig)
 	}
 
+	scope.Add(httpServer.Close)
 	go func() {
-		serveErr := s.httpServer.Serve(tcpListener)
+		serveErr := httpServer.Serve(tcpListener)
 		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 			s.logger.Error("serve error: ", serveErr)
 		}
@@ -577,24 +590,6 @@ func (s *Service) handleResponseWithTracking(writer http.ResponseWriter, respons
 			return
 		}
 	}
-}
-
-func (s *Service) Close() error {
-	err := common.Close(
-		common.PtrOrNil(s.httpServer),
-		common.PtrOrNil(s.listener),
-		s.tlsConfig,
-	)
-
-	if s.usageTracker != nil {
-		s.usageTracker.cancelPendingSave()
-		saveErr := s.usageTracker.Save()
-		if saveErr != nil {
-			s.logger.Error("save usage statistics: ", saveErr)
-		}
-	}
-
-	return err
 }
 
 func (s *Service) References() []string {

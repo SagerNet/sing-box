@@ -77,11 +77,12 @@ func (m *ReferenceManager) Name() string {
 	return "reference manager"
 }
 
-func (m *ReferenceManager) Start(stage adapter.StartStage) error {
+func (m *ReferenceManager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStarted {
 		return nil
 	}
 	m.subscriber = observable.NewSubscriber[struct{}](1)
+	scope.Add(m.subscriber.Close)
 	history := service.PtrFromContext[urltest.HistoryStorage](m.ctx)
 	if history != nil {
 		history.AddUpdateHook(m.subscriber)
@@ -92,13 +93,6 @@ func (m *ReferenceManager) Start(stage adapter.StartStage) error {
 	}
 	m.update()
 	go m.loop()
-	return nil
-}
-
-func (m *ReferenceManager) Close() error {
-	if m.subscriber != nil {
-		m.subscriber.Close()
-	}
 	return nil
 }
 

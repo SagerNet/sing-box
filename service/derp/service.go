@@ -134,7 +134,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	}, nil
 }
 
-func (d *Service) Start(stage adapter.StartStage) error {
+func (d *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateStart:
 		config, err := readDERPConfig(d.ctx, filemanager.BasePath(d.ctx, d.configPath))
@@ -205,11 +205,13 @@ func (d *Service) Start(stage adapter.StartStage) error {
 		if err != nil {
 			return err
 		}
+		scope.Add(d.tlsConfig.Close)
 
 		tcpListener, err := d.listener.ListenTCP()
 		if err != nil {
 			return err
 		}
+		scope.Add(d.listener.Close)
 		if len(d.tlsConfig.NextProtos()) == 0 {
 			d.tlsConfig.SetNextProtos([]string{http2.NextProtoTLS, "http/1.1"})
 		} else if !common.Contains(d.tlsConfig.NextProtos(), http2.NextProtoTLS) {
@@ -333,14 +335,6 @@ func (d *Service) startMeshWithHost(derpServer *derpserver.Server, server *optio
 	notifyError := func(err error) { d.logger.Error(err) }
 	go meshClient.RunWatchConnectionLoop(context.Background(), derpServer.PublicKey(), logf, add, remove, notifyError)
 	return nil
-}
-
-func (d *Service) Close() error {
-	err := common.Close(
-		common.PtrOrNil(d.listener),
-		d.tlsConfig,
-	)
-	return err
 }
 
 var homePage = `

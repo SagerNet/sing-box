@@ -14,14 +14,9 @@ import (
 )
 
 type localServerSet struct {
-	config     *systemconfig.Config
-	transports []adapter.DNSTransport
-}
-
-func (s *localServerSet) Close() {
-	for _, serverTransport := range s.transports {
-		serverTransport.Close()
-	}
+	config      *systemconfig.Config
+	transports  []adapter.DNSTransport
+	serverScope *adapter.Scope
 }
 
 func (t *Transport) serverSetFor(systemConfig *systemconfig.Config) (*localServerSet, error) {
@@ -35,6 +30,7 @@ func (t *Transport) serverSetFor(systemConfig *systemconfig.Config) (*localServe
 	if serverSet != nil && serverSet.config == systemConfig {
 		return serverSet, nil
 	}
+	serverScope := adapter.NewScope(t.ctx, t.logger)
 	transports := make([]adapter.DNSTransport, 0, len(systemConfig.Servers))
 	for _, serverAddr := range systemConfig.Servers {
 		var serverTransport adapter.DNSTransport
@@ -43,22 +39,20 @@ func (t *Transport) serverSetFor(systemConfig *systemconfig.Config) (*localServe
 		} else {
 			serverTransport = transport.NewUDPRaw(t.logger, dns.NewTransportAdapter(C.DNSTypeUDP, "", nil), t.dialer, serverAddr)
 		}
-		err := serverTransport.Start(adapter.StartStateStart)
+		err := serverTransport.Start(adapter.StartStateStart, serverScope)
 		if err != nil {
-			for _, startedTransport := range transports {
-				startedTransport.Close()
-			}
-			return nil, E.Cause(err, "initialize transport for ", serverAddr)
+			return nil, E.Errors(E.Cause(err, "initialize transport for ", serverAddr), serverScope.Close())
 		}
 		transports = append(transports, serverTransport)
 	}
 	newServerSet := &localServerSet{
-		config:     systemConfig,
-		transports: transports,
+		config:      systemConfig,
+		transports:  transports,
+		serverScope: serverScope,
 	}
 	oldServerSet := t.serverSet.Swap(newServerSet)
 	if oldServerSet != nil {
-		oldServerSet.Close()
+		oldServerSet.serverScope.Close()
 	}
 	return newServerSet, nil
 }

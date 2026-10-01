@@ -1,6 +1,7 @@
 package openconnect
 
 import (
+	"context"
 	"net/http"
 	"slices"
 
@@ -132,8 +133,7 @@ func (e *Endpoint) setTerminalError(err error) {
 	e.statusAccess.Unlock()
 }
 
-func (e *Endpoint) watchAuthForms() {
-	defer close(e.authFormLoopDone)
+func (e *Endpoint) watchAuthForms(ctx context.Context) {
 	var loggedAuthChallengeID string
 	for {
 		authChallengeUpdated := e.client.AuthChallengeUpdated()
@@ -148,15 +148,14 @@ func (e *Endpoint) watchAuthForms() {
 		}
 		e.notifyStatusUpdated()
 		select {
-		case <-e.loopContext.Done():
+		case <-ctx.Done():
 			return
 		case <-authChallengeUpdated:
 		}
 	}
 }
 
-func (e *Endpoint) watchActiveTransport() {
-	defer close(e.activeTransportLoopDone)
+func (e *Endpoint) watchActiveTransport(ctx context.Context) {
 	for {
 		transportUpdated := e.client.ActiveTransportUpdated()
 		transport := e.client.ActiveTransport()
@@ -167,7 +166,7 @@ func (e *Endpoint) watchActiveTransport() {
 		e.stateAccess.Unlock()
 		e.notifyStatusUpdated()
 		select {
-		case <-e.loopContext.Done():
+		case <-ctx.Done():
 			return
 		case <-transportUpdated:
 		}

@@ -79,15 +79,12 @@ func NewUDPRaw(logger logger.ContextLogger, adapter dns.TransportAdapter, dialer
 	return t
 }
 
-func (t *UDPTransport) Start(stage adapter.StartStage) error {
+func (t *UDPTransport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	scope.Add(t.multiplexer.Close)
 	return dialer.InitializeDetour(t.dialer)
-}
-
-func (t *UDPTransport) Close() error {
-	return t.multiplexer.Close()
 }
 
 func (t *UDPTransport) Reset() {

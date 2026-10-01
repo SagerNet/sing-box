@@ -42,15 +42,16 @@ func NewRedirect(ctx context.Context, router adapter.Router, logger log.ContextL
 	return redirect, nil
 }
 
-func (h *Redirect) Start(stage adapter.StartStage) error {
+func (h *Redirect) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	return h.listener.Start()
-}
-
-func (h *Redirect) Close() error {
-	return h.listener.Close()
+	err := h.listener.Start()
+	if err != nil {
+		return err
+	}
+	scope.Add(h.listener.Close)
+	return nil
 }
 
 func (h *Redirect) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {

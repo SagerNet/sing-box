@@ -43,7 +43,7 @@ func (m *Manager) Name() string {
 	return "clash mode manager"
 }
 
-func (m *Manager) Start(stage adapter.StartStage) error {
+func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
@@ -56,10 +56,6 @@ func (m *Manager) Start(stage adapter.StartStage) error {
 			m.mode = mode
 		}
 	}
-	return nil
-}
-
-func (m *Manager) Close() error {
 	return nil
 }
 

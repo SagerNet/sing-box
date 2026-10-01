@@ -35,7 +35,6 @@ const (
 
 type dashboard struct {
 	ctx            context.Context
-	cancel         context.CancelFunc
 	logger         log.ContextLogger
 	options        option.APIDashboardOptions
 	path           string
@@ -48,7 +47,6 @@ type dashboard struct {
 }
 
 func newDashboard(ctx context.Context, logger log.ContextLogger, options option.APIDashboardOptions) *dashboard {
-	ctx, cancel := context.WithCancel(ctx)
 	path := options.Path
 	if path == "" {
 		path = "dashboard"
@@ -64,7 +62,6 @@ func newDashboard(ctx context.Context, logger log.ContextLogger, options option.
 	}
 	return &dashboard{
 		ctx:            ctx,
-		cancel:         cancel,
 		logger:         logger,
 		options:        options,
 		path:           path,
@@ -74,7 +71,7 @@ func newDashboard(ctx context.Context, logger log.ContextLogger, options option.
 	}
 }
 
-func (d *dashboard) start() error {
+func (d *dashboard) start(ctx context.Context) error {
 	_, err := filemanager.ReadDir(d.ctx, d.path)
 	if err != nil && !os.IsNotExist(err) {
 		return E.Cause(err, "read dashboard directory")
@@ -90,12 +87,11 @@ func (d *dashboard) start() error {
 		return E.Cause(err, "create dashboard http client")
 	}
 	d.httpClient = &http.Client{Transport: transport}
-	go d.loopUpdate(status)
+	go d.loopUpdate(ctx, status)
 	return nil
 }
 
 func (d *dashboard) close() error {
-	d.cancel()
 	if d.httpClient != nil {
 		d.httpClient.CloseIdleConnections()
 	}
@@ -110,7 +106,7 @@ func (d *dashboard) serveHTTP(writer http.ResponseWriter, request *http.Request)
 	http.Redirect(writer, request, dashboardRoutePrefix, http.StatusFound)
 }
 
-func (d *dashboard) loopUpdate(status dashboardStatus) {
+func (d *dashboard) loopUpdate(ctx context.Context, status dashboardStatus) {
 	var nextUpdate time.Time
 	if status == dashboardManaged {
 		nextUpdate = d.lastUpdated.Add(d.updateInterval)
@@ -119,13 +115,13 @@ func (d *dashboard) loopUpdate(status dashboardStatus) {
 	defer timer.Stop()
 	for {
 		select {
-		case <-d.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-timer.C:
 		}
 		now := time.Now()
 		if !now.Before(nextUpdate) {
-			err := d.fetch(d.ctx)
+			err := d.fetch(ctx)
 			if err != nil {
 				d.logger.Error(E.Cause(err, "update dashboard"))
 				nextUpdate = now.Add(d.updateInterval)

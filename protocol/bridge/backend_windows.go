@@ -140,20 +140,21 @@ func newBackend(ctx context.Context, logger logger.ContextLogger, networkManager
 	return instance, nil
 }
 
-func (b *backendWindows) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
-		return nil
-	}
-	err := b.start()
-	if err != nil {
-		b.Close()
-		return err
+func (b *backendWindows) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	switch stage {
+	case adapter.StartStateInitialize:
+		scope.Add(func() error {
+			releaseBridgeIndex(b.index)
+			return nil
+		})
+	case adapter.StartStateStart:
+		return b.start(scope)
 	}
 	return nil
 }
 
-func (b *backendWindows) start() error {
-	b.closed = make(chan struct{})
+func (b *backendWindows) start(scope *adapter.Scope) error {
+	b.closed = scope.Context().Done()
 
 	state := b.currentEgressState()
 	b.egress.Store(state)
@@ -162,11 +163,16 @@ func (b *backendWindows) start() error {
 	if err != nil {
 		return err
 	}
+	scope.Add(func() error {
+		b.reservation.Close()
+		return nil
+	})
 
 	injectHandle, err := windivert.Open(nil, windivert.LayerNetwork, windivert.PriorityHighest, windivert.FlagSendOnly)
 	if err != nil {
 		return E.Cause(err, "bridge: open injection handle (Administrator required)")
 	}
+	scope.Add(injectHandle.Close)
 	b.injectHandle = injectHandle
 	b.sendBuffer = make([]byte, 0, bridgeBatchBufferSize)
 	b.sendAddrs = make([]windivert.Address, 0, windivert.BatchMax)
@@ -177,8 +183,14 @@ func (b *backendWindows) start() error {
 	if err != nil {
 		return err
 	}
+	scope.Add(func() error {
+		b.egressAccess.Lock()
+		b.closeDivertersLocked()
+		b.egressAccess.Unlock()
+		return nil
+	})
 
-	b.registerMonitors(b.syncEgress)
+	b.registerMonitors(scope, b.syncEgress)
 	b.syncEgress()
 	state = b.egress.Load()
 	if !state.inet4.IsValid() && !state.inet6.IsValid() {
@@ -797,27 +809,6 @@ func sortSegments(segments []localSegment) {
 		}
 		return a.address.Compare(b.address)
 	})
-}
-
-func (b *backendWindows) Close() error {
-	b.closeOnce.Do(func() {
-		if b.closed != nil {
-			close(b.closed)
-		}
-		if b.unregister != nil {
-			b.unregister()
-		}
-		b.egressAccess.Lock()
-		b.closeDivertersLocked()
-		b.egressAccess.Unlock()
-		if b.injectHandle != nil {
-			b.injectHandle.Close()
-		}
-		b.reservation.Close()
-		b.reservation = nil
-		releaseBridgeIndex(b.index)
-	})
-	return nil
 }
 
 type transportInfo struct {

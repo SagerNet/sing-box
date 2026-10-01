@@ -79,15 +79,12 @@ func NewQUIC(ctx context.Context, logger log.ContextLogger, tag string, options 
 	}, nil
 }
 
-func (t *Transport) Start(stage adapter.StartStage) error {
+func (t *Transport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
+	scope.Add(t.connection.Close)
 	return dialer.InitializeDetour(t.dialer)
-}
-
-func (t *Transport) Close() error {
-	return t.connection.Close()
 }
 
 func (t *Transport) Reset() {

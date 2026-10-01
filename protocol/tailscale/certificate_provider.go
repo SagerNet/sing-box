@@ -63,7 +63,7 @@ func NewCertificateProvider(ctx context.Context, _ log.ContextLogger, tag string
 	}, nil
 }
 
-func (p *CertificateProvider) Start(stage adapter.StartStage) error {
+func (p *CertificateProvider) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
@@ -79,10 +79,6 @@ func (p *CertificateProvider) Start(stage adapter.StartStage) error {
 		return p.dialer.DialContext(ctx, network, M.ParseSocksaddr(addr))
 	}
 	p.localClient = localClient
-	return nil
-}
-
-func (p *CertificateProvider) Close() error {
 	return nil
 }
 

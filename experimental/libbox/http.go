@@ -18,8 +18,10 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/certificate"
 	C "github.com/sagernet/sing-box/constant"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
@@ -69,10 +71,10 @@ var (
 )
 
 type httpClient struct {
-	tls       tls.Config
-	client    http.Client
-	transport http.Transport
-	store     *certificate.Store
+	tls        tls.Config
+	client     http.Client
+	transport  http.Transport
+	storeScope *adapter.Scope
 }
 
 func NewHTTPClient() HTTPClient {
@@ -84,6 +86,11 @@ func NewHTTPClient() HTTPClient {
 	client.transport.DisableKeepAlives = true
 	if C.IsAndroid {
 		store, err := certificate.NewStore(context.Background(), logger.NOP(), option.CertificateOptions{})
+		if err != nil {
+			panic(E.Cause(err, "initialize certificate store"))
+		}
+		client.storeScope = adapter.NewScope(context.Background(), log.NewNOPFactory().Logger())
+		err = store.Start(adapter.StartStateInitialize, client.storeScope)
 		if err != nil {
 			panic(E.Cause(err, "initialize certificate store"))
 		}
@@ -161,8 +168,8 @@ func (c *httpClient) NewRequest() HTTPRequest {
 }
 
 func (c *httpClient) Close() {
-	if c.store != nil {
-		c.store.Close()
+	if c.storeScope != nil {
+		c.storeScope.Close()
 	}
 	c.transport.CloseIdleConnections()
 }

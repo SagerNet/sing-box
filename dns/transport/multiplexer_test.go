@@ -9,9 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
 	C "github.com/sagernet/sing-box/constant"
 	boxDNS "github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	M "github.com/sagernet/sing/common/metadata"
 
@@ -114,7 +116,16 @@ func newTestTCPTransport(t *testing.T, listener net.Listener) *TCPTransport {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewTCPRaw(boxDNS.NewTransportAdapter(C.DNSTypeTCP, "test", nil), transportDialer, M.SocksaddrFromNet(listener.Addr()))
+	transport := NewTCPRaw(boxDNS.NewTransportAdapter(C.DNSTypeTCP, "test", nil), transportDialer, M.SocksaddrFromNet(listener.Addr()))
+	scope := adapter.NewScope(context.Background(), log.NewNOPFactory().Logger())
+	err = transport.Start(adapter.StartStateStart, scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		scope.Close()
+	})
+	return transport
 }
 
 func testExchange(transport *TCPTransport, questionName string) error {
@@ -155,7 +166,6 @@ func TestTCPTransportSingleQueryServer(t *testing.T) {
 	}()
 
 	transport := newTestTCPTransport(t, listener)
-	defer transport.Close()
 
 	const queryCount = 8
 	results := make(chan error, queryCount)
@@ -221,7 +231,6 @@ func TestTCPTransportProbeEnablesReuse(t *testing.T) {
 	}()
 
 	transport := newTestTCPTransport(t, listener)
-	defer transport.Close()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for maxServedOnConn.Load() < 3 {
@@ -284,7 +293,6 @@ func TestTCPTransportDemotesBrokenReuse(t *testing.T) {
 	}()
 
 	transport := newTestTCPTransport(t, listener)
-	defer transport.Close()
 
 	deadline := time.Now().Add(3 * time.Second)
 	for {
@@ -364,7 +372,6 @@ func TestTCPTransportSilentPipelineServer(t *testing.T) {
 	}()
 
 	transport := newTestTCPTransport(t, listener)
-	defer transport.Close()
 
 	const queryCount = 5
 	results := make(chan error, queryCount)

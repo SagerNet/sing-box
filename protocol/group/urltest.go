@@ -71,7 +71,7 @@ func NewURLTest(ctx context.Context, router adapter.Router, logger log.ContextLo
 	return outbound, nil
 }
 
-func (s *URLTest) Start(stage adapter.StartStage) error {
+func (s *URLTest) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	switch stage {
 	case adapter.StartStateStart:
 		outbounds := make([]adapter.Outbound, 0, len(s.tags))
@@ -89,14 +89,9 @@ func (s *URLTest) Start(stage adapter.StartStage) error {
 		s.group = group
 	case adapter.StartStateStarted:
 		s.group.PostStart()
+		scope.Add(s.group.Close)
 	}
 	return nil
-}
-
-func (s *URLTest) Close() error {
-	return common.Close(
-		common.PtrOrNil(s.group),
-	)
 }
 
 func (s *URLTest) Now() string {

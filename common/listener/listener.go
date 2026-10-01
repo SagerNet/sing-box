@@ -89,7 +89,7 @@ func (l *Listener) Start() error {
 	if common.Contains(l.network, N.NetworkUDP) {
 		_, err := l.ListenUDP()
 		if err != nil {
-			return err
+			return E.Errors(err, l.Close())
 		}
 		l.packetOutboundClosed = make(chan struct{})
 		l.packetOutbound = make(chan *N.PacketBuffer, 64)
@@ -109,11 +109,11 @@ func (l *Listener) Start() error {
 		}
 		systemProxy, err := settings.NewSystemProxy(l.ctx, M.ParseSocksaddrHostPort(listenAddrString, listenPort), l.systemProxySOCKS, nil)
 		if err != nil {
-			return E.Cause(err, "initialize system proxy")
+			return E.Errors(E.Cause(err, "initialize system proxy"), l.Close())
 		}
 		err = systemProxy.Enable()
 		if err != nil {
-			return E.Errors(E.Cause(err, "set system proxy"), systemProxy.Close())
+			return E.Errors(E.Cause(err, "set system proxy"), systemProxy.Close(), l.Close())
 		}
 		l.systemProxy = systemProxy
 	}

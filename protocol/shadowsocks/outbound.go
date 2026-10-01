@@ -152,8 +152,14 @@ func (h *Outbound) CloseIdleConnections() {
 	}
 }
 
-func (h *Outbound) Close() error {
-	return common.Close(common.PtrOrNil(h.multiplexDialer))
+func (h *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	if stage != adapter.StartStateInitialize {
+		return nil
+	}
+	if h.multiplexDialer != nil {
+		scope.Add(h.multiplexDialer.Close)
+	}
+	return nil
 }
 
 var _ N.Dialer = (*shadowsocksDialer)(nil)

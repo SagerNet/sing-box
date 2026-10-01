@@ -83,15 +83,16 @@ func NewServerService(ctx context.Context, logger log.ContextLogger, tag string,
 	}
 }
 
-func (s *ServerService) Start(stage adapter.StartStage) error {
+func (s *ServerService) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	return s.inner.Start()
-}
-
-func (s *ServerService) Close() error {
-	return s.inner.Close()
+	err := s.inner.Start()
+	if err != nil {
+		return err
+	}
+	scope.Add(s.inner.Close)
+	return nil
 }
 
 func (s *dynamicServerService) AddDevice(info usbip.ProvidedDeviceInfo, transport usbip.DeviceTransport) (string, error) {

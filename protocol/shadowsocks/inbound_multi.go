@@ -109,15 +109,16 @@ func newMultiInbound(ctx context.Context, router adapter.Router, logger log.Cont
 	return inbound, err
 }
 
-func (h *MultiInbound) Start(stage adapter.StartStage) error {
+func (h *MultiInbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	if stage != adapter.StartStateStart {
 		return nil
 	}
-	return h.listener.Start()
-}
-
-func (h *MultiInbound) Close() error {
-	return h.listener.Close()
+	err := h.listener.Start()
+	if err != nil {
+		return err
+	}
+	scope.Add(h.listener.Close)
+	return nil
 }
 
 func (h *MultiInbound) SetTracker(tracker adapter.SSMTracker) {

@@ -129,10 +129,19 @@ func (r *Router) Initialize(rules []option.DNSRule) error {
 	return nil
 }
 
-func (r *Router) Start(stage adapter.StartStage) error {
+func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	monitor := taskmonitor.New(r.logger, C.StartTimeout)
 	switch stage {
 	case adapter.StartStateStart:
+		scope.Add(func() error {
+			r.rulesAccess.Lock()
+			r.closing = true
+			runtimeRules := r.rules
+			r.rules = nil
+			r.rulesAccess.Unlock()
+			closeRules(runtimeRules)
+			return nil
+		})
 		monitor.Start("initialize DNS client")
 		r.client.Start()
 		monitor.Finish()
@@ -160,20 +169,6 @@ func (r *Router) Start(stage adapter.StartStage) error {
 			deprecated.Report(r.ctx, deprecated.OptionLegacyDNSRuleStrategy)
 		}
 	}
-	return nil
-}
-
-func (r *Router) Close() error {
-	r.rulesAccess.Lock()
-	if r.closing {
-		r.rulesAccess.Unlock()
-		return nil
-	}
-	r.closing = true
-	runtimeRules := r.rules
-	r.rules = nil
-	r.rulesAccess.Unlock()
-	closeRules(runtimeRules)
 	return nil
 }
 
