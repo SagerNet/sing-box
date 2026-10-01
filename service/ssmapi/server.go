@@ -97,18 +97,19 @@ func (s *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	}
 	err := s.loadCache()
 	if err != nil {
-		s.logger.Error(E.Cause(err, "load cache"))
+		s.logger.Error("load cache: ", err, ", saving disabled")
+	} else {
+		saveTicker := time.NewTicker(1 * time.Minute)
+		scope.Add(func() error {
+			saveTicker.Stop()
+			saveErr := s.saveCache()
+			if saveErr != nil {
+				s.logger.Error(E.Cause(saveErr, "save cache"))
+			}
+			return nil
+		})
+		go s.loopSaveCache(scope.Context(), saveTicker)
 	}
-	saveTicker := time.NewTicker(1 * time.Minute)
-	scope.Add(func() error {
-		saveTicker.Stop()
-		saveErr := s.saveCache()
-		if saveErr != nil {
-			s.logger.Error(E.Cause(saveErr, "save cache"))
-		}
-		return nil
-	})
-	go s.loopSaveCache(scope.Context(), saveTicker)
 	if s.tlsConfig != nil {
 		err = s.tlsConfig.Start()
 		if err != nil {
