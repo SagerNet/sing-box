@@ -18,6 +18,10 @@ func (e *Endpoint) PortMTU() uint32 {
 	return e.options.MTU
 }
 
+func (e *Endpoint) UpstreamPort() any {
+	return e.tunDevice
+}
+
 func (e *Endpoint) WritePackets(packets [][]byte) error {
 	wgDevice := e.device.Load()
 	if wgDevice == nil {
