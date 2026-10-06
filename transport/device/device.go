@@ -27,6 +27,7 @@ type Device interface {
 	PortMTU() uint32
 	AttachReturn(returnPath tun.Return) error
 	DetachReturn(returnPath tun.Return) error
+	UpstreamPort() any
 	FrontHeadroom() int
 	NewOutboundQueue(handler func(packetBuffers []*buf.Buffer)) *tun.OutboundQueue
 	Close() error

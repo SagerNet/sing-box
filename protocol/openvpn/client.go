@@ -739,6 +739,10 @@ func (c *ClientEndpoint) PortMTU() uint32 {
 	return c.device.PortMTU()
 }
 
+func (c *ClientEndpoint) UpstreamPort() any {
+	return c.device
+}
+
 func (c *ClientEndpoint) AttachReturn(returnPath tun.Return) error {
 	return c.device.AttachReturn(returnPath)
 }

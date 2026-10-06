@@ -36,6 +36,13 @@ func (t *Endpoint) PortMTU() uint32 {
 	return uint32(tsTUN.DefaultTUNMTU())
 }
 
+func (t *Endpoint) UpstreamPort() any {
+	if !t.started.Load() {
+		return nil
+	}
+	return t.stack
+}
+
 func (t *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
 	inet4Address, inet6Address := t.PortAddresses()
 	if destination.Addr() == inet4Address || destination.Addr() == inet6Address {
