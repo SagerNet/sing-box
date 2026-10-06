@@ -10,6 +10,7 @@ import (
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/kernelports"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/gtcpip/header"
@@ -29,6 +30,7 @@ type systemDevice struct {
 	options      Options
 	dialer       N.Dialer
 	device       tun.Tun
+	ports        *kernelports.Pool
 	inet4Address netip.Addr
 	inet6Address netip.Addr
 	closed       bool
@@ -58,7 +60,16 @@ func newSystemDevice(options Options) (*systemDevice, error) {
 func (d *systemDevice) Start() error {
 	d.stateAccess.Lock()
 	defer d.stateAccess.Unlock()
-	return d.startLocked()
+	err := d.startLocked()
+	if err != nil {
+		return err
+	}
+	ports, err := kernelports.New()
+	if err != nil {
+		d.options.Logger.Warn(E.Cause(err, "reserve selector ports"))
+	}
+	d.ports = ports
+	return nil
 }
 
 func (d *systemDevice) startLocked() error {
@@ -365,15 +376,28 @@ func (d *systemDevice) PortMTU() uint32 {
 	return d.options.MTU
 }
 
+func (d *systemDevice) UpstreamPort() any {
+	d.stateAccess.RLock()
+	defer d.stateAccess.RUnlock()
+	if d.ports == nil {
+		return nil
+	}
+	return d.ports
+}
+
 func (d *systemDevice) Close() error {
 	d.stateAccess.Lock()
 	defer d.stateAccess.Unlock()
 	d.closed = true
-	if d.device == nil {
-		return nil
+	var err error
+	if d.device != nil {
+		err = d.device.Close()
+		d.device = nil
 	}
-	err := d.device.Close()
-	d.device = nil
+	if d.ports != nil {
+		err = E.Errors(err, d.ports.Close())
+		d.ports = nil
+	}
 	return err
 }
 

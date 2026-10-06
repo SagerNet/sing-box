@@ -202,6 +202,10 @@ func (w *Endpoint) PortMTU() uint32 {
 	return w.endpoint.PortMTU()
 }
 
+func (w *Endpoint) UpstreamPort() any {
+	return w.endpoint
+}
+
 func (w *Endpoint) AttachReturn(returnPath tun.Return) error {
 	return w.endpoint.AttachReturn(returnPath)
 }
