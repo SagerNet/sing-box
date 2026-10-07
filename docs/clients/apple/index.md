@@ -24,9 +24,11 @@ or sending us your Apple ID [via email](mailto:contact@sagernet.org).
 
 ## :material-cellphone-arrow-down: Download (iOS jailbreak version)
 
-* [GitHub Releases](https://github.com/SagerNet/sing-box/releases) (`SFI-iphoneos-arm64.deb`)
+* [GitHub Releases](https://github.com/SagerNet/sing-box/releases)
+    * `SFI-iphoneos-arm64.deb`: rootless
+    * `SFI-iphoneos-arm64e.deb`: roothide
 
-The jailbroken version of SFI: requires rootless iOS 15.0+
+The jailbroken version of SFI: requires rootless or roothide iOS 15.0+
 
 Additional features:
 

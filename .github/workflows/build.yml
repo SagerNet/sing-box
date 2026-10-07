@@ -1596,6 +1596,7 @@ jobs:
           make -C clients/apple build_ios_deb
           mkdir -p dist
           cp "clients/apple/build/jailbreak/SFI-${VERSION}-iphoneos-arm64.deb" dist
+          cp "clients/apple/build/jailbreak/SFI-${VERSION}-iphoneos-arm64e.deb" dist
         env:
           XCODEBUILD_CLONED_SOURCE_PACKAGES_DIR_PATH: ${{ runner.temp }}/SourcePackages
       - name: Report cache directory sizes

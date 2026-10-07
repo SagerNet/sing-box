@@ -125,6 +125,7 @@ build_ios_deb:
 
 upload_ios_deb:
 	ghr --replace --draft --prerelease "v${VERSION}" ../sing-box-for-apple/build/jailbreak/"SFI-${VERSION}-iphoneos-arm64.deb"
+	ghr --replace --draft --prerelease "v${VERSION}" ../sing-box-for-apple/build/jailbreak/"SFI-${VERSION}-iphoneos-arm64e.deb"
 
 release_ios: build_ios upload_ios_app_store
 
