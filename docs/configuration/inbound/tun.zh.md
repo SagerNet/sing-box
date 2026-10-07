@@ -259,7 +259,9 @@ TUN 接口上 DNS 的处理方式。
 |------------|-------------------------------------------------------------------------------------------------------|
 | `disabled` | 不设置原生 DNS，也不劫持 DNS 流量。                                                                    |
 | `native`   | 尽可能设置平台的原生接口 DNS：Windows 与 Apple 上的接口 DNS，Linux 上的 `systemd-resolved` 接口 DNS。   |
-| `hijack`   | 与 `native` 相同，并额外执行下文所述的 53 端口劫持。默认使用。                                         |
+| `hijack`   | 与 `native` 相同，并额外执行下文所述的 53 端口劫持。                                                  |
+
+启用 [`auto_route`](#auto_route) 时默认使用 `hijack`，否则默认使用 `disabled`。
 
 `hijack` 在 `native` 之上额外执行：
 

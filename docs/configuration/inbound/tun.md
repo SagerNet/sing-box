@@ -255,7 +255,9 @@ How DNS is handled on the TUN interface.
 |------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `disabled` | Do not configure native DNS and do not hijack DNS traffic.                                                                                                 |
 | `native`   | Set the platform's native interface DNS where possible: per-interface DNS on Windows and Apple platforms, and `systemd-resolved` interface DNS on Linux.   |
-| `hijack`   | Same as `native`, with additional port 53 hijacking described below. Used by default.                                                                      |
+| `hijack`   | Same as `native`, with additional port 53 hijacking described below.                                                                                       |
+
+`hijack` is used by default when [`auto_route`](#auto_route) is enabled, otherwise `disabled` is used by default.
 
 `hijack` adds the following on top of `native`:
 
