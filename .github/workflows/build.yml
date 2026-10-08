@@ -525,7 +525,7 @@ jobs:
           if [[ "${{ matrix.legacy_osx }}" != "true" ]]; then
             TAGS=$(cat release/DEFAULT_BUILD_TAGS)
           else
-            TAGS=$(cat release/DEFAULT_BUILD_TAGS_OTHERS)
+            TAGS=$(sed 's/,with_usbip//' release/DEFAULT_BUILD_TAGS_OTHERS)
           fi
           echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
       - name: Set shared ldflags
