@@ -48,9 +48,10 @@ type DBusResolvedResolver struct {
 }
 
 type resolvedServerSet struct {
-	scopes      []*resolvedScope
-	signature   []string
-	serverScope *adapter.Scope
+	specifications []resolvedScopeSpecification
+	scopes         []*resolvedScope
+	signature      []string
+	serverScope    *adapter.Scope
 }
 
 // Match levels of dns_scope_good_domain() in systemd-resolved: a routing or search
@@ -412,15 +413,17 @@ func (t *DBusResolvedResolver) updateStatus(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	serverSet, err := t.checkResolved(ctx)
-	if t.closed || ctx.Err() != nil {
-		if serverSet != nil {
-			_ = serverSet.serverScope.Close()
-		}
-		if t.closed {
-			return os.ErrClosed
-		}
+	scopeSpecifications, err := t.checkResolved(ctx)
+	if ctx.Err() != nil {
 		return ctx.Err()
+	}
+	var serverSet *resolvedServerSet
+	if err == nil {
+		currentServerSet := t.savedServerSet.Load()
+		if currentServerSet != nil && slices.EqualFunc(currentServerSet.specifications, scopeSpecifications, resolvedScopeSpecification.equal) {
+			return nil
+		}
+		serverSet, err = t.createResolvedServerSet(scopeSpecifications)
 	}
 	oldServerSet := t.savedServerSet.Swap(serverSet)
 	if oldServerSet != nil {
@@ -441,7 +444,7 @@ func (t *DBusResolvedResolver) updateStatus(ctx context.Context) error {
 	return nil
 }
 
-func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServerSet, error) {
+func (t *DBusResolvedResolver) checkResolved(ctx context.Context) ([]resolvedScopeSpecification, error) {
 	managerObject := t.systemBus.Object("org.freedesktop.resolve1", "/org/freedesktop/resolve1")
 	err := managerObject.CallWithContext(ctx, "org.freedesktop.DBus.Peer.Ping", dbus.FlagNoAutoStart).Err
 	if err != nil {
@@ -537,8 +540,22 @@ func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServ
 	if len(scopeSpecifications) == 0 {
 		return nil, E.New("no DNS servers configured")
 	}
+	return scopeSpecifications, nil
+}
+
+func (s resolvedScopeSpecification) equal(other resolvedScopeSpecification) bool {
+	return s.interfaceName == other.interfaceName &&
+		s.dnsOverTLSMode == other.dnsOverTLSMode &&
+		slices.Equal(s.domains, other.domains) &&
+		s.defaultRoute == other.defaultRoute &&
+		s.fallback == other.fallback &&
+		slices.Equal(s.servers, other.servers)
+}
+
+func (t *DBusResolvedResolver) createResolvedServerSet(scopeSpecifications []resolvedScopeSpecification) (*resolvedServerSet, error) {
 	serverSet := &resolvedServerSet{
-		serverScope: adapter.NewScope(t.ctx, t.logger),
+		specifications: scopeSpecifications,
+		serverScope:    adapter.NewScope(t.ctx, t.logger),
 	}
 	for _, scopeSpecification := range scopeSpecifications {
 		scope, createErr := t.createResolvedScope(serverSet.serverScope, scopeSpecification)
