@@ -20,16 +20,17 @@ var defaultServers = []M.Socksaddr{
 }
 
 type Config struct {
-	Servers       []M.Socksaddr
-	Search        []string
-	Ndots         int
-	Timeout       time.Duration
-	Attempts      int
-	Rotate        bool
-	soffset       uint32
-	SingleRequest bool
-	UseTCP        bool
-	TrustAD       bool
+	Servers         []M.Socksaddr
+	Search          []string
+	Ndots           int
+	Timeout         time.Duration
+	Attempts        int
+	Rotate          bool
+	soffset         uint32
+	SingleRequest   bool
+	UseTCP          bool
+	TrustAD         bool
+	SystemdResolved bool
 }
 
 func (c *Config) Equal(other *Config) bool {
@@ -41,7 +42,8 @@ func (c *Config) Equal(other *Config) bool {
 		c.Rotate == other.Rotate &&
 		c.SingleRequest == other.SingleRequest &&
 		c.UseTCP == other.UseTCP &&
-		c.TrustAD == other.TrustAD
+		c.TrustAD == other.TrustAD &&
+		c.SystemdResolved == other.SystemdResolved
 }
 
 func (c *Config) Signature() []string {

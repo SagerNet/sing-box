@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +19,15 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-const resolvConfPath = "/etc/resolv.conf"
+const (
+	resolvConfPath           = "/etc/resolv.conf"
+	resolvedUplinkConfigPath = "/run/systemd/resolve/resolv.conf"
+)
+
+var resolvedListenAddresses = []netip.Addr{
+	netip.AddrFrom4([4]byte{127, 0, 0, 53}),
+	netip.AddrFrom4([4]byte{127, 0, 0, 54}),
+}
 
 type Source struct {
 	updateAccess sync.Mutex
@@ -172,5 +181,9 @@ func readResolvConfig(path string) *resolvConfig {
 	if len(config.Search) == 0 {
 		config.Search = defaultSearch()
 	}
+	uplinkFileInfo, err := os.Stat(resolvedUplinkConfigPath)
+	config.SystemdResolved = err == nil && os.SameFile(fileInfo, uplinkFileInfo) || slices.ContainsFunc(config.Servers, func(server M.Socksaddr) bool {
+		return slices.Contains(resolvedListenAddresses, server.Addr)
+	})
 	return result
 }

@@ -1,13 +1,11 @@
 package local
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"net/netip"
 	"os"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,25 +30,6 @@ import (
 	"github.com/godbus/dbus/v5"
 	mDNS "github.com/miekg/dns"
 )
-
-func isSystemdResolvedManaged() bool {
-	resolvContent, err := os.Open("/etc/resolv.conf")
-	if err != nil {
-		return false
-	}
-	defer resolvContent.Close()
-	scanner := bufio.NewScanner(resolvContent)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || line[0] != '#' {
-			return false
-		}
-		if strings.Contains(line, "systemd-resolved") {
-			return true
-		}
-	}
-	return false
-}
 
 type DBusResolvedResolver struct {
 	ctx               context.Context
@@ -457,14 +436,14 @@ func (t *DBusResolvedResolver) updateStatus(ctx context.Context) error {
 		}
 		return err
 	} else if oldServerSet == nil {
-		t.logger.Debug("using systemd-resolved service as resolver")
+		t.logger.Debug("systemd-resolved service is available")
 	}
 	return nil
 }
 
 func (t *DBusResolvedResolver) checkResolved(ctx context.Context) (*resolvedServerSet, error) {
 	managerObject := t.systemBus.Object("org.freedesktop.resolve1", "/org/freedesktop/resolve1")
-	err := managerObject.CallWithContext(ctx, "org.freedesktop.DBus.Peer.Ping", 0).Err
+	err := managerObject.CallWithContext(ctx, "org.freedesktop.DBus.Peer.Ping", dbus.FlagNoAutoStart).Err
 	if err != nil {
 		return nil, err
 	}
@@ -581,7 +560,7 @@ func (t *DBusResolvedResolver) loadResolvedLinkScope(ctx context.Context, manage
 		return resolvedScopeSpecification{}, false, nil
 	}
 	var linkPath dbus.ObjectPath
-	err = managerObject.CallWithContext(ctx, "org.freedesktop.resolve1.Manager.GetLink", 0, interfaceIndex).Store(&linkPath)
+	err = managerObject.CallWithContext(ctx, "org.freedesktop.resolve1.Manager.GetLink", dbus.FlagNoAutoStart, interfaceIndex).Store(&linkPath)
 	if err != nil {
 		return resolvedScopeSpecification{}, false, err
 	}
@@ -729,7 +708,7 @@ func resolvedServerPort(port uint16, useTLS bool) uint16 {
 
 func loadResolvedProperties(ctx context.Context, object dbus.BusObject, interfaceName string) (map[string]dbus.Variant, error) {
 	var properties map[string]dbus.Variant
-	err := object.CallWithContext(ctx, "org.freedesktop.DBus.Properties.GetAll", 0, interfaceName).Store(&properties)
+	err := object.CallWithContext(ctx, "org.freedesktop.DBus.Properties.GetAll", dbus.FlagNoAutoStart, interfaceName).Store(&properties)
 	if err != nil {
 		return nil, E.Cause(err, "load ", interfaceName, " properties")
 	}

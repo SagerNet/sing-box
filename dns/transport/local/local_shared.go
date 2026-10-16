@@ -57,8 +57,7 @@ func (t *Transport) serverSetFor(systemConfig *systemconfig.Config) (*localServe
 	return newServerSet, nil
 }
 
-func (t *Transport) exchangeAsync(ctx context.Context, message *mDNS.Msg, domain string, callback func(response *mDNS.Msg, err error)) {
-	systemConfig := t.configSource.Configuration()
+func (t *Transport) exchangeAsync(ctx context.Context, message *mDNS.Msg, systemConfig *systemconfig.Config, domain string, callback func(response *mDNS.Msg, err error)) {
 	serverSet, err := t.serverSetFor(systemConfig)
 	if err != nil {
 		callback(nil, err)
