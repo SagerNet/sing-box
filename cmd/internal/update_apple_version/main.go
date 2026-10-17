@@ -55,7 +55,7 @@ func main() {
 		}
 	}
 	var standaloneVersionUpdated bool
-	newContent, standaloneVersionUpdated = findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfamt.standalone", "io.nekohasekai.sfamt.system"}, newVersion.String())
+	newContent, standaloneVersionUpdated = findAndReplace(objectsMap, newContent, []string{"io.nekohasekai.sfamt.standalone", "io.nekohasekai.sfamt.system", "io.nekohasekai.sfamt.helper"}, newVersion.String())
 	if standaloneVersionUpdated {
 		marketingVersionUpdated = true
 		log.Info("updated version to ", newVersion.String())
