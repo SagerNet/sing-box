@@ -55,7 +55,9 @@ func writeStreamResponse(conn net.Conn, response *mDNS.Msg) {
 	responseBuffer := buf.NewSize(3 + responseLength)
 	defer responseBuffer.Release()
 	responseBuffer.Resize(2, 0)
-	n, err := response.PackBuffer(responseBuffer.FreeBytes())
+	compressedResponse := *response
+	compressedResponse.Compress = true
+	n, err := compressedResponse.PackBuffer(responseBuffer.FreeBytes())
 	if err != nil {
 		return
 	}

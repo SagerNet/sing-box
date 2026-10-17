@@ -14,13 +14,15 @@ func TruncateDNSMessage(request *dns.Msg, response *dns.Msg, frontHeadroom int, 
 		}
 	}
 	responseLen := response.Len()
-	if responseLen > maxLen {
-		response = response.Copy()
-		response.Truncate(maxLen)
+	compressedResponse := *response
+	compressedResponse.Compress = true
+	if compressedResponse.Len() > maxLen {
+		compressedResponse = *response.Copy()
+		compressedResponse.Truncate(maxLen)
 	}
 	buffer := buf.NewSize(frontHeadroom + responseLen + 1 + rearHeadroom)
 	buffer.Resize(frontHeadroom, 0)
-	rawMessage, err := response.PackBuffer(buffer.FreeBytes())
+	rawMessage, err := compressedResponse.PackBuffer(buffer.FreeBytes())
 	if err != nil {
 		buffer.Release()
 		return nil, err
