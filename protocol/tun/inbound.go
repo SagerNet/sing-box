@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -50,6 +49,7 @@ type Inbound struct {
 	tunIf                  tun.Tun
 	tunStack               tun.Stack
 	platformInterface      adapter.PlatformInterface
+	usePlatformInterface   bool
 	platformOptions        option.TunPlatformOptions
 	enableAutoRedirect     bool
 	disableNFTables        bool
@@ -101,6 +101,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	})
 
 	platformInterface := service.FromContext[adapter.PlatformInterface](ctx)
+	usePlatformInterface := platformInterface != nil && platformInterface.UsePlatformInterface()
 	if options.NetNs != "" && !C.IsLinux {
 		return nil, E.New("`netns` is only supported on Linux")
 	}
@@ -117,7 +118,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		}
 	}
 	var enableGSO bool
-	if C.IsLinux && platformInterface == nil {
+	if C.IsLinux && !usePlatformInterface {
 		enableGSO = (options.Stack == "gvisor" && tunMTU < 49152)
 	}
 	var udpTimeout time.Duration
@@ -232,13 +233,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 			Logger:                                logger,
 			EXP_MultiPendingPackets:               multiPendingPackets,
 		},
-		udpTimeout:        udpTimeout,
-		udpMapping:        tun.NATMapping(options.UDPMapping),
-		udpFiltering:      tun.NATFiltering(options.UDPFiltering),
-		udpNATMax:         options.UDPNATMax,
-		stack:             options.Stack,
-		platformInterface: platformInterface,
-		platformOptions:   common.PtrValueOrDefault(options.Platform),
+		udpTimeout:           udpTimeout,
+		udpMapping:           tun.NATMapping(options.UDPMapping),
+		udpFiltering:         tun.NATFiltering(options.UDPFiltering),
+		udpNATMax:            options.UDPNATMax,
+		stack:                options.Stack,
+		platformInterface:    platformInterface,
+		usePlatformInterface: usePlatformInterface,
+		platformOptions:      common.PtrValueOrDefault(options.Platform),
 	}
 	for _, routeAddressSet := range options.RouteAddressSet {
 		ruleSet, loaded := router.RuleSet(routeAddressSet)
@@ -326,7 +328,7 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			t.dnsHijackAddress = append(inet4DNSAddress, inet6DNSAddress...)
 		}
 	case adapter.StartStateStart:
-		if t.platformInterface == nil &&
+		if !t.usePlatformInterface &&
 			((C.IsLinux && !t.tunOptions.GSO) || (C.IsDarwin && !t.tunOptions.EXP_MultiPendingPackets)) {
 			outboundManager := service.FromContext[adapter.OutboundManager](t.ctx)
 			endpointManager := service.FromContext[adapter.EndpointManager](t.ctx)
@@ -381,7 +383,7 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 				return E.Cause(err, "initialize auto-redirect")
 			}
 		}
-		if t.platformInterface == nil || C.IsWindows {
+		if !t.usePlatformInterface {
 			for _, routeRuleSet := range t.routeRuleSet {
 				ipSets := routeRuleSet.ExtractIPSet()
 				if len(ipSets) == 0 {
@@ -416,7 +418,7 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		var tunInterface tun.Tun
 		monitor := taskmonitor.New(t.logger, C.StartTimeout)
 		tunOptions := t.tunOptions
-		if t.autoRedirect == nil && !(runtime.GOOS == "android" && t.platformInterface != nil) {
+		if t.autoRedirect == nil {
 			for _, ipSet := range t.routeAddressSet {
 				for _, prefix := range ipSet.Prefixes() {
 					if prefix.Addr().Is4() {
@@ -437,7 +439,7 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			}
 		}
 		monitor.Start("open interface")
-		if t.platformInterface != nil && t.platformInterface.UsePlatformInterface() {
+		if t.usePlatformInterface {
 			tunInterface, err = t.platformInterface.OpenInterface(&tunOptions, t.platformOptions)
 		} else {
 			tunInterface, err = tun.New(tunOptions)
