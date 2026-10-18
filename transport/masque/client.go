@@ -29,6 +29,7 @@ type Configuration struct {
 type ClientHandler interface {
 	UpdateConfiguration(configuration Configuration) error
 	WriteInboundBuffers(packetBuffers []*buf.Buffer) error
+	WaitWriteInboundBuffers(packetBuffers []*buf.Buffer) error
 	FrontHeadroom() int
 }
 
@@ -426,7 +427,7 @@ func (s *clientSession) handlePacket(buffer *buf.Buffer) {
 		}
 		return
 	}
-	err := s.client.handler.WriteInboundBuffers([]*buf.Buffer{buffer})
+	err := s.client.handler.WaitWriteInboundBuffers([]*buf.Buffer{buffer})
 	if err != nil {
 		s.client.logger.Debug(E.Cause(err, "write packet to device"))
 	}
