@@ -22,6 +22,7 @@ type Device interface {
 	Start() error
 	UpdateConfiguration(configuration Configuration) error
 	WriteInboundBuffers(packetBuffers []*buf.Buffer) error
+	WaitWriteInboundBuffers(packetBuffers []*buf.Buffer) error
 	SetPacketWriter(writer PacketWriter)
 	PortAddresses() (netip.Addr, netip.Addr)
 	PortMTU() uint32
