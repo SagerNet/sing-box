@@ -73,9 +73,17 @@ func (d *stackDevice) WriteInboundBuffers(packetBuffers []*buf.Buffer) error {
 	return d.processInboundBuffers(packetBuffers, d.writeBuffers)
 }
 
+func (d *stackDevice) WaitWriteInboundBuffers(packetBuffers []*buf.Buffer) error {
+	return d.processInboundBuffers(packetBuffers, d.waitWriteBuffers)
+}
+
 func (d *stackDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 	_, err := d.memoryTun.WritePackets(common.Map(packetBuffers, (*buf.Buffer).Bytes))
 	return err
+}
+
+func (d *stackDevice) waitWriteBuffers(packetBuffers []*buf.Buffer) error {
+	return d.memoryTun.WaitWritePackets(common.Map(packetBuffers, (*buf.Buffer).Bytes))
 }
 
 func (d *stackDevice) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {

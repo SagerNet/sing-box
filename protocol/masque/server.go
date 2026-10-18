@@ -210,6 +210,12 @@ func (s *ServerEndpoint) WriteInboundBuffers(packetBuffers []*buf.Buffer) error 
 	return err
 }
 
+func (s *ServerEndpoint) WaitWriteInboundBuffers(packetBuffers []*buf.Buffer) error {
+	err := s.device.WaitWriteInboundBuffers(packetBuffers)
+	buf.ReleaseMulti(packetBuffers)
+	return err
+}
+
 func (s *ServerEndpoint) FrontHeadroom() int {
 	return s.device.FrontHeadroom()
 }

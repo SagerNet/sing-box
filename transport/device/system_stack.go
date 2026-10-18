@@ -55,10 +55,18 @@ func (d *systemStackDevice) UpdateConfiguration(configuration Configuration) err
 }
 
 func (d *systemStackDevice) WriteInboundBuffers(packetBuffers []*buf.Buffer) error {
-	return d.systemDevice.processInboundBuffers(packetBuffers, d.writeBuffers)
+	return d.systemDevice.processInboundBuffers(packetBuffers, func(unconsumedBuffers []*buf.Buffer) error {
+		return d.writeBuffers(unconsumedBuffers, d.stackDevice.writeBuffers)
+	})
 }
 
-func (d *systemStackDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
+func (d *systemStackDevice) WaitWriteInboundBuffers(packetBuffers []*buf.Buffer) error {
+	return d.systemDevice.processInboundBuffers(packetBuffers, func(unconsumedBuffers []*buf.Buffer) error {
+		return d.writeBuffers(unconsumedBuffers, d.stackDevice.waitWriteBuffers)
+	})
+}
+
+func (d *systemStackDevice) writeBuffers(packetBuffers []*buf.Buffer, writeStackBuffers func(packetBuffers []*buf.Buffer) error) error {
 	addresses := d.systemDevice.configurationAddresses()
 	runStart := 0
 	runUsesSystemDevice := false
@@ -77,7 +85,7 @@ func (d *systemStackDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 			if runUsesSystemDevice {
 				err = d.systemDevice.writeBuffers(packetBuffers[runStart:i])
 			} else {
-				err = d.stackDevice.writeBuffers(packetBuffers[runStart:i])
+				err = writeStackBuffers(packetBuffers[runStart:i])
 			}
 			writeErr = E.Errors(writeErr, err)
 			runStart = i
@@ -92,7 +100,7 @@ func (d *systemStackDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 	if runUsesSystemDevice {
 		return E.Errors(writeErr, d.systemDevice.writeBuffers(packetBuffers[runStart:]))
 	}
-	return E.Errors(writeErr, d.stackDevice.writeBuffers(packetBuffers[runStart:]))
+	return E.Errors(writeErr, writeStackBuffers(packetBuffers[runStart:]))
 }
 
 func packetDestination(packet []byte) netip.Addr {
