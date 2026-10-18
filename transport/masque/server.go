@@ -22,6 +22,7 @@ import (
 
 type ServerHandler interface {
 	WriteInboundBuffers(packetBuffers []*buf.Buffer) error
+	WaitWriteInboundBuffers(packetBuffers []*buf.Buffer) error
 	FrontHeadroom() int
 	NewOutboundQueue(handler func(packetBuffers []*buf.Buffer)) *tun.OutboundQueue
 }
@@ -434,7 +435,7 @@ func (s *serverSession) handlePacket(buffer *buf.Buffer) {
 			break
 		}
 		if target == nil {
-			err := s.server.handler.WriteInboundBuffers([]*buf.Buffer{buffer})
+			err := s.server.handler.WaitWriteInboundBuffers([]*buf.Buffer{buffer})
 			if err != nil {
 				s.server.logger.DebugContext(s.ctx, E.Cause(err, "write packet to device"))
 			}
