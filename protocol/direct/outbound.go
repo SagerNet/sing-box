@@ -185,6 +185,10 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 
 func (h *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
 	if network == N.NetworkICMP && h.icmpPort != nil {
+		if h.isMyLoopbackAddress(destination) {
+			h.logger.Error("reject ", network, " connection to ", destination, ": loopback connection to TUN range")
+			return adapter.PreMatchReject
+		}
 		return adapter.PreMatchFlow
 	}
 	return adapter.PreMatchContinue
