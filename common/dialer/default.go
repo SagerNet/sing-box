@@ -369,12 +369,19 @@ func (d *DefaultDialer) ListenPacket(ctx context.Context, destination M.Socksadd
 	}
 }
 
-func (d *DefaultDialer) DialerForICMPDestination(destination netip.Addr) net.Dialer {
-	if !destination.Is6() {
-		return d.dialer4.Dialer
-	} else {
-		return d.dialer6.Dialer
+func (d *DefaultDialer) ICMPControl() control.Func {
+	if d.networkStrategy == nil || d.defaultNetworkStrategy && len(d.networkType) == 0 {
+		return d.dialer4.Control
 	}
+	interfaceControl := d.serialInterfaceControl(*d.networkStrategy, d.networkType, d.fallbackNetworkType)
+	return control.Append(d.dialer4.Control, func(network, address string, conn syscall.RawConn) error {
+		err := interfaceControl(network, address, conn)
+		// bind interface failed on legacy xiaomi systems
+		if d.defaultNetworkStrategy && errors.Is(err, syscall.EPERM) {
+			return nil
+		}
+		return err
+	})
 }
 
 func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, error) {
@@ -390,14 +397,13 @@ func (d *DefaultDialer) ListenSerialInterfacePacket(ctx context.Context, destina
 	if len(fallbackInterfaceType) == 0 {
 		fallbackInterfaceType = d.fallbackNetworkType
 	}
-	if fallbackDelay == 0 {
-		fallbackDelay = d.networkFallbackDelay
-	}
 	network := N.NetworkUDP
 	if destination.IsIPv4() && !destination.Addr.IsUnspecified() {
 		network += "4"
 	}
-	packetConn, err := d.listenSerialInterfacePacket(ctx, d.udpListener, network, "", *strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
+	listenConfig := d.udpListener
+	listenConfig.Control = control.Append(listenConfig.Control, d.serialInterfaceControl(*strategy, interfaceType, fallbackInterfaceType))
+	packetConn, err := listenConfig.ListenPacket(ctx, network, "")
 	if err != nil {
 		// bind interface failed on legacy xiaomi systems
 		if d.defaultNetworkStrategy && errors.Is(err, syscall.EPERM) {

@@ -81,8 +81,9 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		return nil, E.New("Proxy Protocol is deprecated and removed in sing-box 1.6.0")
 	}
 	if defaultDialer, isDefaultDialer := common.Cast[*dialer.DefaultDialer](outbound.dialer); isDefaultDialer {
+		icmpControl := defaultDialer.ICMPControl()
 		outbound.icmpPort = ping.NewPort(ctx, logger, func(destination netip.Addr) control.Func {
-			return defaultDialer.DialerForICMPDestination(destination).Control
+			return icmpControl
 		}, 0)
 	}
 	return outbound, nil
