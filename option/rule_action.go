@@ -2,10 +2,7 @@ package option
 
 import (
 	"context"
-	"fmt"
-	"net/netip"
 	"reflect"
-	"time"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/schema"
@@ -16,10 +13,9 @@ import (
 )
 
 type _RuleAction struct {
-	Action              string                    `json:"action,omitempty" enum:"route,route-options,direct,bypass,reject,hijack-dns,sniff,resolve"`
+	Action              string                    `json:"action,omitempty" enum:"route,route-options,bypass,reject,hijack-dns,sniff,resolve"`
 	RouteOptions        RouteActionOptions        `json:"-"`
 	RouteOptionsOptions RouteOptionsActionOptions `json:"-"`
-	DirectOptions       DirectActionOptions       `json:"-"`
 	BypassOptions       RouteActionOptions        `json:"-"`
 	RejectOptions       RejectActionOptions       `json:"-"`
 	SniffOptions        RouteActionSniff          `json:"-"`
@@ -39,8 +35,6 @@ func (r RuleAction) MarshalJSON() ([]byte, error) {
 		v = r.RouteOptions
 	case C.RuleActionTypeRouteOptions:
 		v = r.RouteOptionsOptions
-	case C.RuleActionTypeDirect:
-		v = r.DirectOptions
 	case C.RuleActionTypeBypass:
 		v = r.BypassOptions
 	case C.RuleActionTypeReject:
@@ -72,8 +66,6 @@ func (r *RuleAction) UnmarshalJSON(data []byte) error {
 		v = &r.RouteOptions
 	case C.RuleActionTypeRouteOptions:
 		v = &r.RouteOptionsOptions
-	case C.RuleActionTypeDirect:
-		v = &r.DirectOptions
 	case C.RuleActionTypeBypass:
 		v = &r.BypassOptions
 	case C.RuleActionTypeReject:
@@ -246,48 +238,6 @@ func (r *DNSRouteOptionsActionOptions) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type DirectActionOptions struct {
-	AbstractDialerOptions
-}
-
-func (d DirectActionOptions) Descriptions() []string {
-	var descriptions []string
-	if d.BindInterface != "" {
-		descriptions = append(descriptions, "bind_interface="+d.BindInterface)
-	}
-	if d.Inet4BindAddress != nil {
-		descriptions = append(descriptions, "inet4_bind_address="+d.Inet4BindAddress.Build(netip.IPv4Unspecified()).String())
-	}
-	if d.Inet6BindAddress != nil {
-		descriptions = append(descriptions, "inet6_bind_address="+d.Inet6BindAddress.Build(netip.IPv6Unspecified()).String())
-	}
-	if d.RoutingMark != 0 {
-		descriptions = append(descriptions, "routing_mark="+fmt.Sprintf("0x%x", d.RoutingMark))
-	}
-	if d.ReuseAddr {
-		descriptions = append(descriptions, "reuse_addr")
-	}
-	if d.ConnectTimeout != 0 {
-		descriptions = append(descriptions, "connect_timeout="+time.Duration(d.ConnectTimeout).String())
-	}
-	if d.TCPFastOpen {
-		descriptions = append(descriptions, "tcp_fast_open")
-	}
-	if d.TCPMultiPath {
-		descriptions = append(descriptions, "tcp_multi_path")
-	}
-	if d.UDPFragment != nil {
-		descriptions = append(descriptions, "udp_fragment="+fmt.Sprint(*d.UDPFragment))
-	}
-	if d.DomainStrategy != DomainStrategy(C.DomainStrategyAsIS) {
-		descriptions = append(descriptions, "domain_strategy="+d.DomainStrategy.String())
-	}
-	if d.FallbackDelay != 0 {
-		descriptions = append(descriptions, "fallback_delay="+time.Duration(d.FallbackDelay).String())
-	}
-	return descriptions
-}
-
 type _RejectActionOptions struct {
 	Method string `json:"method,omitempty" enum:"default,drop,reply"`
 	NoDrop bool   `json:"no_drop,omitempty"`
@@ -391,7 +341,6 @@ func routeActionUnion(builder schema.Builder) (*schema.Node, error) {
 	return actionUnion(builder, []actionVariant{
 		{action: C.RuleActionTypeRoute, actionOptional: true, structType: reflect.TypeFor[RouteActionOptions]()},
 		{action: C.RuleActionTypeRouteOptions, structType: reflect.TypeFor[RawRouteOptionsActionOptions]()},
-		{action: C.RuleActionTypeDirect, structType: reflect.TypeFor[DirectActionOptions]()},
 		{action: C.RuleActionTypeBypass, structType: reflect.TypeFor[RouteActionOptions]()},
 		{action: C.RuleActionTypeReject, build: rejectProperties},
 		{action: C.RuleActionTypeHijackDNS},
