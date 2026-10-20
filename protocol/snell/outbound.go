@@ -112,6 +112,9 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 	switch networkName {
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
+		if h.reuse {
+			return h.client.DialContext(adapter.ContextForMultiplexSession(ctx), destination)
+		}
 		return h.client.DialContext(ctx, destination)
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)

@@ -141,7 +141,7 @@ func (s *Outbound) connect(ctx context.Context) (client *ssh.Client, err error) 
 		return s.client, nil
 	}
 
-	conn, err := s.dialer.DialContext(ctx, N.NetworkTCP, s.serverAddr)
+	conn, err := s.dialer.DialContext(adapter.ContextForMultiplexSession(ctx), N.NetworkTCP, s.serverAddr)
 	if err != nil {
 		return nil, err
 	}
