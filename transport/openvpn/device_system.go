@@ -108,8 +108,6 @@ func (d *systemDevice) buildTunOptions() tun.Options {
 		InterfaceMonitor:     nil,
 		InterfaceFinder:      nil,
 		Logger:               d.options.Logger,
-		IPRoute2TableIndex:   tun.DefaultIPRoute2TableIndex,
-		IPRoute2RuleIndex:    tun.DefaultIPRoute2RuleIndex,
 		EXP_DisableDNSHijack: true,
 	}
 	if networkManager != nil {

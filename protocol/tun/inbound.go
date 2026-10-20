@@ -144,7 +144,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	}
 
 	tableIndex := options.IPRoute2TableIndex
-	if tableIndex == 0 {
+	if tableIndex == 0 && options.AutoRoute {
 		tableIndex = tun.DefaultIPRoute2TableIndex
 	}
 	ruleIndex := options.IPRoute2RuleIndex
