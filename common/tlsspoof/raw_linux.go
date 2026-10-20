@@ -39,6 +39,13 @@ func newRawSpoofer(conn net.Conn, method Method) (rawSpoofer, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = control.Conn(tcpConn, func(raw uintptr) error {
+		return inheritRouting(fd, int(raw), src)
+	})
+	if err != nil {
+		unix.Close(fd)
+		return nil, err
+	}
 	spoofer := &linuxSpoofer{
 		method:      method,
 		src:         src,
@@ -73,6 +80,40 @@ func openLinuxRawSocket(dst netip.AddrPort) (int, unix.Sockaddr, error) {
 	// user-supplied IPv6 header under IPV6_HDRINCL.
 	sockaddr := &unix.SockaddrInet6{Addr: dst.Addr().As16()}
 	return fd, sockaddr, nil
+}
+
+// Linux routes IP_HDRINCL packets by the raw socket's bound device, mark and
+// bound address (raw_sendmsg), not by the addresses in the supplied header.
+func inheritRouting(rawSocket, tcpSocket int, src netip.AddrPort) error {
+	bindInterface, err := unix.GetsockoptString(tcpSocket, unix.SOL_SOCKET, unix.SO_BINDTODEVICE)
+	if err != nil {
+		return E.Cause(err, "read SO_BINDTODEVICE")
+	}
+	if bindInterface != "" {
+		err = unix.BindToDevice(rawSocket, bindInterface)
+		if err != nil {
+			return E.Cause(err, "bind raw socket to interface ", bindInterface)
+		}
+	}
+	routingMark, err := unix.GetsockoptInt(tcpSocket, unix.SOL_SOCKET, unix.SO_MARK)
+	if err != nil {
+		return E.Cause(err, "read SO_MARK")
+	}
+	if routingMark != 0 {
+		err = unix.SetsockoptInt(rawSocket, unix.SOL_SOCKET, unix.SO_MARK, routingMark)
+		if err != nil {
+			return E.Cause(err, "set raw socket SO_MARK")
+		}
+	}
+	if src.Addr().Is4() {
+		err = unix.Bind(rawSocket, &unix.SockaddrInet4{Addr: src.Addr().As4()})
+	} else {
+		err = unix.Bind(rawSocket, &unix.SockaddrInet6{Addr: src.Addr().As16()})
+	}
+	if err != nil {
+		return E.Cause(err, "bind raw socket to ", src.Addr())
+	}
+	return nil
 }
 
 // loadSequenceNumbers puts the socket briefly into TCP_REPAIR mode to read
