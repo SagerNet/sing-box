@@ -500,8 +500,8 @@ TUN 接口上 DNS 的处理方式。
     将指定规则集中的目标 IP CIDR 规则添加到路由，相当于添加到 `route_address`。
     不匹配的流量将绕过 sing-box 路由。
 
-    请注意，由于 Android VpnService 无法处理大量路由（DeadSystemException），
-    因此它**在 Android 图形客户端上不起作用**，但除此之外，它在所有命令行客户端和 Apple 平台上都可以正常工作。
+    请注意，由于无法处理大量路由，它**在 Android 和 Apple 图形客户端上不起作用**，
+    但除此之外，它在所有命令行客户端以及 Linux 和 Windows 图形客户端上都可以正常工作。
 
 #### route_exclude_address_set
 
@@ -525,8 +525,8 @@ TUN 接口上 DNS 的处理方式。
     将指定规则集中的目标 IP CIDR 规则添加到路由，相当于添加到 `route_exclude_address`。
     匹配的流量将绕过 sing-box 路由。
 
-    请注意，由于 Android VpnService 无法处理大量路由（DeadSystemException），
-    因此它**在 Android 图形客户端上不起作用**，但除此之外，它在所有命令行客户端和 Apple 平台上都可以正常工作。
+    请注意，由于无法处理大量路由，它**在 Android 和 Apple 图形客户端上不起作用**，
+    但除此之外，它在所有命令行客户端以及 Linux 和 Windows 图形客户端上都可以正常工作。
 
 #### endpoint_independent_nat
 

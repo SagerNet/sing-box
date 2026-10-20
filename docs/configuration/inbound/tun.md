@@ -514,9 +514,9 @@ Exclude custom routes when `auto_route` is enabled.
     Add the destination IP CIDR rules in the specified rule-sets to routes, equivalent to adding to `route_address`.
     Unmatched traffic will bypass the sing-box routes.
 
-    Note that it **doesn't work on the Android graphical client** due to
-    the Android VpnService not being able to handle a large number of routes (DeadSystemException),
-    but otherwise it works fine on all command line clients and Apple platforms.
+    Note that it **doesn't work on the Android and Apple graphical clients**
+    as they cannot handle a large number of routes,
+    but otherwise it works fine on all command line clients and the Linux and Windows graphical clients.
 
 #### route_exclude_address_set
 
@@ -538,9 +538,9 @@ Exclude custom routes when `auto_route` is enabled.
     Add the destination IP CIDR rules in the specified rule-sets to routes, equivalent to adding to `route_exclude_address`.
     Matched traffic will bypass the sing-box routes.
 
-    Note that it **doesn't work on the Android graphical client** due to
-    the Android VpnService not being able to handle a large number of routes (DeadSystemException),
-    but otherwise it works fine on all command line clients and Apple platforms.
+    Note that it **doesn't work on the Android and Apple graphical clients**
+    as they cannot handle a large number of routes,
+    but otherwise it works fine on all command line clients and the Linux and Windows graphical clients.
 
 #### endpoint_independent_nat
 
