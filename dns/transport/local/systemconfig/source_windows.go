@@ -80,7 +80,6 @@ func (s *Source) Close() error {
 
 func (s *Source) readConfig() *Config {
 	config := &Config{
-		Ndots:    1,
 		Timeout:  5 * time.Second,
 		Attempts: 2,
 	}

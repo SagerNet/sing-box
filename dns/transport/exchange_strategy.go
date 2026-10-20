@@ -204,6 +204,13 @@ func restoreOriginalQuestion(response *mDNS.Msg, fqdn string, question mDNS.Ques
 	}
 }
 
+func ValidateQuestionName(name string) error {
+	if len(name) > 254 || strings.HasSuffix(strings.ToLower(strings.TrimSuffix(name, ".")), ".onion") {
+		return E.New("dns: invalid domain: ", name)
+	}
+	return nil
+}
+
 func NewFanOutRequest(message *mDNS.Msg, fqdn string, authenticatedData bool) *mDNS.Msg {
 	question := message.Question[0]
 	question.Name = fqdn
