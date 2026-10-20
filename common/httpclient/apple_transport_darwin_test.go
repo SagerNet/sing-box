@@ -812,7 +812,7 @@ func newAppleHTTPTestTransport(t *testing.T, server *appleHTTPTestServer, option
 func newAppleHTTPTestContext() context.Context {
 	return service.ContextWith[adapter.ConnectionManager](
 		context.Background(),
-		route.NewConnectionManager(log.NewNOPFactory().NewLogger("connection")),
+		route.NewConnectionManager(context.Background(), log.NewNOPFactory().NewLogger("connection")),
 	)
 }
 
