@@ -93,7 +93,6 @@ func (s *Source) Close() error {
 
 func readResolvConfig(path string) *resolvConfig {
 	config := &Config{
-		Ndots:    1,
 		Timeout:  5 * time.Second,
 		Attempts: 2,
 	}
@@ -146,11 +145,6 @@ func readResolvConfig(path string) *resolvConfig {
 		case "options":
 			for _, option := range fields[1:] {
 				switch {
-				case strings.HasPrefix(option, "ndots:"):
-					value, parseErr := strconv.Atoi(option[len("ndots:"):])
-					if parseErr == nil {
-						config.Ndots = min(max(value, 0), 15)
-					}
 				case strings.HasPrefix(option, "timeout:"):
 					value, parseErr := strconv.Atoi(option[len("timeout:"):])
 					if parseErr == nil {
