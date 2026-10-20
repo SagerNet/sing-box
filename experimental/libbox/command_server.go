@@ -57,7 +57,6 @@ func NewCommandServer(handler CommandServerHandler, platformInterface PlatformIn
 	service.MustRegister[*powerreport.Manager](ctx, powerManager)
 	platformWrapper := &platformInterfaceWrapper{
 		iif:          platformInterface,
-		useProcFS:    platformInterface.UseProcFS(),
 		powerManager: powerManager,
 	}
 	service.MustRegister[adapter.PlatformInterface](ctx, platformWrapper)
