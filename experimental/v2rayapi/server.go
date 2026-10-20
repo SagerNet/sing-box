@@ -10,6 +10,8 @@ import (
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -55,7 +57,7 @@ func (s *Server) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			return nil
 		})
 	case adapter.StartStatePostStart:
-		listener, err := net.Listen("tcp", s.listen)
+		listener, err := net.Listen(M.NetworkFromNetAddr(N.NetworkTCP, M.ParseSocksaddr(s.listen).Addr), s.listen)
 		if err != nil {
 			return err
 		}

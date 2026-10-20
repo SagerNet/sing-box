@@ -14,6 +14,8 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badjson"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -62,7 +64,7 @@ func startDebugHTTPServer(options option.DebugOptions) (*http.Server, error) {
 		Addr:    options.Listen,
 		Handler: r,
 	}
-	listener, err := net.Listen("tcp", options.Listen)
+	listener, err := net.Listen(M.NetworkFromNetAddr(N.NetworkTCP, M.ParseSocksaddr(options.Listen).Addr), options.Listen)
 	if err != nil {
 		return nil, E.Cause(err, "listen debug HTTP server")
 	}
