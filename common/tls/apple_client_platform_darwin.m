@@ -14,7 +14,7 @@
 #import <string.h>
 #import <unistd.h>
 
-typedef nw_connection_t _Nullable (*box_nw_connection_create_with_connected_socket_and_parameters_f)(int connected_socket, nw_parameters_t parameters);
+typedef nw_connection_t _Nullable (*box_nw_connection_create_with_connected_socket_and_parameters_f)(int connected_socket, nw_parameters_t parameters) NW_RETURNS_RETAINED;
 typedef const char * _Nullable (*box_sec_protocol_metadata_string_accessor_f)(sec_protocol_metadata_t metadata);
 
 typedef struct box_apple_tls_client {
@@ -367,104 +367,106 @@ box_apple_tls_client_t *box_apple_tls_client_create(
 	int64_t verify_time_unix_millis,
 	char **error_out
 ) {
-	box_apple_tls_client_t *client = calloc(1, sizeof(box_apple_tls_client_t));
-	if (client == NULL) {
-		close(connected_socket);
-		box_set_error_message(error_out, "apple TLS: out of memory");
-		return NULL;
-	}
-	client->queue = (__bridge_retained void *)dispatch_queue_create("sing-box.apple-private-tls", DISPATCH_QUEUE_SERIAL);
-	client->ready_semaphore = (__bridge_retained void *)dispatch_semaphore_create(0);
-	atomic_init(&client->ref_count, 1);
-	atomic_init(&client->ready, false);
-	atomic_init(&client->ready_done, false);
-	if (anchors_cf != NULL) {
-		client->anchors = (void *)CFRetain(anchors_cf);
-	}
+	@autoreleasepool {
+		box_apple_tls_client_t *client = calloc(1, sizeof(box_apple_tls_client_t));
+		if (client == NULL) {
+			close(connected_socket);
+			box_set_error_message(error_out, "apple TLS: out of memory");
+			return NULL;
+		}
+		client->queue = (__bridge_retained void *)dispatch_queue_create("sing-box.apple-private-tls", DISPATCH_QUEUE_SERIAL);
+		client->ready_semaphore = (__bridge_retained void *)dispatch_semaphore_create(0);
+		atomic_init(&client->ref_count, 1);
+		atomic_init(&client->ready, false);
+		atomic_init(&client->ready_done, false);
+		if (anchors_cf != NULL) {
+			client->anchors = (void *)CFRetain(anchors_cf);
+		}
 
-	NSArray<NSString *> *alpnList = box_split_lines(alpn, alpn_len);
-	NSDate *verifyDate = nil;
-	if (has_verify_time) {
-		verifyDate = [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)verify_time_unix_millis / 1000.0];
-	}
-	nw_parameters_t parameters = nw_parameters_create_secure_tcp(^(nw_protocol_options_t tls_options) {
-		sec_protocol_options_t sec_options = nw_tls_copy_sec_protocol_options(tls_options);
-		if (min_version != 0) {
-			sec_protocol_options_set_min_tls_protocol_version(sec_options, (tls_protocol_version_t)min_version);
+		NSArray<NSString *> *alpnList = box_split_lines(alpn, alpn_len);
+		NSDate *verifyDate = nil;
+		if (has_verify_time) {
+			verifyDate = [NSDate dateWithTimeIntervalSince1970:(NSTimeInterval)verify_time_unix_millis / 1000.0];
 		}
-		if (max_version != 0) {
-			sec_protocol_options_set_max_tls_protocol_version(sec_options, (tls_protocol_version_t)max_version);
-		}
-		if (server_name != NULL && server_name[0] != '\0') {
-			sec_protocol_options_set_tls_server_name(sec_options, server_name);
-		}
-		for (NSString *protocol in alpnList) {
-			sec_protocol_options_add_tls_application_protocol(sec_options, protocol.UTF8String);
-		}
-		sec_protocol_options_set_peer_authentication_required(sec_options, !insecure);
-		sec_protocol_options_set_verify_block(sec_options, ^(sec_protocol_metadata_t metadata, sec_trust_t trust, sec_protocol_verify_complete_t complete) {
-			if (client->state.version == 0) {
-				box_apple_tls_state_load(metadata, &client->state);
+		nw_parameters_t parameters = nw_parameters_create_secure_tcp(^(nw_protocol_options_t tls_options) {
+			sec_protocol_options_t sec_options = nw_tls_copy_sec_protocol_options(tls_options);
+			if (min_version != 0) {
+				sec_protocol_options_set_min_tls_protocol_version(sec_options, (tls_protocol_version_t)min_version);
 			}
-			complete(insecure || box_evaluate_trust(trust, box_apple_tls_client_anchors(client), anchor_only, verifyDate));
-		}, box_apple_tls_client_queue(client));
-	}, NW_PARAMETERS_DEFAULT_CONFIGURATION);
-
-	nw_connection_t connection = box_apple_tls_create_connection(connected_socket, parameters);
-	if (connection == NULL) {
-		close(connected_socket);
-		if (client->anchors != NULL) {
-			CFRelease((CFTypeRef)client->anchors);
-		}
-		if (client->ready_semaphore != NULL) {
-			CFBridgingRelease(client->ready_semaphore);
-		}
-		if (client->queue != NULL) {
-			CFBridgingRelease(client->queue);
-		}
-		free(client);
-		box_set_error_message(error_out, "apple TLS: failed to create connection");
-		return NULL;
-	}
-
-	client->connection = (__bridge_retained void *)connection;
-	atomic_fetch_add(&client->ref_count, 1);
-
-	nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
-		switch (state) {
-		case nw_connection_state_ready:
-			if (!atomic_load(&client->ready_done)) {
+			if (max_version != 0) {
+				sec_protocol_options_set_max_tls_protocol_version(sec_options, (tls_protocol_version_t)max_version);
+			}
+			if (server_name != NULL && server_name[0] != '\0') {
+				sec_protocol_options_set_tls_server_name(sec_options, server_name);
+			}
+			for (NSString *protocol in alpnList) {
+				sec_protocol_options_add_tls_application_protocol(sec_options, protocol.UTF8String);
+			}
+			sec_protocol_options_set_peer_authentication_required(sec_options, !insecure);
+			sec_protocol_options_set_verify_block(sec_options, ^(sec_protocol_metadata_t metadata, sec_trust_t trust, sec_protocol_verify_complete_t complete) {
 				if (client->state.version == 0) {
-					box_set_error_message(&client->ready_error, "apple TLS: metadata unavailable");
-				} else {
-					atomic_store(&client->ready, true);
+					box_apple_tls_state_load(metadata, &client->state);
 				}
-				atomic_store(&client->ready_done, true);
-				dispatch_semaphore_signal(box_apple_tls_ready_semaphore(client));
+				complete(insecure || box_evaluate_trust(trust, box_apple_tls_client_anchors(client), anchor_only, verifyDate));
+			}, box_apple_tls_client_queue(client));
+		}, NW_PARAMETERS_DEFAULT_CONFIGURATION);
+
+		nw_connection_t connection = box_apple_tls_create_connection(connected_socket, parameters);
+		if (connection == NULL) {
+			close(connected_socket);
+			if (client->anchors != NULL) {
+				CFRelease((CFTypeRef)client->anchors);
 			}
-			break;
-		case nw_connection_state_failed:
-			if (!atomic_load(&client->ready_done)) {
-				box_set_error_from_nw_error(&client->ready_error, error);
-				atomic_store(&client->ready_done, true);
-				dispatch_semaphore_signal(box_apple_tls_ready_semaphore(client));
+			if (client->ready_semaphore != NULL) {
+				CFBridgingRelease(client->ready_semaphore);
 			}
-			break;
-		case nw_connection_state_cancelled:
-			if (!atomic_load(&client->ready_done)) {
-				box_set_error_from_nw_error(&client->ready_error, error);
-				atomic_store(&client->ready_done, true);
-				dispatch_semaphore_signal(box_apple_tls_ready_semaphore(client));
+			if (client->queue != NULL) {
+				CFBridgingRelease(client->queue);
 			}
-			box_apple_tls_client_release(client);
-			break;
-		default:
-			break;
+			free(client);
+			box_set_error_message(error_out, "apple TLS: failed to create connection");
+			return NULL;
 		}
-	});
-	nw_connection_set_queue(connection, box_apple_tls_client_queue(client));
-	nw_connection_start(connection);
-	return client;
+
+		client->connection = (__bridge_retained void *)connection;
+		atomic_fetch_add(&client->ref_count, 1);
+
+		nw_connection_set_state_changed_handler(connection, ^(nw_connection_state_t state, nw_error_t error) {
+			switch (state) {
+			case nw_connection_state_ready:
+				if (!atomic_load(&client->ready_done)) {
+					if (client->state.version == 0) {
+						box_set_error_message(&client->ready_error, "apple TLS: metadata unavailable");
+					} else {
+						atomic_store(&client->ready, true);
+					}
+					atomic_store(&client->ready_done, true);
+					dispatch_semaphore_signal(box_apple_tls_ready_semaphore(client));
+				}
+				break;
+			case nw_connection_state_failed:
+				if (!atomic_load(&client->ready_done)) {
+					box_set_error_from_nw_error(&client->ready_error, error);
+					atomic_store(&client->ready_done, true);
+					dispatch_semaphore_signal(box_apple_tls_ready_semaphore(client));
+				}
+				break;
+			case nw_connection_state_cancelled:
+				if (!atomic_load(&client->ready_done)) {
+					box_set_error_from_nw_error(&client->ready_error, error);
+					atomic_store(&client->ready_done, true);
+					dispatch_semaphore_signal(box_apple_tls_ready_semaphore(client));
+				}
+				box_apple_tls_client_release(client);
+				break;
+			default:
+				break;
+			}
+		});
+		nw_connection_set_queue(connection, box_apple_tls_client_queue(client));
+		nw_connection_start(connection);
+		return client;
+	}
 }
 
 int box_apple_tls_client_wait_ready(box_apple_tls_client_t *client, int timeout_msec, char **error_out) {
