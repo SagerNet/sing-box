@@ -53,7 +53,6 @@ func (r ResolvedServiceOptions) DescribeSchema(builder schema.Builder) (*schema.
 type ResolvedDNSServerOptions struct {
 	Service                string `json:"service"`
 	AcceptDefaultResolvers bool   `json:"accept_default_resolvers,omitempty"`
-	// NDots                  int                `json:"ndots,omitempty"`
 	// Timeout                badoption.Duration `json:"timeout,omitempty"`
 	// Attempts               int                `json:"attempts,omitempty"`
 	// Rotate                 bool               `json:"rotate,omitempty"`

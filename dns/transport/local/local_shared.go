@@ -57,44 +57,31 @@ func (t *Transport) serverSetFor(systemConfig *systemconfig.Config) (*localServe
 	return newServerSet, nil
 }
 
-func (t *Transport) exchangeAsync(ctx context.Context, message *mDNS.Msg, systemConfig *systemconfig.Config, domain string, callback func(response *mDNS.Msg, err error)) {
+func (t *Transport) exchangeAsync(ctx context.Context, message *mDNS.Msg, systemConfig *systemconfig.Config, callback func(response *mDNS.Msg, err error)) {
+	err := transport.ValidateQuestionName(message.Question[0].Name)
+	if err != nil {
+		callback(nil, err)
+		return
+	}
 	serverSet, err := t.serverSetFor(systemConfig)
 	if err != nil {
 		callback(nil, err)
 		return
 	}
-	names := systemConfig.NameList(domain)
-	if len(names) == 0 {
-		callback(nil, E.New("invalid domain: ", domain))
-		return
-	}
-	transport.ExchangeNames(ctx, names, message.Question[0], func(fqdn string) transport.AsyncExchanger {
-		return newNameExchanger(systemConfig, serverSet, message, fqdn)
-	}, callback)
-}
-
-func newNameExchanger(systemConfig *systemconfig.Config, serverSet *localServerSet, message *mDNS.Msg, fqdn string) transport.AsyncExchanger {
 	serverOffset := systemConfig.ServerOffset()
 	serverCount := uint32(len(serverSet.transports))
 	attemptExchangers := make([]transport.AsyncExchanger, 0, systemConfig.Attempts*int(serverCount))
-	for i := 0; i < systemConfig.Attempts; i++ {
+	for range systemConfig.Attempts {
 		for j := range serverCount {
 			serverTransport := serverSet.transports[(serverOffset+j)%serverCount]
-			attemptExchangers = append(attemptExchangers, func(ctx context.Context, callback func(response *mDNS.Msg, err error)) {
-				attemptCtx, cancel := context.WithTimeout(ctx, systemConfig.Timeout)
-				serverTransport.ExchangeAsync(attemptCtx, transport.NewFanOutRequest(message, fqdn, systemConfig.TrustAD), func(response *mDNS.Msg, err error) {
+			attemptExchangers = append(attemptExchangers, func(exchangeCtx context.Context, exchangeCallback func(response *mDNS.Msg, err error)) {
+				attemptCtx, cancel := context.WithTimeout(exchangeCtx, systemConfig.Timeout)
+				serverTransport.ExchangeAsync(attemptCtx, transport.NewFanOutRequest(message, message.Question[0].Name, systemConfig.TrustAD), func(response *mDNS.Msg, attemptErr error) {
 					cancel()
-					callback(response, err)
+					exchangeCallback(response, attemptErr)
 				})
 			})
 		}
 	}
-	return func(ctx context.Context, callback func(response *mDNS.Msg, err error)) {
-		transport.ExchangeSequential(ctx, attemptExchangers, nil, func(response *mDNS.Msg, err error) {
-			if err != nil {
-				err = E.Cause(err, fqdn)
-			}
-			callback(response, err)
-		})
-	}
+	transport.ExchangeSequential(ctx, attemptExchangers, nil, callback)
 }
