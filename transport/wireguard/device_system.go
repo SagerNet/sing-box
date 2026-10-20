@@ -135,6 +135,7 @@ func (w *systemDevice) Read(bufs [][]byte, sizes []int, offset int) (count int, 
 	} else {
 		sizes[0], err = w.device.Read(bufs[0][offset-tun.PacketOffset:])
 		if err == nil {
+			sizes[0] -= tun.PacketOffset
 			count = 1
 		} else if errors.Is(err, tun.ErrTooManySegments) {
 			err = wgTun.ErrTooManySegments
