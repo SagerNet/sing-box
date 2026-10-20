@@ -2,7 +2,6 @@ package dhcp
 
 import (
 	"context"
-	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/dns/transport"
@@ -13,12 +12,12 @@ import (
 
 func (t *Transport) exchangeWithTransports(ctx context.Context, message *mDNS.Msg, state *transportState, callback func(response *mDNS.Msg, err error)) {
 	question := message.Question[0]
-	names := nameList(state.search, question.Name)
-	if len(names) == 0 {
-		callback(nil, E.New("invalid domain: ", question.Name))
+	err := transport.ValidateQuestionName(question.Name)
+	if err != nil {
+		callback(nil, err)
 		return
 	}
-	transport.ExchangeNames(ctx, names, question, func(fqdn string) transport.AsyncExchanger {
+	transport.ExchangeNames(ctx, nameList(state.search, question.Name), question, func(fqdn string) transport.AsyncExchanger {
 		return t.newNameExchanger(message, fqdn, state.serverTransports)
 	}, callback)
 }
@@ -43,28 +42,15 @@ func (t *Transport) newNameExchanger(message *mDNS.Msg, fqdn string, serverTrans
 }
 
 func nameList(search []string, name string) []string {
-	if len(name) > 254 || avoidDNS(name) {
-		return nil
-	}
 	if mDNS.CountLabel(name) != 1 {
 		return []string{name}
 	}
 	names := make([]string, 0, len(search)+1)
 	for _, suffix := range search {
 		fqdn := name + suffix
-		if !avoidDNS(fqdn) && len(fqdn) <= 254 {
+		if transport.ValidateQuestionName(fqdn) == nil {
 			names = append(names, fqdn)
 		}
 	}
 	return append(names, name)
-}
-
-func avoidDNS(name string) bool {
-	if name == "" {
-		return true
-	}
-	if name[len(name)-1] == '.' {
-		name = name[:len(name)-1]
-	}
-	return strings.HasSuffix(name, ".onion")
 }

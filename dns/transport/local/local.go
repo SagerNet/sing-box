@@ -193,5 +193,5 @@ func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callba
 		t.resolved.ExchangeAsync(ctx, message, callback)
 		return
 	}
-	t.exchangeAsync(ctx, message, systemConfig, question.Name, callback)
+	t.exchangeAsync(ctx, message, systemConfig, callback)
 }

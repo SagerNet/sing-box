@@ -46,7 +46,6 @@ type Transport struct {
 	logger                 logger.ContextLogger
 	serviceTag             string
 	acceptDefaultResolvers bool
-	ndots                  int
 	timeout                time.Duration
 	attempts               int
 	rotate                 bool
@@ -76,11 +75,9 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		logger:                 logger,
 		serviceTag:             options.Service,
 		acceptDefaultResolvers: options.AcceptDefaultResolvers,
-		// ndots:                  options.NDots,
 		// timeout:                time.Duration(options.Timeout),
 		// attempts:               options.Attempts,
 		// rotate:                 options.Rotate,
-		ndots:       1,
 		timeout:     5 * time.Second,
 		attempts:    2,
 		linkServers: make(map[*TransportLink]*LinkServers),
@@ -327,7 +324,6 @@ func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callba
 	var (
 		selectedLink   *TransportLink
 		selectedLabels int
-		names          []string
 	)
 	t.service.linkAccess.RLock()
 	for _, link := range t.service.links {
@@ -354,9 +350,6 @@ func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callba
 			}
 		}
 	}
-	if selectedLink != nil {
-		names = selectedLink.nameList(t.ndots, question.Name)
-	}
 	t.service.linkAccess.RUnlock()
 	if selectedLink == nil {
 		callback(dns.FixedResponseStatus(message, mDNS.RcodeNameError), nil)
@@ -369,41 +362,25 @@ func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callba
 		callback(dns.FixedResponseStatus(message, mDNS.RcodeNameError), nil)
 		return
 	}
-	if len(names) == 0 {
-		callback(nil, E.New("invalid domain: ", question.Name))
+	err := transport.ValidateQuestionName(question.Name)
+	if err != nil {
+		callback(nil, err)
 		return
 	}
-	transport.ExchangeNames(ctx, names, question, func(fqdn string) transport.AsyncExchanger {
-		return t.newNameExchanger(servers, message, fqdn)
-	}, callback)
-}
-
-func (t *Transport) newNameExchanger(servers *LinkServers, message *mDNS.Msg, fqdn string) transport.AsyncExchanger {
 	serverOffset := servers.ServerOffset(t.rotate)
 	serverCount := uint32(len(servers.Servers))
 	attemptExchangers := make([]transport.AsyncExchanger, 0, t.attempts*int(serverCount))
-	for i := 0; i < t.attempts; i++ {
+	for range t.attempts {
 		for j := range serverCount {
 			server := servers.Servers[(serverOffset+j)%serverCount]
-			attemptExchangers = append(attemptExchangers, func(ctx context.Context, callback func(response *mDNS.Msg, err error)) {
-				question := message.Question[0]
-				question.Name = fqdn
-				exchangeMessage := *message
-				exchangeMessage.Question = []mDNS.Question{question}
-				exchangeCtx, cancel := context.WithTimeout(ctx, t.timeout)
-				server.ExchangeAsync(exchangeCtx, &exchangeMessage, func(response *mDNS.Msg, err error) {
+			attemptExchangers = append(attemptExchangers, func(exchangeCtx context.Context, exchangeCallback func(response *mDNS.Msg, err error)) {
+				attemptCtx, cancel := context.WithTimeout(exchangeCtx, t.timeout)
+				server.ExchangeAsync(attemptCtx, message, func(response *mDNS.Msg, attemptErr error) {
 					cancel()
-					callback(response, err)
+					exchangeCallback(response, attemptErr)
 				})
 			})
 		}
 	}
-	return func(ctx context.Context, callback func(response *mDNS.Msg, err error)) {
-		transport.ExchangeSequential(ctx, attemptExchangers, nil, func(response *mDNS.Msg, err error) {
-			if err != nil {
-				err = E.Cause(err, fqdn)
-			}
-			callback(response, err)
-		})
-	}
+	transport.ExchangeSequential(ctx, attemptExchangers, nil, callback)
 }

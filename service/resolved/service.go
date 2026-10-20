@@ -5,7 +5,6 @@ package resolved
 import (
 	"context"
 	"net"
-	"strings"
 	"sync"
 	"time"
 
@@ -195,56 +194,4 @@ func (i *Service) onNetworkUpdate() {
 			i.deleteCallback(link)
 		}
 	}
-}
-
-func (conf *TransportLink) nameList(ndots int, name string) []string {
-	search := common.Filter(common.Map(common.Filter(conf.domain, func(it LinkDomain) bool {
-		return !it.RoutingOnly
-	}), func(it LinkDomain) string {
-		return mDNS.Fqdn(it.Domain)
-	}), func(it string) bool {
-		return it != "."
-	})
-
-	l := len(name)
-	rooted := l > 0 && name[l-1] == '.'
-	if l > 254 || l == 254 && !rooted {
-		return nil
-	}
-
-	if rooted {
-		if avoidDNS(name) {
-			return nil
-		}
-		return []string{name}
-	}
-
-	hasNdots := strings.Count(name, ".") >= ndots
-	name += "."
-	// l++
-
-	names := make([]string, 0, 1+len(search))
-	if hasNdots && !avoidDNS(name) {
-		names = append(names, name)
-	}
-	for _, suffix := range search {
-		fqdn := name + suffix
-		if !avoidDNS(fqdn) && len(fqdn) <= 254 {
-			names = append(names, fqdn)
-		}
-	}
-	if !hasNdots && !avoidDNS(name) {
-		names = append(names, name)
-	}
-	return names
-}
-
-func avoidDNS(name string) bool {
-	if name == "" {
-		return true
-	}
-	if name[len(name)-1] == '.' {
-		name = name[:len(name)-1]
-	}
-	return strings.HasSuffix(name, ".onion")
 }
