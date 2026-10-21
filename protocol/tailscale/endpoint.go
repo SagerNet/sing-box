@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -49,6 +50,7 @@ import (
 	_ "github.com/sagernet/tailscale/feature/relayserver"
 	"github.com/sagernet/tailscale/ipn"
 	tsDNS "github.com/sagernet/tailscale/net/dns"
+	nDNSResolver "github.com/sagernet/tailscale/net/dns/resolver"
 	"github.com/sagernet/tailscale/net/netmon"
 	"github.com/sagernet/tailscale/net/netns"
 	"github.com/sagernet/tailscale/net/tsaddr"
@@ -98,12 +100,10 @@ type Endpoint struct {
 	onReconfigHook    wgengine.ReconfigListener
 	sshReconfigHook   wgengine.ReconfigListener
 
-	cfg           *wgcfg.Config
-	routerCfg     *router.Config
-	dnsCfg        *tsDNS.Config
-	routeDomains  common.TypedValue[map[string]bool]
-	routeSuffixes common.TypedValue[[]string]
-	searchDomains atomic.Bool
+	cfg       *wgcfg.Config
+	routerCfg *router.Config
+	dnsCfg    *tsDNS.Config
+	domains   atomic.Pointer[tailnetDomains]
 
 	acceptRoutes               bool
 	exitNode                   string
@@ -939,26 +939,19 @@ func (t *Endpoint) NewPacketConnectionEx(ctx context.Context, conn N.PacketConn,
 }
 
 func (t *Endpoint) PreferredDomain(metadata *adapter.InboundContext, domain string) bool {
-	routeDomains := t.routeDomains.Load()
-	if routeDomains == nil {
+	domains := t.domains.Load()
+	if domains == nil {
 		return false
 	}
-	domain = strings.ToLower(domain)
-	if routeDomains[domain] {
+	canonicalDomain := mDNS.CanonicalName(domain)
+	if slices.Contains(domains.searchDomains, canonicalDomain) {
 		return true
 	}
+	var magicHosts nDNSResolver.MagicDNSHosts
 	if t.started.Load() {
-		magicHosts := t.server.ExportLocalBackend().ExportMagicDNSHosts()
-		if _, found := lookupHosts(nil, magicHosts, domain); found {
-			return true
-		}
+		magicHosts = t.server.ExportLocalBackend().ExportMagicDNSHosts()
 	}
-	for _, suffix := range t.routeSuffixes.Load() {
-		if matchDomainSuffix(domain, suffix) {
-			return true
-		}
-	}
-	return !strings.Contains(domain, ".") && t.searchDomains.Load()
+	return domains.match(magicHosts, canonicalDomain, !strings.Contains(domain, "."))
 }
 
 func (t *Endpoint) PreferredAddress(metadata *adapter.InboundContext, address netip.Addr) bool {
@@ -992,20 +985,8 @@ func (t *Endpoint) onReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCf
 	t.routerCfg = routerCfg
 	t.dnsCfg = dnsCfg
 
-	routeDomains := make(map[string]bool)
-	for fqdn := range dnsCfg.Hosts {
-		routeDomains[fqdn.WithoutTrailingDot()] = true
-	}
-	for _, fqdn := range dnsCfg.SearchDomains {
-		routeDomains[fqdn.WithoutTrailingDot()] = true
-	}
-	routeSuffixes := make([]string, 0, len(dnsCfg.Routes))
-	for fqdn := range dnsCfg.Routes {
-		routeSuffixes = append(routeSuffixes, strings.ToLower(fqdn.WithoutTrailingDot()))
-	}
-	t.routeDomains.Store(routeDomains)
-	t.routeSuffixes.Store(routeSuffixes)
-	t.searchDomains.Store(len(dnsCfg.SearchDomains) > 0)
+	domains := newTailnetDomains(dnsCfg)
+	t.domains.Store(&domains)
 
 	if t.onReconfigHook != nil {
 		t.onReconfigHook(cfg, routerCfg, dnsCfg)
