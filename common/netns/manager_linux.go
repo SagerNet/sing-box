@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 
 	vnetns "github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 type Manager struct {
@@ -112,12 +113,29 @@ func (m *Manager) startNamespace(namespace option.NetworkNamespace, scope *adapt
 	}
 	m.paths[namespace.Tag] = netnsPath(pid)
 	m.logger.Info("created network namespace[", namespace.Tag, "], holder pid: ", pid)
-	if os.Geteuid() == 0 {
-		m.logger.Info("enter network namespace[", namespace.Tag, "] with: nsenter -n -t ", pid)
-	} else {
+	if ownsUserNamespace() {
 		m.logger.Info("enter network namespace[", namespace.Tag, "] with: nsenter -U --preserve-credentials -n -t ", pid)
+	} else {
+		m.logger.Info("enter network namespace[", namespace.Tag, "] with: nsenter -n -t ", pid)
 	}
 	return nil
+}
+
+func ownsUserNamespace() bool {
+	effectiveUID := os.Geteuid()
+	if effectiveUID == 0 {
+		return false
+	}
+	userNamespace, err := os.Open("/proc/self/ns/user")
+	if err != nil {
+		return false
+	}
+	defer userNamespace.Close()
+	ownerUID, err := unix.IoctlGetUint32(int(userNamespace.Fd()), unix.NS_GET_OWNER_UID)
+	if err != nil {
+		return false
+	}
+	return int(ownerUID) == effectiveUID
 }
 
 func (m *Manager) ResolvePath(nameOrPath string) string {
