@@ -10,6 +10,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
 )
 
 func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reader io.Reader) error {
@@ -22,7 +23,7 @@ func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reade
 	}).HandshakeContext(ctx)
 	if clientHello != nil {
 		metadata.Protocol = C.ProtocolTLS
-		metadata.Domain = clientHello.ServerName
+		metadata.Domain = M.ParseSocksaddrHostPort(clientHello.ServerName, 0).Fqdn
 		return nil
 	}
 	if errors.Is(err, io.ErrUnexpectedEOF) {
