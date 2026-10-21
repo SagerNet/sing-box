@@ -224,6 +224,8 @@ jobs:
           set -xeuo pipefail
           if [[ "${{ matrix.naive }}" == "true" ]]; then
             TAGS=$(cat release/DEFAULT_BUILD_TAGS)
+          elif [[ "${{ matrix.legacy_win7 }}" == "true" ]]; then
+            TAGS=$(sed 's/,with_usbip//' release/DEFAULT_BUILD_TAGS_OTHERS)
           else
             TAGS=$(cat release/DEFAULT_BUILD_TAGS_OTHERS)
           fi
