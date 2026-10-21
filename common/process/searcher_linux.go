@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
@@ -87,7 +88,7 @@ func (s *linuxSearcher) FindProcessInfo(ctx context.Context, network string, sou
 	processPath, err := s.findProcessPath(inode, uid)
 	if err != nil {
 		s.logger.DebugContext(ctx, "find process path: ", err)
-	} else {
+	} else if !C.IsAndroid || !strings.HasPrefix(processPath, "/system/bin/app_process") {
 		processInfo.ProcessPath = processPath
 	}
 	if s.packageManager != nil {
@@ -129,9 +130,14 @@ func (s *linuxSearcher) resolveSocketByNetlink(network string, source netip.Addr
 
 // The socket keeps the uid it was created with, while /proc reflects the
 // current uid of the process, so a socket created before a privilege drop
-// only appears under a scan of all users.
+// only appears under a scan of all users. On Android, netd chowns the DNS
+// sockets it opens on behalf of an app to the app's uid.
 func (s *linuxSearcher) findProcessPath(targetInode, uid uint32) (string, error) {
-	for _, scanUID := range []uint32{uid, processPathsAllUsers} {
+	scanUIDs := []uint32{uid}
+	if !C.IsAndroid {
+		scanUIDs = append(scanUIDs, processPathsAllUsers)
+	}
+	for _, scanUID := range scanUIDs {
 		if cached, ok := s.processPathCache.Get(scanUID); ok {
 			if processPath, found := cached.entries[targetInode]; found {
 				return processPath, nil
