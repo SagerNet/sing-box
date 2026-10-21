@@ -114,7 +114,11 @@ func (c *Client) dialHTTP(ctx context.Context) (net.Conn, error) {
 	}
 	switch hostLen := len(c.host); hostLen {
 	case 0:
-		request.Host = c.serverAddr.AddrString()
+		if c.serverAddr.IsIPv6() {
+			request.Host = "[" + c.serverAddr.AddrString() + "]"
+		} else {
+			request.Host = c.serverAddr.AddrString()
+		}
 	case 1:
 		request.Host = c.host[0]
 	default:

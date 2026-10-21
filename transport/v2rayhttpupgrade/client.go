@@ -40,7 +40,12 @@ func NewClient(ctx context.Context, dialer N.Dialer, serverAddr M.Socksaddr, opt
 	if options.Host != "" {
 		host = options.Host
 	} else if tlsConfig != nil && tlsConfig.ServerName() != "" {
-		host = tlsConfig.ServerName()
+		serverName := M.ParseSocksaddrHostPort(tlsConfig.ServerName(), 0)
+		if serverName.IsIPv6() {
+			host = "[" + serverName.AddrString() + "]"
+		} else {
+			host = serverName.AddrString()
+		}
 	} else {
 		host = serverAddr.String()
 	}

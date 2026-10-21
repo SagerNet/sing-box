@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 	"sync"
 
 	"github.com/sagernet/quic-go"
@@ -60,6 +58,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	if err != nil {
 		return nil, err
 	}
+	tlsConfig.SetNextProtos([]string{http3.NextProtoH3})
 	stdConfig, err := tlsConfig.STDConfig()
 	if err != nil {
 		return nil, err
@@ -75,15 +74,14 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 			host = options.Server
 		}
 	}
-	destinationURL := url.URL{
-		Scheme: "https",
-		Host:   host,
-	}
-	if destinationURL.Host == "" {
-		destinationURL.Host = options.Server
-	}
+	destinationAddress := M.ParseSocksaddrHostPort(host, options.ServerPort)
+	destinationURL := url.URL{Scheme: "https"}
 	if options.ServerPort != 0 && options.ServerPort != 443 {
-		destinationURL.Host = net.JoinHostPort(destinationURL.Host, strconv.Itoa(int(options.ServerPort)))
+		destinationURL.Host = destinationAddress.String()
+	} else if destinationAddress.IsIPv6() {
+		destinationURL.Host = "[" + destinationAddress.AddrString() + "]"
+	} else {
+		destinationURL.Host = destinationAddress.AddrString()
 	}
 	path := options.Path
 	if path == "" {
@@ -115,12 +113,12 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 
 func (t *HTTP3Transport) newTransport() *http3.Transport {
 	return &http3.Transport{
-		Dial: func(ctx context.Context, addr string, tlsCfg *tls.STDConfig, cfg *quic.Config) (*quic.Conn, error) {
+		Dial: func(ctx context.Context, _ string, _ *tls.STDConfig, cfg *quic.Config) (*quic.Conn, error) {
 			conn, dialErr := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
 			if dialErr != nil {
 				return nil, dialErr
 			}
-			quicConn, dialErr := quic.DialEarlyConn(ctx, conn, tlsCfg, cfg)
+			quicConn, dialErr := quic.DialEarlyConn(ctx, conn, t.tlsConfig, cfg)
 			if dialErr != nil {
 				conn.Close()
 				return nil, dialErr
@@ -133,7 +131,6 @@ func (t *HTTP3Transport) newTransport() *http3.Transport {
 			}()
 			return quicConn, nil
 		},
-		TLSClientConfig: t.tlsConfig,
 	}
 }
 
