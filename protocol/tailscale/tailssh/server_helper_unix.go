@@ -11,6 +11,7 @@ import (
 
 	gliderssh "github.com/sagernet/gliderssh"
 	"github.com/sagernet/sing-box/adapter"
+	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func isPrivilegedUser() bool {
@@ -21,10 +22,21 @@ func requestedUserMatchesProcess(localUser *adapter.PlatformUser) (bool, error) 
 	return localUser.Uid == os.Getuid() && localUser.Gid == os.Getgid(), nil
 }
 
-// verifyShellIdentity is a no-op on Unix: spawned shells and sftp-server drop to the
-// requested user via setCredential, so the child already runs as that user.
-func verifyShellIdentity(_ adapter.PlatformInterface, _ *adapter.PlatformUser) error {
-	return nil
+func verifyShellIdentity(platformInterface adapter.PlatformInterface, localUser *adapter.PlatformUser) error {
+	if platformInterface != nil && platformInterface.UsePlatformShell() {
+		return nil
+	}
+	match, err := requestedUserMatchesProcess(localUser)
+	if err != nil {
+		return err
+	}
+	if match {
+		return nil
+	}
+	if !isPrivilegedUser() {
+		return E.New("switching to local user ", localUser.Username, " requires sing-box to run as root")
+	}
+	return checkSwitchUserPrivilege(localUser)
 }
 
 func systemHostKeyPath() string {
