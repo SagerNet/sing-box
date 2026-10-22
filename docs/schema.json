@@ -2031,7 +2031,7 @@
             "inet6_range": {
               "type": "string",
               "examples": [
-                "fc00::/18"
+                "2001:2::/48"
               ]
             }
           },

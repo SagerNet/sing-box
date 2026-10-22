@@ -17,7 +17,7 @@ icon: material/new-box
         "tag": "",
 
         "inet4_range": "198.18.0.0/15",
-        "inet6_range": "fc00::/18"
+        "inet6_range": "2001:2::/48"
       }
     ]
   }
@@ -30,6 +30,6 @@ icon: material/new-box
 
 IPv4 address range for FakeIP.
 
-#### inet6_address
+#### inet6_range
 
 IPv6 address range for FakeIP.
