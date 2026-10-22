@@ -119,8 +119,11 @@ func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint)
 		}
 		c.logger.Error(E.Cause(err, "connect to server"))
 		err = nil
-		c.pauseManager.WaitActive()
-		time.Sleep(time.Second)
+		c.pauseManager.WaitActiveContext(c.bindCtx)
+		select {
+		case <-c.done:
+		case <-time.After(time.Second):
+		}
 		return
 	}
 	n, addr, err := udpConn.ReadFrom(packets[0])
@@ -166,7 +169,6 @@ func (c *ClientBind) SetMark(mark uint32) error {
 func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint, offset int) error {
 	udpConn, err := c.connect()
 	if err != nil {
-		c.pauseManager.WaitActive()
 		time.Sleep(time.Second)
 		return err
 	}
