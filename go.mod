@@ -60,7 +60,7 @@ require (
 	github.com/sagernet/sing-vmess v0.2.9-0.20260929152519-9b95ab8c9478
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
 	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20261019070639-79c1732442a9
-	github.com/sagernet/wireguard-go v0.0.8-0.20260929150556-6731c7387c81
+	github.com/sagernet/wireguard-go v0.0.8-0.20261019230631-34ff6c5e8c94
 	github.com/sagernet/ws v0.0.0-20231204124109-acfe8907c854
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.0
