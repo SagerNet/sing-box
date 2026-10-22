@@ -33,6 +33,8 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.NaiveOutboundOptions](registry, C.TypeNaive, NewOutbound)
 }
 
+var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+
 type Outbound struct {
 	outbound.Adapter
 	ctx       context.Context
@@ -255,6 +257,10 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return nil, E.New("UDP is not supported unless UDP over TCP is enabled")
 	}
 	return h.uotClient.ListenPacket(ctx, destination)
+}
+
+func (h *Outbound) MultiplexEnabled() bool {
+	return true
 }
 
 func (h *Outbound) InterfaceUpdated(ctx context.Context) {

@@ -70,6 +70,7 @@ var (
 	_ adapter.OutboundWithPreferredRoutes = (*Endpoint)(nil)
 	_ adapter.InterfaceUpdateListener     = (*Endpoint)(nil)
 	_ adapter.Referrer                    = (*Endpoint)(nil)
+	_ adapter.OutboundWithMultiplex       = (*Endpoint)(nil)
 	_ dialer.PacketDialerWithDestination  = (*Endpoint)(nil)
 	_ tun.Port                            = (*Endpoint)(nil)
 )
@@ -754,6 +755,10 @@ func (t *Endpoint) Logout(ctx context.Context) error {
 		return E.Cause(err, "start interactive login")
 	}
 	return nil
+}
+
+func (t *Endpoint) MultiplexEnabled() bool {
+	return true
 }
 
 func (t *Endpoint) InterfaceUpdated(ctx context.Context) {
