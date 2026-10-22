@@ -11,7 +11,7 @@ type TrojanInboundOptions struct {
 }
 
 type TrojanUser struct {
-	Name     string `json:"name"`
+	Name     string `json:"name,omitempty"`
 	Password string `json:"password"`
 }
 

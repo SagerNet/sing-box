@@ -9,7 +9,7 @@ type VLESSInboundOptions struct {
 }
 
 type VLESSUser struct {
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 	UUID string `json:"uuid"`
 	Flow string `json:"flow,omitempty"`
 }

@@ -182,7 +182,7 @@ type ServerOptionsWrapper interface {
 
 type ServerOptions struct {
 	Server     string `json:"server"`
-	ServerPort uint16 `json:"server_port"`
+	ServerPort uint16 `json:"server_port,omitempty"`
 }
 
 func (o ServerOptions) Build() M.Socksaddr {

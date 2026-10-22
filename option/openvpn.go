@@ -195,7 +195,7 @@ type OpenVPNPushOptions struct {
 }
 
 type OpenVPNPushDNSServerOptions struct {
-	Priority       int                        `json:"priority"`
+	Priority       int                        `json:"priority,omitempty"`
 	Addresses      badoption.Listable[string] `json:"addresses"`
 	ResolveDomains badoption.Listable[string] `json:"resolve_domains,omitempty"`
 	DNSSEC         string                     `json:"dnssec,omitempty" enum:"yes,optional,no"`

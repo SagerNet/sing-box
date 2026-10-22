@@ -23,8 +23,8 @@ type _USBIPServerServiceOptions struct {
 type USBIPServerServiceOptions _USBIPServerServiceOptions
 
 func (o USBIPServerServiceOptions) MarshalJSON() ([]byte, error) {
-	if o.Options == nil {
-		return json.Marshal(_USBIPServerServiceOptions(o))
+	if o.Provider == USBIPProviderDefault {
+		o.Provider = ""
 	}
 	return badjson.MarshallObjects(_USBIPServerServiceOptions(o), o.Options)
 }
