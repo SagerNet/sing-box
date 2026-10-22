@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/sagernet/sing-box/common/listener"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/bufio"
 	M "github.com/sagernet/sing/common/metadata"
@@ -21,6 +22,7 @@ type slowOpenConn struct {
 	dialer      *tfo.Dialer
 	ctx         context.Context
 	cancel      context.CancelFunc
+	netns       string
 	network     string
 	destination M.Socksaddr
 	conn        atomic.Pointer[net.TCPConn]
@@ -31,7 +33,7 @@ type slowOpenConn struct {
 	err         error
 }
 
-func DialSlowContext(dialer *tfo.Dialer, ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+func DialSlowContext(dialer *tfo.Dialer, ctx context.Context, netns string, network string, destination M.Socksaddr) (net.Conn, error) {
 	if dialer.DisableTFO || N.NetworkName(network) != N.NetworkTCP {
 		switch N.NetworkName(network) {
 		case N.NetworkTCP, N.NetworkUDP:
@@ -45,6 +47,7 @@ func DialSlowContext(dialer *tfo.Dialer, ctx context.Context, network string, de
 		dialer:      dialer,
 		ctx:         dialCtx,
 		cancel:      cancel,
+		netns:       netns,
 		network:     network,
 		destination: destination,
 		create:      make(chan struct{}),
@@ -85,7 +88,9 @@ func (c *slowOpenConn) Write(b []byte) (n int, err error) {
 		return 0, os.ErrClosed
 	default:
 	}
-	conn, err := c.dialer.DialContext(c.ctx, c.network, c.destination.String(), b)
+	conn, err := listener.ListenNetworkNamespace[net.Conn](c.ctx, c.netns, func() (net.Conn, error) {
+		return c.dialer.DialContext(c.ctx, c.network, c.destination.String(), b)
+	})
 	if err != nil {
 		c.err = err
 	} else {

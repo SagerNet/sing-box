@@ -284,9 +284,9 @@ func (d *DefaultDialer) DialContext(ctx context.Context, network string, address
 				}
 			}
 			if !address.IsIPv6() {
-				return DialSlowContext(&d.dialer4, ctx, network, address)
+				return DialSlowContext(&d.dialer4, ctx, d.netns, network, address)
 			} else {
-				return DialSlowContext(&d.dialer6, ctx, network, address)
+				return DialSlowContext(&d.dialer6, ctx, d.netns, network, address)
 			}
 		})
 		return d.trackConn(ctx, address, conn, err)
