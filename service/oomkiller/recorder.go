@@ -130,7 +130,6 @@ type eventRecord struct {
 	MemoryLimit      uint64        `json:"memoryLimit,omitempty"`
 	TriggerBytes     uint64        `json:"triggerBytes,omitempty"`
 	ArmedBytes       uint64        `json:"armedBytes,omitempty"`
-	ResumeBytes      uint64        `json:"resumeBytes,omitempty"`
 	ReportOnly       bool          `json:"reportOnly,omitempty"`
 	Connections      int           `json:"connections,omitempty"`
 	Sequence         int           `json:"seq,omitempty"`
@@ -288,7 +287,6 @@ func (r *Recorder) instanceStarted(config timerConfig, thresholds pressureThresh
 		MemoryLimit:  config.memoryLimit,
 		TriggerBytes: thresholds.trigger,
 		ArmedBytes:   thresholds.armed,
-		ResumeBytes:  thresholds.resume,
 		ReportOnly:   config.killerDisabled,
 	})
 	return carriedState
