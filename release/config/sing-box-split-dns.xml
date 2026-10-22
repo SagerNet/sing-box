@@ -7,9 +7,4 @@
         <allow send_destination="org.freedesktop.resolve1"/>
         <allow receive_sender="org.freedesktop.resolve1"/>
     </policy>
-    <policy user="sing-box">
-        <allow own="org.freedesktop.resolve1"/>
-        <allow send_destination="org.freedesktop.resolve1"/>
-        <allow receive_sender="org.freedesktop.resolve1"/>
-    </policy>
 </busconfig>
