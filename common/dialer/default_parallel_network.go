@@ -7,7 +7,6 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -51,82 +50,25 @@ func DialParallelNetwork(ctx context.Context, dialer ParallelInterfaceDialer, ne
 		}
 		destinationAddresses = []netip.Addr{destination.Addr}
 	}
+	return N.DialParallel(ctx, &networkStrategyDialer{
+		ParallelInterfaceDialer: dialer,
+		strategy:                strategy,
+		interfaceType:           interfaceType,
+		fallbackInterfaceType:   fallbackInterfaceType,
+		fallbackDelay:           fallbackDelay,
+	}, network, destination, destinationAddresses, preferIPv6, fallbackDelay)
+}
 
-	if fallbackDelay == 0 {
-		fallbackDelay = N.DefaultFallbackDelay
-	}
+type networkStrategyDialer struct {
+	ParallelInterfaceDialer
+	strategy              *C.NetworkStrategy
+	interfaceType         []C.InterfaceType
+	fallbackInterfaceType []C.InterfaceType
+	fallbackDelay         time.Duration
+}
 
-	returned := make(chan struct{})
-	defer close(returned)
-
-	addresses4 := common.Filter(destinationAddresses, func(address netip.Addr) bool {
-		return address.Is4() || address.Is4In6()
-	})
-	addresses6 := common.Filter(destinationAddresses, func(address netip.Addr) bool {
-		return address.Is6() && !address.Is4In6()
-	})
-	if len(addresses4) == 0 || len(addresses6) == 0 {
-		return DialSerialNetwork(ctx, dialer, network, destination, destinationAddresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
-	}
-	var primaries, fallbacks []netip.Addr
-	if preferIPv6 {
-		primaries = addresses6
-		fallbacks = addresses4
-	} else {
-		primaries = addresses4
-		fallbacks = addresses6
-	}
-	type dialResult struct {
-		net.Conn
-		error
-		primary bool
-		done    bool
-	}
-	results := make(chan dialResult) // unbuffered
-	startRacer := func(ctx context.Context, primary bool) {
-		ras := primaries
-		if !primary {
-			ras = fallbacks
-		}
-		c, err := DialSerialNetwork(ctx, dialer, network, destination, ras, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
-		select {
-		case results <- dialResult{Conn: c, error: err, primary: primary, done: true}:
-		case <-returned:
-			if c != nil {
-				c.Close()
-			}
-		}
-	}
-	var primary, fallback dialResult
-	primaryCtx, primaryCancel := context.WithCancel(ctx)
-	defer primaryCancel()
-	go startRacer(primaryCtx, true)
-	fallbackTimer := time.NewTimer(fallbackDelay)
-	defer fallbackTimer.Stop()
-	for {
-		select {
-		case <-fallbackTimer.C:
-			fallbackCtx, fallbackCancel := context.WithCancel(ctx)
-			defer fallbackCancel()
-			go startRacer(fallbackCtx, false)
-
-		case res := <-results:
-			if res.error == nil {
-				return res.Conn, nil
-			}
-			if res.primary {
-				primary = res
-			} else {
-				fallback = res
-			}
-			if primary.done && fallback.done {
-				return nil, primary.error
-			}
-			if res.primary && fallbackTimer.Stop() {
-				fallbackTimer.Reset(0)
-			}
-		}
-	}
+func (d *networkStrategyDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	return d.DialParallelInterface(ctx, network, destination, d.strategy, d.interfaceType, d.fallbackInterfaceType, d.fallbackDelay)
 }
 
 func ListenSerialNetworkPacket(ctx context.Context, dialer N.Dialer, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {
