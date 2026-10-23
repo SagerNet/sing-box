@@ -245,6 +245,9 @@ func (h *Outbound) DialParallelNetwork(ctx context.Context, network string, dest
 	case N.NetworkUDP:
 		h.logger.InfoContext(ctx, "outbound packet connection to ", destination)
 	}
+	if fallbackDelay == 0 {
+		fallbackDelay = h.fallbackDelay
+	}
 	return dialer.DialParallelNetwork(ctx, h.dialer, network, destination, destinationAddresses, len(destinationAddresses) > 0 && destinationAddresses[0].Is6(), networkStrategy, networkType, fallbackNetworkType, fallbackDelay)
 }
 
