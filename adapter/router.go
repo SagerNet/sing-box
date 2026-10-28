@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing-tun/gtcpip/header"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/x/list"
@@ -50,15 +49,8 @@ type PreMatchResult struct {
 }
 
 func JudgeFlow(router Router, metadata InboundContext, network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
-	var networkName string
-	switch network {
-	case uint8(header.TCPProtocolNumber):
-		networkName = N.NetworkTCP
-	case uint8(header.UDPProtocolNumber):
-		networkName = N.NetworkUDP
-	case uint8(header.ICMPv4ProtocolNumber), uint8(header.ICMPv6ProtocolNumber):
-		networkName = N.NetworkICMP
-	default:
+	networkName := flowNetworkName(network)
+	if networkName == "" {
 		return tun.FlowVerdict{Action: tun.ActionAccept}
 	}
 	metadata.Network = networkName

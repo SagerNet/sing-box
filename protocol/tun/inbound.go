@@ -527,6 +527,9 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		if err != nil {
 			return E.Cause(err, "starting TUN interface")
 		}
+		if routedPort, isRoutedPort := t.tunStack.(tun.RoutedPort); isRoutedPort {
+			t.networkManager.RegisterHostPort(routedPort)
+		}
 		if t.autoRedirect != nil {
 			scope.Add(t.autoRedirect.Close)
 			monitor.Start("initialize auto-redirect")
