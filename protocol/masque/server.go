@@ -80,6 +80,8 @@ func NewServerEndpoint(ctx context.Context, router adapter.Router, logger log.Co
 			Adapter: endpoint.NewAdapter(C.TypeMASQUEServer, tag, []string{N.NetworkTCP, N.NetworkUDP, N.NetworkICMP}, nil),
 			router:  router,
 			logger:  logger,
+			system:  options.System,
+			network: service.FromContext[adapter.NetworkManager](ctx),
 		},
 		ctx:            ctx,
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
@@ -249,7 +251,7 @@ func (s *ServerEndpoint) DetachReturn(returnPath tun.Return) error {
 }
 
 func (s *ServerEndpoint) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
-	return s.judgeFlow(s, s.localAddresses, network, source, destination, firstPacket)
+	return s.judgeFlow(s.ctx, s, s.localAddresses, network, source, destination, firstPacket)
 }
 
 func (s *ServerEndpoint) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {

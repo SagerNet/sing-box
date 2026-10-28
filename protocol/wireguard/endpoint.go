@@ -46,6 +46,8 @@ type Endpoint struct {
 	dnsRouter      adapter.DNSRouter
 	logger         logger.ContextLogger
 	localAddresses []netip.Prefix
+	system         bool
+	network        adapter.NetworkManager
 	endpoint       *wireguard.Endpoint
 	onDemand       bool
 	bindAccess     sync.Mutex
@@ -60,6 +62,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		dnsRouter:      service.FromContext[adapter.DNSRouter](ctx),
 		logger:         logger,
 		localAddresses: options.Address,
+		system:         options.System,
 		onDemand:       options.OnDemand,
 	}
 	if options.Detour != "" && options.ListenPort != 0 {
@@ -83,6 +86,7 @@ func NewEndpoint(ctx context.Context, router adapter.Router, logger log.ContextL
 		udpTimeout = C.UDPTimeout
 	}
 	networkManager := service.FromContext[adapter.NetworkManager](ctx)
+	ep.network = networkManager
 	wgEndpoint, err := wireguard.NewEndpoint(wireguard.EndpointOptions{
 		Context:         ctx,
 		Logger:          logger,
@@ -222,7 +226,10 @@ func (w *Endpoint) DetachReturn(returnPath tun.Return) error {
 func (w *Endpoint) JudgeFlow(network uint8, source netip.AddrPort, destination netip.AddrPort, firstPacket []byte) tun.FlowVerdict {
 	for _, localPrefix := range w.localAddresses {
 		if localPrefix.Contains(destination.Addr()) {
-			return tun.FlowVerdict{Action: tun.ActionAccept}
+			if w.system {
+				return tun.FlowVerdict{Action: tun.ActionAccept}
+			}
+			return adapter.JudgeHostFlow(w.ctx, w.network, w.logger, network, source, destination)
 		}
 	}
 	return adapter.JudgeFlow(w.router, adapter.InboundContext{Inbound: w.Tag(), InboundType: w.Type()}, network, source, destination, firstPacket)
