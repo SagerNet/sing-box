@@ -20,6 +20,7 @@ import (
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/icmp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/tcp"
 	"github.com/sagernet/gvisor/pkg/tcpip/transport/udp"
+	"github.com/sagernet/sing-box/common/interrupt"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -37,6 +38,8 @@ type stackDevice struct {
 	endpoint      *stackEndpoint
 	inet4Address  netip.Addr
 	inet6Address  netip.Addr
+	inet4UDP      interrupt.Group
+	inet6UDP      interrupt.Group
 	udpForwarder  *tun.UDPForwarder
 	icmpForwarder *tun.ICMPForwarder
 	closeOnce     sync.Once
@@ -138,7 +141,14 @@ func (d *stackDevice) updateAddresses(previousAddresses []netip.Prefix, addresse
 			return E.New("add local address ", prefix, ": ", gErr.String())
 		}
 	}
-	d.inet4Address, d.inet6Address = firstAddresses(addresses)
+	inet4Address, inet6Address := firstAddresses(addresses)
+	if d.inet4Address != inet4Address {
+		d.inet4UDP.Interrupt(true)
+	}
+	if d.inet6Address != inet6Address {
+		d.inet6UDP.Interrupt(true)
+	}
+	d.inet4Address, d.inet6Address = inet4Address, inet6Address
 	return nil
 }
 
@@ -177,59 +187,62 @@ func (d *stackDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 }
 
 func (d *stackDevice) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	inet4Address, inet6Address := d.PortAddresses()
 	address := tcpip.FullAddress{
 		NIC:  tun.DefaultNIC,
 		Port: destination.Port,
 		Addr: tun.AddressFromAddr(destination.Addr),
 	}
-	bind := tcpip.FullAddress{
-		NIC: tun.DefaultNIC,
-	}
-	var networkProtocol tcpip.NetworkProtocolNumber
-	if destination.IsIPv4() {
-		if !inet4Address.IsValid() {
-			return nil, E.New("missing IPv4 local address")
-		}
-		networkProtocol = header.IPv4ProtocolNumber
-		bind.Addr = tun.AddressFromAddr(inet4Address)
-	} else {
-		if !inet6Address.IsValid() {
-			return nil, E.New("missing IPv6 local address")
-		}
-		networkProtocol = header.IPv6ProtocolNumber
-		bind.Addr = tun.AddressFromAddr(inet6Address)
-	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
+		d.stateAccess.RLock()
+		bind, networkProtocol, _, err := d.bindAddressLocked(destination)
+		d.stateAccess.RUnlock()
+		if err != nil {
+			return nil, err
+		}
 		return gonet.DialTCPWithBind(ctx, d.stack, bind, address, networkProtocol)
 	case N.NetworkUDP:
-		return gonet.DialUDP(d.stack, &bind, &address, networkProtocol)
+		d.stateAccess.RLock()
+		defer d.stateAccess.RUnlock()
+		bind, networkProtocol, udpGroup, err := d.bindAddressLocked(destination)
+		if err != nil {
+			return nil, err
+		}
+		udpConn, err := gonet.DialUDP(d.stack, &bind, &address, networkProtocol)
+		if err != nil {
+			return nil, err
+		}
+		return udpGroup.NewConn(udpConn, false), nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
 }
 
 func (d *stackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	inet4Address, inet6Address := d.PortAddresses()
-	bind := tcpip.FullAddress{
-		NIC: tun.DefaultNIC,
+	d.stateAccess.RLock()
+	defer d.stateAccess.RUnlock()
+	bind, networkProtocol, udpGroup, err := d.bindAddressLocked(destination)
+	if err != nil {
+		return nil, err
 	}
-	var networkProtocol tcpip.NetworkProtocolNumber
+	udpConn, err := gonet.DialUDP(d.stack, &bind, nil, networkProtocol)
+	if err != nil {
+		return nil, err
+	}
+	return udpGroup.NewPacketConn(udpConn, false), nil
+}
+
+func (d *stackDevice) bindAddressLocked(destination M.Socksaddr) (tcpip.FullAddress, tcpip.NetworkProtocolNumber, *interrupt.Group, error) {
 	if destination.IsIPv4() {
-		if !inet4Address.IsValid() {
-			return nil, E.New("missing IPv4 local address")
+		if !d.inet4Address.IsValid() {
+			return tcpip.FullAddress{}, 0, nil, E.New("missing IPv4 local address")
 		}
-		networkProtocol = header.IPv4ProtocolNumber
-		bind.Addr = tun.AddressFromAddr(inet4Address)
-	} else {
-		if !inet6Address.IsValid() {
-			return nil, E.New("missing IPv6 local address")
-		}
-		networkProtocol = header.IPv6ProtocolNumber
-		bind.Addr = tun.AddressFromAddr(inet6Address)
+		return tcpip.FullAddress{NIC: tun.DefaultNIC, Addr: tun.AddressFromAddr(d.inet4Address)}, header.IPv4ProtocolNumber, &d.inet4UDP, nil
 	}
-	return gonet.DialUDP(d.stack, &bind, nil, networkProtocol)
+	if !d.inet6Address.IsValid() {
+		return tcpip.FullAddress{}, 0, nil, E.New("missing IPv6 local address")
+	}
+	return tcpip.FullAddress{NIC: tun.DefaultNIC, Addr: tun.AddressFromAddr(d.inet6Address)}, header.IPv6ProtocolNumber, &d.inet6UDP, nil
 }
 
 func (d *stackDevice) PortAddresses() (netip.Addr, netip.Addr) {
