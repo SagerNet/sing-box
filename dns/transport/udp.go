@@ -147,7 +147,7 @@ func (t *UDPTransport) updateUDPSize(message *mDNS.Msg) {
 func (t *UDPTransport) writeQuery(conn net.Conn, message *mDNS.Msg, queryId uint16) error {
 	buffer := buf.NewSize(1 + message.Len())
 	defer buffer.Release()
-	exMessage := *message
+	exMessage := message.Copy()
 	exMessage.Compress = true
 	exMessage.Id = queryId
 	rawMessage, err := exMessage.PackBuffer(buffer.FreeBytes())

@@ -146,7 +146,7 @@ func WriteMessage(writer io.Writer, messageId uint16, message *mDNS.Msg) error {
 	buffer := buf.NewSize(3 + requestLen)
 	defer buffer.Release()
 	common.Must(binary.Write(buffer, binary.BigEndian, uint16(requestLen)))
-	exMessage := *message
+	exMessage := message.Copy()
 	exMessage.Id = messageId
 	exMessage.Compress = true
 	rawMessage, err := exMessage.PackBuffer(buffer.FreeBytes())
