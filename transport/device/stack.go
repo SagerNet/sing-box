@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/sagernet/sing-box/common/interrupt"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
@@ -24,6 +25,8 @@ type stackDevice struct {
 	memoryTun    *tun.MemoryTun
 	inet4Address netip.Addr
 	inet6Address netip.Addr
+	inet4UDP     interrupt.Group
+	inet6UDP     interrupt.Group
 	closeOnce    sync.Once
 }
 
@@ -65,7 +68,14 @@ func (d *stackDevice) UpdateConfiguration(configuration Configuration) error {
 		d.memoryTun.UpdateMTU(int(configuration.MTU))
 	}
 	d.options.Configuration = configuration
-	d.inet4Address, d.inet6Address = firstAddresses(configuration.Address)
+	inet4Address, inet6Address := firstAddresses(configuration.Address)
+	if d.inet4Address != inet4Address {
+		d.inet4UDP.Interrupt(true)
+	}
+	if d.inet6Address != inet6Address {
+		d.inet6UDP.Interrupt(true)
+	}
+	d.inet4Address, d.inet6Address = inet4Address, inet6Address
 	return nil
 }
 
@@ -87,32 +97,40 @@ func (d *stackDevice) waitWriteBuffers(packetBuffers []*buf.Buffer) error {
 }
 
 func (d *stackDevice) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	bind, err := d.bindAddress(destination)
-	if err != nil {
-		return nil, err
-	}
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
-		var tcpConn *tun.GoConn
-		tcpConn, err = d.stack.DialTCP(ctx, bind, destination.AddrPort())
+		d.stateAccess.RLock()
+		bind, _, err := d.bindAddressLocked(destination)
+		d.stateAccess.RUnlock()
+		if err != nil {
+			return nil, err
+		}
+		tcpConn, err := d.stack.DialTCP(ctx, bind, destination.AddrPort())
 		if err != nil {
 			return nil, err
 		}
 		return tcpConn, nil
 	case N.NetworkUDP:
-		var udpConn *tun.GoUDPConn
-		udpConn, err = d.stack.DialUDP(netip.AddrPortFrom(bind, 0), destination.AddrPort())
+		d.stateAccess.RLock()
+		defer d.stateAccess.RUnlock()
+		bind, udpGroup, err := d.bindAddressLocked(destination)
 		if err != nil {
 			return nil, err
 		}
-		return udpConn, nil
+		udpConn, err := d.stack.DialUDP(netip.AddrPortFrom(bind, 0), destination.AddrPort())
+		if err != nil {
+			return nil, err
+		}
+		return udpGroup.NewConn(udpConn, false), nil
 	default:
 		return nil, E.Extend(N.ErrUnknownNetwork, network)
 	}
 }
 
 func (d *stackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
-	bind, err := d.bindAddress(destination)
+	d.stateAccess.RLock()
+	defer d.stateAccess.RUnlock()
+	bind, udpGroup, err := d.bindAddressLocked(destination)
 	if err != nil {
 		return nil, err
 	}
@@ -120,25 +138,23 @@ func (d *stackDevice) ListenPacket(ctx context.Context, destination M.Socksaddr)
 	if err != nil {
 		return nil, err
 	}
-	return udpConn, nil
+	return udpGroup.NewPacketConn(udpConn, false), nil
 }
 
-func (d *stackDevice) bindAddress(destination M.Socksaddr) (netip.Addr, error) {
-	d.stateAccess.RLock()
-	defer d.stateAccess.RUnlock()
+func (d *stackDevice) bindAddressLocked(destination M.Socksaddr) (netip.Addr, *interrupt.Group, error) {
 	if destination.IsIPv4() {
 		if !d.inet4Address.IsValid() {
-			return netip.Addr{}, E.New("missing IPv4 local address")
+			return netip.Addr{}, nil, E.New("missing IPv4 local address")
 		}
-		return d.inet4Address, nil
+		return d.inet4Address, &d.inet4UDP, nil
 	}
 	if d.options.Configuration.BlockIPv6 {
-		return netip.Addr{}, E.New("IPv6 is blocked")
+		return netip.Addr{}, nil, E.New("IPv6 is blocked")
 	}
 	if !d.inet6Address.IsValid() {
-		return netip.Addr{}, E.New("missing IPv6 local address")
+		return netip.Addr{}, nil, E.New("missing IPv6 local address")
 	}
-	return d.inet6Address, nil
+	return d.inet6Address, &d.inet6UDP, nil
 }
 
 func (d *stackDevice) PortAddresses() (netip.Addr, netip.Addr) {
