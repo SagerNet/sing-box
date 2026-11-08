@@ -186,6 +186,7 @@ func buildProcessPaths(uid uint32) (map[uint32]string, error) {
 			}
 			return nil, err
 		}
+		exePath = strings.TrimSuffix(exePath, " (deleted)")
 		fds, err := os.ReadDir(fdPath)
 		if err != nil {
 			continue

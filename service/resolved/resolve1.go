@@ -125,7 +125,7 @@ func (t *resolve1Manager) createMetadata(sender dbus.Sender) adapter.InboundCont
 
 	processPath, err := os.Readlink(F.ToString("/proc/", senderPid, "/exe"))
 	if err == nil {
-		processInfo.ProcessPath = processPath
+		processInfo.ProcessPath = strings.TrimSuffix(processPath, " (deleted)")
 	} else {
 		processName, readErr := os.ReadFile(F.ToString("/proc/", senderPid, "/comm"))
 		if readErr == nil {
