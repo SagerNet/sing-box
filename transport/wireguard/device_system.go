@@ -2,7 +2,6 @@ package wireguard
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/netip"
 	"os"
@@ -137,8 +136,6 @@ func (w *systemDevice) Read(bufs [][]byte, sizes []int, offset int) (count int, 
 		if err == nil {
 			sizes[0] -= tun.PacketOffset
 			count = 1
-		} else if errors.Is(err, tun.ErrTooManySegments) {
-			err = wgTun.ErrTooManySegments
 		}
 	}
 	return

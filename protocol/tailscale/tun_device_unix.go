@@ -4,7 +4,6 @@ package tailscale
 
 import (
 	"encoding/hex"
-	"errors"
 	"io"
 	"os"
 	"sync"
@@ -74,9 +73,6 @@ func (a *tunDeviceAdapter) Read(bufs [][]byte, sizes []int, offset int) (count i
 		sizes[0] = n - singTun.PacketOffset
 		a.debugPacket("read", readBuf[singTun.PacketOffset:n])
 		return 1, nil
-	}
-	if errors.Is(err, singTun.ErrTooManySegments) {
-		err = wgTun.ErrTooManySegments
 	}
 	return 0, err
 }
