@@ -284,8 +284,11 @@ func (t *Endpoint) start(scope *adapter.Scope) error {
 		if err != nil {
 			return err
 		}
+	}
+	if interfaceMonitor := t.network.InterfaceMonitor(); interfaceMonitor != nil {
+		interfaceFinder := t.network.InterfaceFinder()
 		netmon.RegisterInterfaceGetter(func() ([]netmon.Interface, error) {
-			return common.Map(t.network.InterfaceFinder().Interfaces(), func(it control.Interface) netmon.Interface {
+			return common.Map(interfaceFinder.Interfaces(), func(it control.Interface) netmon.Interface {
 				return netmon.Interface{
 					Interface: &net.Interface{
 						Index:        it.Index,
@@ -308,7 +311,7 @@ func (t *Endpoint) start(scope *adapter.Scope) error {
 			return nil
 		})
 		netmon.SetDefaultRouteFunc(func() (netmon.DefaultRouteDetails, error) {
-			defaultInterface := t.network.InterfaceMonitor().DefaultInterface()
+			defaultInterface := interfaceMonitor.DefaultInterface()
 			if defaultInterface == nil {
 				return netmon.DefaultRouteDetails{}, nil
 			}
@@ -441,6 +444,25 @@ func (t *Endpoint) postStart(scope *adapter.Scope) error {
 		return err
 	}
 	scope.Add(t.server.Close)
+	if t.network.InterfaceMonitor() != nil {
+		netMon := t.server.Sys().NetMon.Get()
+		interfaceFinder := t.network.InterfaceFinder()
+		var interfacesAccess sync.Mutex
+		lastInterfaces := interfaceFinder.Interfaces()
+		interfaceUpdateElement := interfaceFinder.RegisterInterfaceUpdateCallback(func(interfaces []control.Interface) {
+			interfacesAccess.Lock()
+			changed := !slices.EqualFunc(lastInterfaces, interfaces, control.Interface.Equals)
+			lastInterfaces = interfaces
+			interfacesAccess.Unlock()
+			if changed {
+				netMon.Poll()
+			}
+		})
+		scope.Add(func() error {
+			interfaceFinder.UnregisterInterfaceUpdateCallback(interfaceUpdateElement)
+			return nil
+		})
+	}
 	fallbackTCPCloser := t.server.RegisterFallbackTCPHandler(func(src, dst netip.AddrPort) (handler func(net.Conn), intercept bool) {
 		return func(conn net.Conn) {
 			ctx := log.ContextWithNewID(t.ctx)
