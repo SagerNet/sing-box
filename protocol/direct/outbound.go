@@ -29,11 +29,12 @@ func RegisterOutbound(registry *outbound.Registry) {
 }
 
 var (
-	_ N.ParallelDialer                = (*Outbound)(nil)
-	_ dialer.ParallelNetworkDialer    = (*Outbound)(nil)
-	_ dialer.DirectDialer             = (*Outbound)(nil)
-	_ adapter.FlowOutbound            = (*Outbound)(nil)
-	_ adapter.InterfaceUpdateListener = (*Outbound)(nil)
+	_ N.ParallelDialer                   = (*Outbound)(nil)
+	_ dialer.ParallelNetworkDialer       = (*Outbound)(nil)
+	_ dialer.PacketDialerWithDestination = (*Outbound)(nil)
+	_ dialer.DirectDialer                = (*Outbound)(nil)
+	_ adapter.FlowOutbound               = (*Outbound)(nil)
+	_ adapter.InterfaceUpdateListener    = (*Outbound)(nil)
 )
 
 type Outbound struct {
@@ -41,7 +42,7 @@ type Outbound struct {
 	ctx            context.Context
 	logger         logger.ContextLogger
 	network        adapter.NetworkManager
-	dialer         dialer.ParallelInterfaceDialer
+	dialer         dialer.ParallelInterfaceResolveDialer
 	domainStrategy C.DomainStrategy
 	fallbackDelay  time.Duration
 	isEmpty        bool
@@ -71,7 +72,7 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		//nolint:staticcheck
 		domainStrategy: C.DomainStrategy(options.DomainStrategy),
 		fallbackDelay:  time.Duration(options.FallbackDelay),
-		dialer:         outboundDialer.(dialer.ParallelInterfaceDialer),
+		dialer:         outboundDialer.(dialer.ParallelInterfaceResolveDialer),
 		isEmpty: reflect.DeepEqual(options.DialerOptions, option.DialerOptions{
 			AbstractDialerOptions: option.AbstractDialerOptions{UDPFragmentDefault: true},
 		}),
@@ -181,6 +182,21 @@ func (h *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 		return nil, err
 	}
 	return conn, nil
+}
+
+func (h *Outbound) ListenPacketWithDestination(ctx context.Context, destination M.Socksaddr) (net.PacketConn, netip.Addr, error) {
+	if h.isMyLoopbackAddress(destination.Addr) {
+		return nil, netip.Addr{}, E.New("loopback connection to TUN range")
+	}
+	ctx, metadata := adapter.ExtendContext(ctx)
+	metadata.Outbound = h.Tag()
+	metadata.Destination = destination
+	h.logger.InfoContext(ctx, "outbound packet connection")
+	if !metadata.UDPDisableDomainUnmapping {
+		conn, err := h.dialer.ListenPacket(ctx, destination)
+		return conn, netip.Addr{}, err
+	}
+	return h.dialer.ListenPacketWithDestination(ctx, destination)
 }
 
 func (h *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
