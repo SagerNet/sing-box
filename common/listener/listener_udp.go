@@ -26,8 +26,11 @@ func (l *Listener) ListenUDP() (net.PacketConn, error) {
 
 func (l *Listener) ListenUDPWithConfig(listenConfig net.ListenConfig) (net.PacketConn, error) {
 	bindAddr := M.SocksaddrFrom(l.listenOptions.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1})), l.listenOptions.ListenPort)
+	var followInterface func(conn syscall.Conn)
 	if l.listenOptions.BindInterface != "" {
-		listenConfig.Control = control.Append(listenConfig.Control, l.bindInterfaceFunc())
+		var bindFunc control.Func
+		bindFunc, followInterface = l.followBindInterface()
+		listenConfig.Control = control.Append(listenConfig.Control, bindFunc)
 	}
 	if l.listenOptions.RoutingMark != 0 {
 		listenConfig.Control = control.Append(listenConfig.Control, control.RoutingMark(uint32(l.listenOptions.RoutingMark)))
@@ -61,6 +64,9 @@ func (l *Listener) ListenUDPWithConfig(listenConfig net.ListenConfig) (net.Packe
 	}
 	l.udpConn = udpConn.(*net.UDPConn)
 	l.udpAddr = bindAddr
+	if followInterface != nil {
+		followInterface(l.udpConn)
+	}
 	l.logger.Info("udp server started at ", udpConn.LocalAddr())
 	return udpConn, err
 }

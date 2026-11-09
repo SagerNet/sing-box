@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/x/list"
 	"github.com/sagernet/sing/service"
 
 	"github.com/vishvananda/netns"
@@ -44,6 +46,7 @@ type Listener struct {
 	packetOutbound       chan *N.PacketBuffer
 	packetOutboundClosed chan struct{}
 	shutdown             atomic.Bool
+	interfaceCallbacks   []*list.Element[control.InterfaceUpdateCallback]
 }
 
 type Options struct {
@@ -124,6 +127,12 @@ func (l *Listener) Start() error {
 
 func (l *Listener) Close() error {
 	l.shutdown.Store(true)
+	if len(l.interfaceCallbacks) > 0 {
+		interfaceFinder := service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder()
+		for _, element := range l.interfaceCallbacks {
+			interfaceFinder.UnregisterInterfaceUpdateCallback(element)
+		}
+	}
 	var err error
 	if l.systemProxy != nil {
 		if l.systemProxy.IsEnabled() {
@@ -144,6 +153,51 @@ func (l *Listener) bindInterfaceFunc() control.Func {
 		}
 	}
 	return control.BindToInterface(service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder(), l.listenOptions.BindInterface, -1)
+}
+
+func (l *Listener) followBindInterface() (control.Func, func(conn syscall.Conn)) {
+	if l.listenOptions.NetNs != "" {
+		return l.bindInterfaceFunc(), nil
+	}
+	interfaceName := l.listenOptions.BindInterface
+	interfaceFinder := service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder()
+	var (
+		access         sync.Mutex
+		bindNetwork    string
+		bindAddress    string
+		interfaceIndex int
+	)
+	bindFunc := func(network, address string, conn syscall.RawConn) error {
+		iif, err := interfaceFinder.ByName(interfaceName)
+		if err != nil {
+			return err
+		}
+		bindNetwork, bindAddress, interfaceIndex = network, address, iif.Index
+		return control.BindToInterface0(interfaceFinder, conn, network, address, interfaceName, iif.Index, false)
+	}
+	followFunc := func(conn syscall.Conn) {
+		rawConn, _ := conn.SyscallConn()
+		l.interfaceCallbacks = append(l.interfaceCallbacks, interfaceFinder.RegisterInterfaceUpdateCallback(func(interfaces []control.Interface) {
+			iif := common.Find(interfaces, func(it control.Interface) bool {
+				return it.Name == interfaceName
+			})
+			access.Lock()
+			defer access.Unlock()
+			if iif.Index == 0 || iif.Index == interfaceIndex {
+				return
+			}
+			err := control.BindToInterface0(interfaceFinder, rawConn, bindNetwork, bindAddress, interfaceName, iif.Index, false)
+			if err != nil {
+				if !E.IsClosed(err) {
+					l.logger.Error(E.Cause(err, "rebind ", N.NetworkName(bindNetwork), " server to interface ", interfaceName))
+				}
+				return
+			}
+			interfaceIndex = iif.Index
+			l.logger.Info(N.NetworkName(bindNetwork), " server rebound to interface ", interfaceName)
+		}))
+	}
+	return bindFunc, followFunc
 }
 
 func (l *Listener) TCPListener() net.Listener {

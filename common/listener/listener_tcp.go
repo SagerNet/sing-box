@@ -26,9 +26,14 @@ func (l *Listener) ListenTCP() (net.Listener, error) {
 	}
 	var err error
 	bindAddr := M.SocksaddrFrom(l.listenOptions.Listen.Build(netip.AddrFrom4([4]byte{127, 0, 0, 1})), l.listenOptions.ListenPort)
-	var listenConfig net.ListenConfig
+	var (
+		listenConfig    net.ListenConfig
+		followInterface func(conn syscall.Conn)
+	)
 	if l.listenOptions.BindInterface != "" {
-		listenConfig.Control = control.Append(listenConfig.Control, l.bindInterfaceFunc())
+		var bindFunc control.Func
+		bindFunc, followInterface = l.followBindInterface()
+		listenConfig.Control = control.Append(listenConfig.Control, bindFunc)
 	}
 	if l.listenOptions.RoutingMark != 0 {
 		listenConfig.Control = control.Append(listenConfig.Control, control.RoutingMark(uint32(l.listenOptions.RoutingMark)))
@@ -75,6 +80,9 @@ func (l *Listener) ListenTCP() (net.Listener, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if followInterface != nil {
+		followInterface(tcpListener.(syscall.Conn))
 	}
 	l.logger.Info("tcp server started at ", tcpListener.Addr())
 	l.tcpListener = tcpListener
