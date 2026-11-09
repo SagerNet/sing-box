@@ -10,12 +10,14 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
 	"github.com/sagernet/sing-box/common/dialer"
+	"github.com/sagernet/sing-box/common/iponly"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-tun"
 	"github.com/sagernet/sing-tun/ping"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
@@ -192,11 +194,15 @@ func (h *Outbound) ListenPacketWithDestination(ctx context.Context, destination 
 	metadata.Outbound = h.Tag()
 	metadata.Destination = destination
 	h.logger.InfoContext(ctx, "outbound packet connection")
-	if !metadata.UDPDisableDomainUnmapping {
-		conn, err := h.dialer.ListenPacket(ctx, destination)
-		return conn, netip.Addr{}, err
+	conn, destinationAddress, err := h.dialer.ListenPacketWithDestination(ctx, destination)
+	if err != nil {
+		return nil, netip.Addr{}, err
 	}
-	return h.dialer.ListenPacketWithDestination(ctx, destination)
+	packetConn := iponly.NewPacketConn(h.logger, conn)
+	if destinationAddress.IsValid() && !metadata.UDPDisableDomainUnmapping {
+		return bufio.NewNATPacketConn(packetConn, M.SocksaddrFrom(destinationAddress, destination.Port), destination), netip.Addr{}, nil
+	}
+	return packetConn, destinationAddress, nil
 }
 
 func (h *Outbound) PreMatchFlow(network string, destination netip.Addr) adapter.PreMatchAction {
@@ -279,7 +285,7 @@ func (h *Outbound) ListenSerialNetworkPacket(ctx context.Context, destination M.
 	if err != nil {
 		return nil, netip.Addr{}, err
 	}
-	return conn, newDestination, nil
+	return iponly.NewPacketConn(h.logger, conn), newDestination, nil
 }
 
 func (h *Outbound) IsEmpty() bool {
