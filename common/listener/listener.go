@@ -7,11 +7,13 @@ import (
 	"runtime"
 	"strings"
 	"sync/atomic"
+	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/settings"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common"
+	"github.com/sagernet/sing/common/control"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
@@ -133,6 +135,15 @@ func (l *Listener) Close() error {
 		l.tcpListener,
 		common.PtrOrNil(l.udpConn),
 	))
+}
+
+func (l *Listener) bindInterfaceFunc() control.Func {
+	if l.listenOptions.NetNs != "" {
+		return func(network, address string, conn syscall.RawConn) error {
+			return control.BindToInterface0(nil, conn, network, address, l.listenOptions.BindInterface, -1, true)
+		}
+	}
+	return control.BindToInterface(service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder(), l.listenOptions.BindInterface, -1)
 }
 
 func (l *Listener) TCPListener() net.Listener {

@@ -79,6 +79,11 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 			return nil, E.New("`bind_interface` is only supported on Linux, macOS and Windows")
 		}
 		bindFunc := control.BindToInterface(interfaceFinder, options.BindInterface, -1)
+		if options.NetNs != "" {
+			bindFunc = func(network, address string, conn syscall.RawConn) error {
+				return control.BindToInterface0(nil, conn, network, address, options.BindInterface, -1, true)
+			}
+		}
 		dialer.Control = control.Append(dialer.Control, bindFunc)
 		listener.Control = control.Append(listener.Control, bindFunc)
 	}
@@ -98,11 +103,11 @@ func NewDefault(ctx context.Context, options option.DialerOptions) (*DefaultDial
 
 	if networkManager != nil {
 		defaultOptions := networkManager.DefaultOptions()
-		if defaultOptions.BindInterface != "" && !disableDefaultBind {
+		if defaultOptions.BindInterface != "" && !disableDefaultBind && options.NetNs == "" {
 			bindFunc := control.BindToInterface(networkManager.InterfaceFinder(), defaultOptions.BindInterface, -1)
 			dialer.Control = control.Append(dialer.Control, bindFunc)
 			listener.Control = control.Append(listener.Control, bindFunc)
-		} else if networkManager.AutoDetectInterface() && !disableDefaultBind {
+		} else if networkManager.AutoDetectInterface() && !disableDefaultBind && options.NetNs == "" {
 			if platformInterface != nil && platformInterface.UsePlatformNetworkInterfaces() {
 				networkStrategy = (*C.NetworkStrategy)(options.NetworkStrategy)
 				networkType = common.Map(options.NetworkType, option.InterfaceType.Build)
