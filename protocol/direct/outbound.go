@@ -125,7 +125,12 @@ func (h *Outbound) fetchMyAddresses() {
 			continue
 		}
 		found = true
-		myAddresses = append(myAddresses, myInterface.Addresses...)
+		for _, prefix := range myInterface.Addresses {
+			if prefix.Addr().Is6() && prefix.Addr().IsLinkLocalUnicast() {
+				prefix = netip.PrefixFrom(prefix.Addr(), prefix.Addr().BitLen())
+			}
+			myAddresses = append(myAddresses, prefix)
+		}
 	}
 	if !found {
 		return
