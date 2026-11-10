@@ -57,7 +57,7 @@ require (
 	github.com/sagernet/sing-snell v0.0.0-20261110094602-04667b0a321c
 	github.com/sagernet/sing-tun v0.9.7-0.20261109145621-cb941cc824bf
 	github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca
-	github.com/sagernet/sing-vmess v0.2.9-0.20261110064256-f1405f49d0f3
+	github.com/sagernet/sing-vmess v0.2.9-0.20261110093549-d800eb57f96c
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
 	github.com/sagernet/tailscale v1.102.1-sing-box-1.14-mod.5.0.20261019070639-79c1732442a9
 	github.com/sagernet/wireguard-go v0.0.8-0.20261022215841-e4d85ef2ed38
