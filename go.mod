@@ -52,7 +52,7 @@ require (
 	github.com/sagernet/sing-openvpn v0.1.1-0.20261109120739-4e95f1a2d109
 	github.com/sagernet/sing-quic v0.7.2-0.20261109110824-5253224b67cf
 	github.com/sagernet/sing-shadowsocks v0.2.9-0.20260929204512-65740e0f0e3e
-	github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20260929152114-a69d1086332b
+	github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95
 	github.com/sagernet/sing-shadowtls v0.2.2-0.20260928201441-a9c0127d5c99
 	github.com/sagernet/sing-snell v0.0.0-20261109143829-7cb6221ab4e3
 	github.com/sagernet/sing-tun v0.9.7-0.20261109145621-cb941cc824bf
