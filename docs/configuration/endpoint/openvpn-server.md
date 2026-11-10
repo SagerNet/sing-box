@@ -351,7 +351,7 @@ keys for compatibility with immutable peers. Use it only when the peer cannot
 be upgraded. `legacy` accepts SHA-1 but rejects MD5 signatures; `preferred`
 requires stronger signatures and keys.
 
-When `suiteb` is selected and `tls.cipher` is empty, the TLS 1.2 cipher list defaults to the Suite B ECDHE-ECDSA AES-GCM suites.
+When `suiteb` is selected, the TLS 1.2 cipher list defaults to the Suite B ECDHE-ECDSA AES-GCM suites when `tls.cipher` is empty, and the TLS groups default to `secp256r1` and `secp384r1` when `tls.groups` is empty.
 
 ### tls.ns_certificate_type
 
@@ -367,13 +367,17 @@ Maximum TLS version. The maximum supported version is used by default.
 
 ### tls.cipher
 
-Colon-separated OpenSSL cipher suite names allowed for TLS 1.2 and earlier.
+Colon-separated OpenSSL or IANA cipher suite names allowed for TLS 1.2 and earlier, such as `ECDHE-ECDSA-AES256-GCM-SHA384` or `TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384`. The order of the list is ignored.
 
 The default TLS cipher suites are used when empty.
 
 ### tls.groups
 
-Colon-separated TLS key exchange groups in preference order.
+Colon-separated TLS key exchange groups. The order of the list is ignored.
+
+Supported groups are `X25519`, `X25519MLKEM768`, `secp256r1`, `secp384r1`, and `secp521r1`, including their common OpenSSL and NIST aliases. Names are case-insensitive.
+
+The default TLS groups are used when empty.
 
 ### tls.control_wrap
 

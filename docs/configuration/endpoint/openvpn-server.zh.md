@@ -346,7 +346,7 @@ OpenVPN `remote-cert-ku` 格式的客户端证书 Key Usage mask。
 
 `insecure` 为兼容不可变对端而接受使用 MD5 或 SHA-1 签名的证书链和较小的旧密钥，仅应在对端无法升级时使用。`legacy` 接受 SHA-1 但拒绝 MD5 签名；`preferred` 要求更强的签名和密钥。
 
-选择 `suiteb` 且 `tls.cipher` 为空时，TLS 1.2 cipher 列表默认使用 Suite B ECDHE-ECDSA AES-GCM 套件。
+选择 `suiteb` 时，`tls.cipher` 为空则 TLS 1.2 cipher 列表默认使用 Suite B ECDHE-ECDSA AES-GCM 套件，`tls.groups` 为空则 TLS group 默认使用 `secp256r1` 和 `secp384r1`。
 
 ### tls.ns_certificate_type
 
@@ -362,13 +362,17 @@ OpenVPN `remote-cert-ku` 格式的客户端证书 Key Usage mask。
 
 ### tls.cipher
 
-TLS 1.2 及更低版本允许的 OpenSSL cipher suite 名称，以冒号分隔。
+TLS 1.2 及更低版本允许的 OpenSSL 或 IANA cipher suite 名称，以冒号分隔，如 `ECDHE-ECDSA-AES256-GCM-SHA384` 或 `TLS-ECDHE-ECDSA-WITH-AES-256-GCM-SHA384`。列表的顺序被忽略。
 
 为空时使用默认 TLS cipher suite。
 
 ### tls.groups
 
-按偏好顺序排列的 TLS key exchange group，以冒号分隔。
+以冒号分隔的 TLS key exchange group。列表的顺序被忽略。
+
+支持 `X25519`、`X25519MLKEM768`、`secp256r1`、`secp384r1` 和 `secp521r1`，包括其常用 OpenSSL 和 NIST 别名，不区分大小写。
+
+为空时使用默认 TLS group。
 
 ### tls.control_wrap
 
