@@ -318,8 +318,8 @@ github.com/sagernet/nftables v0.3.0-mod.4 h1:vnOtcDYeSXv2e5RoRuGH0lrpttQFJ8iC4IC
 github.com/sagernet/nftables v0.3.0-mod.4/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
 github.com/sagernet/quic-go v0.61.0-sing-box-mod.13 h1:M9x7qOY/eHXqnFMS/6sVeVee174I/FFqVvjpoFpMleA=
 github.com/sagernet/quic-go v0.61.0-sing-box-mod.13/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
-github.com/sagernet/sing v0.9.7-0.20261110093522-e0fa4db8bca8 h1:4yeLWPXnoOnNxspf+T2ZeLNl0deiwo9zN+rG9I2x7nU=
-github.com/sagernet/sing v0.9.7-0.20261110093522-e0fa4db8bca8/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
+github.com/sagernet/sing v0.9.7-0.20261110095939-f545d0260412 h1:Oq2ZOSbOAiDJFb2OyEdtLLiGHXwJV0d/KpEuIvoduf8=
+github.com/sagernet/sing v0.9.7-0.20261110095939-f545d0260412/go.mod h1:K3Owt3xPhHugvlnlPPxZJ/exXdaJfEPOTNorGk4AXjo=
 github.com/sagernet/sing-cloudflared v0.1.4-0.20261108120326-83391fb7b139 h1:jVPI9UHsgvNivQLcd4thzFnxxchuwwfiLyp5qhs42n4=
 github.com/sagernet/sing-cloudflared v0.1.4-0.20261108120326-83391fb7b139/go.mod h1:XEqEDYRCAYLaoPjZ1ifVWJg5iWAJHL2gOAXe/PM28Cg=
 github.com/sagernet/sing-mux v0.3.10-0.20261110064256-375087483ea2 h1:bGC7//2xTNzBE4hRQ9W2dN6fi7gOL2j9Jzerqd1ohqU=
