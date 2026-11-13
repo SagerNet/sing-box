@@ -62,12 +62,13 @@ type InboundContext struct {
 
 	// sniffer
 
-	Protocol     string
-	Domain       string
-	Client       string
-	SniffContext any
-	SnifferNames []string
-	SniffError   error
+	Protocol      string
+	Domain        string
+	ECHPublicName string
+	Client        string
+	SniffContext  any
+	SnifferNames  []string
+	SniffError    error
 
 	// cache
 

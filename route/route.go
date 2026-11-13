@@ -583,13 +583,15 @@ func (r *Router) prepareMatchMetadata(ctx context.Context, metadata *adapter.Inb
 				Port: metadata.Destination.Port,
 			}
 			metadata.FakeIP = true
+			metadata.ECHPublicName = r.dns.LookupECHPublicName(domain)
 			r.logger.DebugContext(ctx, "found fakeip domain: ", domain)
 		}
 	} else if metadata.Domain == "" {
 		domain, loaded := r.dns.LookupReverseMapping(metadata.Destination.Addr)
 		if loaded {
 			metadata.Domain = domain
-			r.logger.DebugContext(ctx, "found reserve mapped domain: ", metadata.Domain)
+			metadata.ECHPublicName = r.dns.LookupECHPublicName(domain)
+			r.logger.DebugContext(ctx, "found reverse mapped domain: ", metadata.Domain)
 		}
 	}
 	if metadata.Destination.IsIPv4() {

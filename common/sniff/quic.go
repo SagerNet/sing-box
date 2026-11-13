@@ -310,7 +310,7 @@ find:
 		metadata.SniffContext = fragments
 		return E.Cause1(ErrNeedMoreData, err)
 	}
-	if domain := M.ParseSocksaddrHostPort(fingerprint.ServerName, 0).Fqdn; domain != "" {
+	if domain := M.ParseSocksaddrHostPort(fingerprint.ServerName, 0).Fqdn; domain != "" && domain != metadata.ECHPublicName {
 		metadata.Domain = domain
 	}
 	for metadata.Client == "" {
