@@ -7,7 +7,7 @@
     :material-plus: SSH support  
     :material-plus: RDP support
 
-If enabled in the inbound, the protocol and domain name (if present) of by the connection can be sniffed.
+The [`sniff`](/configuration/route/rule_action/#sniff) route rule action sniffs the protocol and domain name (if present) of the connection.
 
 #### Supported Protocols
 

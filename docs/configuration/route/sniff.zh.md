@@ -7,7 +7,7 @@
     :material-plus: SSH 支持  
     :material-plus: RDP 支持
 
-如果在入站中启用，则可以嗅探连接的协议和域名（如果存在）。
+[`sniff`](/zh/configuration/route/rule_action/#sniff) 路由规则动作可以嗅探连接的协议和域名（如果存在）。
 
 #### 支持的协议
 

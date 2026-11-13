@@ -286,8 +286,6 @@ of accepted values and platform notes.
 
 `sniff` performs protocol sniffing on connections.
 
-For deprecated `inbound.sniff` options, it is considered to `sniff()` performed before routing.
-
 #### sniffer
 
 Enabled sniffers.
