@@ -23,6 +23,8 @@ func HTTPHost(_ context.Context, metadata *adapter.InboundContext, reader io.Rea
 		}
 	}
 	metadata.Protocol = C.ProtocolHTTP
-	metadata.Domain = M.ParseSocksaddr(request.Host).Fqdn
+	if domain := M.ParseSocksaddr(request.Host).Fqdn; domain != "" {
+		metadata.Domain = domain
+	}
 	return nil
 }

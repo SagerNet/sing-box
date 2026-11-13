@@ -23,7 +23,9 @@ func TLSClientHello(ctx context.Context, metadata *adapter.InboundContext, reade
 	}).HandshakeContext(ctx)
 	if clientHello != nil {
 		metadata.Protocol = C.ProtocolTLS
-		metadata.Domain = M.ParseSocksaddrHostPort(clientHello.ServerName, 0).Fqdn
+		if domain := M.ParseSocksaddrHostPort(clientHello.ServerName, 0).Fqdn; domain != "" {
+			metadata.Domain = domain
+		}
 		return nil
 	}
 	if errors.Is(err, io.ErrUnexpectedEOF) {
