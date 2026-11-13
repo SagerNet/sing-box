@@ -1121,23 +1121,22 @@ func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsEx
 func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, transport adapter.DNSTransport) {
 	if r.dnsReverseMapping != nil && len(message.Question) > 0 && response != nil && len(response.Answer) > 0 {
 		if transport == nil || transport.Type() != C.DNSTypeFakeIP {
-			domain := FqdnToDomain(message.Question[0].Name)
+			question := message.Question[0]
+			domain := FqdnToDomain(question.Name)
+			if port, origin, found := strings.Cut(domain, "._https."); found && question.Qtype == mDNS.TypeHTTPS && strings.HasPrefix(port, "_") {
+				domain = origin
+			}
+			var addresses []netip.Addr
 			for _, answer := range response.Answer {
-				var address netip.Addr
-				switch record := answer.(type) {
-				case *mDNS.A:
-					address = M.AddrFromIP(record.A)
-				case *mDNS.AAAA:
-					address = M.AddrFromIP(record.AAAA)
-				default:
-					continue
-				}
+				addresses = adapter.AppendDNSRecordAddresses(addresses[:0], answer)
 				lifetime := time.Duration(max(answer.Header().Ttl, 1)) * time.Second
-				mappedDomain, expireAt, loaded := r.dnsReverseMapping.GetWithLifetime(address)
-				if loaded && mappedDomain == domain && time.Until(expireAt) >= lifetime {
-					continue
+				for _, address := range addresses {
+					mappedDomain, expireAt, loaded := r.dnsReverseMapping.GetWithLifetime(address)
+					if loaded && mappedDomain == domain && time.Until(expireAt) >= lifetime {
+						continue
+					}
+					r.dnsReverseMapping.AddWithLifetime(address, domain, lifetime)
 				}
-				r.dnsReverseMapping.AddWithLifetime(address, domain, lifetime)
 			}
 		}
 	}
