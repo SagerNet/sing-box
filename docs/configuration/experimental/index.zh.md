@@ -2,8 +2,8 @@
 
 !!! quote "sing-box 1.8.0 中的更改"
 
-    :material-plus: [cache_file](#cache_file)  
-    :material-alert-decagram: [clash_api](#clash_api)
+    :material-plus: [cache_file](./cache-file/)  
+    :material-alert-decagram: [clash_api](./clash-api/)
 
 ### 结构
 

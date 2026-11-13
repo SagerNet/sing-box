@@ -771,7 +771,7 @@ The legacy outbound DNS rules are deprecated and can be replaced by new domain r
 
     [DNS rule](/configuration/dns/rule/#outbound) /
     [Dial Fields](/configuration/shared/dial/#domain_resolver) /
-    [Route](/configuration/route/#domain_resolver)
+    [Route](/configuration/route/#default_domain_resolver)
 
 === ":material-card-remove: Deprecated"
 

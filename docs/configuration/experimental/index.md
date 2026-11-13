@@ -2,8 +2,8 @@
 
 !!! quote "Changes in sing-box 1.8.0"
 
-    :material-plus: [cache_file](#cache_file)  
-    :material-alert-decagram: [clash_api](#clash_api)
+    :material-plus: [cache_file](./cache-file/)  
+    :material-alert-decagram: [clash_api](./clash-api/)
 
 ### Structure
 

@@ -13,8 +13,8 @@ icon: material/alert-decagram
 !!! quote "Changes in sing-box 1.12.0"
 
     :material-plus: [default_domain_resolver](#default_domain_resolver)  
-    :material-note-remove: [geoip](#geoip)  
-    :material-note-remove: [geosite](#geosite)
+    :material-note-remove: [geoip](./geoip/)  
+    :material-note-remove: [geosite](./geosite/)
 
 !!! quote "Changes in sing-box 1.11.0"
 
@@ -26,8 +26,8 @@ icon: material/alert-decagram
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-plus: [rule_set](#rule_set)  
-    :material-delete-clock: [geoip](#geoip)  
-    :material-delete-clock: [geosite](#geosite)
+    :material-delete-clock: [geoip](./geoip/)  
+    :material-delete-clock: [geosite](./geosite/)
 
 ### Structure
 
