@@ -51,7 +51,7 @@ Old fields will be removed in sing-box 1.16.0.
 #### `store_rdrc` cache file option
 
 `store_rdrc` cache file option is deprecated,
-check [Migration](../migration/#migrate-store-rdrc).
+check [Migration](../migration/#migrate-store_rdrc).
 
 Old fields will be removed in sing-box 1.16.0.
 
