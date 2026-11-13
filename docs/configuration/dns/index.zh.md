@@ -10,7 +10,7 @@ icon: material/alert-decagram
 
 !!! quote "sing-box 1.12.0 中的更改"
 
-    :material-decagram: [servers](#servers)
+    :material-decagram: [servers](./server/)
 
 !!! quote "sing-box 1.11.0 中的更改"
 
@@ -43,10 +43,10 @@ icon: material/alert-decagram
 
 ### 字段
 
-| 键        | 格式                      |
-|----------|-------------------------|
-| `server` | 一组 [DNS 服务器](./server/) |
-| `rules`  | 一组 [DNS 规则](./rule/)    |
+| 键         | 格式                      |
+|-----------|-------------------------|
+| `servers` | 一组 [DNS 服务器](./server/) |
+| `rules`   | 一组 [DNS 规则](./rule/)    |
 
 #### final
 
@@ -124,7 +124,7 @@ LRU 缓存容量。
 
 默认使用 `10s`。
 
-可被 `rules.[].timeout`（DNS 规则动作）或 `domain_resolver.timeout` 覆盖。
+可被 `rules.[].timeout`（DNS 规则动作）、`resolve.timeout`（路由规则动作）或 `domain_resolver.timeout` 覆盖。
 
 #### reverse_mapping
 
@@ -140,7 +140,7 @@ LRU 缓存容量。
 
 如果值是 IP 地址而不是前缀，则会自动附加 `/32` 或 `/128`。
 
-可以被 `servers.[].client_subnet` 或 `rules.[].client_subnet` 覆盖。
+可被 `rules.[].client_subnet`（DNS 规则动作）、`resolve.client_subnet`（路由规则动作）或 `domain_resolver.client_subnet` 覆盖。
 
 #### fakeip :material-note-remove:
 
