@@ -84,7 +84,7 @@ HTTP 版本。
 
 ### tls
 
-TLS 配置，参阅 [TLS](/zh/configuration/shared/tls/#outbound)。
+TLS 配置，参阅 [TLS](/zh/configuration/shared/tls/#出站)。
 
 HTTP/3 需要 TLS。
 
