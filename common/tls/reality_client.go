@@ -160,7 +160,7 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 
 	hello.SessionId[0] = 1
 	hello.SessionId[1] = 8
-	hello.SessionId[2] = 1
+	hello.SessionId[2] = 2
 	binary.BigEndian.PutUint32(hello.SessionId[4:], uint32(time.Now().Unix()))
 	copy(hello.SessionId[8:], e.shortID[:])
 	if debug.Enabled {
