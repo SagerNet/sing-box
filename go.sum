@@ -314,8 +314,8 @@ github.com/sagernet/gvisor v0.0.0-20260727.0-sing-box-mod.1 h1:IdQ7yTKkB2wv8txws
 github.com/sagernet/gvisor v0.0.0-20260727.0-sing-box-mod.1/go.mod h1:9O3SQskYuCfdHNvHEsWuEAgoyKEF74PiWp4NsNUia8g=
 github.com/sagernet/netlink v0.0.0-20261114050611-bf24b30b925f h1:P+oPGqB02OjxQ2Stmwf8U8eLPfspcAFdTQp+o3/OTJ8=
 github.com/sagernet/netlink v0.0.0-20261114050611-bf24b30b925f/go.mod h1:xLnfdiJbSp8rNqYEdIW/6eDO4mVoogml14Bh2hSiFpM=
-github.com/sagernet/nftables v0.3.0-mod.4 h1:vnOtcDYeSXv2e5RoRuGH0lrpttQFJ8iC4ICS2nhlDSo=
-github.com/sagernet/nftables v0.3.0-mod.4/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
+github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b h1:dgnXJAbP71bzUrl31YvQNO3DGqQq20tz7h8MaroD4fY=
+github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b/go.mod h1:8kslHG4VvYNihcco+i6uxIX7qbT8A56T0y5q7U44ZaQ=
 github.com/sagernet/quic-go v0.61.0-sing-box-mod.14 h1:7yVZHC+/ka9RloKeOMVECnRSwj+Nx+iedJ2J2pW2abQ=
 github.com/sagernet/quic-go v0.61.0-sing-box-mod.14/go.mod h1:hmLC8GJPp+BrpBgrgJnacvI4fZGIhasuy1ROJJ8GR4E=
 github.com/sagernet/sing v0.9.7-0.20261110095939-f545d0260412 h1:Oq2ZOSbOAiDJFb2OyEdtLLiGHXwJV0d/KpEuIvoduf8=
@@ -338,8 +338,8 @@ github.com/sagernet/sing-shadowtls v0.2.2-0.20261114073233-97863830a3b3 h1:UY+nv
 github.com/sagernet/sing-shadowtls v0.2.2-0.20261114073233-97863830a3b3/go.mod h1:sWqKnGlMipCHaGsw1sTTlimyUpgzP4WP3pjhCsYt9oA=
 github.com/sagernet/sing-snell v0.0.0-20261110094602-04667b0a321c h1:OODxu54K5ZvgnS97t8HlN3tily8Oj+s6ygOJ1ZzyfFQ=
 github.com/sagernet/sing-snell v0.0.0-20261110094602-04667b0a321c/go.mod h1:Na4U54WiSQxWD/KEFIIdr+rPE9Qnr/kk8EtKXa18pRk=
-github.com/sagernet/sing-tun v0.9.7-0.20261114061115-1d66398eafc9 h1:BM7Tz3r8GMQyrqQjtGZ8JSNf47BCVq75JMyaC9Ic0xw=
-github.com/sagernet/sing-tun v0.9.7-0.20261114061115-1d66398eafc9/go.mod h1:lXYnpFbP9OMHQ2SNRsQFGJ2iPoItIld3V8oCSg04KCQ=
+github.com/sagernet/sing-tun v0.9.7-0.20261114080500-78e734ea0994 h1:nrivq/RdNSFDFEv91aKO3Vw3m1e075PtlRmJbjIejM8=
+github.com/sagernet/sing-tun v0.9.7-0.20261114080500-78e734ea0994/go.mod h1:NqRKOzmp+umzkKtiSRa+AIP6pmCtdCGTUZLb1zscf4I=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca h1:5wA+IE0Fq1CGVLOgSpm0gKKZ03HzugcJ2JyhmDqeX6A=
 github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca/go.mod h1:ADAZZU85MnM91XNhd2TdZRTaIbA7RjTZuQ1KCHcUbNg=
 github.com/sagernet/sing-vmess v0.2.9-0.20261110093549-d800eb57f96c h1:3svsvOhs6e7BcHY8o9+Fo0qGJ+enoLTdPIaRbqwsiaE=

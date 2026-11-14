@@ -43,7 +43,7 @@ require (
 	github.com/sagernet/gomobile v0.1.12
 	github.com/sagernet/gvisor v0.0.0-20260727.0-sing-box-mod.1
 	github.com/sagernet/netlink v0.0.0-20261114050611-bf24b30b925f
-	github.com/sagernet/nftables v0.3.0-mod.4
+	github.com/sagernet/nftables v0.3.0-mod.4.0.20261114074246-0b310c3e010b
 	github.com/sagernet/quic-go v0.61.0-sing-box-mod.14
 	github.com/sagernet/sing v0.9.7-0.20261110095939-f545d0260412
 	github.com/sagernet/sing-cloudflared v0.1.4-0.20261108120326-83391fb7b139
@@ -55,7 +55,7 @@ require (
 	github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95
 	github.com/sagernet/sing-shadowtls v0.2.2-0.20261114073233-97863830a3b3
 	github.com/sagernet/sing-snell v0.0.0-20261110094602-04667b0a321c
-	github.com/sagernet/sing-tun v0.9.7-0.20261114061115-1d66398eafc9
+	github.com/sagernet/sing-tun v0.9.7-0.20261114080500-78e734ea0994
 	github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca
 	github.com/sagernet/sing-vmess v0.2.9-0.20261110093549-d800eb57f96c
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
