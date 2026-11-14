@@ -42,7 +42,7 @@ require (
 	github.com/sagernet/gliderssh v0.3.4-0.20261023092853-e0cad6d28647
 	github.com/sagernet/gomobile v0.1.12
 	github.com/sagernet/gvisor v0.0.0-20260727.0-sing-box-mod.1
-	github.com/sagernet/netlink v0.0.0-20260814022025-64455d367bbf
+	github.com/sagernet/netlink v0.0.0-20261114050611-bf24b30b925f
 	github.com/sagernet/nftables v0.3.0-mod.4
 	github.com/sagernet/quic-go v0.61.0-sing-box-mod.13
 	github.com/sagernet/sing v0.9.7-0.20261110095939-f545d0260412
