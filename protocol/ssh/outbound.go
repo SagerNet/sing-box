@@ -145,20 +145,19 @@ func (s *Outbound) connect(ctx context.Context) (client *ssh.Client, err error) 
 	if err != nil {
 		return nil, err
 	}
-	if ctx.Done() != nil {
-		handshakeConn := conn
-		stopContext := context.AfterFunc(ctx, func() {
-			_ = handshakeConn.Close()
-		})
-		defer func() {
-			if !stopContext() {
-				s.client = nil
-				s.clientConn = nil
-				client = nil
-				err = ctx.Err()
-			}
-		}()
-	}
+	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	defer cancel()
+	stopContext := context.AfterFunc(ctx, func() {
+		_ = conn.Close()
+	})
+	defer func() {
+		if !stopContext() {
+			s.client = nil
+			s.clientConn = nil
+			client = nil
+			err = E.Cause(ctx.Err(), "connect to ssh server")
+		}
+	}()
 	config := &ssh.ClientConfig{
 		User:              s.user,
 		Auth:              s.authMethod,
