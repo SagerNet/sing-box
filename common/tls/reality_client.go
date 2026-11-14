@@ -132,10 +132,18 @@ func (e *RealityClientConfig) Client(conn net.Conn) (Conn, error) {
 }
 
 func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn) (aTLS.Conn, error) {
-	verifier := &realityVerifier{
-		serverName: e.uClient.ServerName(),
-	}
 	uConfig := e.uClient.config.Clone()
+	var nowTime time.Time
+	if uConfig.Time != nil {
+		nowTime = uConfig.Time()
+	} else {
+		nowTime = time.Now()
+	}
+	verifier := &realityVerifier{
+		serverName:  e.uClient.ServerName(),
+		rootCAs:     uConfig.RootCAs,
+		currentTime: nowTime,
+	}
 	uConfig.InsecureSkipVerify = true
 	uConfig.SessionTicketsDisabled = true
 	uConfig.VerifyPeerCertificate = verifier.VerifyPeerCertificate
@@ -150,18 +158,10 @@ func (e *RealityClientConfig) ClientHandshake(ctx context.Context, conn net.Conn
 	hello.SessionId = make([]byte, 32)
 	copy(hello.Raw[39:], hello.SessionId)
 
-	var nowTime time.Time
-	if uConfig.Time != nil {
-		nowTime = uConfig.Time()
-	} else {
-		nowTime = time.Now()
-	}
-	binary.BigEndian.PutUint64(hello.SessionId, uint64(nowTime.Unix()))
-
 	hello.SessionId[0] = 1
 	hello.SessionId[1] = 8
 	hello.SessionId[2] = 2
-	binary.BigEndian.PutUint32(hello.SessionId[4:], uint32(time.Now().Unix()))
+	binary.BigEndian.PutUint32(hello.SessionId[4:], uint32(nowTime.Unix()))
 	copy(hello.SessionId[8:], e.shortID[:])
 	if debug.Enabled {
 		fmt.Printf("REALITY hello.sessionId[:16]: %v\n", hello.SessionId[:16])
@@ -259,9 +259,11 @@ func (e *RealityClientConfig) Clone() Config {
 
 type realityVerifier struct {
 	*utls.UConn
-	serverName string
-	authKey    []byte
-	verified   bool
+	serverName  string
+	rootCAs     *x509.CertPool
+	currentTime time.Time
+	authKey     []byte
+	verified    bool
 }
 
 func (c *realityVerifier) VerifyPeerCertificate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
@@ -276,6 +278,8 @@ func (c *realityVerifier) VerifyPeerCertificate(rawCerts [][]byte, verifiedChain
 		}
 	}
 	opts := x509.VerifyOptions{
+		Roots:         c.rootCAs,
+		CurrentTime:   c.currentTime,
 		DNSName:       c.serverName,
 		Intermediates: x509.NewCertPool(),
 	}
