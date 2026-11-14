@@ -3,10 +3,10 @@
 package route
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"os"
-	"slices"
 	"sync"
 	"time"
 
@@ -15,7 +15,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 
-	"github.com/jsimonetti/rtnetlink"
 	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -61,12 +60,14 @@ func newNeighborResolver(resolverLogger logger.ContextLogger, leaseFiles []strin
 }
 
 func (r *neighborResolver) Start() error {
-	err := r.loadNeighborTable()
+	connection, neighborIPToMAC, err := SubscribeNeighborTable()
 	if err != nil {
-		r.logger.Warn(E.Cause(err, "load neighbor table"))
+		r.logger.Warn(err)
+	} else {
+		r.neighborIPToMAC = neighborIPToMAC
+		go r.subscribeNeighborUpdates(connection)
 	}
 	r.doReloadLeaseFiles()
-	go r.subscribeNeighborUpdates()
 	if len(r.leaseFiles) > 0 {
 		watcher, err := fswatch.NewWatcher(fswatch.Options{
 			Path:   r.leaseFiles,
@@ -143,50 +144,17 @@ func (r *neighborResolver) LookupHostname(address netip.Addr) (string, bool) {
 	return "", false
 }
 
-func (r *neighborResolver) loadNeighborTable() error {
-	connection, err := rtnetlink.Dial(nil)
-	if err != nil {
-		return E.Cause(err, "dial rtnetlink")
-	}
-	defer connection.Close()
-	neighbors, err := connection.Neigh.List()
-	if err != nil {
-		return E.Cause(err, "list neighbors")
-	}
-	r.access.Lock()
-	defer r.access.Unlock()
-	for _, neigh := range neighbors {
-		if neigh.Attributes == nil {
-			continue
-		}
-		if neigh.Attributes.LLAddress == nil || len(neigh.Attributes.Address) == 0 {
-			continue
-		}
-		address, ok := netip.AddrFromSlice(neigh.Attributes.Address)
-		if !ok {
-			continue
-		}
-		r.neighborIPToMAC[address] = slices.Clone(neigh.Attributes.LLAddress)
-	}
-	return nil
-}
-
-func (r *neighborResolver) subscribeNeighborUpdates() {
-	connection, err := netlink.Dial(unix.NETLINK_ROUTE, &netlink.Config{
-		Groups: 1 << (unix.RTNLGRP_NEIGH - 1),
-	})
-	if err != nil {
-		r.logger.Warn(E.Cause(err, "subscribe neighbor updates"))
-		return
-	}
-	defer connection.Close()
+func (r *neighborResolver) subscribeNeighborUpdates(connection *netlink.Conn) {
+	defer func() {
+		connection.Close()
+	}()
 	for {
 		select {
 		case <-r.done:
 			return
 		default:
 		}
-		err = connection.SetReadDeadline(time.Now().Add(3 * time.Second))
+		err := connection.SetReadDeadline(time.Now().Add(3 * time.Second))
 		if err != nil {
 			r.logger.Warn(E.Cause(err, "set netlink read deadline"))
 			return
@@ -200,6 +168,19 @@ func (r *neighborResolver) subscribeNeighborUpdates() {
 			case <-r.done:
 				return
 			default:
+			}
+			if errors.Is(err, unix.ENOBUFS) {
+				newConnection, neighborIPToMAC, err := SubscribeNeighborTable()
+				if err != nil {
+					r.logger.Warn(err)
+					continue
+				}
+				connection.Close()
+				connection = newConnection
+				r.access.Lock()
+				r.neighborIPToMAC = neighborIPToMAC
+				r.access.Unlock()
+				continue
 			}
 			r.logger.Warn(E.Cause(err, "receive neighbor update"))
 			continue

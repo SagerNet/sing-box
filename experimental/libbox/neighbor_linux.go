@@ -3,34 +3,24 @@
 package libbox
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"slices"
 	"time"
 
 	"github.com/sagernet/sing-box/route"
-	E "github.com/sagernet/sing/common/exceptions"
 
 	"github.com/mdlayher/netlink"
 	"golang.org/x/sys/unix"
 )
 
 func SubscribeNeighborTable(listener NeighborUpdateListener) (*NeighborSubscription, error) {
-	entries, err := route.ReadNeighborEntries()
+	connection, table, err := route.SubscribeNeighborTable()
 	if err != nil {
-		return nil, E.Cause(err, "initial neighbor dump")
-	}
-	table := make(map[netip.Addr]net.HardwareAddr)
-	for _, entry := range entries {
-		table[entry.Address] = entry.MACAddress
+		return nil, err
 	}
 	listener.UpdateNeighborTable(tableToIterator(table))
-	connection, err := netlink.Dial(unix.NETLINK_ROUTE, &netlink.Config{
-		Groups: 1 << (unix.RTNLGRP_NEIGH - 1),
-	})
-	if err != nil {
-		return nil, E.Cause(err, "subscribe neighbor updates")
-	}
 	subscription := &NeighborSubscription{
 		done: make(chan struct{}),
 	}
@@ -39,7 +29,9 @@ func SubscribeNeighborTable(listener NeighborUpdateListener) (*NeighborSubscript
 }
 
 func (s *NeighborSubscription) loop(listener NeighborUpdateListener, connection *netlink.Conn, table map[netip.Addr]net.HardwareAddr) {
-	defer connection.Close()
+	defer func() {
+		connection.Close()
+	}()
 	for {
 		select {
 		case <-s.done:
@@ -59,6 +51,15 @@ func (s *NeighborSubscription) loop(listener NeighborUpdateListener, connection 
 			case <-s.done:
 				return
 			default:
+			}
+			if errors.Is(err, unix.ENOBUFS) {
+				newConnection, newTable, err := route.SubscribeNeighborTable()
+				if err != nil {
+					continue
+				}
+				connection.Close()
+				connection, table = newConnection, newTable
+				listener.UpdateNeighborTable(tableToIterator(table))
 			}
 			continue
 		}
