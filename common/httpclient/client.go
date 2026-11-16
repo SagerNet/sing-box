@@ -62,6 +62,8 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 		Logger:               logger,
 		Options:              tlsOptions,
 		AllowEmptyServerName: true,
+		DomainResolver:       options.DomainResolver,
+		DirectResolver:       options.DirectResolver,
 	})
 	if err != nil {
 		return nil, err

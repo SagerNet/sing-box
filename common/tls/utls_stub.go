@@ -12,10 +12,10 @@ import (
 )
 
 func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {
-	return newUTLSClient(ctx, logger, serverAddress, options, false)
+	return newUTLSClient(ctx, logger, serverAddress, options, false, nil, false)
 }
 
-func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions, allowEmptyServerName bool) (Config, error) {
+func newUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions, allowEmptyServerName bool, domainResolver *option.DomainResolveOptions, directResolver bool) (Config, error) {
 	return nil, E.New(`uTLS is not included in this build, rebuild with -tags with_utls`)
 }
 

@@ -45,16 +45,11 @@ func applyTLSSpoof(conn net.Conn, spoof string, method tlsspoof.Method) (net.Con
 	return tlsspoof.NewConn(conn, method, spoof)
 }
 
-func NewDialerFromOptions(ctx context.Context, logger logger.ContextLogger, dialer N.Dialer, serverAddress string, options option.OutboundTLSOptions) (N.Dialer, error) {
-	if !options.Enabled {
+func NewDialerFromOptions(dialer N.Dialer, options ClientOptions) (N.Dialer, error) {
+	if !options.Options.Enabled {
 		return dialer, nil
 	}
-	config, err := NewClientWithOptions(ClientOptions{
-		Context:       ctx,
-		Logger:        logger,
-		ServerAddress: serverAddress,
-		Options:       options,
-	})
+	config, err := NewClientWithOptions(options)
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +72,8 @@ type ClientOptions struct {
 	Options              option.OutboundTLSOptions
 	AllowEmptyServerName bool
 	KTLSCompatible       bool
+	DomainResolver       *option.DomainResolveOptions
+	DirectResolver       bool
 }
 
 func NewClientWithOptions(options ClientOptions) (Config, error) {
@@ -103,9 +100,9 @@ func NewClientWithOptions(options ClientOptions) (Config, error) {
 	if options.Options.Reality != nil && options.Options.Reality.Enabled {
 		return newRealityClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
 	} else if options.Options.UTLS != nil && options.Options.UTLS.Enabled {
-		return newUTLSClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
+		return newUTLSClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName, options.DomainResolver, options.DirectResolver)
 	}
-	return newSTDClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName)
+	return newSTDClient(options.Context, options.Logger, options.ServerAddress, options.Options, options.AllowEmptyServerName, options.DomainResolver, options.DirectResolver)
 }
 
 func ClientHandshake(ctx context.Context, conn net.Conn, config Config) (Conn, error) {

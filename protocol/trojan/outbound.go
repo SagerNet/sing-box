@@ -58,10 +58,11 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	}
 	if options.TLS != nil {
 		outbound.tlsConfig, err = tls.NewClientWithOptions(tls.ClientOptions{
-			Context:       ctx,
-			Logger:        logger,
-			ServerAddress: options.Server,
-			Options:       common.PtrValueOrDefault(options.TLS),
+			Context:        ctx,
+			Logger:         logger,
+			ServerAddress:  options.Server,
+			Options:        common.PtrValueOrDefault(options.TLS),
+			DomainResolver: options.DomainResolver,
 			KTLSCompatible: common.PtrValueOrDefault(options.Transport).Type == "" &&
 				!common.PtrValueOrDefault(options.Multiplex).Enabled,
 		})

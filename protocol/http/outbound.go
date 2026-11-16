@@ -34,7 +34,13 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
-	detour, err := tls.NewDialerFromOptions(ctx, logger, outboundDialer, options.Server, common.PtrValueOrDefault(options.TLS))
+	detour, err := tls.NewDialerFromOptions(outboundDialer, tls.ClientOptions{
+		Context:        ctx,
+		Logger:         logger,
+		ServerAddress:  options.Server,
+		Options:        common.PtrValueOrDefault(options.TLS),
+		DomainResolver: options.DomainResolver,
+	})
 	if err != nil {
 		return nil, err
 	}

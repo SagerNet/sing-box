@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -24,7 +25,7 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-func parseECHClientConfig(ctx context.Context, clientConfig ECHCapableConfig, options option.OutboundTLSOptions) (Config, error) {
+func parseECHClientConfig(ctx context.Context, clientConfig ECHCapableConfig, options option.OutboundTLSOptions, domainResolver *option.DomainResolveOptions, directResolver bool) (Config, error) {
 	var echConfig []byte
 	if len(options.ECH.Config) > 0 {
 		echConfig = []byte(strings.Join(options.ECH.Config, "\n"))
@@ -47,9 +48,14 @@ func parseECHClientConfig(ctx context.Context, clientConfig ECHCapableConfig, op
 		clientConfig.SetECHConfigList(block.Bytes)
 		return clientConfig, nil
 	} else {
+		if directResolver && (domainResolver == nil || domainResolver.Server == "") {
+			return nil, E.New("missing domain resolver for ECH config query")
+		}
 		return &ECHClientConfig{
 			ECHCapableConfig: clientConfig,
+			ctx:              ctx,
 			dnsRouter:        service.FromContext[adapter.DNSRouter](ctx),
+			domainResolver:   domainResolver,
 			queryServerName:  options.ECH.QueryServerName,
 		}, nil
 	}
@@ -109,7 +115,9 @@ func parseECHKeys(echKey []byte) ([]tls.EncryptedClientHelloKey, error) {
 type ECHClientConfig struct {
 	ECHCapableConfig
 	access          sync.Mutex
+	ctx             context.Context
 	dnsRouter       adapter.DNSRouter
+	domainResolver  *option.DomainResolveOptions
 	queryServerName string
 	lastTTL         time.Duration
 	lastUpdate      time.Time
@@ -147,7 +155,11 @@ func (s *ECHClientConfig) fetchAndHandshake(ctx context.Context, conn net.Conn) 
 				},
 			},
 		}
-		response, err := s.dnsRouter.Exchange(ctx, message, adapter.DNSQueryOptions{})
+		queryOptions, err := dialer.NewDNSQueryOptions(s.ctx, s.domainResolver, true)
+		if err != nil {
+			return nil, E.Cause(err, "fetch ECH config list")
+		}
+		response, err := s.dnsRouter.Exchange(ctx, message, queryOptions)
 		if err != nil {
 			return nil, E.Cause(err, "fetch ECH config list")
 		}
@@ -182,7 +194,9 @@ func (s *ECHClientConfig) fetchAndHandshake(ctx context.Context, conn net.Conn) 
 func (s *ECHClientConfig) Clone() Config {
 	return &ECHClientConfig{
 		ECHCapableConfig: s.ECHCapableConfig.Clone().(ECHCapableConfig),
+		ctx:              s.ctx,
 		dnsRouter:        s.dnsRouter,
+		domainResolver:   s.domainResolver,
 		queryServerName:  s.queryServerName,
 		lastUpdate:       s.lastUpdate,
 	}

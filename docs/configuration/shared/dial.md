@@ -190,7 +190,7 @@ Setting this option directly to a string is equivalent to setting `server` of th
 | Outbound/Endpoints | Effected domains         |
 |--------------------|--------------------------|
 | `direct`           | Domain in request        | 
-| others             | Domain in server address |
+| others             | Domain in server address, domain of the ECH config query |
 
 #### network_strategy
 

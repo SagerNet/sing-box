@@ -60,7 +60,7 @@ func newRealityClient(ctx context.Context, logger logger.ContextLogger, serverAd
 		return nil, E.New("spoof is unsupported in reality")
 	}
 
-	uClient, err := newUTLSClient(ctx, logger, serverAddress, options, allowEmptyServerName)
+	uClient, err := newUTLSClient(ctx, logger, serverAddress, options, allowEmptyServerName, nil, false)
 	if err != nil {
 		return nil, err
 	}
