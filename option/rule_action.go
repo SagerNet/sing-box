@@ -169,6 +169,7 @@ type RawRouteOptionsActionOptions struct {
 	NetworkStrategy *NetworkStrategy `json:"network_strategy,omitempty"`
 	FallbackDelay   uint32           `json:"fallback_delay,omitempty"`
 
+	TCPPrefix                 []byte             `json:"tcp_prefix,omitempty"`
 	UDPDisableDomainUnmapping bool               `json:"udp_disable_domain_unmapping,omitempty"`
 	UDPConnect                bool               `json:"udp_connect,omitempty"`
 	UDPTimeout                badoption.Duration `json:"udp_timeout,omitempty"`
@@ -187,7 +188,10 @@ func (r *RouteOptionsActionOptions) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	if *r == (RouteOptionsActionOptions{}) {
+	if len(r.TCPPrefix) == 0 {
+		r.TCPPrefix = nil
+	}
+	if reflect.DeepEqual(*r, RouteOptionsActionOptions{}) {
 		return E.New("empty route option action")
 	}
 	if r.TLSFragment && r.TLSRecordFragment {

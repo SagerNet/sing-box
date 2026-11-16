@@ -133,6 +133,31 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		m.logger.ErrorContext(ctx, err)
 		return
 	}
+	if len(metadata.TCPPrefix) > 0 {
+		writeContext, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+		writeClosed := make(chan struct{})
+		stop := context.AfterFunc(writeContext, func() {
+			remoteConn.Close()
+			close(writeClosed)
+		})
+		var n int
+		n, err = remoteConn.Write(metadata.TCPPrefix)
+		if !stop() {
+			<-writeClosed
+			err = writeContext.Err()
+		}
+		cancel()
+		if err == nil && n < len(metadata.TCPPrefix) {
+			err = io.ErrShortWrite
+		}
+		if err != nil {
+			err = E.Cause(err, "write TCP prefix")
+			remoteConn.Close()
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			m.logger.ErrorContext(ctx, err)
+			return
+		}
+	}
 	err = N.ReportConnHandshakeSuccess(conn, remoteConn)
 	if err != nil {
 		err = E.Cause(err, "report handshake success")

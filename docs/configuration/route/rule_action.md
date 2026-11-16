@@ -2,6 +2,10 @@
 icon: material/new-box
 ---
 
+!!! quote "Changes in sing-box 1.15.0"
+
+    :material-plus: [tcp_prefix](#tcp_prefix)
+
 !!! quote "Changes in sing-box 1.13.0"
 
     :material-plus: [bypass](#bypass)  
@@ -146,6 +150,7 @@ Not available when `method` is set to drop.
   "override_port": 0,
   "network_strategy": "",
   "fallback_delay": "",
+  "tcp_prefix": "",
   "udp_disable_domain_unmapping": false,
   "udp_connect": false,
   "udp_timeout": "",
@@ -185,6 +190,14 @@ See [Dial Fields](/configuration/shared/dial/#fallback_network_type) for details
 #### fallback_delay
 
 See [Dial Fields](/configuration/shared/dial/#fallback_delay) for details.
+
+#### tcp_prefix
+
+!!! question "Since sing-box 1.15.0"
+
+Prepend data to each TCP connection.
+
+Specify a Base64 string or a byte array.
 
 #### udp_disable_domain_unmapping
 

@@ -394,11 +394,20 @@ func (r *Router) PreMatch(metadata adapter.InboundContext, firstPacket []byte) a
 				r.logger.DebugContext(ctx, "sniffed packet protocol: ", metadata.Protocol)
 			}
 		case *R.RuleActionRouteOptions:
+			if metadata.Network == N.NetworkTCP && len(action.TCPPrefix) > 0 {
+				return continueResult
+			}
 			applyRouteOptionsOverride(&metadata, action)
 		case *R.RuleActionRoute:
+			if metadata.Network == N.NetworkTCP && len(action.TCPPrefix) > 0 {
+				return continueResult
+			}
 			applyRouteOptionsOverride(&metadata, &action.RuleActionRouteOptions)
 			return r.preMatchFlow(ctx, &metadata, packetDestination, currentRule, action.Outbound)
 		case *R.RuleActionBypass:
+			if metadata.Network == N.NetworkTCP && len(action.TCPPrefix) > 0 {
+				return continueResult
+			}
 			applyRouteOptionsOverride(&metadata, &action.RuleActionRouteOptions)
 			if action.Outbound == "" {
 				if metadata.Destination.IsDomain() || metadata.Destination != packetDestination {
@@ -657,6 +666,9 @@ match:
 			}
 			if routeOptions.FallbackDelay != 0 {
 				metadata.FallbackDelay = routeOptions.FallbackDelay
+			}
+			if len(routeOptions.TCPPrefix) > 0 {
+				metadata.TCPPrefix = routeOptions.TCPPrefix
 			}
 			if routeOptions.UDPDisableDomainUnmapping {
 				metadata.UDPDisableDomainUnmapping = true

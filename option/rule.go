@@ -262,7 +262,7 @@ func unmarshalDefaultRuleContext(ctx context.Context, data []byte, rule *Default
 	if err != nil {
 		return err
 	}
-	if depth > 0 && rawAction == "" && routeOptions == (RouteActionOptions{}) {
+	if depth > 0 && rawAction == "" && reflect.DeepEqual(routeOptions, RouteActionOptions{}) {
 		rule.RuleAction = RuleAction{}
 	}
 	return nil
@@ -286,7 +286,7 @@ func unmarshalLogicalRuleContext(ctx context.Context, data []byte, rule *Logical
 	if err != nil {
 		return err
 	}
-	if depth > 0 && rawAction == "" && routeOptions == (RouteActionOptions{}) {
+	if depth > 0 && rawAction == "" && reflect.DeepEqual(routeOptions, RouteActionOptions{}) {
 		rule.RuleAction = RuleAction{}
 	}
 	return nil
