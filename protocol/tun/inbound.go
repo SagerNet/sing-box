@@ -682,6 +682,10 @@ func (t *autoRedirectHandler) JudgeFlow(network uint8, source netip.AddrPort, de
 	return (*Inbound)(t).JudgeFlow(network, source, destination, firstPacket)
 }
 
+func (t *autoRedirectHandler) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	(*Inbound)(t).NewDNSPacket(payload, source, destination, writer)
+}
+
 func (t *autoRedirectHandler) NewConnectionEx(ctx context.Context, conn net.Conn, source M.Socksaddr, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
 	ctx = log.ContextWithNewID(ctx)
 	var metadata adapter.InboundContext
