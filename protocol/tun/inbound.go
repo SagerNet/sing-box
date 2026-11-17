@@ -689,6 +689,10 @@ func (t *autoRedirectHandler) JudgeFlow(network uint8, source netip.AddrPort, de
 	return (*Inbound)(t).JudgeFlow(network, source, destination, firstPacket)
 }
 
+func (t *autoRedirectHandler) NewDNSPacket(payload []byte, source M.Socksaddr, destination M.Socksaddr, writer N.PacketWriter) {
+	(*Inbound)(t).NewDNSPacket(payload, source, t.redirectDNSDestination(source, destination), writer)
+}
+
 func (t *autoRedirectHandler) redirectDNSDestination(source M.Socksaddr, destination M.Socksaddr) M.Socksaddr {
 	if t.redirectDNSAddress.IsValid() && destination.Port == 53 && source.Addr.Is6() && source.Addr.IsLinkLocalUnicast() {
 		return M.SocksaddrFrom(t.redirectDNSAddress, 53)
