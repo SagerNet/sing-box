@@ -88,7 +88,7 @@ func (i *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 				return E.New("multiple resolved service are not supported")
 			}
 		}
-		systemBus, err := dbus.SystemBus()
+		systemBus, err := dbus.ConnectSystemBus()
 		if err != nil {
 			return err
 		}
@@ -102,10 +102,6 @@ func (i *Service) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 		if err != nil {
 			return err
 		}
-		scope.Add(func() error {
-			_, releaseErr := systemBus.ReleaseName("org.freedesktop.resolve1")
-			return releaseErr
-		})
 		switch reply {
 		case dbus.RequestNameReplyPrimaryOwner:
 		case dbus.RequestNameReplyExists:

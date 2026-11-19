@@ -136,7 +136,7 @@ func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (Reso
 	if interfaceMonitor == nil {
 		return nil, os.ErrInvalid
 	}
-	systemBus, err := dbus.SystemBus()
+	systemBus, err := dbus.ConnectSystemBus()
 	if err != nil {
 		return nil, err
 	}
@@ -152,30 +152,32 @@ func NewResolvedResolver(ctx context.Context, logger logger.ContextLogger) (Reso
 }
 
 func (t *DBusResolvedResolver) Start() error {
-	t.updateStatus(t.ctx)
 	t.interfaceCallback = t.interfaceMonitor.RegisterCallback(t.updateDefaultInterface)
 	if t.networkMonitor != nil {
 		t.networkCallback = t.networkMonitor.RegisterCallback(t.postUpdateStatus)
 	}
-	err := t.systemBus.BusObject().AddMatchSignal(
-		"org.freedesktop.DBus",
-		"NameOwnerChanged",
+	err := t.systemBus.AddMatchSignal(
 		dbus.WithMatchSender("org.freedesktop.DBus"),
+		dbus.WithMatchInterface("org.freedesktop.DBus"),
+		dbus.WithMatchMember("NameOwnerChanged"),
 		dbus.WithMatchArg(0, "org.freedesktop.resolve1"),
-	).Err
+	)
 	if err != nil {
 		return E.Cause(err, "configure resolved restart listener")
 	}
-	err = t.systemBus.BusObject().AddMatchSignal(
-		"org.freedesktop.DBus.Properties",
-		"PropertiesChanged",
+	err = t.systemBus.AddMatchSignal(
 		dbus.WithMatchSender("org.freedesktop.resolve1"),
+		dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
+		dbus.WithMatchMember("PropertiesChanged"),
 		dbus.WithMatchArg(0, "org.freedesktop.resolve1.Manager"),
-	).Err
+	)
 	if err != nil {
 		return E.Cause(err, "configure resolved properties listener")
 	}
-	go t.loopUpdateStatus()
+	signalChan := make(chan *dbus.Signal, 1)
+	t.systemBus.Signal(signalChan)
+	go t.loopUpdateStatus(signalChan)
+	t.updateStatus(t.ctx)
 	return nil
 }
 
@@ -361,9 +363,7 @@ func (s *resolvedScope) match(name string) int {
 	return resolvedScopeMaybe
 }
 
-func (t *DBusResolvedResolver) loopUpdateStatus() {
-	signalChan := make(chan *dbus.Signal, 1)
-	t.systemBus.Signal(signalChan)
+func (t *DBusResolvedResolver) loopUpdateStatus(signalChan <-chan *dbus.Signal) {
 	for signal := range signalChan {
 		switch signal.Name {
 		case "org.freedesktop.DBus.NameOwnerChanged":
