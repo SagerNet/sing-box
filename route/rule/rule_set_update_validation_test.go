@@ -57,7 +57,7 @@ func TestLocalRuleSetReloadRulesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 	}})
 	require.NoError(t, err)
 	require.Equal(t, int32(1), callbackCount.Load())
-	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
+	require.False(t, ruleSet.Metadata().ContainsDNSQueryTypeRule)
 	require.True(t, ruleSet.Match(&adapter.InboundContext{Domain: "example.com"}))
 
 	err = ruleSet.reloadRules([]option.HeadlessRule{{
@@ -68,7 +68,7 @@ func TestLocalRuleSetReloadRulesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 	}})
 	require.ErrorContains(t, err, "dns conflict")
 	require.Equal(t, int32(1), callbackCount.Load())
-	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
+	require.False(t, ruleSet.Metadata().ContainsDNSQueryTypeRule)
 	require.True(t, ruleSet.Match(&adapter.InboundContext{Domain: "example.com"}))
 }
 
@@ -100,12 +100,12 @@ func TestRemoteRuleSetLoadBytesRejectsInvalidUpdateBeforeCommit(t *testing.T) {
 	err := ruleSet.loadBytes([]byte(`{"version":4,"rules":[{"domain":["example.com"]}]}`))
 	require.NoError(t, err)
 	require.Equal(t, int32(1), callbackCount.Load())
-	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
+	require.False(t, ruleSet.Metadata().ContainsDNSQueryTypeRule)
 	require.True(t, ruleSet.Match(&adapter.InboundContext{Domain: "example.com"}))
 
 	err = ruleSet.loadBytes([]byte(`{"version":4,"rules":[{"query_type":["A"]}]}`))
 	require.ErrorContains(t, err, "dns conflict")
 	require.Equal(t, int32(1), callbackCount.Load())
-	require.False(t, ruleSet.metadata.ContainsDNSQueryTypeRule)
+	require.False(t, ruleSet.Metadata().ContainsDNSQueryTypeRule)
 	require.True(t, ruleSet.Match(&adapter.InboundContext{Domain: "example.com"}))
 }
