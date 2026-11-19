@@ -48,7 +48,7 @@ require (
 	github.com/sagernet/sing v0.9.7-0.20261110095939-f545d0260412
 	github.com/sagernet/sing-cloudflared v0.1.4-0.20261108120326-83391fb7b139
 	github.com/sagernet/sing-mux v0.3.10-0.20261110064256-375087483ea2
-	github.com/sagernet/sing-openconnect v0.1.1-0.20261110063157-f28cbff7da8d
+	github.com/sagernet/sing-openconnect v0.1.1-0.20261119020037-0dad74dcc5e1
 	github.com/sagernet/sing-openvpn v0.1.1-0.20261110111704-d1e498f993a0
 	github.com/sagernet/sing-quic v0.7.2-0.20261114063120-0979e001618d
 	github.com/sagernet/sing-shadowsocks v0.2.9-0.20260929204512-65740e0f0e3e
