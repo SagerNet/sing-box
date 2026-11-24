@@ -11,8 +11,6 @@ PARAMS = -v -trimpath -ldflags "-X 'github.com/sagernet/sing-box/constant.Versio
 MAIN_PARAMS = $(PARAMS) -tags "$(TAGS)"
 MAIN = ./cmd/sing-box
 PREFIX ?= $(shell go env GOPATH)
-SING_FFI ?= sing-ffi
-LIBBOX_FFI_CONFIG ?= ./experimental/libbox/ffi.json
 
 .PHONY: test release docs build schema
 
@@ -259,15 +257,6 @@ lib_android:
 
 lib_apple:
 	go run ./cmd/internal/build_libbox -target apple
-
-lib_windows:
-	$(SING_FFI) generate --config $(LIBBOX_FFI_CONFIG) --platform-type csharp
-
-lib_android_new:
-	$(SING_FFI) generate --config $(LIBBOX_FFI_CONFIG) --platform-type android
-
-lib_apple_new:
-	$(SING_FFI) generate --config $(LIBBOX_FFI_CONFIG) --platform-type apple
 
 lib_install:
 	go install -v github.com/sagernet/gomobile/cmd/gomobile@v0.1.13
