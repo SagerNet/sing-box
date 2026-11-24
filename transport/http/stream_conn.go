@@ -19,6 +19,7 @@ type clientStreamConn struct {
 	reader     io.ReadCloser
 	writer     net.Conn
 	cancel     context.CancelFunc
+	onClose    func()
 	localAddr  net.Addr
 	remoteAddr net.Addr
 	closed     atomic.Bool
@@ -49,10 +50,13 @@ func (c *clientStreamConn) CloseWrite() error {
 }
 
 func (c *clientStreamConn) Close() error {
-	c.closed.Store(true)
+	if c.closed.Swap(true) {
+		return nil
+	}
 	c.writer.Close()
 	c.reader.Close()
 	c.cancel()
+	c.onClose()
 	return nil
 }
 

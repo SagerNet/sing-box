@@ -23,7 +23,10 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.HTTPOutboundOptions](registry, C.TypeHTTP, NewOutbound)
 }
 
-var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+var (
+	_ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+	_ adapter.IdleConnectionKeeper  = (*Outbound)(nil)
+)
 
 type Outbound struct {
 	outbound.Adapter
@@ -63,6 +66,14 @@ func (h *Outbound) MultiplexEnabled() bool {
 
 func (h *Outbound) InterfaceUpdated(ctx context.Context) {
 	h.client.ResetConnections()
+}
+
+func (h *Outbound) SetKeepIdleConnections(keep bool) {
+	h.client.SetKeepIdleConnections(keep)
+}
+
+func (h *Outbound) CloseIdleConnections() {
+	h.client.CloseIdleConnections()
 }
 
 func (h *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {

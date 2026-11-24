@@ -112,7 +112,19 @@ func newHTTP3FallbackTransport(
 }
 
 func (t *http3Transport) RoundTrip(request *http.Request) (*http.Response, error) {
-	return t.h3Transport.RoundTrip(request)
+	return roundTripHTTP3(t.h3Transport, request)
+}
+
+func roundTripHTTP3(transport *http3.Transport, request *http.Request) (*http.Response, error) {
+	response, err := transport.RoundTrip(request)
+	if !errors.Is(err, http3.ErrNoMoreStreams) || !requestReplayable(request) {
+		return response, err
+	}
+	request, err = cloneRequestForRetry(request)
+	if err != nil {
+		return nil, err
+	}
+	return transport.RoundTrip(request)
 }
 
 func (t *http3Transport) CloseIdleConnections() {
@@ -136,23 +148,29 @@ func (t *http3FallbackTransport) roundTripHTTP3(request *http.Request) (*http.Re
 	if t.h3Broken(authority) {
 		return t.h2FallbackRoundTrip(request)
 	}
+	if !requestReplayable(request) {
+		response, err := t.h3Transport.RoundTrip(request)
+		if err == nil {
+			t.clearH3Broken(authority)
+			return response, nil
+		}
+		if !errors.Is(err, http3.ErrNoMoreStreams) {
+			t.markH3Broken(authority)
+		}
+		return nil, err
+	}
 	response, err := t.h3Transport.RoundTripOpt(request, http3.RoundTripOpt{OnlyCachedConn: true})
 	if err == nil {
 		t.clearH3Broken(authority)
 		return response, nil
 	}
-	if !errors.Is(err, http3.ErrNoCachedConn) {
+	if !errors.Is(err, http3.ErrNoCachedConn) && !errors.Is(err, http3.ErrNoMoreStreams) {
 		t.markH3Broken(authority)
-		return t.h2FallbackRoundTrip(cloneRequestForRetry(request))
-	}
-	if !requestReplayable(request) {
-		response, err = t.h3Transport.RoundTrip(request)
-		if err == nil {
-			t.clearH3Broken(authority)
-			return response, nil
+		request, err = cloneRequestForRetry(request)
+		if err != nil {
+			return nil, err
 		}
-		t.markH3Broken(authority)
-		return nil, err
+		return t.h2FallbackRoundTrip(request)
 	}
 	return t.roundTripHTTP3Race(request, authority)
 }
@@ -171,16 +189,15 @@ func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request, autho
 	startRoundTrip := func(useH3 bool) {
 		ctx, cancel := context.WithCancel(request.Context())
 		cancels = append(cancels, cancel)
-		raceRequest := cloneRequestForRetry(request).WithContext(ctx)
+		raceRequest, err := cloneRequestForRetry(request.WithContext(ctx))
 		go func() {
-			var (
-				response *http.Response
-				err      error
-			)
-			if useH3 {
-				response, err = t.h3Transport.RoundTrip(raceRequest)
-			} else {
-				response, err = t.h2FallbackRoundTrip(raceRequest)
+			var response *http.Response
+			if err == nil {
+				if useH3 {
+					response, err = roundTripHTTP3(t.h3Transport, raceRequest)
+				} else {
+					response, err = t.h2FallbackRoundTrip(raceRequest)
+				}
 			}
 			results <- result{response: response, err: err, h3: useH3}
 		}()
@@ -226,7 +243,9 @@ func (t *http3FallbackTransport) roundTripHTTP3Race(request *http.Request, autho
 				return raceResult.response, nil
 			}
 			if raceResult.h3 {
-				t.markH3Broken(authority)
+				if !errors.Is(raceResult.err, http3.ErrNoMoreStreams) {
+					t.markH3Broken(authority)
+				}
 				h3Err = raceResult.err
 				if len(cancels) == 1 {
 					if !timer.Stop() {

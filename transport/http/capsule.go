@@ -18,6 +18,7 @@ import (
 	F "github.com/sagernet/sing/common/format"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/pipe"
 )
 
 const (
@@ -282,29 +283,31 @@ func (e *DatagramTooLargeError) Unwrap() error {
 }
 
 type http3PacketConn struct {
-	stream      DatagramStream
-	reader      *std_bufio.Reader
-	destination M.Socksaddr
-	localAddr   net.Addr
-	packets     chan *buf.Buffer
-	ctx         context.Context
-	cancel      context.CancelFunc
-	closeOnce   sync.Once
-	waitGroup   sync.WaitGroup
-	writeAccess sync.Mutex
-	err         error
+	stream       DatagramStream
+	reader       *std_bufio.Reader
+	destination  M.Socksaddr
+	localAddr    net.Addr
+	packets      chan *buf.Buffer
+	readDeadline pipe.Deadline
+	ctx          context.Context
+	cancel       context.CancelFunc
+	closeOnce    sync.Once
+	waitGroup    sync.WaitGroup
+	writeAccess  sync.Mutex
+	err          error
 }
 
 func newHTTP3PacketConn(stream DatagramStream, destination M.Socksaddr, localAddr net.Addr) *http3PacketConn {
 	ctx, cancel := context.WithCancel(context.Background())
 	conn := &http3PacketConn{
-		stream:      stream,
-		reader:      std_bufio.NewReader(stream),
-		destination: destination,
-		localAddr:   localAddr,
-		packets:     make(chan *buf.Buffer, 64),
-		ctx:         ctx,
-		cancel:      cancel,
+		stream:       stream,
+		reader:       std_bufio.NewReader(stream),
+		destination:  destination,
+		localAddr:    localAddr,
+		packets:      make(chan *buf.Buffer, 64),
+		readDeadline: pipe.MakeDeadline(),
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 	conn.waitGroup.Add(2)
 	go conn.loopDatagram()
@@ -367,6 +370,8 @@ func (c *http3PacketConn) ReadPacket(buffer *buf.Buffer) (M.Socksaddr, error) {
 			return c.destination, nil
 		case <-c.ctx.Done():
 			return M.Socksaddr{}, c.err
+		case <-c.readDeadline.Wait():
+			return M.Socksaddr{}, os.ErrDeadlineExceeded
 		}
 	}
 }
@@ -428,15 +433,12 @@ func (c *http3PacketConn) SetDeadline(t time.Time) error {
 }
 
 func (c *http3PacketConn) SetReadDeadline(t time.Time) error {
-	return os.ErrInvalid
+	c.readDeadline.Set(t)
+	return nil
 }
 
 func (c *http3PacketConn) SetWriteDeadline(t time.Time) error {
 	return os.ErrInvalid
-}
-
-func (c *http3PacketConn) NeedAdditionalReadDeadline() bool {
-	return true
 }
 
 func (c *http3PacketConn) FrontHeadroom() int {

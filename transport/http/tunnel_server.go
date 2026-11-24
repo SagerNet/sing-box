@@ -131,8 +131,8 @@ func (r *httpTunnelRequest) Accept() (io.ReadWriteCloser, error) {
 		}
 	}
 	r.wrapper = v2rayhttp.NewHTTP2Wrapper(&v2rayhttp.ServerHTTPConn{
-		HTTP2Conn: v2rayhttp.NewHTTPConn(r.request.Body, r.writer),
-		Flusher:   r.writer.(http.Flusher),
+		HTTP2Conn:  v2rayhttp.NewHTTPConn(r.request.Body, r.writer),
+		Controller: http.NewResponseController(r.writer),
 	})
 	return r.wrapper, nil
 }

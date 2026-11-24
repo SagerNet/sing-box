@@ -91,8 +91,8 @@ func (h *httpHandler) serveConnectUDP(ctx context.Context, writer http.ResponseW
 		}
 	}
 	conn := v2rayhttp.NewHTTP2Wrapper(&v2rayhttp.ServerHTTPConn{
-		HTTP2Conn: v2rayhttp.NewHTTPConn(request.Body, writer),
-		Flusher:   writer.(http.Flusher),
+		HTTP2Conn:  v2rayhttp.NewHTTPConn(request.Body, writer),
+		Controller: http.NewResponseController(writer),
 	})
 	done := make(chan struct{})
 	h.handler.NewPacketConnectionEx(ctx, newCapsuleConn(std_bufio.NewReader(conn), conn, destination), source, destination, N.OnceClose(func(it error) {

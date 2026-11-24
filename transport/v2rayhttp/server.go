@@ -149,8 +149,8 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		flusher.Flush()
 		done := make(chan struct{})
 		conn := NewHTTP2Wrapper(&ServerHTTPConn{
-			NewHTTPConn(request.Body, writer),
-			flusher,
+			HTTP2Conn:  NewHTTPConn(request.Body, writer),
+			Controller: http.NewResponseController(writer),
 		})
 		s.handler.NewConnectionEx(request.Context(), conn, source, M.Socksaddr{}, N.OnceClose(func(it error) {
 			close(done)

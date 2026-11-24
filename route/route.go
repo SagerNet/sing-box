@@ -257,12 +257,11 @@ func (r *Router) routePacketConnection(ctx context.Context, conn N.PacketConn, m
 	// TODO: move to UoT
 	metadata.Network = N.NetworkUDP
 
-	// Currently we don't have deadline usages for UDP connections
-	/*if deadline.NeedAdditionalReadDeadline(conn) {
-		conn = deadline.NewPacketConn(bufio.NewNetPacketConn(conn))
-	}*/
 	if metadata.InboundType == C.TypeTun && metadata.Protocol == C.ProtocolDNS {
 		return r.hijackDNSPacket(ctx, conn, nil, metadata, onClose)
+	}
+	if deadline.NeedAdditionalReadDeadline(conn) {
+		conn = deadline.NewPacketConn(bufio.NewNetPacketConn(conn))
 	}
 	selectedRule, _, _, packetBuffers, err := r.matchRule(ctx, &metadata, nil, conn)
 	if err != nil {

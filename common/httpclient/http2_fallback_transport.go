@@ -84,7 +84,11 @@ func (t *http2FallbackTransport) roundTrip(request *http.Request, allowHTTP1Fall
 		return nil, err
 	}
 	t.markH2Fallback(authority)
-	return t.h1Transport.RoundTrip(cloneRequestForRetry(request))
+	request, err = cloneRequestForRetry(request)
+	if err != nil {
+		return nil, err
+	}
+	return t.h1Transport.RoundTrip(request)
 }
 
 func (t *http2FallbackTransport) CloseIdleConnections() {
