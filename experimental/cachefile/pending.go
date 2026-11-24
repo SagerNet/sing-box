@@ -63,26 +63,35 @@ func (c *CacheFile) loopFlush(ctx context.Context) {
 }
 
 func (c *CacheFile) Flush() {
+	err := c.flush(nil)
+	if err != nil {
+		c.logger.Warn("save cache: ", err)
+	}
+}
+
+func (c *CacheFile) flush(extraWrite func(tx *bbolt.Tx) error) error {
 	c.flushAccess.Lock()
 	defer c.flushAccess.Unlock()
 	c.pendingAccess.Lock()
-	if c.pending.count == 0 {
+	if c.pending.count == 0 && extraWrite == nil {
 		c.pendingAccess.Unlock()
-		return
+		return nil
 	}
 	writing := c.pending
 	c.writing = writing
 	c.pending = newPendingWrites()
 	c.pendingAccess.Unlock()
 	err := c.update(func(tx *bbolt.Tx) error {
-		return c.writePending(tx, writing)
+		err := c.writePending(tx, writing)
+		if err != nil || extraWrite == nil {
+			return err
+		}
+		return extraWrite(tx)
 	})
-	if err != nil {
-		c.logger.Warn("save cache: ", err)
-	}
 	c.pendingAccess.Lock()
 	c.writing = nil
 	c.pendingAccess.Unlock()
+	return err
 }
 
 func (c *CacheFile) writePending(tx *bbolt.Tx, pending *pendingWrites) error {

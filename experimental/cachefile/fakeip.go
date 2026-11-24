@@ -40,23 +40,23 @@ func (c *CacheFile) FakeIPMetadata() *adapter.FakeIPMetadata {
 }
 
 func (c *CacheFile) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) error {
-	c.pendingAccess.Lock()
-	added := c.pending.fakeIPMetadata == nil
-	c.pending.fakeIPMetadata = metadata
-	c.enqueueLocked(added, 0)
-	c.pendingAccess.Unlock()
-	c.Flush()
-	return nil
+	c.queueFakeIPMetadata(metadata)
+	return c.flush(nil)
 }
 
 func (c *CacheFile) FakeIPReserve(metadata *adapter.FakeIPMetadata, current netip.Addr, reservedEnd netip.Addr) error {
-	return c.batch(func(tx *bbolt.Tx) error {
-		err := putFakeIPMetadata(tx, metadata)
-		if err != nil {
-			return err
-		}
+	c.queueFakeIPMetadata(metadata)
+	return c.flush(func(tx *bbolt.Tx) error {
 		return deleteFakeIPRange(tx, current, reservedEnd)
 	})
+}
+
+func (c *CacheFile) queueFakeIPMetadata(metadata *adapter.FakeIPMetadata) {
+	c.pendingAccess.Lock()
+	defer c.pendingAccess.Unlock()
+	added := c.pending.fakeIPMetadata == nil
+	c.pending.fakeIPMetadata = metadata
+	c.enqueueLocked(added, 0)
 }
 
 func putFakeIPMetadata(tx *bbolt.Tx, metadata *adapter.FakeIPMetadata) error {
@@ -121,8 +121,7 @@ func deleteFakeIPRange(tx *bbolt.Tx, current netip.Addr, reservedEnd netip.Addr)
 
 func (c *CacheFile) FakeIPStore(address netip.Addr, domain string) error {
 	c.queueFakeIP(address, domain)
-	c.Flush()
-	return nil
+	return c.flush(nil)
 }
 
 func (c *CacheFile) FakeIPStoreAsync(address netip.Addr, domain string, logger logger.Logger) {
@@ -131,6 +130,10 @@ func (c *CacheFile) FakeIPStoreAsync(address netip.Addr, domain string, logger l
 
 func (c *CacheFile) queueFakeIP(address netip.Addr, domain string) {
 	oldDomain, loaded := c.FakeIPLoad(address)
+	if loaded {
+		oldAddress, _ := c.FakeIPLoadDomain(oldDomain, address.Is6())
+		loaded = oldAddress == address
+	}
 	c.pendingAccess.Lock()
 	defer c.pendingAccess.Unlock()
 	if loaded {
