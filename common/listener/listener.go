@@ -46,6 +46,7 @@ type Listener struct {
 	packetOutbound       chan *N.PacketBuffer
 	packetOutboundClosed chan struct{}
 	shutdown             atomic.Bool
+	interfaceAccess      sync.Mutex
 	interfaceCallbacks   []*list.Element[control.InterfaceUpdateCallback]
 }
 
@@ -127,12 +128,14 @@ func (l *Listener) Start() error {
 
 func (l *Listener) Close() error {
 	l.shutdown.Store(true)
+	l.interfaceAccess.Lock()
 	if len(l.interfaceCallbacks) > 0 {
 		interfaceFinder := service.FromContext[adapter.NetworkManager](l.ctx).InterfaceFinder()
 		for _, element := range l.interfaceCallbacks {
 			interfaceFinder.UnregisterInterfaceUpdateCallback(element)
 		}
 	}
+	l.interfaceAccess.Unlock()
 	var err error
 	if l.systemProxy != nil {
 		if l.systemProxy.IsEnabled() {
@@ -172,30 +175,41 @@ func (l *Listener) followBindInterface() (control.Func, func(conn syscall.Conn))
 		if err != nil {
 			return err
 		}
+		access.Lock()
+		defer access.Unlock()
 		bindNetwork, bindAddress, interfaceIndex = network, address, iif.Index
 		return control.BindToInterface0(interfaceFinder, conn, network, address, interfaceName, iif.Index, false)
 	}
 	followFunc := func(conn syscall.Conn) {
 		rawConn, _ := conn.SyscallConn()
-		l.interfaceCallbacks = append(l.interfaceCallbacks, interfaceFinder.RegisterInterfaceUpdateCallback(func(interfaces []control.Interface) {
-			iif := common.Find(interfaces, func(it control.Interface) bool {
-				return it.Name == interfaceName
-			})
+		rebind := func(index int) {
 			access.Lock()
 			defer access.Unlock()
-			if iif.Index == 0 || iif.Index == interfaceIndex {
+			if index == 0 || index == interfaceIndex {
 				return
 			}
-			err := control.BindToInterface0(interfaceFinder, rawConn, bindNetwork, bindAddress, interfaceName, iif.Index, false)
+			err := control.BindToInterface0(interfaceFinder, rawConn, bindNetwork, bindAddress, interfaceName, index, false)
 			if err != nil {
 				if !E.IsClosed(err) {
 					l.logger.Error(E.Cause(err, "rebind ", N.NetworkName(bindNetwork), " server to interface ", interfaceName))
 				}
 				return
 			}
-			interfaceIndex = iif.Index
+			interfaceIndex = index
 			l.logger.Info(N.NetworkName(bindNetwork), " server rebound to interface ", interfaceName)
-		}))
+		}
+		element := interfaceFinder.RegisterInterfaceUpdateCallback(func(interfaces []control.Interface) {
+			rebind(common.Find(interfaces, func(it control.Interface) bool {
+				return it.Name == interfaceName
+			}).Index)
+		})
+		l.interfaceAccess.Lock()
+		l.interfaceCallbacks = append(l.interfaceCallbacks, element)
+		l.interfaceAccess.Unlock()
+		iif, err := interfaceFinder.ByName(interfaceName)
+		if err == nil {
+			rebind(iif.Index)
+		}
 	}
 	return bindFunc, followFunc
 }
