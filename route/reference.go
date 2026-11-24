@@ -324,6 +324,10 @@ func (m *ReferenceManager) applyKeepIdle(keepIdle map[any]bool, target idleTarge
 	keepIdle[target.value] = target.keep
 	previous, tracked := m.keepIdle[target.value]
 	if tracked && previous == target.keep {
+		_, isOnDemandEndpoint := target.value.(adapter.OnDemandEndpoint)
+		if !target.keep && isOnDemandEndpoint {
+			target.keeper.SetKeepIdleConnections(false)
+		}
 		return
 	}
 	if !target.keep {
