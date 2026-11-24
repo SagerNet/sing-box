@@ -146,6 +146,9 @@ func (t *Transport) useSystemResolver() bool {
 }
 
 func (t *Transport) ServerAddresses() []netip.Addr {
+	if t.useSystemResolver() {
+		return nil
+	}
 	systemConfig := t.configSource.Configuration()
 	if t.resolved != nil && systemConfig.SystemdResolved {
 		return t.resolved.ServerAddresses()
@@ -156,7 +159,14 @@ func (t *Transport) ServerAddresses() []netip.Addr {
 }
 
 func (t *Transport) SearchDomains() []string {
-	return t.configSource.Configuration().Search
+	if t.useSystemResolver() {
+		return nil
+	}
+	systemConfig := t.configSource.Configuration()
+	if t.resolved != nil && systemConfig.SystemdResolved {
+		return t.resolved.SearchDomains()
+	}
+	return systemConfig.Search
 }
 
 func (t *Transport) Environment() []string {

@@ -131,6 +131,7 @@ func collectRuleReferences(rules []option.Rule, mode string, outbounds *[]string
 			continue
 		}
 		collectRulePreferredBy(rule, outbounds)
+		*transports = appendRuleTransports(*transports, rule)
 		var action option.RuleAction
 		switch rule.Type {
 		case C.RuleTypeDefault:
@@ -167,6 +168,7 @@ func collectDNSRuleReferences(rules []option.DNSRule, mode string, outbounds *[]
 			continue
 		}
 		collectDNSRulePreferredBy(rule, outbounds)
+		*transports = appendDNSRuleTransports(*transports, rule)
 		var action option.DNSRuleAction
 		switch rule.Type {
 		case C.RuleTypeDefault:
@@ -189,4 +191,38 @@ func collectDNSRuleReferences(rules []option.DNSRule, mode string, outbounds *[]
 		}
 	}
 	return false
+}
+
+func appendRuleTransports(transports []string, rule option.Rule) []string {
+	switch rule.Type {
+	case C.RuleTypeDefault:
+		if rule.DefaultOptions.DNSServerAddress != nil {
+			transports = append(transports, rule.DefaultOptions.DNSServerAddress.Keys()...)
+		}
+		if rule.DefaultOptions.DNSSearchDomain != nil {
+			transports = append(transports, rule.DefaultOptions.DNSSearchDomain.Keys()...)
+		}
+	case C.RuleTypeLogical:
+		for _, subRule := range rule.LogicalOptions.Rules {
+			transports = appendRuleTransports(transports, subRule)
+		}
+	}
+	return transports
+}
+
+func appendDNSRuleTransports(transports []string, rule option.DNSRule) []string {
+	switch rule.Type {
+	case C.RuleTypeDefault:
+		if rule.DefaultOptions.DNSServerAddress != nil {
+			transports = append(transports, rule.DefaultOptions.DNSServerAddress.Keys()...)
+		}
+		if rule.DefaultOptions.DNSSearchDomain != nil {
+			transports = append(transports, rule.DefaultOptions.DNSSearchDomain.Keys()...)
+		}
+	case C.RuleTypeLogical:
+		for _, subRule := range rule.LogicalOptions.Rules {
+			transports = appendDNSRuleTransports(transports, subRule)
+		}
+	}
+	return transports
 }

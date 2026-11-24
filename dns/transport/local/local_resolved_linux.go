@@ -52,6 +52,7 @@ type resolvedServerSet struct {
 	specifications  []resolvedScopeSpecification
 	scopes          []*resolvedScope
 	serverAddresses []netip.Addr
+	searchDomains   []string
 	signature       []string
 	serverScope     *adapter.Scope
 }
@@ -236,6 +237,14 @@ func (t *DBusResolvedResolver) ServerAddresses() []netip.Addr {
 		return nil
 	}
 	return serverSet.serverAddresses
+}
+
+func (t *DBusResolvedResolver) SearchDomains() []string {
+	serverSet := t.savedServerSet.Load()
+	if serverSet == nil {
+		return nil
+	}
+	return serverSet.searchDomains
 }
 
 func (t *DBusResolvedResolver) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
@@ -575,7 +584,6 @@ func (t *DBusResolvedResolver) createResolvedServerSet(scopeSpecifications []res
 		specifications: scopeSpecifications,
 		serverScope:    adapter.NewScope(t.ctx, t.logger),
 	}
-	var search []string
 	for _, scopeSpecification := range scopeSpecifications {
 		scope, createErr := t.createResolvedScope(serverSet.serverScope, scopeSpecification)
 		if createErr != nil {
@@ -583,13 +591,14 @@ func (t *DBusResolvedResolver) createResolvedServerSet(scopeSpecifications []res
 			return nil, createErr
 		}
 		serverSet.scopes = append(serverSet.scopes, scope)
+		serverSet.searchDomains = append(serverSet.searchDomains, scopeSpecification.search...)
 		for _, serverSpecification := range scopeSpecification.servers {
 			serverSet.serverAddresses = append(serverSet.serverAddresses, serverSpecification.address)
 			serverSet.signature = append(serverSet.signature, scopeSpecification.interfaceName+"/"+M.SocksaddrFrom(serverSpecification.address, serverSpecification.port).String())
 		}
-		search = append(search, scopeSpecification.search...)
 	}
-	serverSet.signature = append(serverSet.signature, common.Uniq(search)...)
+	serverSet.searchDomains = common.Uniq(serverSet.searchDomains)
+	serverSet.signature = append(serverSet.signature, serverSet.searchDomains...)
 	return serverSet, nil
 }
 

@@ -54,6 +54,12 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 			domainResolvers[endpointOptions.Tag] = domainResolverServer(dialerOptionsWrapper.TakeDialerOptions())
 		}
 	}
+	for _, inboundOptions := range options.Inbounds {
+		hysteria2Options, isHysteria2 := inboundOptions.Options.(*option.Hysteria2InboundOptions)
+		if isHysteria2 && hysteria2Options.Realm != nil && hysteria2Options.Realm.STUNDomainResolver != nil {
+			staticTransports = append(staticTransports, hysteria2Options.Realm.STUNDomainResolver.Server)
+		}
+	}
 	var (
 		rules    []option.Rule
 		dnsRules []option.DNSRule

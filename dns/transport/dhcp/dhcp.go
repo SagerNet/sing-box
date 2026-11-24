@@ -138,15 +138,8 @@ func (t *Transport) Start(stage adapter.StartStage, scope *adapter.Scope) error 
 func (t *Transport) Reset() {
 	t.refreshAccess.Lock()
 	defer t.refreshAccess.Unlock()
-	state := t.savedState.Load()
-	if state == nil {
-		return
-	}
-	t.savedState.Store(&transportState{
-		search:  state.search,
-		servers: state.servers,
-	})
-	if state.serverScope != nil {
+	state := t.savedState.Swap(nil)
+	if state != nil && state.serverScope != nil {
 		state.serverScope.Close()
 	}
 }
