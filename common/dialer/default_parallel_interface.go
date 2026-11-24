@@ -3,6 +3,8 @@ package dialer
 import (
 	"context"
 	"net"
+	"net/netip"
+	"os"
 	"strconv"
 	"syscall"
 	"time"
@@ -16,7 +18,7 @@ import (
 	N "github.com/sagernet/sing/common/network"
 )
 
-func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, bool, error) {
+func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.Conn, bool, error) {
 	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy, interfaceType, fallbackInterfaceType)
 	if len(primaryInterfaces)+len(fallbackInterfaces) == 0 {
 		return nil, false, E.New("no available network interface")
@@ -33,7 +35,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 		} else {
 			iif = fallbackInterfaces[0]
 		}
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, destinationAddresses, iif, defaultInterface, fallbackDelay)
 		if err != nil {
 			return nil, false, err
 		}
@@ -51,7 +53,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 	}
 	results := make(chan dialResult) // unbuffered
 	startRacer := func(ctx context.Context, primary bool, iif adapter.NetworkInterface) {
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, destinationAddresses, iif, defaultInterface, fallbackDelay)
 		if err != nil {
 			select {
 			case results <- dialResult{error: err, primary: primary}:
@@ -103,7 +105,7 @@ func (d *DefaultDialer) dialParallelInterface(ctx context.Context, dialer net.Di
 	}
 }
 
-func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration, resetFastFallback func(time.Time)) (net.Conn, bool, error) {
+func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration, resetFastFallback func(time.Time)) (net.Conn, bool, error) {
 	primaryInterfaces, fallbackInterfaces := selectInterfaces(d.networkManager, strategy, interfaceType, fallbackInterfaceType)
 	if len(primaryInterfaces)+len(fallbackInterfaces) == 0 {
 		return nil, false, E.New("no available network interface")
@@ -120,7 +122,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 		} else {
 			iif = fallbackInterfaces[0]
 		}
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, destinationAddresses, iif, defaultInterface, fallbackDelay)
 		if err != nil {
 			return nil, false, err
 		}
@@ -139,7 +141,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 	startAt := time.Now()
 	results := make(chan dialResult) // unbuffered
 	startRacer := func(ctx context.Context, primary bool, iif adapter.NetworkInterface) {
-		conn, err := dialInterface(ctx, dialer, network, destination, iif, defaultInterface)
+		conn, err := d.dialInterface(ctx, dialer, network, destination, destinationAddresses, iif, defaultInterface, fallbackDelay)
 		if err != nil {
 			select {
 			case results <- dialResult{error: err, primary: primary}:
@@ -177,18 +179,46 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 	return nil, false, E.Errors(errors...)
 }
 
-func dialInterface(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, iif adapter.NetworkInterface, defaultInterface *control.Interface) (net.Conn, error) {
+func (d *DefaultDialer) dialInterface(ctx context.Context, dialer net.Dialer, network string, destination M.Socksaddr, destinationAddresses []netip.Addr, iif adapter.NetworkInterface, defaultInterface *control.Interface, fallbackDelay time.Duration) (net.Conn, error) {
 	if defaultInterface == nil || iif.Index != defaultInterface.Index {
 		dialer.Control = control.Append(dialer.Control, control.BindToInterface(nil, iif.Name, iif.Index))
 	}
-	if destination.Addr.Zone() == "" && isLinkScoped(destination.Addr) {
-		destination.Addr = destination.Addr.WithZone(strconv.Itoa(iif.Index))
+	boundDialer := &interfaceDialer{
+		parent:         d,
+		dialer:         dialer,
+		interfaceIndex: iif.Index,
 	}
-	conn, err := dialer.DialContext(ctx, network, destination.String())
+	var (
+		conn net.Conn
+		err  error
+	)
+	if d.tcpFastOpen {
+		conn, err = N.DialSerial(ctx, boundDialer, network, destination, destinationAddresses)
+	} else {
+		conn, err = N.DialParallel(ctx, boundDialer, network, destination, destinationAddresses, destinationAddresses[0].Is6(), fallbackDelay)
+	}
 	if err != nil {
 		return nil, E.Cause(err, "dial ", iif.Name, " (", iif.Index, ")")
 	}
 	return conn, nil
+}
+
+type interfaceDialer struct {
+	parent         *DefaultDialer
+	dialer         net.Dialer
+	interfaceIndex int
+}
+
+func (d *interfaceDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	if destination.Addr.Zone() == "" && isLinkScoped(destination.Addr) {
+		destination.Addr = destination.Addr.WithZone(strconv.Itoa(d.interfaceIndex))
+	}
+	conn, err := d.dialer.DialContext(ctx, network, destination.String())
+	return d.parent.trackConn(ctx, destination, conn, err)
+}
+
+func (d *interfaceDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	return nil, os.ErrInvalid
 }
 
 func (d *DefaultDialer) serialInterfaceControl(strategy C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType) control.Func {
