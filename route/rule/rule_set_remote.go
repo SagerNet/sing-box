@@ -193,7 +193,11 @@ func (s *RemoteRuleSet) loadBytes(content []byte) error {
 	default:
 		return E.New("unknown rule-set format: ", s.options.Format)
 	}
-	plainRuleSet, err := mmapRuleSet(s.ctx, s.logger, s.tag, ruleSet).Upgrade()
+	ruleSet, err = mmapRuleSet(s.ctx, s.logger, s.tag, ruleSet)
+	if err != nil {
+		return err
+	}
+	plainRuleSet, err := ruleSet.Upgrade()
 	if err != nil {
 		return err
 	}
