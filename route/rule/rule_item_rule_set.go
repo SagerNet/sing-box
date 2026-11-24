@@ -17,6 +17,7 @@ type RuleSetItem struct {
 	setList           []adapter.RuleSet
 	ipCidrMatchSource bool
 	ipCidrAcceptEmpty bool
+	closed            bool
 }
 
 func NewRuleSetItem(router adapter.Router, tagList []string, ipCIDRMatchSource bool, ipCidrAcceptEmpty bool) *RuleSetItem {
@@ -30,24 +31,30 @@ func NewRuleSetItem(router adapter.Router, tagList []string, ipCIDRMatchSource b
 
 func (r *RuleSetItem) Start() error {
 	_ = r.Close()
+	setList := make([]adapter.RuleSet, 0, len(r.tagList))
 	for _, tag := range r.tagList {
 		ruleSet, loaded := r.router.RuleSet(tag)
 		if !loaded {
-			_ = r.Close()
 			return E.New("rule-set not found: ", tag)
 		}
-		ruleSet.IncRef()
-		r.setList = append(r.setList, ruleSet)
+		setList = append(setList, ruleSet)
 	}
+	for _, ruleSet := range setList {
+		ruleSet.IncRef()
+	}
+	r.setList = setList
+	r.closed = false
 	return nil
 }
 
 func (r *RuleSetItem) Close() error {
+	if r.closed {
+		return nil
+	}
+	r.closed = true
 	for _, ruleSet := range r.setList {
 		ruleSet.DecRef()
 	}
-	clear(r.setList)
-	r.setList = nil
 	return nil
 }
 

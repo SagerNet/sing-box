@@ -204,7 +204,6 @@ func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			processCache.SetLifetime(200 * time.Millisecond)
 			r.processCache = processCache
 		}
-	case adapter.StartStatePostStart:
 		for i, rule := range r.rules {
 			scope.Add(rule.Close)
 			monitor.Start("initialize rule[", i, "]")
@@ -214,6 +213,7 @@ func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 				return E.Cause(err, "initialize rule[", i, "]")
 			}
 		}
+	case adapter.StartStatePostStart:
 		if r.ruleSetUpdater != nil {
 			r.ruleSetUpdater.Start()
 		}
