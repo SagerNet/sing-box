@@ -27,7 +27,7 @@ type Store struct {
 	inet6Current  netip.Addr
 }
 
-func NewStore(ctx context.Context, logger logger.Logger, inet4Range netip.Prefix, inet6Range netip.Prefix) *Store {
+func NewStore(ctx context.Context, logger logger.Logger, inet4Range netip.Prefix, inet6Range netip.Prefix) (*Store, error) {
 	store := &Store{
 		ctx:        ctx,
 		logger:     logger,
@@ -35,12 +35,18 @@ func NewStore(ctx context.Context, logger logger.Logger, inet4Range netip.Prefix
 		inet6Range: inet6Range,
 	}
 	if inet4Range.IsValid() {
+		if inet4Range.Addr().BitLen()-inet4Range.Bits() < 2 {
+			return nil, E.New("inet4_range must have at least 2 host bits")
+		}
 		store.inet4Last = broadcastAddress(inet4Range)
 	}
 	if inet6Range.IsValid() {
+		if inet6Range.Addr().BitLen()-inet6Range.Bits() < 2 {
+			return nil, E.New("inet6_range must have at least 2 host bits")
+		}
 		store.inet6Last = broadcastAddress(inet6Range)
 	}
-	return store
+	return store, nil
 }
 
 func broadcastAddress(prefix netip.Prefix) netip.Addr {
@@ -94,14 +100,13 @@ func (s *Store) Close() error {
 		return nil
 	}
 	s.addressAccess.Lock()
-	metadata := &adapter.FakeIPMetadata{
+	defer s.addressAccess.Unlock()
+	return s.storage.FakeIPSaveMetadata(&adapter.FakeIPMetadata{
 		Inet4Range:   s.inet4Range,
 		Inet6Range:   s.inet6Range,
 		Inet4Current: s.inet4Current,
 		Inet6Current: s.inet6Current,
-	}
-	s.addressAccess.Unlock()
-	return s.storage.FakeIPSaveMetadata(metadata)
+	})
 }
 
 func (s *Store) Create(domain string, isIPv6 bool) (netip.Addr, error) {
@@ -157,5 +162,7 @@ func (s *Store) Lookup(address netip.Addr) (string, bool) {
 }
 
 func (s *Store) Reset() error {
+	s.addressAccess.Lock()
+	defer s.addressAccess.Unlock()
 	return s.storage.FakeIPReset()
 }

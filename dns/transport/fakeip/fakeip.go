@@ -35,7 +35,10 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 	if !inet4Range.IsValid() && !inet6Range.IsValid() {
 		return nil, E.New("at least one of inet4_range or inet6_range must be set")
 	}
-	store := NewStore(ctx, logger, inet4Range, inet6Range)
+	store, err := NewStore(ctx, logger, inet4Range, inet6Range)
+	if err != nil {
+		return nil, err
+	}
 	return &Transport{
 		TransportAdapter: dns.NewTransportAdapter(C.DNSTypeFakeIP, tag, nil),
 		logger:           logger,

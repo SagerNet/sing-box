@@ -1,6 +1,7 @@
 package cachefile
 
 import (
+	"bytes"
 	"net/netip"
 	"os"
 	"time"
@@ -95,8 +96,9 @@ func (c *CacheFile) FakeIPStore(address netip.Addr, domain string) error {
 		if err != nil {
 			return err
 		}
-		if oldDomain != nil {
-			if err := bucket.Delete(oldDomain); err != nil {
+		if oldDomain != nil && bytes.Equal(bucket.Get(oldDomain), address.AsSlice()) {
+			err = bucket.Delete(oldDomain)
+			if err != nil {
 				return err
 			}
 		}
