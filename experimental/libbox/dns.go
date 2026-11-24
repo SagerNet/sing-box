@@ -84,7 +84,7 @@ func (p *platformTransport) SearchDomains() []string {
 	if defaultInterface == nil {
 		return nil
 	}
-	return defaultInterface.DNSSearchDomains
+	return normalizeSearchDomains(defaultInterface.DNSSearchDomains)
 }
 
 func (p *platformTransport) Environment() []string {
@@ -95,7 +95,16 @@ func (p *platformTransport) Environment() []string {
 	if defaultInterface == nil {
 		return nil
 	}
-	return defaultInterface.DNSServers
+	searchDomains := normalizeSearchDomains(defaultInterface.DNSSearchDomains)
+	environment := make([]string, 0, len(defaultInterface.DNSServers)+len(searchDomains))
+	environment = append(environment, defaultInterface.DNSServers...)
+	return append(environment, searchDomains...)
+}
+
+func normalizeSearchDomains(searchDomains []string) []string {
+	return common.Filter(common.Map(searchDomains, mDNS.Fqdn), func(it string) bool {
+		return it != "."
+	})
 }
 
 func (p *platformTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {

@@ -13,5 +13,6 @@ type ResolvedResolver interface {
 	Reset()
 	Environment() []string
 	ServerAddresses() []netip.Addr
+	SearchDomains() []string
 	ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error))
 }
