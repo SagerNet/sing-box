@@ -1107,7 +1107,7 @@ func (t *peerDNSQueryHandler) HandlePeerDNSQuery(ctx context.Context, query []by
 		}
 		return nil, err
 	}
-	compressedResponse := *response
+	compressedResponse := response.Copy()
 	compressedResponse.Compress = true
 	return compressedResponse.Pack()
 }

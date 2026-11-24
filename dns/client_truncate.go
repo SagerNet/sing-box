@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 
 	"github.com/miekg/dns"
@@ -14,11 +15,11 @@ func TruncateDNSMessage(request *dns.Msg, response *dns.Msg, frontHeadroom int, 
 		}
 	}
 	responseLen := response.Len()
-	compressedResponse := *response
+	compressedResponse := response.Copy()
 	compressedResponse.Compress = true
 	if compressedResponse.Len() > maxLen {
-		compressedResponse = *response.Copy()
 		compressedResponse.Truncate(maxLen)
+		compressedResponse.Compress = true
 	}
 	buffer := buf.NewSize(frontHeadroom + responseLen + 1 + rearHeadroom)
 	buffer.Resize(frontHeadroom, 0)
@@ -27,6 +28,6 @@ func TruncateDNSMessage(request *dns.Msg, response *dns.Msg, frontHeadroom int, 
 		buffer.Release()
 		return nil, err
 	}
-	buffer.Truncate(len(rawMessage))
+	common.Must1(buffer.Write(rawMessage))
 	return buffer, nil
 }

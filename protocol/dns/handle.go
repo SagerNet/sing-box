@@ -8,6 +8,7 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
+	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/canceler"
@@ -54,14 +55,14 @@ func writeStreamResponse(conn net.Conn, response *mDNS.Msg) {
 	responseBuffer := buf.NewSize(3 + responseLength)
 	defer responseBuffer.Release()
 	responseBuffer.Resize(2, 0)
-	compressedResponse := *response
+	compressedResponse := response.Copy()
 	compressedResponse.Compress = true
-	n, err := compressedResponse.PackBuffer(responseBuffer.FreeBytes())
+	rawMessage, err := compressedResponse.PackBuffer(responseBuffer.FreeBytes())
 	if err != nil {
 		return
 	}
-	responseBuffer.Truncate(len(n))
-	binary.BigEndian.PutUint16(responseBuffer.ExtendHeader(2), uint16(len(n)))
+	common.Must1(responseBuffer.Write(rawMessage))
+	binary.BigEndian.PutUint16(responseBuffer.ExtendHeader(2), uint16(len(rawMessage)))
 	conn.Write(responseBuffer.Bytes())
 }
 
