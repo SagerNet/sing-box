@@ -473,6 +473,7 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 			}
 			tlsConfig.ClientCAs = clientCertificateCA
 		} else if len(options.ClientCertificatePublicKeySHA256) > 0 {
+			verifyIfGiven := tlsConfig.ClientAuth == tls.VerifyClientCertIfGiven
 			switch tlsConfig.ClientAuth {
 			case tls.RequireAndVerifyClientCert:
 				tlsConfig.ClientAuth = tls.RequireAnyClientCert
@@ -480,6 +481,9 @@ func NewSTDServer(ctx context.Context, logger log.ContextLogger, options option.
 				tlsConfig.ClientAuth = tls.RequestClientCert
 			}
 			tlsConfig.VerifyPeerCertificate = func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				if verifyIfGiven && len(rawCerts) == 0 {
+					return nil
+				}
 				return VerifyPublicKeySHA256(options.ClientCertificatePublicKeySHA256, rawCerts)
 			}
 		} else {

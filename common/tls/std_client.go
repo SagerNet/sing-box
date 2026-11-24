@@ -276,6 +276,9 @@ func verifyConnection(rootCAs *x509.CertPool, timeFunc func() time.Time, serverN
 }
 
 func VerifyPublicKeySHA256(knownHashValues [][]byte, rawCerts [][]byte) error {
+	if len(rawCerts) == 0 {
+		return E.New("missing remote certificate")
+	}
 	leafCertificate, err := x509.ParseCertificate(rawCerts[0])
 	if err != nil {
 		return E.Cause(err, "failed to parse leaf certificate")
