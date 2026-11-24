@@ -5,7 +5,6 @@ package rule
 import (
 	"context"
 	"io"
-	"os"
 
 	"github.com/sagernet/sing-box/common/srs"
 	"github.com/sagernet/sing-box/option"
@@ -14,31 +13,28 @@ import (
 	"github.com/sagernet/sing/service/filemanager"
 )
 
-func mmapRuleSet(ctx context.Context, logger logger.Logger, tag string, ruleSet option.PlainRuleSetCompat) option.PlainRuleSetCompat {
+func mmapRuleSet(ctx context.Context, logger logger.Logger, tag string, ruleSet option.PlainRuleSetCompat) (option.PlainRuleSetCompat, error) {
 	file, err := filemanager.CreateTemp(ctx, "rule-set-*.mmap")
 	if err != nil {
 		logger.Warn(E.Cause(err, "create rule-set mmap file ", tag))
-		return ruleSet
+		return ruleSet, nil
 	}
 	defer file.Close()
-	mmap, err := writeAndMmapRuleSet(file, ruleSet)
+	err = srs.WriteMmap(file, ruleSet)
 	if err != nil {
 		filemanager.Remove(ctx, file.Name())
-		logger.Warn(E.Cause(err, "mmap rule-set ", tag))
-		return ruleSet
+		logger.Warn(E.Cause(err, "write rule-set mmap file ", tag))
+		return ruleSet, nil
+	}
+	ruleSet = option.PlainRuleSetCompat{}
+	_, err = file.Seek(0, io.SeekStart)
+	if err == nil {
+		ruleSet, err = srs.ReadMmap(file)
+	}
+	if err != nil {
+		filemanager.Remove(ctx, file.Name())
+		return option.PlainRuleSetCompat{}, E.Cause(err, "mmap rule-set ", tag)
 	}
 	logger.Debug("mmap rule-set ", tag)
-	return mmap
-}
-
-func writeAndMmapRuleSet(file *os.File, ruleSet option.PlainRuleSetCompat) (option.PlainRuleSetCompat, error) {
-	err := srs.WriteMmap(file, ruleSet)
-	if err != nil {
-		return ruleSet, err
-	}
-	_, err = file.Seek(0, io.SeekStart)
-	if err != nil {
-		return ruleSet, err
-	}
-	return srs.ReadMmap(file)
+	return ruleSet, nil
 }

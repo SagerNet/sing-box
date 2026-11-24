@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -187,12 +188,19 @@ func (r *Router) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 					return nil
 				})
 			}
-			ruleSetStartGroup.Concurrency(5)
+			if C.IsIos {
+				ruleSetStartGroup.Concurrency(1)
+			} else {
+				ruleSetStartGroup.Concurrency(5)
+			}
 			ruleSetStartGroup.FastFail()
 			err := ruleSetStartGroup.Run(r.ctx)
 			monitor.Finish()
 			if err != nil {
 				return err
+			}
+			if C.IsIos {
+				debug.FreeOSMemory()
 			}
 		}
 		if startContext != nil {

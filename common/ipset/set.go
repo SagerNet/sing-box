@@ -79,6 +79,9 @@ func (s *Set) Ranges6() []Range6 {
 }
 
 func (s *Set) Contains(addr netip.Addr) bool {
+	if !addr.IsValid() {
+		return false
+	}
 	if addr.Is4() {
 		value := binary.BigEndian.Uint32(addr.AsSlice())
 		index, found := slices.BinarySearchFunc(s.ranges4, value, func(ipRange Range4, target uint32) int {
