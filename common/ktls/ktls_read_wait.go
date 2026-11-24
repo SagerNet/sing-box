@@ -24,6 +24,12 @@ func (c *Conn) WaitReadBuffer() (buffer *buf.Buffer, err error) {
 		if err != nil {
 			return
 		}
+		for c.rawConn.Hand.Len() > 0 {
+			err = c.handlePostHandshakeMessage()
+			if err != nil {
+				return
+			}
+		}
 	}
 	buffer = c.readWaitOptions.NewBuffer()
 	n, err := c.rawConn.Input.Read(buffer.FreeBytes())
@@ -32,7 +38,7 @@ func (c *Conn) WaitReadBuffer() (buffer *buf.Buffer, err error) {
 		return
 	}
 	buffer.Truncate(n)
-	if n != 0 && c.rawConn.Input.Len() == 0 && c.rawConn.Input.Len() > 0 &&
+	if n != 0 && c.rawConn.Input.Len() == 0 && c.rawConn.RawInput.Len() > 0 && !c.kernelRx &&
 		c.rawConn.RawInput.Bytes()[0] == recordTypeAlert {
 		_ = c.rawConn.ReadRecord()
 	}

@@ -62,7 +62,7 @@ func (c *ReadWaitConn) WaitReadBuffer() (buffer *buf.Buffer, err error) {
 	}
 	buffer.Truncate(n)
 
-	if n != 0 && c.rawConn.Input.Len() == 0 && c.rawConn.Input.Len() > 0 &&
+	if n != 0 && c.rawConn.Input.Len() == 0 && c.rawConn.RawInput.Len() > 0 &&
 		// recordType(c.RawInput.Bytes()[0]) == recordTypeAlert {
 		c.rawConn.RawInput.Bytes()[0] == 21 {
 		_ = c.rawConn.ReadRecord()

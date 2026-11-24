@@ -109,6 +109,12 @@ func (c *Conn) HandleSyscallReadError(inputErr error) ([]byte, error) {
 		if err != nil {
 			return nil, E.Cause(err, "ktls: handle non-application-data record")
 		}
+		for c.rawConn.Hand.Len() > 0 {
+			err = c.handlePostHandshakeMessage()
+			if err != nil {
+				return nil, E.Cause(err, "ktls: handle post-handshake messages")
+			}
+		}
 		var input bytes.Buffer
 		if c.rawConn.Input.Len() > 0 {
 			_, err = c.rawConn.Input.WriteTo(&input)
