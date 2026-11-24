@@ -49,7 +49,10 @@ func newAppleAnchors(pemBytes []byte) (*appleAnchors, error) {
 	}
 	pointerSize := C.size_t(unsafe.Sizeof((*C.uint8_t)(nil)))
 	lenSize := C.size_t(unsafe.Sizeof(C.size_t(0)))
-	pointersC := (**C.uint8_t)(C.malloc(pointerSize * C.size_t(len(derBlocks))))
+	pointersC := (**C.uint8_t)(C.calloc(C.size_t(len(derBlocks)), pointerSize))
+	if pointersC == nil {
+		return nil, E.New("allocate certificate pointers")
+	}
 	defer C.free(unsafe.Pointer(pointersC))
 	lensC := (*C.size_t)(C.malloc(lenSize * C.size_t(len(derBlocks))))
 	defer C.free(unsafe.Pointer(lensC))
