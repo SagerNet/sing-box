@@ -39,7 +39,7 @@ func queryDNS(router adapter.DNSRouter) func(w http.ResponseWriter, r *http.Requ
 
 		msg := dns.Msg{}
 		msg.SetQuestion(dns.Fqdn(name), qType)
-		resp, err := router.Exchange(ctx, &msg, adapter.DNSQueryOptions{})
+		resp, err := router.Exchange(ctx, &msg, adapter.DNSQueryOptions{DisableReverseMapping: true})
 		if err != nil {
 			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, newError(err.Error()))

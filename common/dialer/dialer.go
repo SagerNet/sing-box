@@ -120,16 +120,17 @@ func NewDNSQueryOptions(ctx context.Context, domainResolver *option.DomainResolv
 		}
 		dnsQueryOptions := defaultOptions.DomainResolveOptions
 		dnsQueryOptions.Transport = transport
+		dnsQueryOptions.DisableReverseMapping = true
 		return dnsQueryOptions, nil
 	}
 	if len(dnsTransport.Transports()) < 2 {
-		return adapter.DNSQueryOptions{Transport: dnsTransport.Default()}, nil
+		return adapter.DNSQueryOptions{Transport: dnsTransport.Default(), DisableReverseMapping: true}, nil
 	}
 	if newDialer {
 		return adapter.DNSQueryOptions{}, E.New("missing domain resolver for domain server address")
 	}
 	deprecated.Report(ctx, deprecated.OptionMissingDomainResolver)
-	return adapter.DNSQueryOptions{}, nil
+	return adapter.DNSQueryOptions{DisableReverseMapping: true}, nil
 }
 
 func domainResolveQueryOptions(domainResolver *option.DomainResolveOptions) adapter.DNSQueryOptions {
@@ -140,6 +141,7 @@ func domainResolveQueryOptions(domainResolver *option.DomainResolveOptions) adap
 		DisableOptimisticCache: domainResolver.DisableOptimisticCache,
 		RewriteTTL:             domainResolver.RewriteTTL,
 		ClientSubnet:           domainResolver.ClientSubnet.Build(netip.Prefix{}),
+		DisableReverseMapping:  true,
 	}
 }
 

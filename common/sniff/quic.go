@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"io"
 	"os"
+	"slices"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/ja3"
@@ -310,7 +311,7 @@ find:
 		metadata.SniffContext = fragments
 		return E.Cause1(ErrNeedMoreData, err)
 	}
-	if domain := M.ParseSocksaddrHostPort(fingerprint.ServerName, 0).Fqdn; domain != "" && domain != metadata.ECHPublicName {
+	if domain := M.ParseSocksaddrHostPort(fingerprint.ServerName, 0).Fqdn; domain != "" && (domain != metadata.ECHPublicName || !slices.Contains(fingerprint.Extensions, extensionEncryptedClientHello)) {
 		metadata.Domain = domain
 	}
 	for metadata.Client == "" {

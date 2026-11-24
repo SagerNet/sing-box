@@ -1127,7 +1127,7 @@ func (r *Router) prepareExchange(ctx context.Context, message *mDNS.Msg) (*dnsEx
 }
 
 func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, transport adapter.DNSTransport) {
-	if r.dnsECHPublicNames == nil || len(message.Question) == 0 || response == nil || len(response.Answer) == 0 {
+	if r.dnsECHPublicNames == nil || len(message.Question) == 0 || response == nil || response.Rcode != mDNS.RcodeSuccess {
 		return
 	}
 	if transport != nil && transport.Type() == C.DNSTypeFakeIP {
@@ -1138,15 +1138,20 @@ func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, tra
 	if port, origin, found := strings.Cut(domain, "._https."); found && question.Qtype == mDNS.TypeHTTPS && strings.HasPrefix(port, "_") {
 		domain = origin
 	}
-	var addresses []netip.Addr
+	var (
+		addresses       []netip.Addr
+		foundPublicName bool
+	)
 	for _, answer := range response.Answer {
 		lifetime := time.Duration(max(answer.Header().Ttl, 1)) * time.Second
 		if record, isHTTPS := answer.(*mDNS.HTTPS); isHTTPS {
 			publicName := echPublicName(record)
 			if publicName != "" {
+				foundPublicName = true
+				publicNameLifetime := max(lifetime, C.DefaultDNSTTL*time.Second)
 				mappedName, expireAt, loaded := r.dnsECHPublicNames.GetWithLifetime(domain)
-				if !loaded || mappedName != publicName || time.Until(expireAt) < lifetime {
-					r.dnsECHPublicNames.AddWithLifetime(domain, publicName, lifetime)
+				if !loaded || mappedName != publicName || time.Until(expireAt) < publicNameLifetime {
+					r.dnsECHPublicNames.AddWithLifetime(domain, publicName, publicNameLifetime)
 				}
 			}
 		}
@@ -1161,6 +1166,9 @@ func (r *Router) recordReverseMapping(message *mDNS.Msg, response *mDNS.Msg, tra
 			}
 			r.dnsReverseMapping.AddWithLifetime(address, domain, lifetime)
 		}
+	}
+	if question.Qtype == mDNS.TypeHTTPS && !foundPublicName {
+		r.dnsECHPublicNames.Remove(domain)
 	}
 }
 
@@ -1280,7 +1288,9 @@ func (r *Router) Exchange(ctx context.Context, message *mDNS.Msg, options adapte
 	if err != nil {
 		return nil, err
 	}
-	r.recordReverseMapping(message, response, transport)
+	if !options.DisableReverseMapping {
+		r.recordReverseMapping(message, response, transport)
+	}
 	return response, nil
 }
 
@@ -1294,26 +1304,28 @@ func (r *Router) ExchangeAsync(ctx context.Context, message *mDNS.Msg, options a
 	if options.Transport != nil {
 		transport := options.Transport
 		r.client.ExchangeAsync(ctx, transport, message, r.finalizeExchangeOptions(options), nil, func(response *mDNS.Msg, exchangeErr error) {
-			r.finishExchangeAsync(message, transport, response, exchangeErr, callback)
+			r.finishExchangeAsync(message, options, transport, response, exchangeErr, callback)
 		})
 	} else if !exchangeCtx.legacyDNSMode {
 		r.exchangeWithRulesAsync(ctx, exchangeCtx.rules, message, options, true, func(result exchangeWithRulesResult) {
-			r.finishExchangeAsync(message, result.transport, result.response, result.err, callback)
+			r.finishExchangeAsync(message, options, result.transport, result.response, result.err, callback)
 		})
 	} else {
 		go func() {
 			response, transport, exchangeErr := r.exchangeLegacy(ctx, exchangeCtx, message, options)
-			r.finishExchangeAsync(message, transport, response, exchangeErr, callback)
+			r.finishExchangeAsync(message, options, transport, response, exchangeErr, callback)
 		}()
 	}
 }
 
-func (r *Router) finishExchangeAsync(message *mDNS.Msg, transport adapter.DNSTransport, response *mDNS.Msg, err error, callback func(response *mDNS.Msg, err error)) {
+func (r *Router) finishExchangeAsync(message *mDNS.Msg, options adapter.DNSQueryOptions, transport adapter.DNSTransport, response *mDNS.Msg, err error, callback func(response *mDNS.Msg, err error)) {
 	if err != nil {
 		callback(nil, err)
 		return
 	}
-	r.recordReverseMapping(message, response, transport)
+	if !options.DisableReverseMapping {
+		r.recordReverseMapping(message, response, transport)
+	}
 	callback(response, nil)
 }
 

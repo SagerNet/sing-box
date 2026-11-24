@@ -42,6 +42,7 @@ type DNSQueryOptions struct {
 	Timeout                time.Duration
 	ClientSubnet           netip.Prefix
 	RemoveClientSubnet     bool
+	DisableReverseMapping  bool
 }
 
 type RDRCStore interface {
