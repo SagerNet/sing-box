@@ -31,6 +31,10 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 	headers := options.Headers.Build()
 	host := headers.Get("Host")
 	headers.Del("Host")
+	var domainResolver string
+	if options.DomainResolver != nil {
+		domainResolver = options.DomainResolver.Server
+	}
 
 	var cheapRebuild bool
 	switch options.Engine {
@@ -45,6 +49,7 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 			host:            host,
 			tag:             tag,
 			detour:          options.Detour,
+			domainResolver:  domainResolver,
 			defaultOutbound: options.DefaultOutbound,
 			factory: func() (innerTransport, error) {
 				return newAppleTransport(ctx, logger, rawDialer, options)
@@ -79,6 +84,7 @@ func NewTransport(ctx context.Context, logger logger.ContextLogger, tag string, 
 		host:            host,
 		tag:             tag,
 		detour:          options.Detour,
+		domainResolver:  domainResolver,
 		defaultOutbound: options.DefaultOutbound,
 		factory: func() (innerTransport, error) {
 			return newTransport(rawDialer, baseTLSConfig, options)

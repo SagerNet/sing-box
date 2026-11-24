@@ -529,8 +529,9 @@ func (d *Service) loopSTUNPacket(packetConn *net.UDPConn) {
 	}
 }
 
-func (d *Service) References() []string {
-	return common.FilterNotDefault(common.Map(d.meshWith, func(it *option.DERPMeshOptions) string {
+func (d *Service) References() ([]string, []string) {
+	references := common.FilterNotDefault(common.Map(d.meshWith, func(it *option.DERPMeshOptions) string {
 		return it.Detour
 	}))
+	return append(references, d.verifyClientEndpoint...), nil
 }

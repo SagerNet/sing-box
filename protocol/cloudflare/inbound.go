@@ -79,17 +79,25 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		return nil, err
 	}
 
+	var dnsReferences []string
+	for _, dialerOptions := range []option.DialerOptions{options.ControlDialer, options.TunnelDialer} {
+		if dialerOptions.DomainResolver != nil && dialerOptions.DomainResolver.Server != "" {
+			dnsReferences = append(dnsReferences, dialerOptions.DomainResolver.Server)
+		}
+	}
 	return &Inbound{
-		Adapter:    inbound.NewAdapter(C.TypeCloudflared, tag),
-		service:    service,
-		references: common.FilterNotDefault([]string{options.ControlDialer.Detour, options.TunnelDialer.Detour}),
+		Adapter:       inbound.NewAdapter(C.TypeCloudflared, tag),
+		service:       service,
+		references:    common.FilterNotDefault([]string{options.ControlDialer.Detour, options.TunnelDialer.Detour}),
+		dnsReferences: dnsReferences,
 	}, nil
 }
 
 type Inbound struct {
 	inbound.Adapter
-	service    *cloudflared.Service
-	references []string
+	service       *cloudflared.Service
+	references    []string
+	dnsReferences []string
 }
 
 func (i *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
@@ -259,8 +267,8 @@ func (h *icmpRouterHandler) RouteICMPFlow(source netip.Addr, destination netip.A
 	}
 }
 
-func (i *Inbound) References() []string {
-	return i.references
+func (i *Inbound) References() ([]string, []string) {
+	return i.references, i.dnsReferences
 }
 
 var (

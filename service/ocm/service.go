@@ -704,9 +704,9 @@ func (s *Service) startWebSocketShutdown() []*webSocketSession {
 	return webSocketSessions
 }
 
-func (s *Service) References() []string {
+func (s *Service) References() ([]string, []string) {
 	if s.detour == "" {
-		return nil
+		return nil, nil
 	}
-	return []string{s.detour}
+	return []string{s.detour}, nil
 }

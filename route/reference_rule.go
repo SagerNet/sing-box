@@ -102,12 +102,35 @@ func evaluateDNSRule(rule option.DNSRule, mode string) staticMatch {
 	}
 }
 
+func collectRulePreferredBy(rule option.Rule, outbounds *[]string) {
+	switch rule.Type {
+	case C.RuleTypeDefault:
+		*outbounds = append(*outbounds, rule.DefaultOptions.PreferredBy...)
+	case C.RuleTypeLogical:
+		for _, subRule := range rule.LogicalOptions.Rules {
+			collectRulePreferredBy(subRule, outbounds)
+		}
+	}
+}
+
+func collectDNSRulePreferredBy(rule option.DNSRule, outbounds *[]string) {
+	switch rule.Type {
+	case C.RuleTypeDefault:
+		*outbounds = append(*outbounds, rule.DefaultOptions.PreferredBy...)
+	case C.RuleTypeLogical:
+		for _, subRule := range rule.LogicalOptions.Rules {
+			collectDNSRulePreferredBy(subRule, outbounds)
+		}
+	}
+}
+
 func collectRuleReferences(rules []option.Rule, mode string, outbounds *[]string, transports *[]string) (shadowed bool) {
 	for _, rule := range rules {
 		match := evaluateRule(rule, mode)
 		if match == staticMatchNever {
 			continue
 		}
+		collectRulePreferredBy(rule, outbounds)
 		var action option.RuleAction
 		switch rule.Type {
 		case C.RuleTypeDefault:
@@ -137,12 +160,13 @@ func collectRuleReferences(rules []option.Rule, mode string, outbounds *[]string
 	return false
 }
 
-func collectDNSRuleReferences(rules []option.DNSRule, mode string, transports *[]string) (shadowed bool) {
+func collectDNSRuleReferences(rules []option.DNSRule, mode string, outbounds *[]string, transports *[]string) (shadowed bool) {
 	for _, rule := range rules {
 		match := evaluateDNSRule(rule, mode)
 		if match == staticMatchNever {
 			continue
 		}
+		collectDNSRulePreferredBy(rule, outbounds)
 		var action option.DNSRuleAction
 		switch rule.Type {
 		case C.RuleTypeDefault:

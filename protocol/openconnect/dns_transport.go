@@ -230,6 +230,10 @@ func (t *DNSTransport) updateConfiguration(configuration openconnecttransport.Co
 	}
 }
 
+func (t *DNSTransport) References() ([]string, []string) {
+	return []string{t.endpointTag}, nil
+}
+
 func (t *DNSTransport) Reset() {
 	t.access.RLock()
 	resolvers := t.collectResolversLocked()

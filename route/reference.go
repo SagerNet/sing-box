@@ -22,6 +22,7 @@ type ReferenceManager struct {
 	dnsRules               []option.DNSRule
 	staticOutbounds        []string
 	staticTransports       []string
+	domainResolvers        map[string]string
 	subscriber             *observable.Subscriber[struct{}]
 	keepIdle               map[any]bool
 	unreferencedTransports map[string]bool
@@ -32,14 +33,22 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 		staticOutbounds  []string
 		staticTransports []string
 	)
-	if options.NTP != nil && options.NTP.Enabled && options.NTP.Detour != "" {
+	if options.NTP != nil && options.NTP.Enabled {
 		staticOutbounds = append(staticOutbounds, options.NTP.Detour)
+		staticTransports = append(staticTransports, domainResolverServer(options.NTP.DialerOptions))
 	}
+	domainResolvers := make(map[string]string)
 	for _, outboundOptions := range options.Outbounds {
-		staticTransports = appendDomainResolver(staticTransports, outboundOptions.Options)
+		dialerOptionsWrapper, isDialerOptionsWrapper := outboundOptions.Options.(option.DialerOptionsWrapper)
+		if isDialerOptionsWrapper {
+			domainResolvers[outboundOptions.Tag] = domainResolverServer(dialerOptionsWrapper.TakeDialerOptions())
+		}
 	}
 	for _, endpointOptions := range options.Endpoints {
-		staticTransports = appendDomainResolver(staticTransports, endpointOptions.Options)
+		dialerOptionsWrapper, isDialerOptionsWrapper := endpointOptions.Options.(option.DialerOptionsWrapper)
+		if isDialerOptionsWrapper {
+			domainResolvers[endpointOptions.Tag] = domainResolverServer(dialerOptionsWrapper.TakeDialerOptions())
+		}
 	}
 	var (
 		rules    []option.Rule
@@ -58,19 +67,15 @@ func NewReferenceManager(ctx context.Context, logger log.ContextLogger, options 
 		dnsRules:         dnsRules,
 		staticOutbounds:  staticOutbounds,
 		staticTransports: staticTransports,
+		domainResolvers:  domainResolvers,
 	}
 }
 
-func appendDomainResolver(transports []string, rawOptions any) []string {
-	dialerOptionsWrapper, isDialerOptionsWrapper := rawOptions.(option.DialerOptionsWrapper)
-	if !isDialerOptionsWrapper {
-		return transports
+func domainResolverServer(dialerOptions option.DialerOptions) string {
+	if dialerOptions.DomainResolver == nil {
+		return ""
 	}
-	dialerOptions := dialerOptionsWrapper.TakeDialerOptions()
-	if dialerOptions.DomainResolver == nil || dialerOptions.DomainResolver.Server == "" {
-		return transports
-	}
-	return append(transports, dialerOptions.DomainResolver.Server)
+	return dialerOptions.DomainResolver.Server
 }
 
 func (m *ReferenceManager) Name() string {
@@ -121,10 +126,11 @@ func (m *ReferenceManager) update() {
 	transportManager := service.FromContext[adapter.DNSTransportManager](m.ctx)
 	networkManager := service.FromContext[adapter.NetworkManager](m.ctx)
 	httpClientManager := service.FromContext[adapter.HTTPClientManager](m.ctx)
+	certificateProviderManager := service.FromContext[adapter.CertificateProviderManager](m.ctx)
 
 	transportQueue := slices.Clone(m.staticTransports)
 	outboundQueue := slices.Clone(m.staticOutbounds)
-	if !collectDNSRuleReferences(m.dnsRules, mode, &transportQueue) {
+	if !collectDNSRuleReferences(m.dnsRules, mode, &outboundQueue, &transportQueue) {
 		defaultTransport := transportManager.Default()
 		if defaultTransport != nil {
 			transportQueue = append(transportQueue, defaultTransport.Tag())
@@ -140,43 +146,48 @@ func (m *ReferenceManager) update() {
 	for _, endpoint := range endpointManager.Endpoints() {
 		outboundQueue = append(outboundQueue, endpoint.Tag())
 	}
+	referrers := []any{httpClientManager}
 	for _, inbound := range inboundManager.Inbounds() {
-		referrer, isReferrer := inbound.(adapter.Referrer)
-		if isReferrer {
-			outboundQueue = append(outboundQueue, referrer.References()...)
-		}
+		referrers = append(referrers, inbound)
 	}
 	for _, boxService := range serviceManager.Services() {
-		referrer, isReferrer := boxService.(adapter.Referrer)
-		if isReferrer {
-			outboundQueue = append(outboundQueue, referrer.References()...)
-		}
+		referrers = append(referrers, boxService)
 	}
-	referrer, isReferrer := httpClientManager.(adapter.Referrer)
-	if isReferrer {
-		outboundQueue = append(outboundQueue, referrer.References()...)
+	for _, certificateProvider := range certificateProviderManager.CertificateProviders() {
+		referrers = append(referrers, certificateProvider)
+	}
+	for _, referrer := range referrers {
+		referrer, isReferrer := referrer.(adapter.Referrer)
+		if isReferrer {
+			outbounds, dnsServers := referrer.References()
+			outboundQueue = append(outboundQueue, outbounds...)
+			transportQueue = append(transportQueue, dnsServers...)
+		}
 	}
 
 	referencedTransports := make(map[string]bool)
-	for len(transportQueue) > 0 {
-		tag := transportQueue[0]
-		transportQueue = transportQueue[1:]
-		if tag == "" || referencedTransports[tag] {
-			continue
-		}
-		transport, loaded := transportManager.Transport(tag)
-		if !loaded {
-			continue
-		}
-		referencedTransports[tag] = true
-		transportQueue = append(transportQueue, transport.Dependencies()...)
-		transportReferrer, isTransportReferrer := transport.(adapter.Referrer)
-		if isTransportReferrer {
-			outboundQueue = append(outboundQueue, transportReferrer.References()...)
-		}
-	}
 	referencedOutbounds := make(map[string]bool)
-	for len(outboundQueue) > 0 {
+	for len(transportQueue) > 0 || len(outboundQueue) > 0 {
+		if len(transportQueue) > 0 {
+			tag := transportQueue[0]
+			transportQueue = transportQueue[1:]
+			if tag == "" || referencedTransports[tag] {
+				continue
+			}
+			transport, loaded := transportManager.Transport(tag)
+			if !loaded {
+				continue
+			}
+			referencedTransports[tag] = true
+			transportQueue = append(transportQueue, transport.Dependencies()...)
+			transportReferrer, isTransportReferrer := transport.(adapter.Referrer)
+			if isTransportReferrer {
+				outbounds, dnsServers := transportReferrer.References()
+				outboundQueue = append(outboundQueue, outbounds...)
+				transportQueue = append(transportQueue, dnsServers...)
+			}
+			continue
+		}
 		tag := outboundQueue[0]
 		outboundQueue = outboundQueue[1:]
 		if tag == "" || referencedOutbounds[tag] {
@@ -187,9 +198,12 @@ func (m *ReferenceManager) update() {
 			continue
 		}
 		referencedOutbounds[tag] = true
+		transportQueue = append(transportQueue, m.domainResolvers[tag])
 		outboundReferrer, isOutboundReferrer := outbound.(adapter.Referrer)
 		if isOutboundReferrer {
-			outboundQueue = append(outboundQueue, outboundReferrer.References()...)
+			outbounds, dnsServers := outboundReferrer.References()
+			outboundQueue = append(outboundQueue, outbounds...)
+			transportQueue = append(transportQueue, dnsServers...)
 		} else {
 			outboundQueue = append(outboundQueue, outbound.Dependencies()...)
 		}

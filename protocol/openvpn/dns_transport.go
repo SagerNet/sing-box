@@ -277,6 +277,10 @@ func (t *DNSTransport) createResolver(server ovpntransport.DNSServer, address ne
 	return dnsTransport.NewHTTPSRaw(t.TransportAdapter, t.logger, t.dialer, destination, http.Header{}, M.SocksaddrFrom(address.Addr(), port), tlsConfig), nil
 }
 
+func (t *DNSTransport) References() ([]string, []string) {
+	return []string{t.endpointTag}, nil
+}
+
 func (t *DNSTransport) Reset() {
 	t.access.RLock()
 	resolvers := t.collectResolversLocked()

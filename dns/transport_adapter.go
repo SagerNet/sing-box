@@ -65,6 +65,6 @@ func (a *TransportAdapter) Dependencies() []string {
 	return a.dependencies
 }
 
-func (a *TransportAdapter) References() []string {
-	return a.references
+func (a *TransportAdapter) References() ([]string, []string) {
+	return a.references, nil
 }

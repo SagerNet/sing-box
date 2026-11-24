@@ -59,6 +59,8 @@ func (m *ConnectionManager) Start(stage adapter.StartStage, scope *adapter.Scope
 }
 
 func (m *ConnectionManager) Count() int {
+	m.access.Lock()
+	defer m.access.Unlock()
 	return m.connections.Len()
 }
 
@@ -122,7 +124,7 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 			dialerString = " using outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
 		}
 		err = E.Cause(err, "open connection to ", remoteString, dialerString)
-		m.deleteURLTestHistory(metadata.OutboundChain)
+		m.deleteURLTestHistory(metadata.OutboundChain, err)
 		N.CloseOnHandshakeFailure(conn, onClose, err)
 		m.logger.ErrorContext(ctx, err)
 		return
@@ -187,7 +189,7 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 				dialerString = " using outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
 			}
 			err = E.Cause(err, "open packet connection to ", remoteString, dialerString)
-			m.deleteURLTestHistory(metadata.OutboundChain)
+			m.deleteURLTestHistory(metadata.OutboundChain, err)
 			N.CloseOnHandshakeFailure(conn, onClose, err)
 			m.logger.ErrorContext(ctx, err)
 			return
@@ -211,7 +213,7 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 				dialerString = " using outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
 			}
 			err = E.Cause(err, "listen packet connection", dialerString)
-			m.deleteURLTestHistory(metadata.OutboundChain)
+			m.deleteURLTestHistory(metadata.OutboundChain, err)
 			N.CloseOnHandshakeFailure(conn, onClose, err)
 			m.logger.ErrorContext(ctx, err)
 			return
@@ -270,12 +272,20 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 	go m.packetConnectionCopy(ctx, destination, conn, true, &done, onClose)
 }
 
-func (m *ConnectionManager) deleteURLTestHistory(chain []adapter.Outbound) {
-	if slices.ContainsFunc(chain, func(it adapter.Outbound) bool {
-		_, isURLTestGroup := it.(adapter.URLTestGroup)
-		return isURLTestGroup
-	}) {
-		m.urlTestHistory.DeleteURLTestHistory(chain[len(chain)-1].Tag())
+func (m *ConnectionManager) deleteURLTestHistory(chain []adapter.Outbound, err error) {
+	if E.IsClosedOrCanceled(err) {
+		return
+	}
+	urlTestGroups := common.FilterIsInstance(chain, func(it adapter.Outbound) (adapter.URLTestGroup, bool) {
+		group, isURLTestGroup := it.(adapter.URLTestGroup)
+		return group, isURLTestGroup
+	})
+	if len(urlTestGroups) == 0 {
+		return
+	}
+	m.urlTestHistory.DeleteURLTestHistory(chain[len(chain)-1].Tag())
+	for _, group := range slices.Backward(urlTestGroups) {
+		group.PerformUpdateCheck()
 	}
 }
 

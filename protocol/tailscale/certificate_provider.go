@@ -24,7 +24,10 @@ func RegisterCertificateProvider(registry *certificate.Registry) {
 	certificate.Register[option.TailscaleCertificateProviderOptions](registry, C.TypeTailscale, NewCertificateProvider)
 }
 
-var _ adapter.CertificateProviderService = (*CertificateProvider)(nil)
+var (
+	_ adapter.CertificateProviderService = (*CertificateProvider)(nil)
+	_ adapter.Referrer                   = (*CertificateProvider)(nil)
+)
 
 type CertificateProvider struct {
 	certificate.Adapter
@@ -61,6 +64,10 @@ func NewCertificateProvider(ctx context.Context, _ log.ContextLogger, tag string
 		endpoint:    endpoint,
 		dialer:      providerDialer,
 	}, nil
+}
+
+func (p *CertificateProvider) References() ([]string, []string) {
+	return []string{p.endpointTag}, nil
 }
 
 func (p *CertificateProvider) Start(stage adapter.StartStage, scope *adapter.Scope) error {

@@ -178,16 +178,22 @@ func (m *Manager) close() error {
 	return err
 }
 
-func (m *Manager) References() []string {
+func (m *Manager) References() ([]string, []string) {
 	m.access.Lock()
 	defer m.access.Unlock()
-	var references []string
-	var needDefault bool
+	var (
+		references    []string
+		dnsReferences []string
+		needDefault   bool
+	)
 	for _, transport := range m.managedTransports {
 		if transport.detour != "" {
 			references = append(references, transport.detour)
 		} else if transport.defaultOutbound {
 			needDefault = true
+		}
+		if transport.domainResolver != "" {
+			dnsReferences = append(dnsReferences, transport.domainResolver)
 		}
 	}
 	if needDefault {
@@ -199,5 +205,5 @@ func (m *Manager) References() []string {
 			}
 		}
 	}
-	return references
+	return references, dnsReferences
 }

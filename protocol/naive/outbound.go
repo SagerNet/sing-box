@@ -6,7 +6,9 @@ import (
 	"context"
 	"encoding/pem"
 	"net"
+	"os"
 	"strings"
+	"sync"
 
 	"github.com/sagernet/cronet-go"
 	_ "github.com/sagernet/cronet-go/all"
@@ -33,14 +35,20 @@ func RegisterOutbound(registry *outbound.Registry) {
 	outbound.Register[option.NaiveOutboundOptions](registry, C.TypeNaive, NewOutbound)
 }
 
-var _ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+var (
+	_ adapter.OutboundWithMultiplex = (*Outbound)(nil)
+	_ adapter.IdleConnectionKeeper  = (*Outbound)(nil)
+)
 
 type Outbound struct {
 	outbound.Adapter
-	ctx       context.Context
-	logger    logger.ContextLogger
-	client    *cronet.NaiveClient
-	uotClient *uot.Client
+	ctx          context.Context
+	logger       logger.ContextLogger
+	client       *cronet.NaiveClient
+	uotClient    *uot.Client
+	streamAccess sync.Mutex
+	streams      int
+	closeIdle    bool
 }
 
 func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextLogger, tag string, options option.NaiveOutboundOptions) (adapter.Outbound, error) {
@@ -200,27 +208,26 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 	if err != nil {
 		return nil, err
 	}
-	var uotClient *uot.Client
 	uotOptions := common.PtrValueOrDefault(options.UDPOverTCP)
-	if uotOptions.Enabled {
-		uotClient = &uot.Client{
-			Dialer:  &naiveDialer{client},
-			Version: uotOptions.Version,
-		}
-	}
 	var networks []string
-	if uotClient != nil {
+	if uotOptions.Enabled {
 		networks = []string{N.NetworkTCP, N.NetworkUDP}
 	} else {
 		networks = []string{N.NetworkTCP}
 	}
-	return &Outbound{
-		Adapter:   outbound.NewAdapterWithDialerOptions(C.TypeNaive, tag, networks, options.DialerOptions),
-		ctx:       ctx,
-		logger:    logger,
-		client:    client,
-		uotClient: uotClient,
-	}, nil
+	outbound := &Outbound{
+		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeNaive, tag, networks, options.DialerOptions),
+		ctx:     ctx,
+		logger:  logger,
+		client:  client,
+	}
+	if uotOptions.Enabled {
+		outbound.uotClient = &uot.Client{
+			Dialer:  (*naiveDialer)(outbound),
+			Version: uotOptions.Version,
+		}
+	}
+	return outbound, nil
 }
 
 func (h *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
@@ -240,7 +247,7 @@ func (h *Outbound) DialContext(ctx context.Context, network string, destination 
 	switch N.NetworkName(network) {
 	case N.NetworkTCP:
 		h.logger.InfoContext(ctx, "outbound connection to ", destination)
-		return h.client.DialEarly(ctx, destination)
+		return h.dialStream(ctx, destination)
 	case N.NetworkUDP:
 		if h.uotClient == nil {
 			return nil, E.New("UDP is not supported unless UDP over TCP is enabled")
@@ -267,14 +274,79 @@ func (h *Outbound) InterfaceUpdated(ctx context.Context) {
 	h.client.CloseAllConnections()
 }
 
+func (h *Outbound) SetKeepIdleConnections(keep bool) {
+	h.streamAccess.Lock()
+	h.closeIdle = !keep
+	h.streamAccess.Unlock()
+	if !keep {
+		h.CloseIdleConnections()
+	}
+}
+
+func (h *Outbound) CloseIdleConnections() {
+	h.streamAccess.Lock()
+	defer h.streamAccess.Unlock()
+	if h.streams == 0 {
+		h.client.CloseAllConnections()
+	}
+}
+
+func (h *Outbound) dialStream(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
+	h.streamAccess.Lock()
+	h.streams++
+	h.streamAccess.Unlock()
+	keepSession := adapter.KeepSessionFromContext(ctx)
+	conn, err := h.client.DialEarly(ctx, destination)
+	if err != nil {
+		h.releaseStream(keepSession)
+		return nil, err
+	}
+	return &streamConn{NaiveConn: conn, onClose: func() { h.releaseStream(keepSession) }}, nil
+}
+
+func (h *Outbound) releaseStream(keepSession bool) {
+	h.streamAccess.Lock()
+	defer h.streamAccess.Unlock()
+	h.streams--
+	if h.closeIdle && !keepSession && h.streams == 0 {
+		h.client.CloseAllConnections()
+	}
+}
+
 func (h *Outbound) Client() *cronet.NaiveClient {
 	return h.client
 }
 
-type naiveDialer struct {
-	*cronet.NaiveClient
-}
+type naiveDialer Outbound
 
 func (d *naiveDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
-	return d.NaiveClient.DialEarly(ctx, destination)
+	return (*Outbound)(d).dialStream(ctx, destination)
+}
+
+func (d *naiveDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+	return nil, os.ErrInvalid
+}
+
+type streamConn struct {
+	cronet.NaiveConn
+	closeOnce sync.Once
+	onClose   func()
+}
+
+func (c *streamConn) Close() error {
+	err := c.NaiveConn.Close()
+	c.closeOnce.Do(c.onClose)
+	return err
+}
+
+func (c *streamConn) Upstream() any {
+	return c.NaiveConn
+}
+
+func (c *streamConn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *streamConn) WriterReplaceable() bool {
+	return true
 }

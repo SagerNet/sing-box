@@ -30,6 +30,7 @@ type ManagedTransport struct {
 	host            string
 	tag             string
 	detour          string
+	domainResolver  string
 	defaultOutbound bool
 }
 

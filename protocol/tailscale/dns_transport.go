@@ -112,6 +112,10 @@ func (t *DNSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) err
 	return nil
 }
 
+func (t *DNSTransport) References() ([]string, []string) {
+	return []string{t.endpointTag}, nil
+}
+
 func (t *DNSTransport) Reset() {
 	t.access.RLock()
 	transports := t.collectResolversLocked()

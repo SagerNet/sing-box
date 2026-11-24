@@ -56,5 +56,5 @@ type IdleConnectionKeeper interface {
 }
 
 type Referrer interface {
-	References() []string
+	References() (outbounds []string, dnsServers []string)
 }

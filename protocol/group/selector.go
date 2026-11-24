@@ -127,12 +127,12 @@ func (s *Selector) AttachConnection(closer io.Closer) func() {
 	return s.interruptGroup.Add(closer, true)
 }
 
-func (s *Selector) References() []string {
+func (s *Selector) References() ([]string, []string) {
 	selected := s.selected.Load()
 	if selected == nil {
-		return s.tags[:1]
+		return s.tags[:1], nil
 	}
-	return []string{selected.Tag()}
+	return []string{selected.Tag()}, nil
 }
 
 func (s *Selector) SelectOutbound(tag string) bool {
