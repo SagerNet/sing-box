@@ -56,11 +56,17 @@ type ClientOptions struct {
 type http3Client interface {
 	DialContext(ctx context.Context, destination M.Socksaddr) (net.Conn, error)
 	OpenTunnel(ctx context.Context, request tunnelRequest) (DatagramStream, error)
+	CloseIdleConnections()
 	ResetConnection()
 	Close() error
 }
 
-var NewHTTP3Client func(options ClientOptions, authorization string) (http3Client, error)
+var NewHTTP3Client func(options ClientOptions, authorization string, closeIdle *atomic.Bool) (http3Client, error)
+
+type dialOffer struct {
+	done chan struct{}
+	err  error
+}
 
 type Client struct {
 	dialer                          N.Dialer
@@ -76,12 +82,15 @@ type Client struct {
 	disableVersionFallback          bool
 	http2Transport                  *http2.Transport
 	http2Access                     sync.Mutex
-	http2Conns                      []*http2ClientConn
+	http2Sessions                   []*http2Session
+	http2Dial                       *dialOffer
 	http2Unsupported                atomic.Bool
 	http2ExtendedConnectUnsupported atomic.Bool
 	http3                           http3Client
 	http3Broken                     atomic.Int64
 	http3Backoff                    atomic.Int64
+	http3ExtendedConnectUnsupported atomic.Bool
+	closeIdle                       atomic.Bool
 }
 
 func NewClientWithTLS(ctx context.Context, logger logger.ContextLogger, outboundDialer N.Dialer, serverOptions option.ServerOptions, tlsOptions option.OutboundTLSOptions, domainResolver *option.DomainResolveOptions, options ClientOptions) (*Client, error) {
@@ -96,33 +105,30 @@ func NewClientWithTLS(ctx context.Context, logger logger.ContextLogger, outbound
 			tlsOptions.ALPN = []string{http2.NextProtoTLS, "http/1.1"}
 		}
 	}
-	var err error
-	tlsClientOptions := tls.ClientOptions{
+	baseTLSConfig, err := tls.NewClientWithOptions(tls.ClientOptions{
 		Context:        ctx,
 		Logger:         logger,
 		ServerAddress:  serverOptions.Server,
 		Options:        tlsOptions,
 		DomainResolver: domainResolver,
-	}
-	options.Dialer, err = tls.NewDialerFromOptions(outboundDialer, tlsClientOptions)
+	})
 	if err != nil {
 		return nil, err
 	}
-	if options.Version >= 2 && (alpnIsDefault || slices.Contains(tlsOptions.ALPN, "http/1.1")) {
-		http1TLSOptions := tlsClientOptions
-		http1TLSOptions.Options.ALPN = []string{"http/1.1"}
-		options.HTTP1Dialer, err = tls.NewDialerFromOptions(outboundDialer, http1TLSOptions)
-		if err != nil {
-			return nil, err
+	options.Dialer = outboundDialer
+	if baseTLSConfig != nil {
+		options.Dialer = tls.NewDialer(outboundDialer, baseTLSConfig)
+		if options.Version >= 2 && (alpnIsDefault || slices.Contains(tlsOptions.ALPN, "http/1.1")) {
+			http1TLSConfig := baseTLSConfig.Clone()
+			http1TLSConfig.SetNextProtos([]string{"http/1.1"})
+			options.HTTP1Dialer = tls.NewDialer(outboundDialer, http1TLSConfig)
 		}
-	}
-	if options.Version == 3 {
-		if alpnIsDefault {
-			tlsClientOptions.Options.ALPN = []string{"h3"}
-		}
-		options.TLSConfig, err = tls.NewClientWithOptions(tlsClientOptions)
-		if err != nil {
-			return nil, err
+		if options.Version == 3 {
+			http3TLSConfig := baseTLSConfig.Clone()
+			if alpnIsDefault {
+				http3TLSConfig.SetNextProtos([]string{"h3"})
+			}
+			options.TLSConfig = http3TLSConfig
 		}
 	}
 	options.RawDialer = outboundDialer
@@ -176,7 +182,7 @@ func NewClient(options ClientOptions) (*Client, error) {
 		client.authorization = "Basic " + base64.StdEncoding.EncodeToString([]byte(options.Username+":"+options.Password))
 	}
 	if client.version == 3 {
-		http3, err := NewHTTP3Client(options, client.authorization)
+		http3, err := NewHTTP3Client(options, client.authorization, &client.closeIdle)
 		if err != nil {
 			return nil, err
 		}
@@ -243,12 +249,12 @@ func (c *Client) DialContext(ctx context.Context, network string, destination M.
 		c.markHTTP3Broken()
 	}
 	if c.tlsDialer != nil && !c.http2Unsupported.Load() {
-		clientConn, conn, err := c.acquireHTTP2(ctx)
+		session, conn, err := c.acquireHTTP2(ctx)
 		if err != nil {
 			return nil, err
 		}
-		if clientConn != nil {
-			return c.connectHTTP2(ctx, clientConn, destination)
+		if session != nil {
+			return c.connectHTTP2(ctx, session, destination)
 		}
 		if c.disableVersionFallback {
 			conn.Close()
@@ -264,10 +270,11 @@ func (c *Client) DialContext(ctx context.Context, network string, destination M.
 }
 
 func (c *Client) closeHTTP2Locked() {
-	for _, clientConn := range c.http2Conns {
-		clientConn.Close()
+	for _, session := range c.http2Sessions {
+		session.clientConn.Close()
 	}
-	c.http2Conns = nil
+	c.http2Sessions = nil
+	c.http2Dial = nil
 }
 
 func (c *Client) ResetConnections() {
@@ -279,6 +286,27 @@ func (c *Client) ResetConnections() {
 	if c.http3 != nil {
 		c.http3.ResetConnection()
 		c.clearHTTP3Broken()
+		c.http3ExtendedConnectUnsupported.Store(false)
+	}
+}
+
+func (c *Client) SetKeepIdleConnections(keep bool) {
+	c.closeIdle.Store(!keep)
+	if !keep {
+		c.CloseIdleConnections()
+	}
+}
+
+func (c *Client) CloseIdleConnections() {
+	c.http2Access.Lock()
+	for _, session := range c.http2Sessions {
+		if session.streams == 0 {
+			session.clientConn.Close()
+		}
+	}
+	c.http2Access.Unlock()
+	if c.http3 != nil {
+		c.http3.CloseIdleConnections()
 	}
 }
 
@@ -367,10 +395,11 @@ const (
 )
 
 var (
-	ErrHTTP2Unsupported           = E.New("server does not support HTTP/2")
-	ErrHTTP3Unavailable           = E.New("HTTP/3 unavailable")
-	errExtendedConnectUnsupported = E.New("server does not support HTTP/2 extended CONNECT")
-	errExtendedConnectUnavailable = E.New("HTTP/2 extended CONNECT is unavailable in this build: Go 1.27+ requires the badlinkname build tag")
+	ErrHTTP2Unsupported                = E.New("server does not support HTTP/2")
+	ErrHTTP3Unavailable                = E.New("HTTP/3 unavailable")
+	errExtendedConnectUnsupported      = E.New("server does not support HTTP/2 extended CONNECT")
+	errExtendedConnectUnavailable      = E.New("HTTP/2 extended CONNECT is unavailable in this build: Go 1.27+ requires the badlinkname build tag")
+	errHTTP3ExtendedConnectUnsupported = E.New("server does not support HTTP/3 extended CONNECT")
 )
 
 func statusError(response *http.Response) error {

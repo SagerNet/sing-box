@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -48,20 +47,16 @@ func requestReplayable(request *http.Request) bool {
 	return request.Body == nil || request.Body == http.NoBody || request.GetBody != nil
 }
 
-func cloneRequestForRetry(request *http.Request) *http.Request {
+func cloneRequestForRetry(request *http.Request) (*http.Request, error) {
 	cloned := request.Clone(request.Context())
 	if request.Body != nil && request.Body != http.NoBody && request.GetBody != nil {
-		cloned.Body = mustGetBody(request)
+		body, err := request.GetBody()
+		if err != nil {
+			return nil, E.Cause(err, "get request body")
+		}
+		cloned.Body = body
 	}
-	return cloned
-}
-
-func mustGetBody(request *http.Request) io.ReadCloser {
-	body, err := request.GetBody()
-	if err != nil {
-		panic(err)
-	}
-	return body
+	return cloned, nil
 }
 
 func requestAuthority(request *http.Request) string {

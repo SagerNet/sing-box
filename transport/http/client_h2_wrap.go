@@ -5,21 +5,33 @@ package http
 import (
 	"net"
 	"net/http"
-	"unsafe"
+	_ "unsafe"
 
 	"golang.org/x/net/http2"
 )
 
+// Same method set as net/http.genericClientConn, the interface returned by
+// (*net/http.Transport).http2NewClientConn.
+type http2GenericClientConn interface {
+	Available() int
+	Close() error
+	Err() error
+	InFlight() int
+	Release()
+	Reserve() error
+	RoundTrip(request *http.Request) (*http.Response, error)
+}
+
 type http2ClientConn struct {
-	*http.ClientConn
+	http2GenericClientConn
 }
 
 func newHTTP2ClientConn(transport *http2.Transport, conn net.Conn) (*http2ClientConn, error) {
-	clientConn, err := transport.NewClientConn(conn)
+	clientConn, err := transportHTTP2NewClientConn(http2TransportInit(transport), conn, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &http2ClientConn{ClientConn: *(**http.ClientConn)(unsafe.Pointer(clientConn))}, nil
+	return &http2ClientConn{clientConn}, nil
 }
 
 func (c *http2ClientConn) isClosed() bool {
@@ -31,17 +43,16 @@ func (c *http2ClientConn) reserveNewRequest() bool {
 }
 
 func (c *http2ClientConn) roundTrip(request *http.Request) (*http.Response, error) {
-	if request.Header.Get(":protocol") == "" {
-		return c.ClientConn.RoundTrip(request)
+	response, err := c.RoundTrip(request)
+	// net/http/internal/http2 returns errExtendedConnectNotSupported before consuming the reservation.
+	if err != nil && isExtendedConnectNotSupported(err) {
+		c.Release()
 	}
-	internalClientConn := (*[2]unsafe.Pointer)(unsafe.Pointer(c.ClientConn))[1]
-	return http2RoundTrip(request, func(clientRequest unsafe.Pointer) (unsafe.Pointer, error) {
-		return netHTTPClientConnRoundTrip(internalClientConn, clientRequest)
-	})
+	return response, err
 }
 
-//go:linkname http2RoundTrip net/http.http2RoundTrip
-func http2RoundTrip(request *http.Request, roundTrip func(clientRequest unsafe.Pointer) (unsafe.Pointer, error)) (*http.Response, error)
+//go:linkname http2TransportInit golang.org/x/net/http2.(*Transport).init
+func http2TransportInit(transport *http2.Transport) *http.Transport
 
-//go:linkname netHTTPClientConnRoundTrip net/http/internal/http2.NetHTTPClientConn.RoundTrip
-func netHTTPClientConnRoundTrip(clientConn unsafe.Pointer, clientRequest unsafe.Pointer) (unsafe.Pointer, error)
+//go:linkname transportHTTP2NewClientConn net/http.(*Transport).http2NewClientConn
+func transportHTTP2NewClientConn(transport *http.Transport, conn net.Conn, internalStateHook func()) (http2GenericClientConn, error)

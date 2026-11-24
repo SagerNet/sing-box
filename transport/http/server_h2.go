@@ -145,8 +145,8 @@ func (h *httpHandler) serveConnect(ctx context.Context, writer http.ResponseWrit
 	writer.WriteHeader(http.StatusOK)
 	writer.(http.Flusher).Flush()
 	conn := v2rayhttp.NewHTTP2Wrapper(&v2rayhttp.ServerHTTPConn{
-		HTTP2Conn: v2rayhttp.NewHTTPConn(request.Body, writer),
-		Flusher:   writer.(http.Flusher),
+		HTTP2Conn:  v2rayhttp.NewHTTPConn(request.Body, writer),
+		Controller: http.NewResponseController(writer),
 	})
 	done := make(chan struct{})
 	h.handler.NewConnectionEx(ctx, conn, source, destination, N.OnceClose(func(it error) {

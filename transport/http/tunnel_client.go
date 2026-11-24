@@ -45,27 +45,33 @@ func (c *Client) OpenTunnel(ctx context.Context, protocol string, path string) (
 }
 
 func (c *Client) openTunnel(ctx context.Context, request tunnelRequest) (net.Conn, DatagramStream, error) {
-	if c.http3Available() {
+	if c.http3Available() && !c.http3ExtendedConnectUnsupported.Load() {
 		stream, err := c.http3.OpenTunnel(ctx, request)
 		if err == nil {
 			c.clearHTTP3Broken()
 			return nil, stream, nil
 		}
-		if c.disableVersionFallback || !errors.Is(err, ErrHTTP3Unavailable) {
+		if c.disableVersionFallback {
 			return nil, nil, err
 		}
-		c.markHTTP3Broken()
+		if errors.Is(err, errHTTP3ExtendedConnectUnsupported) {
+			c.http3ExtendedConnectUnsupported.Store(true)
+		} else if errors.Is(err, ErrHTTP3Unavailable) {
+			c.markHTTP3Broken()
+		} else {
+			return nil, nil, err
+		}
 	}
 	if !extendedConnectAvailable && c.tlsDialer != nil && c.disableVersionFallback {
 		return nil, nil, errExtendedConnectUnavailable
 	}
 	if extendedConnectAvailable && c.tlsDialer != nil && !c.http2Unsupported.Load() && !c.http2ExtendedConnectUnsupported.Load() {
-		clientConn, conn, err := c.acquireHTTP2(ctx)
+		session, conn, err := c.acquireHTTP2(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
-		if clientConn != nil {
-			streamConn, connectErr := c.openTunnelHTTP2(ctx, clientConn, request)
+		if session != nil {
+			streamConn, connectErr := c.openTunnelHTTP2(ctx, session, request)
 			if connectErr == nil {
 				return streamConn, nil, nil
 			}
@@ -143,7 +149,7 @@ func (c *Client) openTunnelHTTP1(ctx context.Context, conn net.Conn, request tun
 	return conn, nil
 }
 
-func (c *Client) openTunnelHTTP2(ctx context.Context, clientConn *http2ClientConn, request tunnelRequest) (net.Conn, error) {
+func (c *Client) openTunnelHTTP2(ctx context.Context, session *http2Session, request tunnelRequest) (net.Conn, error) {
 	requestURL := *request.url
 	requestURL.Scheme = "https"
 	requestURL.Host = c.authority()
@@ -155,7 +161,7 @@ func (c *Client) openTunnelHTTP2(ctx context.Context, clientConn *http2ClientCon
 	}
 	httpRequest.Header.Set(":protocol", request.protocol)
 	httpRequest.Header.Set("Capsule-Protocol", "?1")
-	streamConn, err := c.roundTripHTTP2(ctx, clientConn, httpRequest, request.destination)
+	streamConn, err := c.roundTripHTTP2(ctx, session, httpRequest, request.destination)
 	if err != nil {
 		return nil, err
 	}

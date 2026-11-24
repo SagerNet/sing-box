@@ -36,12 +36,18 @@ type http3ClientImpl struct {
 	authorization string
 	quicConfig    *quic.Config
 	transport     *http3.Transport
+	closeIdle     *atomic.Bool
 	access        sync.Mutex
-	conn          *http3.ClientConn
-	rawConn       net.Conn
+	conn          *http3Conn
+	dial          *dialOffer
 }
 
-func newHTTP3Client(options ClientOptions, authorization string) (http3Client, error) {
+type http3Conn struct {
+	*http3.ClientConn
+	streams int
+}
+
+func newHTTP3Client(options ClientOptions, authorization string, closeIdle *atomic.Bool) (http3Client, error) {
 	if options.TLSConfig == nil {
 		return nil, E.New("HTTP/3 requires TLS")
 	}
@@ -71,50 +77,134 @@ func newHTTP3Client(options ClientOptions, authorization string) (http3Client, e
 		authorization: authorization,
 		quicConfig:    quicConfig,
 		transport:     &http3.Transport{EnableDatagrams: true, DisableCompression: true},
+		closeIdle:     closeIdle,
 	}, nil
 }
 
-func (c *http3ClientImpl) acquire(ctx context.Context) (*http3.ClientConn, error) {
+func (c *http3ClientImpl) acquire(ctx context.Context) (*http3Conn, error) {
+	for {
+		c.access.Lock()
+		if c.conn != nil && c.conn.Context().Err() == nil {
+			conn := c.conn
+			conn.streams++
+			c.access.Unlock()
+			return conn, nil
+		}
+		offer := c.dial
+		if offer == nil {
+			offer = &dialOffer{done: make(chan struct{})}
+			c.dial = offer
+			c.access.Unlock()
+			return c.dialConn(ctx, offer)
+		}
+		c.access.Unlock()
+		select {
+		case <-offer.done:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		if offer.err != nil {
+			return nil, offer.err
+		}
+	}
+}
+
+func (c *http3ClientImpl) dialConn(ctx context.Context, offer *dialOffer) (*http3Conn, error) {
+	var quicConn *quic.Conn
+	rawConn, err := c.dialer.DialContext(adapter.ContextForMultiplexSession(ctx), N.NetworkUDP, c.server)
+	if err == nil {
+		quicConn, err = qtls.DialEarly(ctx, rawConn, c.tlsConfig, c.quicConfig)
+		if err != nil {
+			rawConn.Close()
+		} else {
+			context.AfterFunc(quicConn.Context(), func() {
+				rawConn.Close()
+			})
+		}
+	}
 	c.access.Lock()
 	defer c.access.Unlock()
-	if c.conn != nil && c.conn.Context().Err() == nil {
-		return c.conn, nil
+	defer close(offer.done)
+	current := c.dial == offer
+	if current {
+		c.dial = nil
 	}
-	if c.rawConn != nil {
-		c.rawConn.Close()
-		c.rawConn = nil
-	}
-	rawConn, err := c.dialer.DialContext(adapter.ContextForMultiplexSession(ctx), N.NetworkUDP, c.server)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		return nil, E.Cause1(ErrHTTP3Unavailable, err)
+		err = E.Cause1(ErrHTTP3Unavailable, err)
+		offer.err = err
+		return nil, err
 	}
-	quicConn, err := qtls.DialEarly(ctx, rawConn, c.tlsConfig, c.quicConfig)
-	if err != nil {
-		rawConn.Close()
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		return nil, E.Cause1(ErrHTTP3Unavailable, err)
+	if !current {
+		quicConn.CloseWithError(0, "")
+		return nil, net.ErrClosed
 	}
-	c.conn = c.transport.NewClientConn(quicConn)
-	c.rawConn = rawConn
+	c.conn = &http3Conn{ClientConn: c.transport.NewClientConn(quicConn), streams: 1}
 	return c.conn, nil
 }
 
-func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request) (*http3.RequestStream, *http3.ClientConn, error) {
-	clientConn, err := c.acquire(ctx)
-	if err != nil {
+func (c *http3ClientImpl) release(conn *http3Conn, keepSession bool) {
+	c.access.Lock()
+	defer c.access.Unlock()
+	conn.streams--
+	if conn.streams == 0 && !keepSession && c.closeIdle.Load() {
+		conn.CloseWithError(0, "")
+		if c.conn == conn {
+			c.conn = nil
+		}
+	}
+}
+
+func (c *http3ClientImpl) openRequestStream(ctx context.Context, extendedConnect bool, keepSession bool) (*http3Conn, *http3.RequestStream, error) {
+	for retry := true; ; retry = false {
+		conn, err := c.acquire(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		if extendedConnect {
+			select {
+			case <-conn.ReceivedSettings():
+				if !conn.Settings().EnableExtendedConnect {
+					err = errHTTP3ExtendedConnectUnsupported
+				}
+			case <-conn.Context().Done():
+				err = E.Cause1(ErrHTTP3Unavailable, context.Cause(conn.Context()))
+			case <-ctx.Done():
+				err = E.Cause(ctx.Err(), "wait for HTTP/3 SETTINGS")
+			}
+		}
+		if err == nil {
+			var stream *http3.RequestStream
+			stream, err = conn.OpenRequestStream(ctx)
+			if err == nil {
+				return conn, stream, nil
+			}
+			if retry && errors.Is(err, http3.ErrNoMoreStreams) {
+				c.access.Lock()
+				if c.conn == conn {
+					c.conn = nil
+				}
+				c.access.Unlock()
+				c.release(conn, keepSession)
+				continue
+			}
+			if ctx.Err() != nil {
+				err = ctx.Err()
+			} else {
+				err = E.Cause1(ErrHTTP3Unavailable, err)
+			}
+		}
+		c.release(conn, keepSession)
 		return nil, nil, err
 	}
-	stream, err := clientConn.OpenRequestStream(ctx)
+}
+
+func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request, extendedConnect bool, keepSession bool) (*http3.RequestStream, *http3Conn, error) {
+	conn, stream, err := c.openRequestStream(ctx, extendedConnect, keepSession)
 	if err != nil {
-		if ctx.Err() != nil {
-			return nil, nil, ctx.Err()
-		}
-		return nil, nil, E.Cause1(ErrHTTP3Unavailable, err)
+		return nil, nil, err
 	}
 	stop := context.AfterFunc(ctx, func() {
 		stream.CancelRead(0)
@@ -125,21 +215,13 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 	if err == nil {
 		response, err = stream.ReadResponse()
 	}
-	if err == nil {
-		select {
-		case <-clientConn.ReceivedSettings():
-		case <-clientConn.Context().Done():
-			err = context.Cause(clientConn.Context())
-		case <-ctx.Done():
-			err = ctx.Err()
-		}
-	}
 	if !stop() {
 		err = ctx.Err()
 	}
 	if err != nil {
 		stream.CancelRead(0)
 		stream.Close()
+		c.release(conn, keepSession)
 		if ctx.Err() != nil {
 			return nil, nil, ctx.Err()
 		}
@@ -148,22 +230,28 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request)
 	if response.StatusCode != http.StatusOK {
 		stream.CancelRead(0)
 		stream.Close()
+		c.release(conn, keepSession)
 		return nil, nil, statusError(response)
 	}
-	return stream, clientConn, nil
+	return stream, conn, nil
 }
 
 func (c *http3ClientImpl) DialContext(ctx context.Context, destination M.Socksaddr) (net.Conn, error) {
-	stream, _, err := c.openStream(ctx, &http.Request{
+	keepSession := adapter.KeepSessionFromContext(ctx)
+	stream, conn, err := c.openStream(ctx, &http.Request{
 		Method: http.MethodConnect,
 		URL:    &url.URL{Host: destination.String()},
 		Host:   destination.String(),
 		Header: buildRequestHeader(c.headers, c.authorization, false),
-	})
+	}, false, keepSession)
 	if err != nil {
 		return nil, err
 	}
-	return &http3StreamConn{stream: stream, remoteAddr: destination}, nil
+	return &http3StreamConn{
+		stream:     stream,
+		remoteAddr: destination,
+		onClose:    func() { c.release(conn, keepSession) },
+	}, nil
 }
 
 func (c *http3ClientImpl) OpenTunnel(ctx context.Context, request tunnelRequest) (DatagramStream, error) {
@@ -172,49 +260,52 @@ func (c *http3ClientImpl) OpenTunnel(ctx context.Context, request tunnelRequest)
 	requestURL.Host = c.authority
 	header := buildRequestHeader(c.headers, c.authorization, request.originAuthorization)
 	header.Set("Capsule-Protocol", "?1")
-	stream, clientConn, err := c.openStream(ctx, &http.Request{
+	keepSession := adapter.KeepSessionFromContext(ctx)
+	stream, conn, err := c.openStream(ctx, &http.Request{
 		Method: http.MethodConnect,
 		Proto:  request.protocol,
 		URL:    &requestURL,
 		Host:   c.authority,
 		Header: header,
-	})
+	}, true, keepSession)
 	if err != nil {
 		return nil, err
 	}
-	return &http3RequestDatagramStream{stream: stream, datagramsEnabled: clientConn.Settings().EnableDatagrams}, nil
+	return &http3RequestDatagramStream{
+		stream:           stream,
+		datagramsEnabled: conn.Settings().EnableDatagrams,
+		onClose:          func() { c.release(conn, keepSession) },
+	}, nil
+}
+
+func (c *http3ClientImpl) CloseIdleConnections() {
+	c.access.Lock()
+	defer c.access.Unlock()
+	if c.conn != nil && c.conn.streams == 0 {
+		c.conn.CloseWithError(0, "")
+		c.conn = nil
+	}
 }
 
 func (c *http3ClientImpl) ResetConnection() {
 	c.access.Lock()
 	defer c.access.Unlock()
+	c.dial = nil
 	if c.conn != nil {
 		c.conn.CloseWithError(0, "")
 		c.conn = nil
-	}
-	if c.rawConn != nil {
-		c.rawConn.Close()
-		c.rawConn = nil
 	}
 }
 
 func (c *http3ClientImpl) Close() error {
-	c.access.Lock()
-	defer c.access.Unlock()
-	if c.conn != nil {
-		c.conn.CloseWithError(0, "")
-		c.conn = nil
-	}
-	if c.rawConn != nil {
-		c.rawConn.Close()
-		c.rawConn = nil
-	}
+	c.ResetConnection()
 	return c.transport.Close()
 }
 
 type http3StreamConn struct {
 	stream      *http3.RequestStream
 	remoteAddr  net.Addr
+	onClose     func()
 	writeAccess sync.Mutex
 	closed      atomic.Bool
 }
@@ -248,12 +339,16 @@ func (c *http3StreamConn) CloseWrite() error {
 }
 
 func (c *http3StreamConn) Close() error {
-	c.closed.Store(true)
+	if c.closed.Swap(true) {
+		return nil
+	}
 	c.stream.SetWriteDeadline(time.Now())
 	c.writeAccess.Lock()
-	defer c.writeAccess.Unlock()
 	c.stream.CancelRead(0)
-	return c.stream.Close()
+	err := c.stream.Close()
+	c.writeAccess.Unlock()
+	c.onClose()
+	return err
 }
 
 func (c *http3StreamConn) LocalAddr() net.Addr {
@@ -283,6 +378,8 @@ func (c *http3StreamConn) NeedAdditionalReadDeadline() bool {
 type http3RequestDatagramStream struct {
 	stream           *http3.RequestStream
 	datagramsEnabled bool
+	onClose          func()
+	closed           atomic.Bool
 }
 
 func (s *http3RequestDatagramStream) Read(p []byte) (int, error) {
@@ -294,9 +391,14 @@ func (s *http3RequestDatagramStream) Write(p []byte) (int, error) {
 }
 
 func (s *http3RequestDatagramStream) Close() error {
+	if s.closed.Swap(true) {
+		return nil
+	}
 	s.stream.SetWriteDeadline(time.Now())
 	s.stream.CancelRead(0)
-	return s.stream.Close()
+	err := s.stream.Close()
+	s.onClose()
+	return err
 }
 
 func (s *http3RequestDatagramStream) SendDatagram(payload []byte) error {
