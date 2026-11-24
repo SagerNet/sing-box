@@ -603,6 +603,13 @@ func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination ne
 		}
 		return tun.FlowVerdict{Action: tun.ActionAccept}
 	}
+	if t.dnsHijackByPort && destination.Port() == 53 &&
+		(network == uint8(header.TCPProtocolNumber) || network == uint8(header.UDPProtocolNumber)) {
+		if network == uint8(header.UDPProtocolNumber) {
+			return tun.FlowVerdict{Action: tun.ActionHijackDNS}
+		}
+		return tun.FlowVerdict{Action: tun.ActionAccept}
+	}
 	t.routeAddressSetAccess.RLock()
 	routeAddressSet := t.routeAddressSet
 	routeExcludeAddressSet := t.routeExcludeAddressSet
@@ -617,13 +624,6 @@ func (t *Inbound) JudgeFlow(network uint8, source netip.AddrPort, destination ne
 		return it.Contains(destinationAddress)
 	}) {
 		return tun.FlowVerdict{Action: tun.ActionBypass}
-	}
-	if t.dnsHijackByPort && destination.Port() == 53 &&
-		(network == uint8(header.TCPProtocolNumber) || network == uint8(header.UDPProtocolNumber)) {
-		if network == uint8(header.UDPProtocolNumber) {
-			return tun.FlowVerdict{Action: tun.ActionHijackDNS}
-		}
-		return tun.FlowVerdict{Action: tun.ActionAccept}
 	}
 	return adapter.JudgeFlow(t.router, adapter.InboundContext{Inbound: t.tag, InboundType: C.TypeTun}, network, source, destination, firstPacket)
 }

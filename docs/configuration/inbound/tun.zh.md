@@ -94,10 +94,10 @@ icon: material/new-box
   "iproute2_table_index": 2022,
   "iproute2_rule_index": 9000,
   "auto_redirect": true,
-  "auto_redirect_input_mark": "0x2023",
-  "auto_redirect_output_mark": "0x2024",
-  "auto_redirect_reset_mark": "0x2025",
-  "auto_redirect_tproxy_mark": "0x2026",
+  "auto_redirect_input_mark": "0x04000000",
+  "auto_redirect_output_mark": "0x08000000",
+  "auto_redirect_reset_mark": "0x10000000",
+  "auto_redirect_tproxy_mark": "0x0c000000",
   "auto_redirect_nfqueue": 100,
   "auto_redirect_iproute2_fallback_rule_index": 32768,
   "exclude_mptcp": false,
@@ -363,7 +363,7 @@ TUN 接口上 DNS 的处理方式。
 
 `auto_redirect` 使用的连接输入标记。
 
-默认使用 `0x2023`（Android 上为 `0x400000`）。
+默认使用 `0x04000000`。
 
 #### auto_redirect_output_mark
 
@@ -371,7 +371,7 @@ TUN 接口上 DNS 的处理方式。
 
 `auto_redirect` 使用的连接输出标记。
 
-默认使用 `0x2024`（Android 上为 `0x200000`）。
+默认使用 `0x08000000`。
 
 #### auto_redirect_reset_mark
 
@@ -379,7 +379,7 @@ TUN 接口上 DNS 的处理方式。
 
 `auto_redirect` 预匹配使用的连接重置标记。
 
-默认使用 `0x2025`（Android 上为 `0x600000`）。
+默认使用 `0x10000000`。
 
 #### auto_redirect_tproxy_mark
 
@@ -387,7 +387,7 @@ TUN 接口上 DNS 的处理方式。
 
 `auto_redirect` iptables 后端为 IPv6 TCP 使用的连接 TPROXY 标记。
 
-默认使用 `0x2026`（Android 上为 `0x800000`）。
+默认使用 `0x0c000000`。
 
 #### auto_redirect_nfqueue
 
