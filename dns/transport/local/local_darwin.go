@@ -10,10 +10,12 @@ import (
 	"io"
 	"net"
 	"os"
+	"slices"
 	"sync"
 
 	"github.com/sagernet/sing-box/dns"
 	dnsTransport "github.com/sagernet/sing-box/dns/transport"
+	"github.com/sagernet/sing-box/dns/transport/mdns"
 	E "github.com/sagernet/sing/common/exceptions"
 
 	mDNS "github.com/miekg/dns"
@@ -21,7 +23,14 @@ import (
 
 func (t *Transport) systemExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
 	question := message.Question[0]
-	t.system.exchangeAsync(ctx, question.Name, question.Qtype, question.Qclass, func(response *mDNS.Msg, err error) {
+	var interfaceIndex uint32
+	if t.interfaceMonitor != nil && !mdns.IsLocalDomain(question.Name) {
+		defaultInterface := t.interfaceMonitor.DefaultInterface()
+		if defaultInterface != nil && !slices.Contains(t.interfaceMonitor.MyInterfaces(), defaultInterface.Name) {
+			interfaceIndex = uint32(defaultInterface.Index)
+		}
+	}
+	t.system.exchangeAsync(ctx, interfaceIndex, question.Name, question.Qtype, question.Qclass, func(response *mDNS.Msg, err error) {
 		if err != nil {
 			var rcodeError dns.RcodeError
 			if errors.As(err, &rcodeError) {
@@ -127,7 +136,7 @@ func (r *systemResolver) reset() {
 	r.connection.Reset()
 }
 
-func (r *systemResolver) exchangeAsync(ctx context.Context, name string, qtype uint16, qclass uint16, callback func(response *mDNS.Msg, err error)) {
+func (r *systemResolver) exchangeAsync(ctx context.Context, interfaceIndex uint32, name string, qtype uint16, qclass uint16, callback func(response *mDNS.Msg, err error)) {
 	r.initOnce.Do(r.init)
 	for firstAttempt := true; ; firstAttempt = false {
 		conn, connCtx, created, err := r.connection.AcquireShared(ctx, r.dial)
@@ -139,7 +148,7 @@ func (r *systemResolver) exchangeAsync(ctx context.Context, name string, qtype u
 			go r.recvLoop(conn)
 		}
 		queryId := r.register(ctx, connCtx, conn, name, qtype, qclass, callback)
-		_, writeErr := conn.Write(buildQueryRequest(queryId, name, qtype, qclass))
+		_, writeErr := conn.Write(buildQueryRequest(queryId, interfaceIndex, name, qtype, qclass))
 		if writeErr == nil {
 			return
 		}
@@ -365,12 +374,12 @@ func appendResponderHeader(buffer []byte, operation uint32, dataLength int, clie
 	return buffer
 }
 
-func buildQueryRequest(queryId uint64, name string, qtype uint16, qclass uint16) []byte {
+func buildQueryRequest(queryId uint64, interfaceIndex uint32, name string, qtype uint16, qclass uint16) []byte {
 	payloadLength := 4 + 4 + len(name) + 1 + 2 + 2
 	message := make([]byte, 0, mdnsResponderHeaderLength+payloadLength)
 	message = appendResponderHeader(message, mdnsResponderQueryRequest, payloadLength, queryId, mdnsResponderIPCFlagNoErrorSocket)
 	message = binary.BigEndian.AppendUint32(message, mdnsResponderFlagShareConnection|mdnsResponderFlagReturnIntermediates|mdnsResponderFlagTimeout)
-	message = binary.BigEndian.AppendUint32(message, 0) // interfaceIndex
+	message = binary.BigEndian.AppendUint32(message, interfaceIndex)
 	message = append(message, name...)
 	message = append(message, 0)
 	message = binary.BigEndian.AppendUint16(message, qtype)

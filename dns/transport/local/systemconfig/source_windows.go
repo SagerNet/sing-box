@@ -27,6 +27,7 @@ type Source struct {
 	access           sync.Mutex
 	updateCallback   *list.Element[tun.DefaultInterfaceUpdateCallback]
 	stale            bool
+	lastChecked      time.Time
 	config           *Config
 }
 
@@ -43,10 +44,12 @@ func NewSource(ctx context.Context) *Source {
 func (s *Source) Configuration() *Config {
 	s.access.Lock()
 	defer s.access.Unlock()
-	if s.config != nil && !s.stale && s.updateCallback != nil {
+	now := time.Now()
+	if s.config != nil && !s.stale && s.updateCallback != nil && s.lastChecked.After(now.Add(-5*time.Second)) {
 		return s.config
 	}
 	s.stale = false
+	s.lastChecked = now
 	config := s.readConfig()
 	if s.config != nil && config.Equal(s.config) {
 		return s.config

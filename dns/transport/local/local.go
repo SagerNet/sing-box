@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -12,9 +13,11 @@ import (
 	"github.com/sagernet/sing-box/dns/transport/mdns"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-tun"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/logger"
 	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/service"
 
 	mDNS "github.com/miekg/dns"
 )
@@ -36,6 +39,7 @@ type Transport struct {
 	preferredResolver *PreferredDomainResolver
 	dialer            N.Dialer
 	preferGo          bool
+	interfaceMonitor  tun.DefaultInterfaceMonitor
 	resolved          ResolvedResolver
 	mdnsTransport     adapter.DNSTransport
 	mdnsScope         *adapter.Scope
@@ -61,6 +65,7 @@ func NewTransport(ctx context.Context, logger log.ContextLogger, tag string, opt
 		preferredResolver: preferredResolver,
 		dialer:            transportDialer,
 		preferGo:          options.PreferGo,
+		interfaceMonitor:  service.FromContext[adapter.NetworkManager](ctx).InterfaceMonitor(),
 		configSource:      systemconfig.NewSource(ctx),
 	}, nil
 }
@@ -132,7 +137,20 @@ func (t *Transport) PreferredDomain(domain string) bool {
 	return t.preferredResolver.PreferredDomain(domain)
 }
 
+func (t *Transport) useSystemResolver() bool {
+	return C.IsDarwin && (!t.preferGo || C.IsIos || (t.interfaceMonitor != nil && len(t.interfaceMonitor.MyInterfaces()) > 0))
+}
+
 func (t *Transport) Environment() []string {
+	if t.useSystemResolver() {
+		if t.interfaceMonitor != nil {
+			defaultInterface := t.interfaceMonitor.DefaultInterface()
+			if defaultInterface != nil {
+				return []string{defaultInterface.Name, strconv.Itoa(defaultInterface.Index)}
+			}
+		}
+		return nil
+	}
 	systemConfig := t.configSource.Configuration()
 	if t.resolved != nil && systemConfig.SystemdResolved {
 		return t.resolved.Environment()
@@ -162,11 +180,11 @@ func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callba
 		callback(response, nil)
 		return
 	}
+	if t.useSystemResolver() || C.IsDarwin && mdns.IsLocalDomain(question.Name) {
+		t.systemExchangeAsync(ctx, message, callback)
+		return
+	}
 	if mdns.IsLocalDomain(question.Name) {
-		if C.IsDarwin {
-			t.systemExchangeAsync(ctx, message, callback)
-			return
-		}
 		t.mdnsTransport.ExchangeAsync(ctx, message, callback)
 		return
 	}

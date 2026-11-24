@@ -111,5 +111,9 @@ func defaultSearch() []string {
 	if !found || domain == "" {
 		return nil
 	}
-	return []string{mDNS.Fqdn(domain)}
+	domain = mDNS.Fqdn(domain)
+	if mDNS.IsSubDomain("local.", domain) {
+		return nil
+	}
+	return []string{domain}
 }
