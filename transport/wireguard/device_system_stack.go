@@ -170,7 +170,7 @@ func (w *systemStackDevice) writeStack(packet []byte) bool {
 		destination = netip.AddrFrom16(header.IPv6(packet).DestinationAddress().As16())
 	}
 	for _, prefix := range w.options.Address {
-		if prefix.Contains(destination) {
+		if destination == prefix.Addr() {
 			return false
 		}
 	}

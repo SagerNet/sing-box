@@ -41,3 +41,6 @@ func (a *Adapter) Network() []string {
 func (a *Adapter) Dependencies() []string {
 	return a.dependencies
 }
+
+func (a *Adapter) IsEndpoint() {
+}

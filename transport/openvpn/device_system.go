@@ -29,13 +29,15 @@ const (
 
 type systemDevice struct {
 	baseDevice
-	stateAccess  sync.RWMutex
-	options      DeviceOptions
-	dialer       N.Dialer
-	device       tun.Tun
-	inet4Address netip.Addr
-	inet6Address netip.Addr
-	closed       bool
+	stateAccess   sync.RWMutex
+	options       DeviceOptions
+	dialer        N.Dialer
+	device        tun.Tun
+	readLoopDone  chan struct{}
+	reconfiguring bool
+	inet4Address  netip.Addr
+	inet6Address  netip.Addr
+	closed        bool
 }
 
 func newSystemDevice(options DeviceOptions) (*systemDevice, error) {
@@ -87,7 +89,13 @@ func (d *systemDevice) startLocked() error {
 	}
 	d.device = tunInterface
 	d.options.Logger.Info("started at ", d.options.Name)
-	go d.readLoop(tunInterface, int(d.options.MTU))
+	readLoopDone := make(chan struct{})
+	d.readLoopDone = readLoopDone
+	mtu := int(d.options.MTU)
+	go func() {
+		d.readLoop(tunInterface, mtu)
+		close(readLoopDone)
+	}()
 	return nil
 }
 
@@ -254,8 +262,15 @@ func (d *systemDevice) UpdateConfiguration(configuration Configuration) error {
 	}
 	if !slices.Equal(previousConfiguration.Address, configuration.Address) ||
 		previousMTU != updatedMTU {
-		d.device.Close()
+		oldDevice := d.device
+		readLoopDone := d.readLoopDone
 		d.device = nil
+		d.reconfiguring = true
+		d.stateAccess.Unlock()
+		oldDevice.Close()
+		<-readLoopDone
+		d.stateAccess.Lock()
+		d.reconfiguring = false
 		return d.startLocked()
 	}
 	return nil
@@ -274,8 +289,12 @@ func (d *systemDevice) WriteInboundBuffers(packetBuffers []*buf.Buffer) error {
 func (d *systemDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 	d.stateAccess.RLock()
 	tunInterface := d.device
+	reconfiguring := d.reconfiguring
 	d.stateAccess.RUnlock()
 	if tunInterface == nil {
+		if reconfiguring {
+			return nil
+		}
 		return E.New("system device is not ready")
 	}
 	linuxTUN, isLinuxTUN := tunInterface.(tun.LinuxTUN)
@@ -317,8 +336,12 @@ func (d *systemDevice) writeBuffers(packetBuffers []*buf.Buffer) error {
 func (d *systemDevice) writePacket(packet []byte) error {
 	d.stateAccess.RLock()
 	tunInterface := d.device
+	reconfiguring := d.reconfiguring
 	d.stateAccess.RUnlock()
 	if tunInterface == nil {
+		if reconfiguring {
+			return nil
+		}
 		return E.New("system device is not ready")
 	}
 	if tun.PacketOffset == 0 {

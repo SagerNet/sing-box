@@ -3,6 +3,7 @@ package outbound
 import (
 	"context"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -62,16 +63,26 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	}
 	outbounds := m.outbounds
 	m.access.Unlock()
-	if stage == adapter.StartStateStart {
-		return m.startOutbounds(scope, append(outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })...))
+	sortedOutbounds, err := sortOutbounds(slices.Concat(outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })))
+	if err != nil {
+		return err
 	}
-	for _, outbound := range outbounds {
+	for _, outbound := range sortedOutbounds {
+		if endpoint, isEndpoint := outbound.(adapter.Endpoint); isEndpoint {
+			if stage == adapter.StartStateStart {
+				err = m.endpoint.StartEndpoint(endpoint)
+				if err != nil {
+					return err
+				}
+			}
+			continue
+		}
 		lifecycle, isLifecycle := outbound.(adapter.Lifecycle)
 		if !isLifecycle {
 			continue
 		}
 		name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
-		err := scope.Start(name, lifecycle, stage)
+		err = scope.Start(name, lifecycle, stage)
 		if err != nil {
 			return err
 		}
@@ -79,54 +90,40 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	return nil
 }
 
-func (m *Manager) startOutbounds(scope *adapter.Scope, outbounds []adapter.Outbound) error {
-	started := make(map[string]bool)
+func sortOutbounds(outbounds []adapter.Outbound) ([]adapter.Outbound, error) {
+	sortedOutbounds := make([]adapter.Outbound, 0, len(outbounds))
+	sorted := make(map[string]bool)
 	for {
 		canContinue := false
-	startOne:
-		for _, outboundToStart := range outbounds {
-			outboundTag := outboundToStart.Tag()
-			if started[outboundTag] {
+	sortOne:
+		for _, outboundToSort := range outbounds {
+			outboundTag := outboundToSort.Tag()
+			if sorted[outboundTag] {
 				continue
 			}
-			dependencies := outboundToStart.Dependencies()
+			dependencies := outboundToSort.Dependencies()
 			for _, dependency := range dependencies {
-				if !started[dependency] {
-					continue startOne
+				if !sorted[dependency] {
+					continue sortOne
 				}
 			}
-			started[outboundTag] = true
+			sorted[outboundTag] = true
 			canContinue = true
-			if endpoint, isEndpoint := outboundToStart.(adapter.Endpoint); isEndpoint {
-				err := m.endpoint.StartEndpoint(endpoint)
-				if err != nil {
-					return err
-				}
-				continue
-			}
-			lifecycle, isLifecycle := outboundToStart.(adapter.Lifecycle)
-			if !isLifecycle {
-				continue
-			}
-			name := "outbound/" + outboundToStart.Type() + "[" + outboundTag + "]"
-			err := scope.Start(name, lifecycle, adapter.StartStateStart)
-			if err != nil {
-				return err
-			}
+			sortedOutbounds = append(sortedOutbounds, outboundToSort)
 		}
-		if len(started) == len(outbounds) {
+		if len(sorted) == len(outbounds) {
 			break
 		}
 		if canContinue {
 			continue
 		}
 		currentOutbound := common.Find(outbounds, func(it adapter.Outbound) bool {
-			return !started[it.Tag()]
+			return !sorted[it.Tag()]
 		})
 		var lintOutbound func(oTree []string, oCurrent adapter.Outbound) error
 		lintOutbound = func(oTree []string, oCurrent adapter.Outbound) error {
 			problemOutboundTag := common.Find(oCurrent.Dependencies(), func(it string) bool {
-				return !started[it]
+				return !sorted[it]
 			})
 			if common.Contains(oTree, problemOutboundTag) {
 				return E.New("circular outbound dependency: ", strings.Join(oTree, " -> "), " -> ", problemOutboundTag)
@@ -139,9 +136,9 @@ func (m *Manager) startOutbounds(scope *adapter.Scope, outbounds []adapter.Outbo
 			}
 			return lintOutbound(append(oTree, problemOutboundTag), problemOutbound)
 		}
-		return lintOutbound([]string{currentOutbound.Tag()}, currentOutbound)
+		return nil, lintOutbound([]string{currentOutbound.Tag()}, currentOutbound)
 	}
-	return nil
+	return sortedOutbounds, nil
 }
 
 func (m *Manager) Outbounds() []adapter.Outbound {

@@ -12,6 +12,7 @@ type Endpoint interface {
 	Type() string
 	Tag() string
 	Outbound
+	IsEndpoint()
 }
 
 type EndpointRegistry interface {

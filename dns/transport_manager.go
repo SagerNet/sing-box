@@ -60,12 +60,13 @@ func (m *TransportManager) Start(stage adapter.StartStage, scope *adapter.Scope)
 	}
 	transports := m.transports
 	m.access.Unlock()
-	if stage == adapter.StartStateStart {
-		return m.startTransports(scope, transports)
+	sortedTransports, err := m.sortTransports(transports)
+	if err != nil {
+		return err
 	}
-	for _, transport := range transports {
+	for _, transport := range sortedTransports {
 		name := "dns/" + transport.Type() + "[" + transport.Tag() + "]"
-		err := scope.Start(name, transport, stage)
+		err = scope.Start(name, transport, stage)
 		if err != nil {
 			return err
 		}
@@ -73,43 +74,40 @@ func (m *TransportManager) Start(stage adapter.StartStage, scope *adapter.Scope)
 	return nil
 }
 
-func (m *TransportManager) startTransports(scope *adapter.Scope, transports []adapter.DNSTransport) error {
-	started := make(map[string]bool)
+func (m *TransportManager) sortTransports(transports []adapter.DNSTransport) ([]adapter.DNSTransport, error) {
+	sortedTransports := make([]adapter.DNSTransport, 0, len(transports))
+	sorted := make(map[string]bool)
 	for {
 		canContinue := false
-	startOne:
-		for _, transportToStart := range transports {
-			transportTag := transportToStart.Tag()
-			if started[transportTag] {
+	sortOne:
+		for _, transportToSort := range transports {
+			transportTag := transportToSort.Tag()
+			if sorted[transportTag] {
 				continue
 			}
-			dependencies := transportToStart.Dependencies()
+			dependencies := transportToSort.Dependencies()
 			for _, dependency := range dependencies {
-				if !started[dependency] {
-					continue startOne
+				if !sorted[dependency] {
+					continue sortOne
 				}
 			}
-			started[transportTag] = true
+			sorted[transportTag] = true
 			canContinue = true
-			name := "dns/" + transportToStart.Type() + "[" + transportTag + "]"
-			err := scope.Start(name, transportToStart, adapter.StartStateStart)
-			if err != nil {
-				return err
-			}
+			sortedTransports = append(sortedTransports, transportToSort)
 		}
-		if len(started) == len(transports) {
+		if len(sorted) == len(transports) {
 			break
 		}
 		if canContinue {
 			continue
 		}
 		currentTransport := common.Find(transports, func(it adapter.DNSTransport) bool {
-			return !started[it.Tag()]
+			return !sorted[it.Tag()]
 		})
 		var lintTransport func(oTree []string, oCurrent adapter.DNSTransport) error
 		lintTransport = func(oTree []string, oCurrent adapter.DNSTransport) error {
 			problemTransportTag := common.Find(oCurrent.Dependencies(), func(it string) bool {
-				return !started[it]
+				return !sorted[it]
 			})
 			if common.Contains(oTree, problemTransportTag) {
 				return E.New("circular server dependency: ", strings.Join(oTree, " -> "), " -> ", problemTransportTag)
@@ -122,9 +120,9 @@ func (m *TransportManager) startTransports(scope *adapter.Scope, transports []ad
 			}
 			return lintTransport(append(oTree, problemTransportTag), problemTransport)
 		}
-		return lintTransport([]string{currentTransport.Tag()}, currentTransport)
+		return nil, lintTransport([]string{currentTransport.Tag()}, currentTransport)
 	}
-	return nil
+	return sortedTransports, nil
 }
 
 func (m *TransportManager) Transports() []adapter.DNSTransport {

@@ -654,10 +654,10 @@ func (c *ClientEndpoint) readLoop(ctx context.Context) {
 		err = c.device.WriteInboundBuffers(packetBuffers)
 		buf.ReleaseMulti(packetBuffers)
 		if err != nil {
-			err = E.Cause(err, "write packet to device")
-			c.logger.Error(err)
-			c.setTerminalError(err)
-			return
+			if E.IsCanceled(err) || ctx.Err() != nil {
+				return
+			}
+			c.logger.Debug(E.Cause(err, "write packet to device"))
 		}
 	}
 }
