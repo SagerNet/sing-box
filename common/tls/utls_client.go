@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"math/rand"
 	"net"
 	"strings"
@@ -147,6 +148,15 @@ func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
 	}
 }
 
+func (c *utlsConnWrapper) HandshakeContext(ctx context.Context) error {
+	err := c.UConn.HandshakeContext(ctx)
+	var echErr *utls.ECHRejectionError
+	if errors.As(err, &echErr) {
+		return &tls.ECHRejectionError{RetryConfigList: echErr.RetryConfigList}
+	}
+	return err
+}
+
 func (c *utlsConnWrapper) Upstream() any {
 	return c.UConn
 }
@@ -181,7 +191,7 @@ func (c *utlsALPNWrapper) HandshakeContext(ctx context.Context) error {
 			}
 		}
 	}
-	return c.UConn.HandshakeContext(ctx)
+	return c.utlsConnWrapper.HandshakeContext(ctx)
 }
 
 func NewUTLSClient(ctx context.Context, logger logger.ContextLogger, serverAddress string, options option.OutboundTLSOptions) (Config, error) {

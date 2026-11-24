@@ -14,13 +14,11 @@ import (
 )
 
 func (s *ECHClientConfig) fetchSTDConfig(ctx context.Context) (*STDConfig, error) {
-	s.access.Lock()
-	defer s.access.Unlock()
-	err := s.fetchLocked(ctx)
+	tlsConfig, err := s.handshakeConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return s.STDConfig()
+	return tlsConfig.STDConfig()
 }
 
 func (s *ECHClientConfig) Dial(ctx context.Context, conn net.Conn, config *quic.Config) (*quic.Conn, error) {
@@ -59,7 +57,6 @@ func (s *ECHClientConfig) createHTTP3Transport(quicConnPtr **quic.Conn, quicConf
 			if err != nil {
 				return nil, err
 			}
-			tlsConfig = tlsConfig.Clone()
 			tlsConfig.NextProtos = []string{http3.NextProtoH3}
 			quicConn, err := dial(ctx, tlsConfig, config)
 			if err != nil {

@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/dns/transport"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	sQUIC "github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -42,7 +43,7 @@ type HTTP3Transport struct {
 	destination     *url.URL
 	headers         http.Header
 	serverAddr      M.Socksaddr
-	tlsConfig       *tls.STDConfig
+	tlsConfig       tls.Config
 	transportAccess sync.Mutex
 	transport       *http3.Transport
 }
@@ -54,12 +55,19 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 	}
 	tlsOptions := common.PtrValueOrDefault(options.TLS)
 	tlsOptions.Enabled = true
-	tlsConfig, err := tls.NewClient(ctx, logger, options.Server, tlsOptions)
+	tlsConfig, err := tls.NewClientWithOptions(tls.ClientOptions{
+		Context:        ctx,
+		Logger:         logger,
+		ServerAddress:  options.Server,
+		Options:        tlsOptions,
+		DomainResolver: options.DomainResolver,
+		DirectResolver: true,
+	})
 	if err != nil {
 		return nil, err
 	}
 	tlsConfig.SetNextProtos([]string{http3.NextProtoH3})
-	stdConfig, err := tlsConfig.STDConfig()
+	_, err = tlsConfig.STDConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +113,7 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 		destination:      &destinationURL,
 		headers:          headers,
 		serverAddr:       serverAddr,
-		tlsConfig:        stdConfig,
+		tlsConfig:        tlsConfig,
 	}
 	t.transport = t.newTransport()
 	return t, nil
@@ -113,12 +121,15 @@ func NewHTTP3(ctx context.Context, logger log.ContextLogger, tag string, options
 
 func (t *HTTP3Transport) newTransport() *http3.Transport {
 	return &http3.Transport{
+		QUICConfig: &quic.Config{
+			InitialPacketSize: 1200,
+		},
 		Dial: func(ctx context.Context, _ string, _ *tls.STDConfig, cfg *quic.Config) (*quic.Conn, error) {
 			conn, dialErr := t.dialer.DialContext(ctx, N.NetworkUDP, t.serverAddr)
 			if dialErr != nil {
 				return nil, dialErr
 			}
-			quicConn, dialErr := quic.DialEarlyConn(ctx, conn, t.tlsConfig, cfg)
+			quicConn, dialErr := sQUIC.DialEarly(ctx, conn, t.tlsConfig, cfg)
 			if dialErr != nil {
 				conn.Close()
 				return nil, dialErr

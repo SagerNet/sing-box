@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/common/tls"
 	"github.com/sagernet/sing-box/option"
+	qtls "github.com/sagernet/sing-quic"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -72,21 +73,19 @@ func newHTTP3RoundTripper(
 				quicConfig = quicConfig.Clone()
 				quicConfig.HandshakeIdleTimeout = handshakeTimeout
 			}
-			if baseTLSConfig != nil {
-				var err error
-				tlsConfig, err = buildSTDTLSConfig(baseTLSConfig, M.ParseSocksaddr(addr), []string{http3.NextProtoH3})
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				tlsConfig = tlsConfig.Clone()
-				tlsConfig.NextProtos = []string{http3.NextProtoH3}
-			}
-			conn, err := rawDialer.DialContext(ctx, N.NetworkUDP, M.ParseSocksaddr(addr))
+			destination := M.ParseSocksaddr(addr)
+			conn, err := rawDialer.DialContext(ctx, N.NetworkUDP, destination)
 			if err != nil {
 				return nil, err
 			}
-			quicConn, err := quic.DialEarlyConn(ctx, conn, tlsConfig, quicConfig)
+			var quicConn *quic.Conn
+			if baseTLSConfig != nil {
+				quicConn, err = qtls.DialEarly(ctx, conn, prepareTLSConfig(baseTLSConfig, destination, []string{http3.NextProtoH3}), quicConfig)
+			} else {
+				tlsConfig = tlsConfig.Clone()
+				tlsConfig.NextProtos = []string{http3.NextProtoH3}
+				quicConn, err = quic.DialEarlyConn(ctx, conn, tlsConfig, quicConfig)
+			}
 			if err != nil {
 				conn.Close()
 				return nil, err

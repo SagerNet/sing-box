@@ -294,23 +294,35 @@ func (d *Service) startMeshWithHost(derpServer *derpserver.Server, server *optio
 	} else {
 		hostname = server.Server
 	}
-	var stdConfig *tls.STDConfig
+	var (
+		tlsConfig tls.Config
+		stdConfig *tls.STDConfig
+	)
 	if server.TLS != nil && server.TLS.Enabled {
-		tlsConfig, err := tls.NewClient(d.ctx, d.logger, hostname, *server.TLS)
+		tlsConfig, err = tls.NewClientWithOptions(tls.ClientOptions{
+			Context:        d.ctx,
+			Logger:         d.logger,
+			ServerAddress:  hostname,
+			Options:        *server.TLS,
+			DomainResolver: server.DomainResolver,
+		})
 		if err != nil {
 			return err
 		}
-		stdConfig, err = tlsConfig.STDConfig()
-		if err != nil {
-			return err
+		if _, isDynamicECH := tlsConfig.(*tls.ECHClientConfig); !isDynamicECH {
+			stdConfig, _ = tlsConfig.STDConfig()
 		}
 	}
 	logf := func(format string, args ...any) {
 		d.logger.Debug(F.ToString("mesh(", hostname, "): ", fmt.Sprintf(format, args...)))
 	}
-	meshAddress := M.ParseSocksaddrHostPort(hostname, server.ServerPort)
+	meshPort := server.ServerPort
+	if meshPort == 0 && tlsConfig != nil {
+		meshPort = 443
+	}
+	meshAddress := M.ParseSocksaddrHostPort(hostname, meshPort)
 	var meshHost string
-	if server.ServerPort != 0 && server.ServerPort != 443 {
+	if meshPort != 0 && (stdConfig == nil || meshPort != 443) {
 		meshHost = meshAddress.String()
 	} else if meshAddress.IsIPv6() {
 		meshHost = "[" + meshAddress.AddrString() + "]"
@@ -330,9 +342,16 @@ func (d *Service) startMeshWithHost(derpServer *derpserver.Server, server *optio
 	meshClient.TLSConfig = stdConfig
 	meshClient.MeshKey = derpServer.MeshKey()
 	meshClient.WatchConnectionChanges = true
-	meshClient.SetURLDialer(func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return meshDialer.DialContext(ctx, network, M.ParseSocksaddrHostPort(server.Server, M.ParseSocksaddr(addr).Port))
-	})
+	if tlsConfig != nil && stdConfig == nil {
+		tlsDialer := tls.NewDialer(meshDialer, tlsConfig)
+		meshClient.SetURLDialer(func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return tlsDialer.DialTLSContext(ctx, M.ParseSocksaddrHostPort(server.Server, M.ParseSocksaddr(addr).Port))
+		})
+	} else {
+		meshClient.SetURLDialer(func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return meshDialer.DialContext(ctx, network, M.ParseSocksaddrHostPort(server.Server, M.ParseSocksaddr(addr).Port))
+		})
+	}
 	add := func(m derp.PeerPresentMessage) { derpServer.AddPacketForwarder(m.Key, meshClient) }
 	remove := func(m derp.PeerGoneMessage) { derpServer.RemovePacketForwarder(m.Peer, meshClient) }
 	notifyError := func(err error) { d.logger.Error(err) }
