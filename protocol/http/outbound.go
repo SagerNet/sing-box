@@ -48,12 +48,13 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 		Adapter: outbound.NewAdapterWithDialerOptions(C.TypeHTTP, tag, []string{N.NetworkTCP}, options.DialerOptions),
 		logger:  logger,
 		client: sHTTP.NewClient(sHTTP.Options{
-			Dialer:   detour,
-			Server:   options.ServerOptions.Build(),
-			Username: options.Username,
-			Password: options.Password,
-			Path:     options.Path,
-			Headers:  options.Headers.Build(),
+			Dialer:           detour,
+			Server:           options.ServerOptions.Build(),
+			Username:         options.Username,
+			Password:         options.Password,
+			Path:             options.Path,
+			Headers:          options.Headers.Build(),
+			HandshakeTimeout: C.TCPTimeout,
 		}),
 	}, nil
 }
