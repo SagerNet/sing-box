@@ -171,7 +171,18 @@ func (d *resolveParallelNetworkDialer) DialParallelNetwork(ctx context.Context, 
 	if fallbackDelay == 0 {
 		fallbackDelay = d.fallbackDelay
 	}
-	return d.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
+	if d.parallel || len(destinationAddresses) <= 1 {
+		return d.dialer.DialParallelNetwork(ctx, network, destination, destinationAddresses, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
+	}
+	var errors []error
+	for _, address := range destinationAddresses {
+		conn, err := d.dialer.DialParallelNetwork(ctx, network, destination, []netip.Addr{address}, strategy, interfaceType, fallbackInterfaceType, fallbackDelay)
+		if err == nil {
+			return conn, nil
+		}
+		errors = append(errors, err)
+	}
+	return nil, E.Errors(errors...)
 }
 
 func (d *resolveParallelNetworkDialer) ListenSerialNetworkPacket(ctx context.Context, destination M.Socksaddr, destinationAddresses []netip.Addr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType, fallbackDelay time.Duration) (net.PacketConn, netip.Addr, error) {

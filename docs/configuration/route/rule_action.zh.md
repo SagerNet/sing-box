@@ -171,14 +171,6 @@ icon: material/new-box
 仅当出站为 `direct` 且 `outbound.bind_interface`, `outbound.inet4_bind_address`
 且 `outbound.inet6_bind_address` 未设置时生效。
 
-#### network_type
-
-详情参阅 [拨号字段](/zh/configuration/shared/dial/#network_type)。
-
-#### fallback_network_type
-
-详情参阅 [拨号字段](/zh/configuration/shared/dial/#fallback_network_type)。
-
 #### fallback_delay
 
 详情参阅 [拨号字段](/zh/configuration/shared/dial/#fallback_delay)。

@@ -151,7 +151,7 @@ func (d *DefaultDialer) dialParallelInterfaceFastFallback(ctx context.Context, d
 			select {
 			case results <- dialResult{Conn: conn, primary: primary}:
 			case <-returned:
-				if primary && time.Since(startAt) <= fallbackDelay {
+				if primary && N.NetworkName(network) == N.NetworkTCP && time.Since(startAt) <= fallbackDelay {
 					resetFastFallback(time.Time{})
 				}
 				conn.Close()

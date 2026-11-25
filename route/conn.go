@@ -107,8 +107,10 @@ func (m *ConnectionManager) NewConnection(ctx context.Context, this N.Dialer, co
 		remoteConn net.Conn
 		err        error
 	)
-	if len(metadata.DestinationAddresses) > 0 || metadata.Destination.IsIP() {
-		remoteConn, err = dialer.DialSerialNetwork(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
+	if parallelDialer, isParallel := this.(dialer.ParallelNetworkDialer); isParallel {
+		remoteConn, err = parallelDialer.DialParallelNetwork(ctx, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
+	} else if len(metadata.DestinationAddresses) > 0 {
+		remoteConn, err = N.DialSerial(ctx, this, N.NetworkTCP, metadata.Destination, metadata.DestinationAddresses)
 	} else {
 		remoteConn, err = this.DialContext(ctx, N.NetworkTCP, metadata.Destination)
 	}
@@ -172,8 +174,10 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 		err                error
 	)
 	if metadata.UDPConnect {
-		if len(metadata.DestinationAddresses) > 0 || metadata.Destination.IsIP() {
-			remoteConn, err = dialer.DialSerialNetwork(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
+		if parallelDialer, isParallel := this.(dialer.ParallelNetworkDialer); isParallel {
+			remoteConn, err = parallelDialer.DialParallelNetwork(ctx, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
+		} else if len(metadata.DestinationAddresses) > 0 {
+			remoteConn, err = N.DialSerial(ctx, this, N.NetworkUDP, metadata.Destination, metadata.DestinationAddresses)
 		} else {
 			remoteConn, err = this.DialContext(ctx, N.NetworkUDP, metadata.Destination)
 		}
@@ -200,8 +204,10 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 			destinationAddress = connRemoteAddr
 		}
 	} else {
-		if len(metadata.DestinationAddresses) > 0 {
-			remotePacketConn, destinationAddress, err = dialer.ListenSerialNetworkPacket(ctx, this, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
+		if parallelDialer, isParallel := this.(dialer.ParallelNetworkDialer); isParallel {
+			remotePacketConn, destinationAddress, err = parallelDialer.ListenSerialNetworkPacket(ctx, metadata.Destination, metadata.DestinationAddresses, metadata.NetworkStrategy, metadata.NetworkType, metadata.FallbackNetworkType, metadata.FallbackDelay)
+		} else if len(metadata.DestinationAddresses) > 0 {
+			remotePacketConn, destinationAddress, err = N.ListenSerial(ctx, this, metadata.Destination, metadata.DestinationAddresses)
 		} else if packetDialer, withDestination := this.(dialer.PacketDialerWithDestination); withDestination {
 			remotePacketConn, destinationAddress, err = packetDialer.ListenPacketWithDestination(ctx, metadata.Destination)
 		} else {
@@ -217,6 +223,9 @@ func (m *ConnectionManager) NewPacketConnection(ctx context.Context, this N.Dial
 			N.CloseOnHandshakeFailure(conn, onClose, err)
 			m.logger.ErrorContext(ctx, err)
 			return
+		}
+		if destinationAddress == metadata.Destination.Addr {
+			destinationAddress = netip.Addr{}
 		}
 	}
 	err = N.ReportPacketConnHandshakeSuccess(conn, remotePacketConn)

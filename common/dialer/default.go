@@ -333,7 +333,9 @@ func (d *DefaultDialer) DialParallelNetwork(ctx context.Context, network string,
 	if len(destinationAddresses) == 0 {
 		destinationAddresses = []netip.Addr{destination.Addr}
 	}
-	if strategy == nil && d.canUseNetworkStrategy.Load() {
+	if d.networkStrategy == nil || !d.canUseNetworkStrategy.Load() {
+		strategy = nil
+	} else if strategy == nil {
 		strategy = d.networkStrategy
 	}
 	if fallbackDelay == 0 {
@@ -440,7 +442,9 @@ func (d *DefaultDialer) ListenSerialNetworkPacket(ctx context.Context, destinati
 }
 
 func (d *DefaultDialer) listenSerialInterfacePacket(ctx context.Context, destination M.Socksaddr, strategy *C.NetworkStrategy, interfaceType []C.InterfaceType, fallbackInterfaceType []C.InterfaceType) (net.PacketConn, error) {
-	if strategy == nil && d.canUseNetworkStrategy.Load() {
+	if d.networkStrategy == nil || !d.canUseNetworkStrategy.Load() {
+		strategy = nil
+	} else if strategy == nil {
 		strategy = d.networkStrategy
 	}
 	if strategy == nil {
