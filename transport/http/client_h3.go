@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/quic-go/http3"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/httpclient"
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-quic"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
@@ -163,6 +164,8 @@ func (c *http3ClientImpl) openRequestStream(ctx context.Context, extendedConnect
 		if err != nil {
 			return nil, nil, err
 		}
+		ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+		defer cancel()
 		if extendedConnect {
 			select {
 			case <-conn.ReceivedSettings():
@@ -206,6 +209,8 @@ func (c *http3ClientImpl) openStream(ctx context.Context, request *http.Request,
 	if err != nil {
 		return nil, nil, err
 	}
+	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	defer cancel()
 	stop := context.AfterFunc(ctx, func() {
 		stream.CancelRead(0)
 		stream.CancelWrite(0)

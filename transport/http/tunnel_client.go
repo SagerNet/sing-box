@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 
+	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -94,6 +95,8 @@ func (c *Client) openTunnel(ctx context.Context, request tunnelRequest) (net.Con
 }
 
 func (c *Client) openTunnelHTTP1AndClose(ctx context.Context, conn net.Conn, request tunnelRequest) (net.Conn, DatagramStream, error) {
+	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	defer cancel()
 	tunnelConn, err := c.openTunnelHTTP1(ctx, conn, request)
 	if err != nil {
 		conn.Close()
