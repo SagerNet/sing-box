@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	C "github.com/sagernet/sing-box/constant"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/common/pipe"
@@ -115,6 +116,8 @@ func (c *Client) connectHTTP2(ctx context.Context, session *http2Session, destin
 }
 
 func (c *Client) roundTripHTTP2(ctx context.Context, session *http2Session, request *http.Request, destination M.Socksaddr) (*clientStreamConn, error) {
+	ctx, cancelHandshake := context.WithTimeout(ctx, C.TCPTimeout)
+	defer cancelHandshake()
 	keepSession := adapter.KeepSessionFromContext(ctx)
 	pipeReader, pipeWriter := pipe.Pipe()
 	streamCtx, cancel := context.WithCancel(context.Background())
@@ -164,6 +167,8 @@ func isExtendedConnectNotSupported(err error) bool {
 }
 
 func (c *Client) connectAndClose(ctx context.Context, conn net.Conn, destination M.Socksaddr) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	defer cancel()
 	result, err := c.connect(ctx, conn, destination)
 	if err != nil {
 		conn.Close()
