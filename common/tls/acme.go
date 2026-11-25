@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -32,6 +31,7 @@ type acmeWrapper struct {
 	zapLogger     *zap.Logger
 	dataDirectory string
 	domain        []string
+	nextProtos    []string
 }
 
 func (w *acmeWrapper) Start() error {
@@ -70,7 +70,11 @@ func (w *acmeWrapper) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Certifica
 	return w.cfg.GetCertificate(hello)
 }
 
-func startACME(ctx context.Context, logger logger.Logger, options option.InboundACMEOptions) (*tls.Config, adapter.SimpleLifecycle, error) {
+func (w *acmeWrapper) GetACMENextProtos() []string {
+	return w.nextProtos
+}
+
+func startACME(ctx context.Context, logger logger.Logger, options option.InboundACMEOptions) (managedCertificateProvider, error) {
 	var acmeServer string
 	switch options.Provider {
 	case "", "letsencrypt":
@@ -79,7 +83,7 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 		acmeServer = certmagic.ZeroSSLProductionCA
 	default:
 		if !strings.HasPrefix(options.Provider, "https://") {
-			return nil, nil, E.New("unsupported acme provider: " + options.Provider)
+			return nil, E.New("unsupported acme provider: " + options.Provider)
 		}
 		acmeServer = options.Provider
 	}
@@ -146,7 +150,7 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 				ServerURL: dnsOptions.ACMEDNSOptions.ServerURL,
 			}
 		default:
-			return nil, nil, E.New("unsupported ACME DNS01 provider type: " + dnsOptions.Provider)
+			return nil, E.New("unsupported ACME DNS01 provider type: " + dnsOptions.Provider)
 		}
 		acmeConfig.DNS01Solver = &solver
 	}
@@ -154,23 +158,16 @@ func startACME(ctx context.Context, logger logger.Logger, options option.Inbound
 		acmeConfig.ExternalAccount = (*acme.EAB)(options.ExternalAccount)
 	}
 	config.Issuers = []certmagic.Issuer{certmagic.NewACMEIssuer(config, acmeConfig)}
-	wrapper := &acmeWrapper{
+	var nextProtos []string
+	if !acmeConfig.DisableTLSALPNChallenge && acmeConfig.DNS01Solver == nil {
+		nextProtos = []string{C.ACMETLS1Protocol}
+	}
+	return &acmeWrapper{
 		ctx:           ctx,
 		cfg:           config,
 		zapLogger:     zapLogger,
 		dataDirectory: dataDirectory,
 		domain:        options.Domain,
-	}
-	var tlsConfig *tls.Config
-	if acmeConfig.DisableTLSALPNChallenge || acmeConfig.DNS01Solver != nil {
-		tlsConfig = &tls.Config{
-			GetCertificate: wrapper.GetCertificate,
-		}
-	} else {
-		tlsConfig = &tls.Config{
-			GetCertificate: wrapper.GetCertificate,
-			NextProtos:     []string{C.ACMETLS1Protocol},
-		}
-	}
-	return tlsConfig, wrapper, nil
+		nextProtos:    nextProtos,
+	}, nil
 }
