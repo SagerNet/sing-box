@@ -34,7 +34,8 @@ func (s *MemoryStorage) FakeIPSaveMetadata(metadata *adapter.FakeIPMetadata) err
 	return nil
 }
 
-func (s *MemoryStorage) FakeIPSaveMetadataAsync(metadata *adapter.FakeIPMetadata) {
+func (s *MemoryStorage) FakeIPReserve(metadata *adapter.FakeIPMetadata, current netip.Addr, reservedEnd netip.Addr) error {
+	return nil
 }
 
 func (s *MemoryStorage) FakeIPStore(address netip.Addr, domain string) error {
