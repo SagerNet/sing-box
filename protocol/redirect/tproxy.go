@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/adapter"
@@ -129,7 +130,7 @@ func (t *TProxy) preparePacketConnection(source M.Socksaddr, destination M.Socks
 		destination: destination,
 	}
 	return true, ctx, writer, func(it error) {
-		common.Close(common.PtrOrNil(writer.conn))
+		writer.close()
 	}
 }
 
@@ -138,31 +139,58 @@ type tproxyPacketWriter struct {
 	listener    *listener.Listener
 	source      netip.AddrPort
 	destination M.Socksaddr
+	access      sync.Mutex
 	conn        *net.UDPConn
+	closed      bool
 }
 
 func (w *tproxyPacketWriter) WritePacket(buffer *buf.Buffer, destination M.Socksaddr) error {
 	defer buffer.Release()
-	conn := w.conn
-	if w.destination == destination && conn != nil {
-		_, err := conn.WriteToUDPAddrPort(buffer.Bytes(), w.source)
+	if destination != w.destination {
+		conn, err := w.listenPacket(destination)
 		if err != nil {
-			w.conn = nil
+			return err
 		}
+		defer conn.Close()
+		return common.Error(conn.WriteToUDPAddrPort(buffer.Bytes(), w.source))
+	}
+	conn, err := w.cachedConn()
+	if err != nil {
 		return err
 	}
+	return common.Error(conn.WriteToUDPAddrPort(buffer.Bytes(), w.source))
+}
+
+func (w *tproxyPacketWriter) cachedConn() (*net.UDPConn, error) {
+	w.access.Lock()
+	defer w.access.Unlock()
+	if w.closed {
+		return nil, net.ErrClosed
+	}
+	if w.conn == nil {
+		conn, err := w.listenPacket(w.destination)
+		if err != nil {
+			return nil, err
+		}
+		w.conn = conn
+	}
+	return w.conn, nil
+}
+
+func (w *tproxyPacketWriter) listenPacket(destination M.Socksaddr) (*net.UDPConn, error) {
 	var listenConfig net.ListenConfig
 	listenConfig.Control = control.Append(listenConfig.Control, control.ReuseAddr())
 	listenConfig.Control = control.Append(listenConfig.Control, redir.TProxyWriteBack())
 	packetConn, err := w.listener.ListenPacket(listenConfig, w.ctx, "udp", destination.String())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	udpConn := packetConn.(*net.UDPConn)
-	if w.destination == destination {
-		w.conn = udpConn
-	} else {
-		defer udpConn.Close()
-	}
-	return common.Error(udpConn.WriteToUDPAddrPort(buffer.Bytes(), w.source))
+	return packetConn.(*net.UDPConn), nil
+}
+
+func (w *tproxyPacketWriter) close() {
+	w.access.Lock()
+	defer w.access.Unlock()
+	w.closed = true
+	common.Close(common.PtrOrNil(w.conn))
 }
