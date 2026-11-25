@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/tls"
@@ -14,7 +13,6 @@ import (
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/buf"
 	"github.com/sagernet/sing/common/bufio"
-	"github.com/sagernet/sing/common/bufio/deadline"
 	E "github.com/sagernet/sing/common/exceptions"
 	M "github.com/sagernet/sing/common/metadata"
 	N "github.com/sagernet/sing/common/network"
@@ -81,21 +79,14 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	if c.maxEarlyData > 0 {
 		return &EarlyWebsocketConn{Client: c, rawConn: conn, create: make(chan struct{})}, nil
 	}
-	websocketConn, err := c.upgrade(conn, &c.requestURL, c.headers)
+	websocketConn, err := c.upgrade(ctx, conn, &c.requestURL, c.headers)
 	if err != nil {
 		return nil, err
 	}
 	return websocketConn, nil
 }
 
-func (c *Client) upgrade(conn net.Conn, requestURL *url.URL, headers http.Header) (*WebsocketConn, error) {
-	var deadlineConn net.Conn
-	if deadline.NeedAdditionalReadDeadline(conn) {
-		deadlineConn = deadline.NewConn(conn)
-	} else {
-		deadlineConn = conn
-	}
-	deadlineConn.SetDeadline(time.Now().Add(C.TCPTimeout))
+func (c *Client) upgrade(ctx context.Context, conn net.Conn, requestURL *url.URL, headers http.Header) (*WebsocketConn, error) {
 	var protocols []string
 	protocolHeader := headers.Get("Sec-WebSocket-Protocol")
 	if protocolHeader != "" {
@@ -103,8 +94,15 @@ func (c *Client) upgrade(conn net.Conn, requestURL *url.URL, headers http.Header
 		headers = headers.Clone()
 		headers.Del("Sec-WebSocket-Protocol")
 	}
-	reader, _, err := ws.Dialer{Header: ws.HandshakeHeaderHTTP(headers), Protocols: protocols}.Upgrade(deadlineConn, requestURL)
-	deadlineConn.SetDeadline(time.Time{})
+	ctx, cancel := context.WithTimeout(ctx, C.TCPTimeout)
+	defer cancel()
+	stop := context.AfterFunc(ctx, func() {
+		conn.Close()
+	})
+	reader, _, err := ws.Dialer{Header: ws.HandshakeHeaderHTTP(headers), Protocols: protocols}.Upgrade(conn, requestURL)
+	if !stop() {
+		err = ctx.Err()
+	}
 	if err != nil {
 		conn.Close()
 		return nil, err

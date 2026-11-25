@@ -1,6 +1,7 @@
 package v2raywebsocket
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -155,8 +156,6 @@ func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
 	var (
 		earlyData []byte
 		lateData  []byte
-		conn      *WebsocketConn
-		err       error
 	)
 	if len(content) > int(c.maxEarlyData) {
 		earlyData = content[:c.maxEarlyData]
@@ -164,20 +163,18 @@ func (c *EarlyWebsocketConn) writeRequest(content []byte) error {
 	} else {
 		earlyData = content
 	}
+	requestURL := c.requestURL
+	headers := c.headers
 	if len(earlyData) > 0 {
 		earlyDataString := base64.RawURLEncoding.EncodeToString(earlyData)
 		if c.earlyDataHeaderName == "" {
-			requestURL := c.requestURL
 			requestURL.Path += earlyDataString
-			conn, err = c.upgrade(c.rawConn, &requestURL, c.headers)
 		} else {
-			headers := c.headers.Clone()
+			headers = headers.Clone()
 			headers.Set(c.earlyDataHeaderName, earlyDataString)
-			conn, err = c.upgrade(c.rawConn, &c.requestURL, headers)
 		}
-	} else {
-		conn, err = c.upgrade(c.rawConn, &c.requestURL, c.headers)
 	}
+	conn, err := c.upgrade(context.Background(), c.rawConn, &requestURL, headers)
 	if err != nil {
 		return err
 	}
