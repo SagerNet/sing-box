@@ -173,18 +173,16 @@ func (e *Endpoint) Start(postStart bool) error {
 		bind = standardBind
 	} else {
 		var (
-			isConnect   bool
-			connectAddr netip.AddrPort
+			destination = M.Socksaddr{Addr: netip.IPv4Unspecified()}
 			reserved    [3]uint8
 		)
 		if len(e.peers) == 1 {
 			reserved = e.peers[0].reserved
 			if e.peers[0].endpoint.IsValid() {
-				isConnect = true
-				connectAddr = e.peers[0].endpoint
+				destination = M.SocksaddrFromNetIP(e.peers[0].endpoint)
 			}
 		}
-		bind = NewClientBind(e.options.Context, e.options.Logger, e.options.Dialer, isConnect, connectAddr, reserved)
+		bind = NewClientBind(e.options.Context, e.options.Logger, e.options.Dialer, destination, reserved)
 	}
 	if isUDPListener || len(e.peers) > 1 {
 		for _, peer := range e.peers {

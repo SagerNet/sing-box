@@ -30,20 +30,18 @@ type ClientBind struct {
 	connAccess          sync.Mutex
 	conn                atomic.Pointer[wireConn]
 	done                chan struct{}
-	isConnect           bool
-	connectAddr         netip.AddrPort
+	destination         M.Socksaddr
 	reserved            [3]uint8
 }
 
-func NewClientBind(ctx context.Context, logger logger.Logger, dialer N.Dialer, isConnect bool, connectAddr netip.AddrPort, reserved [3]uint8) *ClientBind {
+func NewClientBind(ctx context.Context, logger logger.Logger, dialer N.Dialer, destination M.Socksaddr, reserved [3]uint8) *ClientBind {
 	return &ClientBind{
 		ctx:                 ctx,
 		logger:              logger,
 		dialer:              dialer,
 		reservedForEndpoint: make(map[netip.AddrPort][3]uint8),
 		done:                make(chan struct{}),
-		isConnect:           isConnect,
-		connectAddr:         connectAddr,
+		destination:         destination,
 		reserved:            reserved,
 	}
 }
@@ -72,24 +70,13 @@ func (c *ClientBind) connect() (*wireConn, error) {
 			return serverConn, nil
 		}
 	}
-	if c.isConnect {
-		udpConn, err := c.dialer.DialContext(c.bindCtx, N.NetworkUDP, M.SocksaddrFromNetIP(c.connectAddr))
-		if err != nil {
-			return nil, err
-		}
-		serverConn = &wireConn{
-			PacketConn: bufio.NewUnbindPacketConn(udpConn),
-			done:       make(chan struct{}),
-		}
-	} else {
-		udpConn, err := c.dialer.ListenPacket(c.bindCtx, M.Socksaddr{Addr: netip.IPv4Unspecified()})
-		if err != nil {
-			return nil, err
-		}
-		serverConn = &wireConn{
-			PacketConn: bufio.NewPacketConn(udpConn),
-			done:       make(chan struct{}),
-		}
+	udpConn, err := c.dialer.ListenPacket(c.bindCtx, c.destination)
+	if err != nil {
+		return nil, err
+	}
+	serverConn = &wireConn{
+		PacketConn: bufio.NewPacketConn(udpConn),
+		done:       make(chan struct{}),
 	}
 	c.conn.Store(serverConn)
 	return serverConn, nil
