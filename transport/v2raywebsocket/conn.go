@@ -13,6 +13,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/ws"
@@ -59,7 +60,7 @@ func (c *WebsocketConn) Close() error {
 	if c.state == ws.StateClientSide {
 		frame = ws.MaskFrameInPlace(frame)
 	}
-	ws.WriteFrame(c.Conn, frame)
+	c.Conn.Write(ws.MustCompileFrame(frame))
 	c.Conn.Close()
 	return nil
 }
@@ -98,12 +99,7 @@ func (c *WebsocketConn) Read(b []byte) (n int, err error) {
 }
 
 func (c *WebsocketConn) Write(p []byte) (n int, err error) {
-	err = wrapWsError(wsutil.WriteMessage(c.Conn, c.state, ws.OpBinary, p))
-	if err != nil {
-		return
-	}
-	n = len(p)
-	return
+	return bufio.WriteBuffer(c, buf.As(p))
 }
 
 func (c *WebsocketConn) RemoteAddr() net.Addr {
