@@ -95,7 +95,7 @@ func (s *Server) ServeConnection(ctx context.Context, conn net.Conn, reader *Rea
 		}
 	}
 	if !s.http1 {
-		_, err := conn.Write([]byte("HTTP/1.1 505 HTTP Version Not Supported\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"))
+		err := writeReject(conn, nil, http.StatusHTTPVersionNotSupported, nil, false)
 		s.finishConnection(ctx, conn, source, onClose, err)
 		return
 	}
