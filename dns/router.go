@@ -202,7 +202,7 @@ func (r *Router) buildRules(startRules bool) ([]adapter.DNSRule, bool, dnsRuleMo
 			r.logger.Warn(warning)
 		}
 	}
-	err = validateEvaluateFakeIPRules(r.rawRules, r.transport)
+	err = validateRuleActionServers(r.rawRules, r.transport)
 	if err != nil {
 		return nil, false, dnsRuleModeFlags{}, err
 	}
@@ -1683,23 +1683,19 @@ func validateLegacyDNSModeDisabledRules(router adapter.Router, rules []option.DN
 	return warnings, nil
 }
 
-func validateEvaluateFakeIPRules(rules []option.DNSRule, transportManager adapter.DNSTransportManager) error {
-	if transportManager == nil {
-		return nil
-	}
+func validateRuleActionServers(rules []option.DNSRule, transportManager adapter.DNSTransportManager) error {
 	for i, rule := range rules {
-		if dnsRuleActionType(rule) != C.RuleActionTypeEvaluate {
-			continue
-		}
 		server := dnsRuleActionServer(rule)
 		if server == "" {
 			continue
 		}
 		transport, loaded := transportManager.Transport(server)
-		if !loaded || transport.Type() != C.DNSTypeFakeIP {
-			continue
+		if !loaded {
+			return E.New("dns rule[", i, "]: server not found: ", server)
 		}
-		return E.New("dns rule[", i, "]: evaluate action cannot use fakeip server: ", server)
+		if dnsRuleActionType(rule) == C.RuleActionTypeEvaluate && transport.Type() == C.DNSTypeFakeIP {
+			return E.New("dns rule[", i, "]: evaluate action cannot use fakeip server: ", server)
+		}
 	}
 	return nil
 }

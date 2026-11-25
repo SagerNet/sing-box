@@ -110,16 +110,23 @@ func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) erro
 
 func (r *Router) ValidateRuleActions() error {
 	for i, rule := range r.rules {
-		var outboundTag string
+		var outboundTag, serverTag string
 		switch action := rule.Action().(type) {
 		case *R.RuleActionRoute:
 			outboundTag = action.Outbound
 		case *R.RuleActionBypass:
 			outboundTag = action.Outbound
+		case *R.RuleActionResolve:
+			serverTag = action.Server
 		}
 		if outboundTag != "" {
 			if _, loaded := r.outbound.Outbound(outboundTag); !loaded {
 				return E.New("rule[", i, "]: outbound not found: ", outboundTag)
+			}
+		}
+		if serverTag != "" {
+			if _, loaded := r.dnsTransport.Transport(serverTag); !loaded {
+				return E.New("rule[", i, "]: DNS server not found: ", serverTag)
 			}
 		}
 	}
