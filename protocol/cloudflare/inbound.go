@@ -120,7 +120,7 @@ type routerDialer struct {
 // (router_pipe.go dialRouterTCPWithMetadata, origin_dial.go dialWarpPacketConnection), while the
 // routing and the outbound dial behind the pipe are still in progress, so only its deadline is
 // honoured, and only until the outbound handshake is reported.
-func (d *routerDialer) routeContext(ctx context.Context) (context.Context, func(), func()) {
+func (d *routerDialer) routeContext(ctx context.Context) (context.Context, func(), N.CloseHandlerFunc) {
 	routeCtx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
 	stopShutdown := context.AfterFunc(d.ctx, func() {
 		cancel(context.Cause(d.ctx))
@@ -136,7 +136,7 @@ func (d *routerDialer) routeContext(ctx context.Context) (context.Context, func(
 			connectTimeout.Stop()
 		}
 	}
-	closed := func() {
+	closed := func(error) {
 		connected()
 		stopShutdown()
 	}
@@ -199,10 +199,7 @@ func (d *routerDialer) newMetadata(network string, destination M.Socksaddr) adap
 func (d *routerDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
 	input, output := pipe.Pipe()
 	routeCtx, connected, closed := d.routeContext(ctx)
-	go d.router.RouteConnectionEx(routeCtx, &routedConn{Conn: output, connected: connected}, d.newMetadata(N.NetworkTCP, destination), N.OnceClose(func(it error) {
-		closed()
-		input.Close()
-	}))
+	go d.router.RouteConnectionEx(routeCtx, &routedConn{Conn: output, connected: connected}, d.newMetadata(N.NetworkTCP, destination), closed)
 	return input, nil
 }
 
@@ -210,10 +207,7 @@ func (d *routerDialer) ListenPacket(ctx context.Context, destination M.Socksaddr
 	input, output := pipe.Pipe()
 	routeCtx, connected, closed := d.routeContext(ctx)
 	routerConn := &routedPacketConn{PacketConn: bufio.NewUnbindPacketConn(output), connected: connected}
-	go d.router.RoutePacketConnectionEx(routeCtx, routerConn, d.newMetadata(N.NetworkUDP, destination), N.OnceClose(func(it error) {
-		closed()
-		input.Close()
-	}))
+	go d.router.RoutePacketConnectionEx(routeCtx, routerConn, d.newMetadata(N.NetworkUDP, destination), closed)
 	return bufio.NewUnbindPacketConn(input), nil
 }
 
