@@ -64,6 +64,8 @@
 
 在打开新连接之前，连接中的最小多路复用流数量。
 
+未设置 `max_connections` 和 `max_streams` 时，默认使用 `8`。
+
 与 `max_streams` 冲突。
 
 #### max_streams
