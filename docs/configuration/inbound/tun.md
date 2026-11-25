@@ -183,9 +183,7 @@ icon: material/new-box
   ],
   "inet6_route_exclude_address": [
     "fc00::/7"
-  ],
-  ...
-  // Listen Fields
+  ]
 }
 ```
 
@@ -693,7 +691,3 @@ Hostnames that use the HTTP proxy.
 ### UDP NAT Fields
 
 See [UDP NAT Fields](/configuration/shared/udp-nat/) for details.
-
-### Listen Fields
-
-See [Listen Fields](/configuration/shared/listen/) for details.

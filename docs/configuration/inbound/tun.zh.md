@@ -185,9 +185,7 @@ icon: material/new-box
   ],
   "inet6_route_exclude_address": [
     "fc00::/7"
-  ],
-  
-  ... // 监听字段
+  ]
 }
 ```
 
@@ -678,7 +676,3 @@ TCP/IP 栈。
 ### UDP NAT 字段
 
 参阅 [UDP NAT 字段](/zh/configuration/shared/udp-nat/)。
-
-### 监听字段
-
-参阅 [监听字段](/zh/configuration/shared/listen/)。
