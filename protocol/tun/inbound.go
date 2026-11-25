@@ -144,7 +144,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		switch options.Stack {
 		case "", "go":
 		default:
-			return nil, E.New("`multi_queue` is only supported by the `go` stack")
+			return nil, E.New("`multi_queue` requires sing-tun's own TCP/IP stack, remove `stack` to use it")
 		}
 	}
 	var udpTimeout time.Duration
