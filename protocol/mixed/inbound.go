@@ -100,7 +100,6 @@ func (h *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 
 func (h *Inbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
 	err := h.newConnection(ctx, conn, metadata, onClose)
-	N.CloseOnHandshakeFailure(conn, onClose, err)
 	if err != nil {
 		if E.IsClosedOrCanceled(err) {
 			h.logger.DebugContext(ctx, "connection closed: ", err)
@@ -114,21 +113,33 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	if h.tlsConfig != nil {
 		tlsConn, err := tls.ServerHandshake(ctx, conn, h.tlsConfig)
 		if err != nil {
-			return E.Cause(err, "TLS handshake")
+			err = E.Cause(err, "TLS handshake")
+			N.CloseOnHandshakeFailure(conn, onClose, err)
+			return err
 		}
 		conn = tlsConn
 	}
 	reader := std_bufio.NewReader(conn)
 	headerBytes, err := reader.Peek(1)
 	if err != nil {
-		return E.Cause(err, "peek first byte")
+		err = E.Cause(err, "peek first byte")
+		N.CloseOnHandshakeFailure(conn, onClose, err)
+		return err
 	}
 	switch headerBytes[0] {
 	case socks4.Version, socks5.Version:
-		return socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
+		err = socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
+		N.CloseOnHandshakeFailure(conn, onClose, err)
 	default:
-		return http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+		err = http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
+		if err != nil {
+			conn.Close()
+		}
+		if onClose != nil {
+			onClose(err)
+		}
 	}
+	return err
 }
 
 func (h *Inbound) newUserConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
