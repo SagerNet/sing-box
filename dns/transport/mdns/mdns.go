@@ -20,7 +20,6 @@ import (
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/common/logger"
-	"github.com/sagernet/sing/common/task"
 	"github.com/sagernet/sing/service"
 
 	mDNS "github.com/miekg/dns"
@@ -127,49 +126,44 @@ func (t *Transport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg,
 	if err != nil {
 		return nil, E.Cause(err, "mdns: pack request")
 	}
-	deadline, loaded := ctx.Deadline()
-	if !loaded || deadline.IsZero() {
-		deadline = time.Now().Add(mdnsTimeout)
-	}
-	exchangeCtx, cancel := context.WithDeadline(ctx, deadline)
+	exchangeCtx, cancel := context.WithTimeout(ctx, mdnsTimeout)
 	defer cancel()
 	results := make(chan exchangeResult, len(targets))
-	var group task.Group
 	for _, target := range targets {
-		group.Append0(func(ctx context.Context) error {
-			response, err := t.exchangeTarget(ctx, target, rawMessage, message.Question[0], deadline)
-			if err != nil || response != nil {
-				results <- exchangeResult{
-					response: response,
-					err:      err,
-				}
+		go func() {
+			response, err := t.exchangeTarget(exchangeCtx, target, rawMessage, message.Question[0])
+			results <- exchangeResult{
+				response: response,
+				err:      err,
 			}
-			return nil
-		})
+		}()
 	}
-	groupErr := group.Run(exchangeCtx)
-	close(results)
 	response := newResponse(message)
 	seenRecords := make(map[string]bool)
-	var lastErr error
-	for result := range results {
+	var (
+		exchangeErr      error
+		completedTargets int
+	)
+	for range targets {
+		result := <-results
 		if result.err != nil {
-			lastErr = result.err
+			exchangeErr = E.Errors(exchangeErr, result.err)
 			t.logger.TraceContext(ctx, result.err)
 			continue
 		}
+		completedTargets++
 		mergeResponse(response, result.response, seenRecords)
 	}
 	if len(response.Answer) > 0 || len(response.Ns) > 0 || len(response.Extra) > 0 {
 		return response, nil
 	}
-	if lastErr != nil {
-		return nil, lastErr
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-	if groupErr != nil && ctx.Err() != nil {
-		return nil, groupErr
+	if completedTargets == 0 {
+		return nil, exchangeErr
 	}
-	return nil, E.New("mdns: query timeout")
+	return response, nil
 }
 
 func (t *Transport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
@@ -188,20 +182,20 @@ type queryTarget struct {
 	family string
 }
 
-func (t *Transport) exchangeTarget(ctx context.Context, target queryTarget, rawMessage []byte, question mDNS.Question, deadline time.Time) (*mDNS.Msg, error) {
+func (t *Transport) exchangeTarget(ctx context.Context, target queryTarget, rawMessage []byte, question mDNS.Question) (*mDNS.Msg, error) {
 	packetConn, destination, err := t.listenPacket(ctx, target)
 	if err != nil {
 		return nil, err
 	}
 	defer packetConn.Close()
+	stopRead := context.AfterFunc(ctx, func() {
+		packetConn.SetReadDeadline(time.Now())
+	})
+	defer stopRead()
 
 	_, err = packetConn.WriteTo(rawMessage, destination)
 	if err != nil {
 		return nil, E.Cause(err, "mdns: write request on ", target.iface.Name, " ", target.family)
-	}
-	err = packetConn.SetReadDeadline(deadline)
-	if err != nil {
-		return nil, E.Cause(err, "mdns: set deadline on ", target.iface.Name, " ", target.family)
 	}
 	response := newResponseFromQuestion(question)
 	seenRecords := make(map[string]bool)
@@ -211,10 +205,7 @@ func (t *Transport) exchangeTarget(ctx context.Context, target queryTarget, rawM
 		n, source, readErr := packetConn.ReadFrom(buffer)
 		if readErr != nil {
 			if E.IsTimeout(readErr) {
-				if len(response.Answer) > 0 || len(response.Ns) > 0 || len(response.Extra) > 0 {
-					return response, nil
-				}
-				return nil, nil
+				return response, nil
 			}
 			return nil, E.Cause(readErr, "mdns: read response on ", target.iface.Name, " ", target.family)
 		}
@@ -315,7 +306,14 @@ func (t *Transport) fetchInterfaces() ([]control.Interface, error) {
 			interfaces = append(interfaces, *iface)
 		}
 	} else {
-		interfaces = common.Filter(finder.Interfaces(), isUsableInterface)
+		var myInterfaces []string
+		interfaceMonitor := t.networkManager.InterfaceMonitor()
+		if interfaceMonitor != nil {
+			myInterfaces = interfaceMonitor.MyInterfaces()
+		}
+		interfaces = common.Filter(finder.Interfaces(), func(iface control.Interface) bool {
+			return isUsableInterface(iface) && iface.Flags&net.FlagPointToPoint == 0 && !slices.Contains(myInterfaces, iface.Name)
+		})
 	}
 	if len(interfaces) == 0 {
 		return nil, E.New("mdns: missing usable interface")
