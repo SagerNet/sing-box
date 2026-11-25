@@ -39,7 +39,6 @@ type Outbound struct {
 	proxy       *proxybridge.Bridge
 	startConf   *tor.StartConf
 	options     map[string]string
-	events      chan control.Event
 	socksClient *socks.Client
 }
 
@@ -133,7 +132,6 @@ func (t *Outbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 }
 
 var torLogEvents = []control.EventCode{
-	control.EventCodeLogDebug,
 	control.EventCodeLogErr,
 	control.EventCodeLogInfo,
 	control.EventCodeLogNotice,
@@ -141,21 +139,34 @@ var torLogEvents = []control.EventCode{
 }
 
 func (t *Outbound) start(scope *adapter.Scope) error {
-	t.events = make(chan control.Event, 8)
-	scope.Add(func() error {
-		close(t.events)
-		return nil
-	})
 	torInstance, err := tor.Start(t.ctx, t.startConf)
 	if err != nil {
 		return E.New(strings.ToLower(err.Error()))
 	}
+	controlConn := torInstance.Control
+	events := make(chan control.Event, 8)
+	eventLoopDone := make(chan struct{})
+	go t.recvLoop(events)
+	scope.Add(func() error {
+		<-eventLoopDone
+		close(events)
+		return nil
+	})
 	scope.Add(torInstance.Close)
-	err = torInstance.Control.AddEventListener(t.events, torLogEvents...)
+	err = t.configure(controlConn, events)
+	go func() {
+		for controlConn.HandleNextEvent() == nil {
+		}
+		close(eventLoopDone)
+	}()
+	return err
+}
+
+func (t *Outbound) configure(controlConn *control.Conn, events chan<- control.Event) error {
+	err := controlConn.AddEventListener(events, torLogEvents...)
 	if err != nil {
 		return err
 	}
-	go t.recvLoop()
 	proxyPort := "127.0.0.1:" + F.ToString(t.proxy.Port())
 	proxyUsername := t.proxy.Username()
 	proxyPassword := t.proxy.Password()
@@ -167,7 +178,7 @@ func (t *Outbound) start(scope *adapter.Scope) error {
 		control.NewKeyVal("Socks5ProxyUsername", proxyUsername),
 		control.NewKeyVal("Socks5ProxyPassword", proxyPassword),
 	}
-	err = torInstance.Control.ResetConf(confOptions...)
+	err = controlConn.ResetConf(confOptions...)
 	if err != nil {
 		return err
 	}
@@ -179,17 +190,17 @@ func (t *Outbound) start(scope *adapter.Scope) error {
 				"Socks5ProxyPassword":
 				continue
 			}
-			err = torInstance.Control.SetConf(control.NewKeyVal(key, value))
+			err = controlConn.SetConf(control.NewKeyVal(key, value))
 			if err != nil {
 				return E.Cause(err, "set ", key, "=", value)
 			}
 		}
 	}
-	err = torInstance.EnableNetwork(t.ctx, true)
+	err = controlConn.SetConf(control.NewKeyVal("DisableNetwork", "0"))
 	if err != nil {
 		return err
 	}
-	info, err := torInstance.Control.GetInfo("net/listeners/socks")
+	info, err := controlConn.GetInfo("net/listeners/socks")
 	if err != nil {
 		return err
 	}
@@ -202,13 +213,13 @@ func (t *Outbound) start(scope *adapter.Scope) error {
 	return nil
 }
 
-func (t *Outbound) recvLoop() {
-	for rawEvent := range t.events {
+func (t *Outbound) recvLoop(events <-chan control.Event) {
+	for rawEvent := range events {
 		switch event := rawEvent.(type) {
 		case *control.LogEvent:
 			event.Raw = strings.ToLower(event.Raw)
 			switch event.Severity {
-			case control.EventCodeLogDebug, control.EventCodeLogInfo:
+			case control.EventCodeLogInfo:
 				t.logger.Trace(event.Raw)
 			case control.EventCodeLogNotice:
 				if strings.Contains(event.Raw, "disablenetwork") || strings.Contains(event.Raw, "socks listener") {
