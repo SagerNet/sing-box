@@ -561,6 +561,8 @@ TUN 接口上 DNS 的处理方式。
 
     自 1.15.0 起，sing-tun 使用自有 TCP/IP stack，极限性能、能效以及内存占用均大幅领先于所有旧实现。
 
+    :material-delete-alert: `gvisor` 和 `mixed` 栈需要 `with_gvisor` [构建标记](/zh/installation/build-from-source/#构建标记)，该标记已不再默认启用。
+
 !!! quote "sing-box 1.8.0 中的更改"
 
     :material-delete-alert: 旧的 LWIP 栈已被弃用并移除。

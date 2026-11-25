@@ -575,6 +575,9 @@ to customize the mapping and filtering behavior.
     Since 1.15.0, sing-tun uses its own TCP/IP stack, with substantial improvements over all previous
     implementations in peak performance, energy efficiency, and memory usage.
 
+    :material-delete-alert: The `gvisor` and `mixed` stacks require the `with_gvisor` [build tag](/installation/build-from-source/#build-tags),
+    which is no longer included by default.
+
 !!! quote "Changes in sing-box 1.8.0"
 
     :material-delete-alert: The legacy LWIP stack has been deprecated and removed.

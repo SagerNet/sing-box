@@ -14,6 +14,9 @@ Since 1.15.0, sing-tun uses its own TCP/IP stack, with substantial improvements 
 implementations in peak performance, energy efficiency, and memory usage.
 Remove the `stack` option to use it, see [Migration](/migration/#migrate-tun-stack).
 
+The `gvisor` and `mixed` stacks require the `with_gvisor` [build tag](/installation/build-from-source/#build-tags),
+which is no longer included by default.
+
 ## 1.14.0
 
 #### Legacy `download_detour` remote rule-set option

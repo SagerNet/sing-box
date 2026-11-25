@@ -11,6 +11,9 @@ icon: material/arrange-bring-forward
 
 `stack` 参数自 sing-box 1.15.0 起废弃，并将在 sing-box 1.17.0 中被移除。
 
+`gvisor` 和 `mixed` 栈需要 `with_gvisor` [构建标记](/zh/installation/build-from-source/#构建标记)，该标记已不再默认启用，
+因此使用它们的配置必须迁移才能在官方构建中运行。
+
 === ":material-card-remove: 已废弃"
 
     ```json
