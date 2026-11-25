@@ -22,10 +22,11 @@ func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata ad
 		return E.Cause(err, "report handshake success")
 	}
 	err = dnsOutbound.NewDNSConnection(ctx, r.dns, conn, metadata)
-	if err != nil && !E.IsClosedOrCanceled(err) {
-		return err
+	if E.IsClosedOrCanceled(err) {
+		conn.Close()
+		return nil
 	}
-	return nil
+	return err
 }
 
 func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {
