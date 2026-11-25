@@ -333,8 +333,14 @@ func parseMappedAddress(data []byte) (netip.AddrPort, error) {
 	}
 }
 
-func roundTrip(conn net.PacketConn, addr net.Addr, txID TransactionID, attrs []stunAttribute, rto time.Duration) (*parsedResponse, time.Duration, error) {
+func roundTrip(conn net.PacketConn, destination M.Socksaddr, txID TransactionID, attrs []stunAttribute, rto time.Duration) (*parsedResponse, time.Duration, error) {
 	request := buildBindingRequest(txID, attrs...)
+	var addr net.Addr
+	if destination.IsIP() {
+		addr = destination.UDPAddr()
+	} else {
+		addr = destination
+	}
 	currentRTO := rto
 	retransmitCount := 0
 
@@ -409,7 +415,6 @@ func Run(options Options) (*Result, error) {
 
 	var (
 		packetConn net.PacketConn
-		serverAddr net.Addr
 		err        error
 	)
 
@@ -418,17 +423,16 @@ func Run(options Options) (*Result, error) {
 		if err != nil {
 			return nil, E.Cause(err, "create UDP socket")
 		}
-		serverAddr = serverSocksaddr
 	} else {
 		serverUDPAddr, resolveErr := net.ResolveUDPAddr("udp", serverSocksaddr.String())
 		if resolveErr != nil {
 			return nil, E.Cause(resolveErr, "resolve STUN server")
 		}
+		serverSocksaddr = M.SocksaddrFromNet(serverUDPAddr).Unwrap()
 		packetConn, err = net.ListenPacket("udp", "")
 		if err != nil {
 			return nil, E.Cause(err, "create UDP socket")
 		}
-		serverAddr = serverUDPAddr
 	}
 	defer func() {
 		_ = packetConn.Close()
@@ -449,7 +453,7 @@ func Run(options Options) (*Result, error) {
 	reportProgress(Progress{Phase: PhaseBinding})
 
 	txID := newTransactionID()
-	resp, latency, err := roundTrip(packetConn, serverAddr, txID, nil, rto)
+	resp, latency, err := roundTrip(packetConn, serverSocksaddr, txID, nil, rto)
 	if err != nil {
 		return nil, E.Cause(err, "binding request")
 	}
@@ -522,7 +526,7 @@ func Run(options Options) (*Result, error) {
 		NATMapping:   result.NATMapping,
 	})
 
-	result.NATFiltering = detectNATFiltering(packetConn, serverAddr, rto)
+	result.NATFiltering = detectNATFiltering(packetConn, serverSocksaddr, rto)
 
 	reportProgress(Progress{
 		Phase:        PhaseDone,
@@ -543,9 +547,7 @@ func detectNATMapping(
 	rto time.Duration,
 ) NATMapping {
 	// Mapping Test II: Send to other_ip:server_port
-	testIIAddr := net.UDPAddrFromAddrPort(
-		netip.AddrPortFrom(otherAddr.Addr(), serverPort),
-	)
+	testIIAddr := M.SocksaddrFrom(otherAddr.Addr(), serverPort)
 	txID2 := newTransactionID()
 	resp2, _, err := roundTrip(conn, testIIAddr, txID2, nil, rto)
 	if err != nil {
@@ -562,7 +564,7 @@ func detectNATMapping(
 	}
 
 	// Mapping Test III: Send to other_ip:other_port
-	testIIIAddr := net.UDPAddrFromAddrPort(otherAddr)
+	testIIIAddr := M.SocksaddrFromNetIP(otherAddr)
 	txID3 := newTransactionID()
 	resp3, _, err := roundTrip(conn, testIIIAddr, txID3, nil, rto)
 	if err != nil {
@@ -582,7 +584,7 @@ func detectNATMapping(
 
 func detectNATFiltering(
 	conn net.PacketConn,
-	serverAddr net.Addr,
+	serverAddr M.Socksaddr,
 	rto time.Duration,
 ) NATFiltering {
 	// Filtering Test II: Request response from different IP and port
