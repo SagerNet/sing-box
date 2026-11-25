@@ -21,6 +21,8 @@ import (
 	"sync"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/net/route"
 )
 
 var (
@@ -100,7 +102,7 @@ func readClocks() (absoluteTime int64, continuousTime int64) {
 }
 
 func readInterfaceCounters() map[string]interfaceCounters {
-	table, err := syscall.RouteRIB(syscall.NET_RT_IFLIST2, 0)
+	table, err := route.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST2, 0)
 	if err != nil {
 		return nil
 	}
