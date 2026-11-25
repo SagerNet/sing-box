@@ -76,7 +76,13 @@ func NewOutbound(ctx context.Context, router adapter.Router, logger log.ContextL
 			if err != nil {
 				return nil, err
 			}
-			tlsHandshakeFunc = shadowtls.DefaultTLSHandshakeFunc(options.Password, stdTLSConfig)
+			defaultHandshakeFunc := shadowtls.DefaultTLSHandshakeFunc(options.Password, stdTLSConfig)
+			handshakeTimeout := tlsConfig.HandshakeTimeout()
+			tlsHandshakeFunc = func(ctx context.Context, conn net.Conn, sessionIDGenerator shadowtls.TLSSessionIDGeneratorFunc) error {
+				ctx, cancel := context.WithTimeout(ctx, handshakeTimeout)
+				defer cancel()
+				return defaultHandshakeFunc(ctx, conn, sessionIDGenerator)
+			}
 		}
 	}
 	outboundDialer, err := dialer.New(ctx, options.DialerOptions, options.ServerIsDomain())
