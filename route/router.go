@@ -83,7 +83,7 @@ func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) erro
 		if err != nil {
 			return E.Cause(err, "parse rule[", i, "]")
 		}
-		rule, err := R.NewRule(r.ctx, r.logger, options, false)
+		rule, err := R.NewRule(r.ctx, r.logger, options, true)
 		if err != nil {
 			return E.Cause(err, "parse rule[", i, "]")
 		}
@@ -102,6 +102,24 @@ func (r *Router) Initialize(rules []option.Rule, ruleSets []option.RuleSet) erro
 			r.ruleSetMap[tag] = ruleSet
 			if options.Type != C.RuleSetTypeInline {
 				r.hasUpdatableRuleSet = true
+			}
+		}
+	}
+	return nil
+}
+
+func (r *Router) ValidateRuleActions() error {
+	for i, rule := range r.rules {
+		var outboundTag string
+		switch action := rule.Action().(type) {
+		case *R.RuleActionRoute:
+			outboundTag = action.Outbound
+		case *R.RuleActionBypass:
+			outboundTag = action.Outbound
+		}
+		if outboundTag != "" {
+			if _, loaded := r.outbound.Outbound(outboundTag); !loaded {
+				return E.New("rule[", i, "]: outbound not found: ", outboundTag)
 			}
 		}
 	}

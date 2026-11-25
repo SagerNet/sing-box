@@ -16,14 +16,14 @@ import (
 var _ adapter.OutboundManager = (*Manager)(nil)
 
 type Manager struct {
-	registry                adapter.OutboundRegistry
-	endpoint                adapter.EndpointManager
-	defaultTag              string
-	access                  sync.RWMutex
-	outbounds               []adapter.Outbound
-	outboundByTag           map[string]adapter.Outbound
-	defaultOutbound         adapter.Outbound
-	defaultOutboundFallback func() (adapter.Outbound, error)
+	registry        adapter.OutboundRegistry
+	endpoint        adapter.EndpointManager
+	defaultTag      string
+	access          sync.RWMutex
+	outbounds       []adapter.Outbound
+	outboundByTag   map[string]adapter.Outbound
+	defaultOutbound adapter.Outbound
+	sortedOutbounds []adapter.Outbound
 }
 
 func NewManager(registry adapter.OutboundRegistry, endpoint adapter.EndpointManager, defaultTag string) *Manager {
@@ -35,42 +35,41 @@ func NewManager(registry adapter.OutboundRegistry, endpoint adapter.EndpointMana
 	}
 }
 
-func (m *Manager) Initialize(defaultOutboundFallback func() (adapter.Outbound, error)) {
-	m.defaultOutboundFallback = defaultOutboundFallback
-}
-
-func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+func (m *Manager) Initialize(defaultOutboundFallback func() (adapter.Outbound, error)) error {
 	m.access.Lock()
-	if stage == adapter.StartStateInitialize {
-		if m.defaultTag != "" && m.defaultOutbound == nil {
-			defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
-			if !loaded {
-				m.access.Unlock()
-				return E.New("default outbound not found: ", m.defaultTag)
-			}
-			m.defaultOutbound = defaultEndpoint
+	defer m.access.Unlock()
+	if m.defaultTag != "" && m.defaultOutbound == nil {
+		defaultEndpoint, loaded := m.endpoint.Get(m.defaultTag)
+		if !loaded {
+			return E.New("default outbound not found: ", m.defaultTag)
 		}
-		if m.defaultOutbound == nil {
-			directOutbound, err := m.defaultOutboundFallback()
-			if err != nil {
-				m.access.Unlock()
-				return E.Cause(err, "create direct outbound for fallback")
-			}
-			m.outbounds = append(m.outbounds, directOutbound)
-			m.outboundByTag[directOutbound.Tag()] = directOutbound
-			m.defaultOutbound = directOutbound
-		}
+		m.defaultOutbound = defaultEndpoint
 	}
-	outbounds := m.outbounds
-	m.access.Unlock()
-	sortedOutbounds, err := sortOutbounds(slices.Concat(outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })))
+	if m.defaultOutbound == nil {
+		directOutbound, err := defaultOutboundFallback()
+		if err != nil {
+			return E.Cause(err, "create direct outbound for fallback")
+		}
+		m.outbounds = append(m.outbounds, directOutbound)
+		m.outboundByTag[directOutbound.Tag()] = directOutbound
+		m.defaultOutbound = directOutbound
+	}
+	sortedOutbounds, err := sortOutbounds(slices.Concat(m.outbounds, common.Map(m.endpoint.Endpoints(), func(it adapter.Endpoint) adapter.Outbound { return it })))
 	if err != nil {
 		return err
 	}
+	m.sortedOutbounds = sortedOutbounds
+	return nil
+}
+
+func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
+	m.access.RLock()
+	sortedOutbounds := m.sortedOutbounds
+	m.access.RUnlock()
 	for _, outbound := range sortedOutbounds {
 		if endpoint, isEndpoint := outbound.(adapter.Endpoint); isEndpoint {
 			if stage == adapter.StartStateStart {
-				err = m.endpoint.StartEndpoint(endpoint)
+				err := m.endpoint.StartEndpoint(endpoint)
 				if err != nil {
 					return err
 				}
@@ -82,7 +81,7 @@ func (m *Manager) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 			continue
 		}
 		name := "outbound/" + outbound.Type() + "[" + outbound.Tag() + "]"
-		err = scope.Start(name, lifecycle, stage)
+		err := scope.Start(name, lifecycle, stage)
 		if err != nil {
 			return err
 		}
