@@ -83,6 +83,9 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		return nil, E.New("legacy inbound fields are deprecated in sing-box 1.11.0 and removed in sing-box 1.13.0, checkout migration: https://sing-box.sagernet.org/migration/#migrate-legacy-inbound-fields-to-rule-actions")
 	}
 	if options.Stack != "" {
+		if !tun.WithGVisor && (options.Stack == "gvisor" || options.Stack == "mixed") {
+			return nil, E.New("`", options.Stack, "` stack requires the `with_gvisor` build tag, which is no longer included by default since sing-box 1.15.0, remove `stack` to use sing-tun's own TCP/IP stack, checkout migration: ", deprecated.OptionTunStack.MigrationLink)
+		}
 		deprecated.Report(ctx, deprecated.OptionTunStack)
 	}
 

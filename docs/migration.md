@@ -12,6 +12,9 @@ Remove the `stack` option to use it.
 
 The `stack` option is deprecated in sing-box 1.15.0 and will be removed in sing-box 1.17.0.
 
+The `gvisor` and `mixed` stacks require the `with_gvisor` [build tag](/installation/build-from-source/#build-tags),
+which is no longer included by default, so configurations using them must be migrated to run on official builds.
+
 === ":material-card-remove: Deprecated"
 
     ```json

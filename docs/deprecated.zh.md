@@ -13,6 +13,8 @@ TUN 的 `stack` 参数已废弃，并将在 sing-box 1.17.0 中被移除。
 自 1.15.0 起，sing-tun 使用自有 TCP/IP stack，极限性能、能效以及内存占用均大幅领先于所有旧实现。
 移除 `stack` 参数以使用，参阅[迁移指南](/zh/migration/#迁移-tun-stack)。
 
+`gvisor` 和 `mixed` 栈需要 `with_gvisor` [构建标记](/zh/installation/build-from-source/#构建标记)，该标记已不再默认启用。
+
 ## 1.14.0
 
 #### 旧版远程规则集 `download_detour` 选项
