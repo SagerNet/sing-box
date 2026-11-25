@@ -71,21 +71,6 @@ func (l *Listener) ListenUDPWithConfig(listenConfig net.ListenConfig) (net.Packe
 	return udpConn, err
 }
 
-func (l *Listener) DialContext(dialer net.Dialer, ctx context.Context, network string, address string) (net.Conn, error) {
-	return ListenNetworkNamespace[net.Conn](l.ctx, l.listenOptions.NetNs, func() (net.Conn, error) {
-		if l.listenOptions.BindInterface != "" {
-			dialer.Control = control.Append(dialer.Control, l.bindInterfaceFunc())
-		}
-		if l.listenOptions.RoutingMark != 0 {
-			dialer.Control = control.Append(dialer.Control, control.RoutingMark(uint32(l.listenOptions.RoutingMark)))
-		}
-		if l.listenOptions.ReuseAddr {
-			dialer.Control = control.Append(dialer.Control, control.ReuseAddr())
-		}
-		return dialer.DialContext(ctx, network, address)
-	})
-}
-
 func (l *Listener) ListenPacket(listenConfig net.ListenConfig, ctx context.Context, network string, address string) (net.PacketConn, error) {
 	return ListenNetworkNamespace[net.PacketConn](l.ctx, l.listenOptions.NetNs, func() (net.PacketConn, error) {
 		listenConfig.Control = control.Append(listenConfig.Control, control.UDPSocketBuffer(UDPSocketBufferSize()))
