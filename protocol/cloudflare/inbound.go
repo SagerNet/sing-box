@@ -49,16 +49,14 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		return nil, E.Cause(err, "build cloudflared tunnel dialer")
 	}
 	dnsRouter := service.FromContext[adapter.DNSRouter](ctx)
-	controlResolver := newRouterResolver(dnsRouter, controlDialer.(dialer.ResolveDialer).QueryOptions())
-	tunnelResolver := newRouterResolver(dnsRouter, tunnelDialer.(dialer.ResolveDialer).QueryOptions())
 
 	service, err := cloudflared.NewService(cloudflared.ServiceOptions{
 		Logger:           logger,
 		ConnectionDialer: &routerDialer{ctx: ctx, router: router, tag: tag},
 		ControlDialer:    controlDialer,
 		TunnelDialer:     tunnelDialer,
-		ControlResolver:  controlResolver,
-		TunnelResolver:   tunnelResolver,
+		ControlResolver:  &routerResolver{dnsRouter: dnsRouter, queryOptions: controlDialer.(dialer.ResolveDialer).QueryOptions()},
+		TunnelResolver:   &routerResolver{dnsRouter: dnsRouter, queryOptions: tunnelDialer.(dialer.ResolveDialer).QueryOptions()},
 		ICMPHandler:      &icmpRouterHandler{router: router, logger: logger, tag: tag},
 		ConnContext: func(connCtx context.Context) context.Context {
 			return adapter.WithContext(connCtx, &adapter.InboundContext{

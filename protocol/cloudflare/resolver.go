@@ -10,17 +10,16 @@ import (
 	"strings"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 
 	mDNS "github.com/miekg/dns"
+	"golang.org/x/net/dns/dnsmessage"
 )
 
 type routerResolver struct {
 	dnsRouter    adapter.DNSRouter
 	queryOptions adapter.DNSQueryOptions
-}
-
-func newRouterResolver(dnsRouter adapter.DNSRouter, queryOptions adapter.DNSQueryOptions) *routerResolver {
-	return &routerResolver{dnsRouter: dnsRouter, queryOptions: queryOptions}
 }
 
 func (r *routerResolver) LookupNetIP(ctx context.Context, host string) ([]netip.Addr, error) {
@@ -54,4 +53,29 @@ func (r *routerResolver) LookupSRV(ctx context.Context, service, proto, name str
 		return records[i].Weight > records[j].Weight
 	})
 	return records, nil
+}
+
+func (r *routerResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	message := &mDNS.Msg{}
+	message.SetQuestion(mDNS.Fqdn(name), mDNS.TypeTXT)
+	response, err := r.dnsRouter.Exchange(ctx, message, r.queryOptions)
+	if err != nil {
+		return nil, err
+	}
+	rawResponse, err := response.Pack()
+	if err != nil {
+		return nil, E.Cause(err, "pack TXT response")
+	}
+	var parsedResponse dnsmessage.Message
+	err = parsedResponse.Unpack(rawResponse)
+	if err != nil {
+		return nil, E.Cause(err, "unpack TXT response")
+	}
+	return common.FilterIsInstance(parsedResponse.Answers, func(it dnsmessage.Resource) (string, bool) {
+		record, isTXT := it.Body.(*dnsmessage.TXTResource)
+		if !isTXT {
+			return "", false
+		}
+		return strings.Join(record.TXT, ""), true
+	}), nil
 }
