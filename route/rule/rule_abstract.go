@@ -73,16 +73,10 @@ func (r *abstractDefaultRule) matchInner(metadata *adapter.InboundContext) bool 
 			return false
 		}
 	}
-	var matched bool
 	if r.ruleSetItem != nil {
-		matched = r.ruleSetItem.matchWithOuterGroups(metadata, groups)
-	} else {
-		matched = groups.done()
+		return r.ruleSetItem.matchWithOuterGroups(metadata, groups)
 	}
-	if matched {
-		metadata.DeferredIPCIDRMatchGroups &^= uint8(groups.satisfied)
-	}
-	return matched
+	return groups.done()
 }
 
 func (r *abstractDefaultRule) evaluateForMerge(metadata *adapter.InboundContext) (ruleGroupMatch, bool) {
