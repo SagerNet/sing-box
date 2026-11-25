@@ -65,6 +65,8 @@ Conflict with `max_streams`.
 
 Minimum multiplexed streams in a connection before opening a new connection.
 
+`8` is used by default when neither `max_connections` nor `max_streams` is set.
+
 Conflict with `max_streams`.
 
 #### max_streams
