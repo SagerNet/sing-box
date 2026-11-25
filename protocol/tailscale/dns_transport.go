@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/sagernet/sing/service"
 	nDNS "github.com/sagernet/tailscale/net/dns"
 	nDNSResolver "github.com/sagernet/tailscale/net/dns/resolver"
+	"github.com/sagernet/tailscale/net/tsaddr"
 	"github.com/sagernet/tailscale/types/dnstype"
 	"github.com/sagernet/tailscale/util/dnsname"
 	"github.com/sagernet/tailscale/wgengine/router"
@@ -494,15 +496,19 @@ func (t *DNSTransport) exchangeOnce(ctx context.Context, message *mDNS.Msg, allo
 }
 
 func lookupHosts(hosts map[string][]netip.Addr, magicHosts nDNSResolver.MagicDNSHosts, name string) ([]netip.Addr, bool) {
+	fqdn, err := dnsname.ToFQDN(name)
+	if err != nil {
+		return nil, false
+	}
+	viaAddress, isVia := lookupViaHost(fqdn)
+	if isVia {
+		return []netip.Addr{viaAddress}, true
+	}
 	addresses, loaded := hosts[name]
 	if loaded {
 		return addresses, true
 	}
 	if magicHosts == nil {
-		return nil, false
-	}
-	fqdn, err := dnsname.ToFQDN(name)
-	if err != nil {
 		return nil, false
 	}
 	addresses, loaded = magicHosts.LookupHost(fqdn)
@@ -515,6 +521,26 @@ func lookupHosts(hosts map[string][]netip.Addr, magicHosts nDNSResolver.MagicDNS
 		}
 	}
 	return nil, false
+}
+
+// Tailscale's resolver answers <a-b-c-d>-via-<site ID>, bare or under ts.net or
+// tailscale.net, with its 4via6 address ahead of hosts and routes.
+func lookupViaHost(fqdn dnsname.FQDN) (netip.Addr, bool) {
+	firstLabel, parent, _ := strings.Cut(fqdn.WithoutTrailingDot(), ".")
+	addressLabel, siteIDLabel, isVia := strings.Cut(firstLabel, "-via-")
+	if !isVia || parent != "" && !dnsname.HasSuffix(parent, "ts.net") && !dnsname.HasSuffix(parent, "tailscale.net") {
+		return netip.Addr{}, false
+	}
+	address, err := netip.ParseAddr(strings.ReplaceAll(addressLabel, "-", "."))
+	if err != nil || !address.Is4() {
+		return netip.Addr{}, false
+	}
+	siteID, err := strconv.ParseUint(siteIDLabel, 0, 32)
+	if err != nil {
+		return netip.Addr{}, false
+	}
+	viaPrefix := common.Must1(tsaddr.MapVia(uint32(siteID), netip.PrefixFrom(address, 32)))
+	return viaPrefix.Addr(), true
 }
 
 func resolverExchangers(resolvers []adapter.DNSTransport, message *mDNS.Msg) []transport.AsyncExchanger {
