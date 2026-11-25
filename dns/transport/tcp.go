@@ -142,10 +142,9 @@ func ReadMessage(reader io.Reader) (*mDNS.Msg, error) {
 }
 
 func WriteMessage(writer io.Writer, messageId uint16, message *mDNS.Msg) error {
-	requestLen := message.Len()
-	buffer := buf.NewSize(3 + requestLen)
+	buffer := buf.NewSize(3 + message.Len())
 	defer buffer.Release()
-	common.Must(binary.Write(buffer, binary.BigEndian, uint16(requestLen)))
+	lengthBuffer := buffer.Extend(2)
 	exMessage := message.Copy()
 	exMessage.Id = messageId
 	exMessage.Compress = true
@@ -153,6 +152,7 @@ func WriteMessage(writer io.Writer, messageId uint16, message *mDNS.Msg) error {
 	if err != nil {
 		return err
 	}
+	binary.BigEndian.PutUint16(lengthBuffer, uint16(len(rawMessage)))
 	buffer.Truncate(2 + len(rawMessage))
 	return common.Error(writer.Write(buffer.Bytes()))
 }
