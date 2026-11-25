@@ -60,6 +60,7 @@ type Inbound struct {
 	usePlatformAutoRedirect bool
 	disableNFTables         bool
 	autoRedirect            tun.AutoRedirect
+	routeAddress            *netipx.IPSet
 	routeRuleSet            []adapter.RuleSet
 	routeExcludeRuleSet     []adapter.RuleSet
 	routeAddressSetAccess   sync.RWMutex
@@ -98,6 +99,19 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 	})
 
 	routeAddress := options.RouteAddress
+	var preMatchRouteAddress *netipx.IPSet
+	if options.AutoRedirect && len(options.RouteAddressSet) > 0 && len(routeAddress) > 0 {
+		var builder netipx.IPSetBuilder
+		for _, prefix := range routeAddress {
+			builder.AddPrefix(prefix)
+		}
+		var err error
+		preMatchRouteAddress, err = builder.IPSet()
+		if err != nil {
+			return nil, E.Cause(err, "build route_address")
+		}
+		routeAddress = nil
+	}
 	inet4RouteAddress := common.Filter(routeAddress, func(it netip.Prefix) bool {
 		return it.Addr().Is4()
 	})
@@ -256,6 +270,7 @@ func NewInbound(ctx context.Context, router adapter.Router, logger log.ContextLo
 		platformInterface:    platformInterface,
 		usePlatformInterface: usePlatformInterface,
 		platformOptions:      common.PtrValueOrDefault(options.Platform),
+		routeAddress:         preMatchRouteAddress,
 	}
 	for _, routeAddressSet := range options.RouteAddressSet {
 		ruleSet, loaded := router.RuleSet(routeAddressSet)
@@ -429,10 +444,7 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 				routeExcludeAddressSet = append(routeExcludeAddressSet, ipSets...)
 			}
 			if t.autoRedirect != nil {
-				t.routeAddressSetAccess.Lock()
-				t.routeAddressSet = routeAddressSet
-				t.routeExcludeAddressSet = routeExcludeAddressSet
-				t.routeAddressSetAccess.Unlock()
+				t.storeRouteAddressSet(routeAddressSet, routeExcludeAddressSet)
 				for _, routeRuleSet := range t.routeRuleSet {
 					callback := routeRuleSet.RegisterCallback(t.updateRouteAddressSet)
 					scope.Add(func() error {
@@ -553,13 +565,21 @@ func (t *Inbound) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	return nil
 }
 
-func (t *Inbound) updateRouteAddressSet(it adapter.RuleSet) {
-	routeAddressSet := common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet)
-	routeExcludeAddressSet := common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet)
+func (t *Inbound) storeRouteAddressSet(routeAddressSet []*netipx.IPSet, routeExcludeAddressSet []*netipx.IPSet) {
+	if t.routeAddress != nil {
+		routeAddressSet = append(routeAddressSet, t.routeAddress)
+	}
 	t.routeAddressSetAccess.Lock()
 	t.routeAddressSet = routeAddressSet
 	t.routeExcludeAddressSet = routeExcludeAddressSet
 	t.routeAddressSetAccess.Unlock()
+}
+
+func (t *Inbound) updateRouteAddressSet(it adapter.RuleSet) {
+	t.storeRouteAddressSet(
+		common.FlatMap(t.routeRuleSet, adapter.RuleSet.ExtractIPSet),
+		common.FlatMap(t.routeExcludeRuleSet, adapter.RuleSet.ExtractIPSet),
+	)
 	err := t.autoRedirect.UpdateRouteAddressSet()
 	if err != nil {
 		t.logger.Error("update route address set: ", err)

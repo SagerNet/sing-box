@@ -6,6 +6,7 @@ icon: material/new-box
 
     :material-plus: [auto_redirect_tproxy_mark](#auto_redirect_tproxy_mark)  
     :material-plus: [multi_queue](#multi_queue)  
+    :material-alert: [route_address_set](#route_address_set)  
     :material-delete-clock: [stack](#stack)
 
 !!! quote "Changes in sing-box 1.14.0"
@@ -515,7 +516,7 @@ Exclude custom routes when `auto_route` is enabled.
     
         Only supported on Linux and requires `auto_route` and `auto_redirect` enabled.
     
-    Match the destination IP CIDR rules in the specified rule-sets during pre-matching.
+    Match the destination IP CIDR rules in the specified rule-sets and `route_address` during pre-matching.
     Unmatched traffic will bypass the sing-box routes.
     
     Conflict with `route.default_mark` and `[dialOptions].routing_mark`.
