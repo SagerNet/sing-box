@@ -29,40 +29,47 @@ var (
 
 func enableBridgeForwarding(logger logger.ContextLogger, tunName string, inet4 bool, inet6 bool) []sysctlState {
 	var restore []sysctlState
-	enable := func(path string) bool {
+	enable := func(path string, prepare func() []sysctlState) {
 		content, err := os.ReadFile(path)
 		if err != nil {
 			logger.Debug(E.Cause(err, "read ", path))
-			return false
+			return
 		}
 		value := strings.TrimSpace(string(content))
 		if value == "1" {
-			return false
+			return
+		}
+		var prepared []sysctlState
+		if prepare != nil {
+			prepared = prepare()
 		}
 		err = os.WriteFile(path, []byte("1"), 0o644)
 		if err != nil {
 			logger.Debug(E.Cause(err, "enable ", path))
-			return false
+			restoreBridgeForwarding(prepared)
+			return
 		}
 		restore = append(restore, sysctlState{name: path, value: value})
-		return true
+		restore = append(restore, prepared...)
 	}
 	if inet4 {
-		enable("/proc/sys/net/ipv4/ip_forward")
+		enable("/proc/sys/net/ipv4/ip_forward", nil)
 	}
 	if inet6 {
-		if enable("/proc/sys/net/ipv6/conf/all/forwarding") {
-			restore = append(restore, overruleAcceptRA(logger)...)
-		}
+		enable("/proc/sys/net/ipv6/conf/all/forwarding", func() []sysctlState {
+			return overruleAcceptRA(logger)
+		})
 	}
 	_ = os.WriteFile("/proc/sys/net/ipv4/conf/"+tunName+"/rp_filter", []byte("2"), 0o644)
 	return restore
 }
 
-// Writing conf/all/forwarding copies forwarding=1 to conf/default and to every
-// existing interface (addrconf_fixup_forwarding), and ipv6_accept_ra() then
-// requires accept_ra=2 on a forwarding interface; raise interfaces left at the
-// host default of 1 so SLAAC (e.g. on PPPoE WANs) survives forwarding.
+// Writing conf/all/forwarding=1 purges RA-learned default routes on every
+// interface whose accept_ra is not 2 (rt6_purge_dflt_routers) and copies
+// forwarding=1 to conf/default and every existing interface
+// (addrconf_fixup_forwarding), after which ipv6_accept_ra() requires
+// accept_ra=2; raise interfaces left at the host default of 1 beforehand so
+// SLAAC default routes (e.g. on PPPoE WANs) survive.
 // conf/default is included so interfaces created afterwards inherit 2.
 func overruleAcceptRA(logger logger.ContextLogger) []sysctlState {
 	var restore []sysctlState
