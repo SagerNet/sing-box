@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"time"
 
 	"github.com/sagernet/gvisor/pkg/tcpip"
 	"github.com/sagernet/gvisor/pkg/tcpip/adapters/gonet"
@@ -70,10 +69,6 @@ func DialTCPWithBind(ctx context.Context, s *stack.Stack, localAddr, remoteAddr 
 
 	// sing-box added: set keepalive
 	ep.SocketOptions().SetKeepAlive(true)
-	keepAliveIdle := tcpip.KeepaliveIdleOption(15 * time.Second)
-	ep.SetSockOpt(&keepAliveIdle)
-	keepAliveInterval := tcpip.KeepaliveIntervalOption(15 * time.Second)
-	ep.SetSockOpt(&keepAliveInterval)
 
 	return gonet.NewTCPConn(&wq, ep), nil
 }
