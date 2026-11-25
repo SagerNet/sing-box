@@ -6,7 +6,6 @@ import (
 	"net/netip"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/sagernet/sing-tun"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -60,7 +59,6 @@ func (w *stackDevice) DialContext(ctx context.Context, network string, destinati
 		if err != nil {
 			return nil, err
 		}
-		tcpConn.SetKeepAliveConfig(net.KeepAliveConfig{Enable: true, Idle: 15 * time.Second, Interval: 15 * time.Second})
 		return tcpConn, nil
 	case N.NetworkUDP:
 		var udpConn *tun.GoUDPConn
