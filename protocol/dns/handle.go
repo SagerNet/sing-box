@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"net"
+	"sync"
+	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -19,38 +21,43 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-func HandleStreamDNSRequest(ctx context.Context, router adapter.DNSRouter, conn net.Conn, metadata adapter.InboundContext) error {
-	var queryLength uint16
-	err := binary.Read(conn, binary.BigEndian, &queryLength)
-	if err != nil {
-		return err
-	}
-	if queryLength == 0 {
-		return dns.RcodeFormatError
-	}
-	buffer := buf.NewSize(int(queryLength))
-	defer buffer.Release()
-	_, err = buffer.ReadFullFrom(conn, int(queryLength))
-	if err != nil {
-		return err
-	}
-	var message mDNS.Msg
-	err = message.Unpack(buffer.Bytes())
-	if err != nil {
-		return err
-	}
-	metadataInQuery := metadata
-	router.ExchangeAsync(adapter.WithContext(ctx, &metadataInQuery), &message, adapter.DNSQueryOptions{}, func(response *mDNS.Msg, err error) {
+func NewDNSConnection(ctx context.Context, router adapter.DNSRouter, conn net.Conn, metadata adapter.InboundContext) error {
+	metadata.Destination = M.Socksaddr{}
+	var writeAccess sync.Mutex
+	for {
+		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
+		var queryLength uint16
+		err := binary.Read(conn, binary.BigEndian, &queryLength)
 		if err != nil {
-			conn.Close()
-			return
+			return err
 		}
-		go writeStreamResponse(conn, response)
-	})
-	return nil
+		if queryLength == 0 {
+			return dns.RcodeFormatError
+		}
+		buffer := buf.NewSize(int(queryLength))
+		_, err = buffer.ReadFullFrom(conn, int(queryLength))
+		if err != nil {
+			buffer.Release()
+			return err
+		}
+		var message mDNS.Msg
+		err = message.Unpack(buffer.Bytes())
+		buffer.Release()
+		if err != nil {
+			return err
+		}
+		metadataInQuery := metadata
+		router.ExchangeAsync(adapter.WithContext(ctx, &metadataInQuery), &message, adapter.DNSQueryOptions{}, func(response *mDNS.Msg, err error) {
+			if err != nil {
+				conn.Close()
+				return
+			}
+			go writeStreamResponse(conn, &writeAccess, response)
+		})
+	}
 }
 
-func writeStreamResponse(conn net.Conn, response *mDNS.Msg) {
+func writeStreamResponse(conn net.Conn, writeAccess *sync.Mutex, response *mDNS.Msg) {
 	responseLength := response.Len()
 	responseBuffer := buf.NewSize(3 + responseLength)
 	defer responseBuffer.Release()
@@ -63,7 +70,9 @@ func writeStreamResponse(conn net.Conn, response *mDNS.Msg) {
 	}
 	common.Must1(responseBuffer.Write(rawMessage))
 	binary.BigEndian.PutUint16(responseBuffer.ExtendHeader(2), uint16(len(rawMessage)))
+	writeAccess.Lock()
 	conn.Write(responseBuffer.Bytes())
+	writeAccess.Unlock()
 }
 
 func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn N.PacketConn, cachedPackets []*N.PacketBuffer, metadata adapter.InboundContext) error {
@@ -89,6 +98,7 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 	}
 	fastClose, cancel := context.WithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
+	var writeAccess sync.Mutex
 	var group task.Group
 	group.Append0(func(_ context.Context) error {
 		for {
@@ -139,7 +149,9 @@ func NewDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 					cancel(truncateErr)
 					return
 				}
+				writeAccess.Lock()
 				writeErr := conn.WritePacket(responseBuffer, destination)
+				writeAccess.Unlock()
 				if writeErr != nil {
 					cancel(writeErr)
 				}
@@ -157,6 +169,7 @@ func newDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 	rearHeadroom := N.CalculateRearHeadroom(conn)
 	fastClose, cancel := context.WithCancelCause(ctx)
 	timeout := canceler.New(fastClose, cancel, C.DNSTimeout)
+	var writeAccess sync.Mutex
 	var group task.Group
 	group.Append0(func(_ context.Context) error {
 		for {
@@ -209,7 +222,9 @@ func newDNSPacketConnection(ctx context.Context, router adapter.DNSRouter, conn 
 					cancel(truncateErr)
 					return
 				}
+				writeAccess.Lock()
 				writeErr := conn.WritePacket(responseBuffer, destination)
+				writeAccess.Unlock()
 				if writeErr != nil {
 					cancel(writeErr)
 				}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"os"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/adapter/outbound"
@@ -44,17 +43,10 @@ func (d *Outbound) ListenPacket(ctx context.Context, destination M.Socksaddr) (n
 }
 
 func (d *Outbound) NewConnection(ctx context.Context, conn net.Conn, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) {
-	metadata.Destination = M.Socksaddr{}
-	for {
-		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
-		err := HandleStreamDNSRequest(ctx, d.router, conn, metadata)
-		if err != nil {
-			conn.Close()
-			if onClose != nil {
-				onClose(err)
-			}
-			return
-		}
+	err := NewDNSConnection(ctx, d.router, conn, metadata)
+	conn.Close()
+	if onClose != nil {
+		onClose(err)
 	}
 }
 

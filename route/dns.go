@@ -3,10 +3,8 @@ package route
 import (
 	"context"
 	"net"
-	"time"
 
 	"github.com/sagernet/sing-box/adapter"
-	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	dnsOutbound "github.com/sagernet/sing-box/protocol/dns"
 	R "github.com/sagernet/sing-box/route/rule"
@@ -19,22 +17,15 @@ import (
 
 func (r *Router) hijackDNSStream(ctx context.Context, conn net.Conn, metadata adapter.InboundContext) error {
 	r.searchProcessInfo(ctx, &metadata)
-	metadata.Destination = M.Socksaddr{}
 	err := N.ReportConnHandshakeSuccess(conn, conn)
 	if err != nil {
 		return E.Cause(err, "report handshake success")
 	}
-	for {
-		conn.SetReadDeadline(time.Now().Add(C.DNSTimeout))
-		err = dnsOutbound.HandleStreamDNSRequest(ctx, r.dns, conn, metadata)
-		if err != nil {
-			if !E.IsClosedOrCanceled(err) {
-				return err
-			} else {
-				return nil
-			}
-		}
+	err = dnsOutbound.NewDNSConnection(ctx, r.dns, conn, metadata)
+	if err != nil && !E.IsClosedOrCanceled(err) {
+		return err
 	}
+	return nil
 }
 
 func (r *Router) hijackDNSPacket(ctx context.Context, conn N.PacketConn, packetBuffers []*N.PacketBuffer, metadata adapter.InboundContext, onClose N.CloseHandlerFunc) error {

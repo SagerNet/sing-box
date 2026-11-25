@@ -56,7 +56,8 @@ type queryMultiplexer struct {
 
 type multiplexConn struct {
 	net.Conn
-	readEpoch atomic.Uint64
+	writeAccess sync.Mutex
+	readEpoch   atomic.Uint64
 }
 
 type queryMultiplexerReadError struct {
@@ -329,7 +330,9 @@ func (m *queryMultiplexer) exchangeAsync(ctx context.Context, message *mDNS.Msg,
 			callback(nil, err)
 			return
 		}
+		conn.writeAccess.Lock()
 		writeErr := m.options.write(conn, message, queryId)
+		conn.writeAccess.Unlock()
 		if writeErr == nil {
 			return
 		}
