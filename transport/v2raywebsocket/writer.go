@@ -70,5 +70,7 @@ func (w *Writer) WriteBuffer(buffer *buf.Buffer) error {
 }
 
 func (w *Writer) FrontHeadroom() int {
-	return 14
+	return ws.MaxHeaderSize
 }
+
+var _ N.FrontHeadroom = (*Writer)(nil)

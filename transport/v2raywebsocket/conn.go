@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing/common/bufio"
 	"github.com/sagernet/sing/common/debug"
 	E "github.com/sagernet/sing/common/exceptions"
+	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/ws"
 	"github.com/sagernet/ws/wsutil"
 )
@@ -222,6 +223,7 @@ func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 	c.access.Lock()
 	defer c.access.Unlock()
 	if c.err != nil {
+		buffer.Release()
 		return c.err
 	}
 	conn = c.conn.Load()
@@ -229,6 +231,7 @@ func (c *EarlyWebsocketConn) WriteBuffer(buffer *buf.Buffer) error {
 		return wrapWsError(conn.WriteBuffer(buffer))
 	}
 	err := c.writeRequest(buffer.Bytes())
+	buffer.Release()
 	c.err = err
 	close(c.create)
 	return err
@@ -278,8 +281,18 @@ func (c *EarlyWebsocketConn) Upstream() any {
 	return common.PtrOrNil(c.conn.Load())
 }
 
-func (c *EarlyWebsocketConn) LazyHeadroom() bool {
-	return c.conn.Load() == nil
+func (c *EarlyWebsocketConn) FrontHeadroom() int {
+	if c.conn.Load() != nil {
+		return 0
+	}
+	return ws.MaxHeaderSize + N.CalculateFrontHeadroom(c.rawConn)
+}
+
+func (c *EarlyWebsocketConn) RearHeadroom() int {
+	if c.conn.Load() != nil {
+		return 0
+	}
+	return N.CalculateRearHeadroom(c.rawConn)
 }
 
 func wrapWsError(err error) error {
@@ -301,3 +314,11 @@ func wrapWsError0[T any](value T, err error) (T, error) {
 	}
 	return value, wrapWsError(err)
 }
+
+var (
+	_ N.ExtendedWriter = (*WebsocketConn)(nil)
+	_ N.FrontHeadroom  = (*WebsocketConn)(nil)
+	_ N.ExtendedWriter = (*EarlyWebsocketConn)(nil)
+	_ N.FrontHeadroom  = (*EarlyWebsocketConn)(nil)
+	_ N.RearHeadroom   = (*EarlyWebsocketConn)(nil)
+)
