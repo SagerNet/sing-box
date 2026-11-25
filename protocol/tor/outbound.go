@@ -139,7 +139,7 @@ var torLogEvents = []control.EventCode{
 }
 
 func (t *Outbound) start(scope *adapter.Scope) error {
-	torInstance, err := tor.Start(t.ctx, t.startConf)
+	torInstance, err := tor.Start(context.WithoutCancel(t.ctx), t.startConf)
 	if err != nil {
 		return E.New(strings.ToLower(err.Error()))
 	}
