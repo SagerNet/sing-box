@@ -236,7 +236,7 @@ type ServerHTTPConn struct {
 }
 
 func (c *ServerHTTPConn) Write(b []byte) (n int, err error) {
-	n, err = c.writer.Write(b)
+	n, err = c.HTTP2Conn.Write(b)
 	if err == nil {
 		c.Flusher.Flush()
 	}
