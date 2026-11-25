@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/sagernet/sing-box/common/badhttp"
@@ -114,7 +115,7 @@ func (c *serverConn) reject(request *http.Request, keepAlive bool, statusCode in
 	if keepAlive && request.Body != nil && request.Body != http.NoBody {
 		keepAlive = c.discardBody(request.Body)
 	}
-	err := c.writeReject(request, statusCode, header, keepAlive)
+	err := writeReject(c.conn, request, statusCode, header, keepAlive)
 	if err != nil {
 		return requestClose, E.Errors(cause, err)
 	}
@@ -125,25 +126,29 @@ func (c *serverConn) reject(request *http.Request, keepAlive bool, statusCode in
 }
 
 func (c *serverConn) rejectAndClose(request *http.Request, statusCode int, cause error) (requestResult, error) {
-	err := c.writeReject(request, statusCode, nil, false)
+	err := writeReject(c.conn, request, statusCode, nil, false)
 	if err != nil {
 		return requestClose, E.Errors(cause, err)
 	}
 	return requestClose, cause
 }
 
-func (c *serverConn) writeReject(request *http.Request, statusCode int, header http.Header, keepAlive bool) error {
+func writeReject(conn net.Conn, request *http.Request, statusCode int, header http.Header, keepAlive bool) error {
+	body := http.StatusText(statusCode) + "\n"
 	response := &http.Response{
-		StatusCode: statusCode,
-		ProtoMajor: 1,
-		ProtoMinor: 1,
-		Header:     header.Clone(),
-		Request:    request,
-		Close:      !keepAlive,
+		StatusCode:    statusCode,
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        header.Clone(),
+		Body:          io.NopCloser(strings.NewReader(body)),
+		ContentLength: int64(len(body)),
+		Request:       request,
+		Close:         !keepAlive,
 	}
 	if response.Header == nil {
 		response.Header = make(http.Header)
 	}
+	response.Header.Set("Content-Type", "text/plain; charset=utf-8")
 	if request != nil {
 		response.ProtoMajor = request.ProtoMajor
 		response.ProtoMinor = request.ProtoMinor
@@ -158,7 +163,7 @@ func (c *serverConn) writeReject(request *http.Request, statusCode int, header h
 		response.Header.Set("Connection", "keep-alive")
 		response.Header.Set("Proxy-Connection", "keep-alive")
 	}
-	err := response.Write(c.conn)
+	err := response.Write(conn)
 	if err != nil {
 		return E.Cause(err, "write response")
 	}
