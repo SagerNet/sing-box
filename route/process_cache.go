@@ -36,7 +36,7 @@ func (r *Router) findProcessInfoCached(ctx context.Context, network string, sour
 }
 
 func (r *Router) searchProcessInfo(ctx context.Context, metadata *adapter.InboundContext) {
-	if r.processSearcher == nil || metadata.ProcessInfo != nil || !r.isLocalSource(metadata.Source.Addr) {
+	if r.processSearcher == nil || metadata.ProcessInfo != nil || !r.NeedFindProcess() || !r.isLocalSource(metadata.Source.Addr) {
 		return
 	}
 	var originDestination netip.AddrPort
