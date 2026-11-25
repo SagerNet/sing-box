@@ -9,7 +9,7 @@ import (
 )
 
 func systemGateways(interfaceIndex int) []netip.Addr {
-	routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{LinkIndex: interfaceIndex}, netlink.RT_FILTER_OIF)
+	routes, err := netlink.RouteListFiltered(netlink.FAMILY_ALL, &netlink.Route{LinkIndex: interfaceIndex}, netlink.RT_FILTER_OIF|netlink.RT_FILTER_DST)
 	if err != nil {
 		return nil
 	}
@@ -17,12 +17,6 @@ func systemGateways(interfaceIndex int) []netip.Addr {
 	for _, currentRoute := range routes {
 		if currentRoute.Gw == nil {
 			continue
-		}
-		if currentRoute.Dst != nil {
-			ones, _ := currentRoute.Dst.Mask.Size()
-			if ones != 0 {
-				continue
-			}
 		}
 		gateway, valid := netip.AddrFromSlice(currentRoute.Gw)
 		if valid {
