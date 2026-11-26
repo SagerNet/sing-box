@@ -12,7 +12,6 @@ import (
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/json/badoption"
 
 	"github.com/stretchr/testify/require"
@@ -27,9 +26,9 @@ func TestMmapMatchesSource(t *testing.T) {
 				Domain:       badoption.Listable[string]{"example.com"},
 				DomainSuffix: badoption.Listable[string]{".example.org"},
 				IPCIDR: badoption.Listable[*badoption.Prefixable]{
-					common.Ptr(badoption.Prefixable(netip.MustParsePrefix("10.0.0.0/8"))),
-					common.Ptr(badoption.Prefixable(netip.MustParsePrefix("2001:db8::/32"))),
-					common.Ptr(badoption.Prefixable(netip.MustParsePrefix("192.0.2.1/32"))),
+					new(badoption.Prefixable(netip.MustParsePrefix("10.0.0.0/8"))),
+					new(badoption.Prefixable(netip.MustParsePrefix("2001:db8::/32"))),
+					new(badoption.Prefixable(netip.MustParsePrefix("192.0.2.1/32"))),
 				},
 			},
 		},
@@ -41,7 +40,7 @@ func TestMmapMatchesSource(t *testing.T) {
 					Type: C.RuleTypeDefault,
 					DefaultOptions: option.DefaultHeadlessRule{
 						AdGuardDomain: badoption.Listable[string]{"||ads.example.net^"},
-						SourceIPCIDR:  badoption.Listable[*badoption.Prefixable]{common.Ptr(badoption.Prefixable(netip.MustParsePrefix("172.16.0.0/12")))},
+						SourceIPCIDR:  badoption.Listable[*badoption.Prefixable]{new(badoption.Prefixable(netip.MustParsePrefix("172.16.0.0/12")))},
 					},
 				}},
 			},

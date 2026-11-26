@@ -1510,6 +1510,6 @@ func addDestinationPortRangeItem(t *testing.T, rule *abstractDefaultRule, ranges
 
 func parsePrefixables(cidrs []string) []*badoption.Prefixable {
 	return common.Map(cidrs, func(it string) *badoption.Prefixable {
-		return common.Ptr(badoption.Prefixable(netip.MustParsePrefix(it)))
+		return new(badoption.Prefixable(netip.MustParsePrefix(it)))
 	})
 }

@@ -112,7 +112,7 @@ func NewService(ctx context.Context, logger log.ContextLogger, tag string, optio
 	var stunListener *listener.Listener
 	if options.STUN != nil && options.STUN.Enabled {
 		if options.STUN.Listen == nil {
-			options.STUN.Listen = (*badoption.Addr)(common.Ptr(netip.IPv6Unspecified()))
+			options.STUN.Listen = (*badoption.Addr)(new(netip.IPv6Unspecified()))
 		}
 		if options.STUN.ListenPort == 0 {
 			options.STUN.ListenPort = 3478

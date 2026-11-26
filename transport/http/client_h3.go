@@ -414,8 +414,7 @@ func (s *http3RequestDatagramStream) SendDatagram(payload []byte) error {
 	if err == nil {
 		return nil
 	}
-	var tooLarge *quic.DatagramTooLargeError
-	if errors.As(err, &tooLarge) {
+	if tooLarge, ok := errors.AsType[*quic.DatagramTooLargeError](err); ok {
 		return &DatagramTooLargeError{MaxPayloadSize: int(tooLarge.MaxDatagramPayloadSize) - VarintLen(uint64(s.stream.StreamID()/4))}
 	}
 	return err

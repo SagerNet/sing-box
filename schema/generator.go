@@ -207,8 +207,7 @@ func (g *generator) FlattenStruct(node *Node, structType reflect.Type) error {
 	if structType.Kind() != reflect.Struct {
 		return E.New("cannot flatten non-struct type ", structType.String(), " at ", strings.Join(g.path, "."))
 	}
-	for i := range structType.NumField() {
-		field := structType.Field(i)
+	for field := range structType.Fields() {
 		if !field.IsExported() && !field.Anonymous {
 			continue
 		}
