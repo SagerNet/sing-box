@@ -5,7 +5,10 @@ package tailssh
 import (
 	"os"
 	"syscall"
+	"time"
 )
+
+const hupEscalation = 5 * time.Second
 
 type Shell struct {
 	master *os.File
@@ -81,8 +84,15 @@ func (s *Shell) Close() error {
 	// Skip the kill once the child has been reaped: its PID may already have been
 	// reused, and Kill(-pid) would then signal an unrelated process group.
 	if !s.waiter.Exited() {
-		syscall.Kill(-s.waiter.Pid(), syscall.SIGKILL)
+		pid := s.waiter.Pid()
+		syscall.Kill(-pid, syscall.SIGHUP)
+		go func() {
+			select {
+			case <-s.waiter.done:
+			case <-time.After(hupEscalation):
+				syscall.Kill(-pid, syscall.SIGKILL)
+			}
+		}()
 	}
-	s.master.Close()
-	return nil
+	return s.master.Close()
 }

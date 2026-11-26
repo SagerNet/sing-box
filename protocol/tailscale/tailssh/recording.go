@@ -4,6 +4,7 @@ package tailssh
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -17,7 +18,6 @@ import (
 	"time"
 
 	gliderssh "github.com/sagernet/gliderssh"
-	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/tailscale/sessionrecording"
 	"github.com/sagernet/tailscale/tailcfg"
@@ -40,20 +40,13 @@ func (e *recordingRejectedError) Unwrap() error {
 	return e.cause
 }
 
-func recorders(connInfo *sshConnInfo) ([]netip.AddrPort, *tailcfg.SSHRecorderFailureAction) {
-	if len(connInfo.action.Recorders) > 0 {
-		return connInfo.action.Recorders, connInfo.action.OnRecordingFailure
-	}
-	return connInfo.action0.Recorders, connInfo.action0.OnRecordingFailure
-}
-
 func newConnID() string {
 	random := make([]byte, 5)
 	rand.Read(random)
 	return fmt.Sprintf("ssh-conn-%s-%02x", time.Now().UTC().Format("20060102T150405"), random)
 }
 
-func (s *Server) startNewRecording(sessionCtx context.Context, cancel context.CancelFunc, session gliderssh.Session, connInfo *sshConnInfo, localUser *adapter.PlatformUser, recorderList []netip.AddrPort, onFailure *tailcfg.SSHRecorderFailureAction) (*recording, error) {
+func (s *Server) startNewRecording(sessionCtx context.Context, cancel context.CancelCauseFunc, session gliderssh.Session, conn *sshConn, recorderList []netip.AddrPort, onFailure *tailcfg.SSHRecorderFailureAction) (*recording, error) {
 	localBackend := s.tsnetServer.ExportLocalBackend()
 	// Capture before any blocking call, in case the user switches mid-setup.
 	nodeKey := localBackend.NodeKey()
@@ -73,8 +66,9 @@ func (s *Server) startNewRecording(sessionCtx context.Context, cancel context.Ca
 
 	now := time.Now()
 	rec := &recording{
-		start:    now,
-		failOpen: onFailure == nil || onFailure.TerminateSessionWithMessage == "",
+		start:        now,
+		failOpen:     onFailure == nil || onFailure.TerminateSessionWithMessage == "",
+		metadataOnly: session.Subsystem() != "",
 	}
 
 	// Tied to the server lifetime rather than the session, so the upload survives a
@@ -89,7 +83,7 @@ func (s *Server) startNewRecording(sessionCtx context.Context, cancel context.Ca
 			if onFailure.RejectSessionWithMessage != "" {
 				eventType = tailcfg.SSHSessionRecordingRejected
 			}
-			s.notifyControl(uploadCtx, nodeKey, eventType, attempts, onFailure.NotifyURL, connInfo, localUser)
+			s.notifyControl(uploadCtx, nodeKey, eventType, attempts, onFailure.NotifyURL, conn)
 		}
 		if onFailure != nil && onFailure.RejectSessionWithMessage != "" {
 			s.logger.Error("recording: error starting recording (rejecting session): ", err)
@@ -118,12 +112,11 @@ func (s *Server) startNewRecording(sessionCtx context.Context, cancel context.Ca
 			if onFailure.TerminateSessionWithMessage != "" {
 				eventType = tailcfg.SSHSessionRecordingTerminated
 			}
-			s.notifyControl(uploadCtx, nodeKey, eventType, attempts, onFailure.NotifyURL, connInfo, localUser)
+			s.notifyControl(uploadCtx, nodeKey, eventType, attempts, onFailure.NotifyURL, conn)
 		}
 		if onFailure != nil && onFailure.TerminateSessionWithMessage != "" {
 			s.logger.Error("recording: error uploading recording (closing session): ", uploadErr)
-			io.WriteString(session.Stderr(), onFailure.TerminateSessionWithMessage+"\r\n")
-			cancel()
+			cancel(&terminationError{message: onFailure.TerminateSessionWithMessage})
 			return
 		}
 		s.logger.Warn("recording: error uploading recording (failing open): ", uploadErr)
@@ -134,19 +127,19 @@ func (s *Server) startNewRecording(sessionCtx context.Context, cancel context.Ca
 		Width:        window.Width,
 		Height:       window.Height,
 		Timestamp:    now.Unix(),
-		Command:      session.RawCommand(),
+		Command:      cmp.Or(session.Subsystem(), session.RawCommand()),
 		Env:          map[string]string{"TERM": term},
-		SSHUser:      connInfo.sshUser,
-		LocalUser:    localUser.Username,
-		SrcNode:      strings.TrimSuffix(connInfo.node.Name(), "."),
-		SrcNodeID:    connInfo.node.StableID(),
-		ConnectionID: connInfo.connID,
+		SSHUser:      conn.sshUser,
+		LocalUser:    conn.localUser.Username,
+		SrcNode:      strings.TrimSuffix(conn.node.Name(), "."),
+		SrcNodeID:    conn.node.StableID(),
+		ConnectionID: conn.connID,
 	}
-	if !connInfo.node.IsTagged() {
-		castHeader.SrcNodeUser = connInfo.userProfile.LoginName
-		castHeader.SrcNodeUserID = connInfo.node.User()
+	if !conn.node.IsTagged() {
+		castHeader.SrcNodeUser = conn.userProfile.LoginName
+		castHeader.SrcNodeUserID = conn.node.User()
 	} else {
-		castHeader.SrcNodeTags = connInfo.node.Tags().AsSlice()
+		castHeader.SrcNodeTags = conn.node.Tags().AsSlice()
 	}
 	headerLine, err := json.Marshal(castHeader)
 	if err != nil {
@@ -164,15 +157,15 @@ func (s *Server) startNewRecording(sessionCtx context.Context, cancel context.Ca
 	return rec, nil
 }
 
-func (s *Server) notifyControl(ctx context.Context, nodeKey key.NodePublic, eventType tailcfg.SSHEventType, attempts []*tailcfg.SSHRecordingAttempt, notifyURL string, connInfo *sshConnInfo, localUser *adapter.PlatformUser) {
+func (s *Server) notifyControl(ctx context.Context, nodeKey key.NodePublic, eventType tailcfg.SSHEventType, attempts []*tailcfg.SSHRecordingAttempt, notifyURL string, conn *sshConn) {
 	request := tailcfg.SSHEventNotifyRequest{
 		EventType:         eventType,
-		ConnectionID:      connInfo.connID,
+		ConnectionID:      conn.connID,
 		CapVersion:        tailcfg.CurrentCapabilityVersion,
 		NodeKey:           nodeKey,
-		SrcNode:           connInfo.node.ID(),
-		SSHUser:           connInfo.sshUser,
-		LocalUser:         localUser.Username,
+		SrcNode:           conn.node.ID(),
+		SSHUser:           conn.sshUser,
+		LocalUser:         conn.localUser.Username,
 		RecordingAttempts: attempts,
 	}
 	body, err := json.Marshal(request)
@@ -197,8 +190,9 @@ func (s *Server) notifyControl(ctx context.Context, nodeKey key.NodePublic, even
 }
 
 type recording struct {
-	start    time.Time
-	failOpen bool
+	start        time.Time
+	failOpen     bool
+	metadataOnly bool
 
 	access sync.Mutex // guards out
 	out    io.WriteCloser
@@ -217,7 +211,7 @@ func (r *recording) Close() error {
 
 // Only output is wrapped; input is never recorded since it may contain passwords.
 func (r *recording) writer(w io.Writer) io.Writer {
-	if r == nil {
+	if r == nil || r.metadataOnly {
 		return w
 	}
 	return &loggingWriter{rec: r, target: w}

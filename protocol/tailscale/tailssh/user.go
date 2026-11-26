@@ -6,13 +6,13 @@ import (
 	"github.com/sagernet/sing-box/adapter"
 )
 
-func resolveLocalUser(platformInterface adapter.PlatformInterface, username string) (*adapter.PlatformUser, error) {
+func (s *Server) lookupUser(username string) (*adapter.PlatformUser, error) {
 	var (
 		localUser *adapter.PlatformUser
 		err       error
 	)
-	if platformInterface != nil && platformInterface.UsePlatformShell() {
-		localUser, err = platformInterface.LookupUser(username)
+	if s.platformInterface != nil && s.platformInterface.UsePlatformShell() {
+		localUser, err = s.platformInterface.LookupUser(username)
 	} else {
 		localUser, err = resolveLocalUserNative(username)
 	}
