@@ -1,4 +1,4 @@
-//go:build generate && generate_completions
+//go:build generate_completions
 
 package main
 

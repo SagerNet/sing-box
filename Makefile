@@ -28,7 +28,7 @@ ci_build:
 	go build $(MAIN_PARAMS) $(MAIN)
 
 generate_completions:
-	go run -v --tags "$(TAGS),generate,generate_completions" $(MAIN)
+	go run -v -ldflags "$(LDFLAGS_SHARED)" --tags "$(TAGS),generate_completions" $(MAIN)
 
 schema:
 	go run -ldflags "$(LDFLAGS_SHARED)" --tags "$(TAGS)" $(MAIN) schema -o docs/schema.json
