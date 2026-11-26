@@ -31,7 +31,8 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	"github.com/sagernet/sing/service/filemanager"
 	"github.com/sagernet/tailscale/ipn/ipnlocal"
-	"github.com/sagernet/tailscale/tailcfg"
+	"github.com/sagernet/tailscale/tailcfg/nodecap"
+	"github.com/sagernet/tailscale/tailcfg/peercap"
 	"github.com/sagernet/tailscale/util/backoff"
 	"github.com/sagernet/tailscale/util/httphdr"
 )
@@ -831,11 +832,11 @@ type taildropBlockChecksum struct {
 
 func (m *taildropManager) handlePeerRequest(handler ipnlocal.PeerAPIHandler, w http.ResponseWriter, r *http.Request) {
 	if handler.Peer().UnsignedPeerAPIOnly() ||
-		!(handler.IsSelfUntagged() || handler.PeerCaps().HasCapability(tailcfg.PeerCapabilityFileSharingSend)) {
+		!(handler.IsSelfUntagged() || handler.PeerCaps().HasCapability(peercap.FileSharingSend)) {
 		http.Error(w, "Taildrop access denied", http.StatusForbidden)
 		return
 	}
-	if !handler.Self().CapMap().Contains(tailcfg.CapabilityFileSharing) {
+	if !handler.Self().CapMap().Contains(nodecap.FileSharing) {
 		http.Error(w, "file sharing not enabled by Tailscale admin", http.StatusForbidden)
 		return
 	}

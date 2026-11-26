@@ -92,41 +92,54 @@ func (c *ClientBind) Open(port uint16) (fns []conn.ReceiveFunc, actualPort uint1
 	return []conn.ReceiveFunc{c.receive}, 0, nil
 }
 
-func (c *ClientBind) receive(packets [][]byte, sizes []int, eps []conn.Endpoint) (count int, err error) {
+func (c *ClientBind) receive(slab []byte, packets []conn.ReceivedPacket) (int, error) {
 	udpConn, err := c.connect()
 	if err != nil {
 		select {
 		case <-c.done:
-			return
+			return 0, net.ErrClosed
 		default:
 		}
 		c.logger.Error(E.Cause(err, "connect to server"))
-		err = nil
 		select {
 		case <-c.done:
+			return 0, net.ErrClosed
 		case <-time.After(time.Second):
 		}
-		return
+		return 0, nil
 	}
-	n, addr, err := udpConn.ReadFrom(packets[0])
+	n, addr, err := udpConn.ReadFrom(slab)
 	if err != nil {
-		udpConn.Close()
 		select {
 		case <-c.done:
+			return 0, net.ErrClosed
 		default:
-			c.logger.Error(E.Cause(err, "read packet"))
-			err = nil
 		}
-		return
+		if udpConn.Close() != nil {
+			return 0, nil
+		}
+		c.logger.Error(E.Cause(err, "read packet"))
+		select {
+		case <-c.done:
+			return 0, net.ErrClosed
+		case <-time.After(time.Second):
+		}
+		return 0, nil
 	}
-	sizes[0] = n
+	source := M.SocksaddrFromNet(addr).Unwrap().AddrPort()
 	if n > 3 {
-		b := packets[0]
-		clear(b[1:4])
+		c.reservedAccess.RLock()
+		reserved, loaded := c.reservedForEndpoint[source]
+		c.reservedAccess.RUnlock()
+		if !loaded {
+			reserved = c.reserved
+		}
+		if reserved != [3]uint8{} {
+			clear(slab[1:4])
+		}
 	}
-	eps[0] = remoteEndpoint(M.SocksaddrFromNet(addr).Unwrap().AddrPort())
-	count = 1
-	return
+	packets[0] = conn.ReceivedPacket{Size: n, Endpoint: remoteEndpoint(source)}
+	return 1, nil
 }
 
 func (c *ClientBind) Close() error {
@@ -161,12 +174,14 @@ func (c *ClientBind) Send(bufs [][]byte, ep conn.Endpoint, offset int) error {
 		}
 		if len(buf) > 3 {
 			c.reservedAccess.RLock()
-			reserved, loaded := c.reservedForEndpoint[destination]
+			reserved, loaded := c.reservedForEndpoint[netip.AddrPortFrom(destination.Addr().Unmap(), destination.Port())]
 			c.reservedAccess.RUnlock()
 			if !loaded {
 				reserved = c.reserved
 			}
-			copy(buf[1:4], reserved[:])
+			if reserved != [3]uint8{} {
+				copy(buf[1:4], reserved[:])
+			}
 		}
 		_, err = udpConn.WriteTo(buf, M.SocksaddrFromNetIP(destination).UDPAddr())
 		if err != nil {
@@ -191,7 +206,7 @@ func (c *ClientBind) BatchSize() int {
 
 func (c *ClientBind) SetReservedForEndpoint(destination netip.AddrPort, reserved [3]byte) {
 	c.reservedAccess.Lock()
-	c.reservedForEndpoint[destination] = reserved
+	c.reservedForEndpoint[netip.AddrPortFrom(destination.Addr().Unmap(), destination.Port())] = reserved
 	c.reservedAccess.Unlock()
 }
 

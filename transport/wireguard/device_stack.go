@@ -126,7 +126,7 @@ func (w *stackDevice) File() *os.File {
 	return nil
 }
 
-func (w *stackDevice) Read(bufs [][]byte, sizes []int, offset int) (int, error) {
+func (w *stackDevice) Read(slab []byte, packets []wgTun.ReadPacket) (int, error) {
 	<-w.closed
 	return 0, os.ErrClosed
 }
