@@ -306,8 +306,7 @@ func (c *CacheFile) batch(fn func(tx *bbolt.Tx) error) (err error) {
 		}
 	}()
 	err = db.Batch(fn)
-	var panicErr bbolt.PanickedError
-	if errors.As(err, &panicErr) {
+	if panicErr, ok := errors.AsType[bbolt.PanickedError](err); ok {
 		c.resetDB(db, panicErr.Reason)
 		return E.New("database corrupted: ", panicErr.Reason)
 	}

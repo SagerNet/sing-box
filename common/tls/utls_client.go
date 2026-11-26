@@ -150,8 +150,7 @@ func (c *utlsConnWrapper) ConnectionState() tls.ConnectionState {
 
 func (c *utlsConnWrapper) HandshakeContext(ctx context.Context) error {
 	err := c.UConn.HandshakeContext(ctx)
-	var echErr *utls.ECHRejectionError
-	if errors.As(err, &echErr) {
+	if echErr, ok := errors.AsType[*utls.ECHRejectionError](err); ok {
 		return &tls.ECHRejectionError{RetryConfigList: echErr.RetryConfigList}
 	}
 	return err

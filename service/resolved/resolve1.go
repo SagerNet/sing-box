@@ -615,8 +615,7 @@ func wrapError(err error) *dbus.Error {
 	if err == nil {
 		return nil
 	}
-	var rcode dns.RcodeError
-	if errors.As(err, &rcode) {
+	if rcode, ok := errors.AsType[dns.RcodeError](err); ok {
 		return rcodeError(int(rcode))
 	}
 	return dbus.MakeFailedError(err)

@@ -9,7 +9,6 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -92,7 +91,7 @@ func geoipExport(countryCode string) error {
 		if !loaded {
 			return E.New("invalid network: ", cidr)
 		}
-		headlessRule.IPCIDR = append(headlessRule.IPCIDR, common.Ptr(badoption.Prefixable(prefix)))
+		headlessRule.IPCIDR = append(headlessRule.IPCIDR, new(badoption.Prefixable(prefix)))
 	}
 	var plainRuleSet option.PlainRuleSetCompat
 	plainRuleSet.Version = C.RuleSetVersion2

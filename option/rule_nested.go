@@ -110,8 +110,7 @@ func appendJSONFieldNames(fieldMap map[string]struct{}, fieldType reflect.Type) 
 	if fieldType.Kind() != reflect.Struct {
 		return
 	}
-	for i := range fieldType.NumField() {
-		field := fieldType.Field(i)
+	for field := range fieldType.Fields() {
 		tagValue := field.Tag.Get("json")
 		tagName, _, _ := strings.Cut(tagValue, ",")
 		if tagName == "-" {

@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.24"
+  go: "1.26"
   build-tags:
     - with_quic
     - with_dhcp
@@ -36,6 +36,10 @@ linters:
     presets:
       - comments
       - common-false-positives
+    rules:
+      - linters:
+          - staticcheck
+        text: 'SA1019: \(?\*?golang\.org/x/net/http2\.'
     paths:
       - transport/simple-obfs
       - \.pb\.go$

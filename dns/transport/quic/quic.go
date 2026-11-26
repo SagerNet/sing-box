@@ -194,13 +194,11 @@ func isQUICRetryError(err error) (ok bool) {
 		return true
 	}
 
-	var qIdleErr *quic.IdleTimeoutError
-	if errors.As(err, &qIdleErr) {
+	if _, ok := errors.AsType[*quic.IdleTimeoutError](err); ok {
 		return true
 	}
 
-	var resetErr *quic.StatelessResetError
-	if errors.As(err, &resetErr) {
+	if _, ok := errors.AsType[*quic.StatelessResetError](err); ok {
 		return true
 	}
 

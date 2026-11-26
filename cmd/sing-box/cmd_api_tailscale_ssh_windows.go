@@ -12,8 +12,7 @@ func executeSSH(path string, argv []string) error {
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	err := command.Run()
-	var exitError *exec.ExitError
-	if errors.As(err, &exitError) {
+	if exitError, ok := errors.AsType[*exec.ExitError](err); ok {
 		os.Exit(exitError.ExitCode())
 	}
 	return err

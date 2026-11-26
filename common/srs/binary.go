@@ -208,7 +208,7 @@ func readDefaultRule(reader varbin.Reader, recover bool, mmap *mmapReader) (rule
 			}
 			if recover {
 				rule.SourceIPCIDR = common.Map(rule.SourceIPSet.Prefixes(), func(it netip.Prefix) *badoption.Prefixable {
-					return common.Ptr(badoption.Prefixable(it))
+					return new(badoption.Prefixable(it))
 				})
 			}
 		case ruleItemIPCIDR:
@@ -222,7 +222,7 @@ func readDefaultRule(reader varbin.Reader, recover bool, mmap *mmapReader) (rule
 			}
 			if recover {
 				rule.IPCIDR = common.Map(rule.IPSet.Prefixes(), func(it netip.Prefix) *badoption.Prefixable {
-					return common.Ptr(badoption.Prefixable(it))
+					return new(badoption.Prefixable(it))
 				})
 			}
 		case ruleItemSourcePort:
@@ -292,7 +292,7 @@ func readDefaultRule(reader varbin.Reader, recover bool, mmap *mmapReader) (rule
 					if err != nil {
 						return
 					}
-					value = append(value, common.Ptr(badoption.Prefixable(prefix)))
+					value = append(value, new(badoption.Prefixable(prefix)))
 				}
 				rule.NetworkInterfaceAddress.Put(option.InterfaceType(key), value)
 			}
@@ -309,7 +309,7 @@ func readDefaultRule(reader varbin.Reader, recover bool, mmap *mmapReader) (rule
 				if err != nil {
 					return
 				}
-				value = append(value, common.Ptr(badoption.Prefixable(prefix)))
+				value = append(value, new(badoption.Prefixable(prefix)))
 			}
 			rule.DefaultInterfaceAddress = value
 		case ruleItemFinal:
