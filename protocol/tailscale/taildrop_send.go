@@ -23,6 +23,8 @@ import (
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/tailscale/ipn"
 	"github.com/sagernet/tailscale/tailcfg"
+	"github.com/sagernet/tailscale/tailcfg/nodecap"
+	"github.com/sagernet/tailscale/tailcfg/peercap"
 )
 
 func (t *Endpoint) SendTaildropFile(ctx context.Context, peerStableID string, fileName string, size int64, content io.Reader, progress func(sentBytes int64)) error {
@@ -42,7 +44,7 @@ func (t *Endpoint) SendTaildropFile(ctx context.Context, peerStableID string, fi
 	if !self.Valid() {
 		return E.New("taildrop: not connected to the tailnet")
 	}
-	if !self.CapMap().Contains(tailcfg.CapabilityFileSharing) {
+	if !self.CapMap().Contains(nodecap.FileSharing) {
 		return E.New("taildrop: file sharing not enabled by Tailscale admin")
 	}
 	var peer tailcfg.NodeView
@@ -58,7 +60,7 @@ func (t *Endpoint) SendTaildropFile(ctx context.Context, peerStableID string, fi
 	if !peer.Hostinfo().Valid() || peer.Hostinfo().OS() == "tvOS" {
 		return E.New("taildrop: peer cannot receive files")
 	}
-	if self.User() != peer.User() && !nodeBackend.PeerHasCap(peer, tailcfg.PeerCapabilityFileSharingTarget) {
+	if self.User() != peer.User() && !nodeBackend.PeerHasCap(peer, peercap.FileSharingTarget) {
 		return E.New("taildrop: peer is not a permitted file target")
 	}
 	peerAPIBase := nodeBackend.PeerAPIBase(peer)
@@ -182,7 +184,7 @@ func (t *Endpoint) taildropTargets() (canShareFiles bool, targets map[string]boo
 	}
 	nodeBackend := localBackend.NodeBackend()
 	self := nodeBackend.Self()
-	if !self.Valid() || !self.CapMap().Contains(tailcfg.CapabilityFileSharing) {
+	if !self.Valid() || !self.CapMap().Contains(nodecap.FileSharing) {
 		return false, nil
 	}
 	targets = make(map[string]bool)
@@ -190,7 +192,7 @@ func (t *Endpoint) taildropTargets() (canShareFiles bool, targets map[string]boo
 		if !peer.Valid() || !peer.Hostinfo().Valid() || peer.Hostinfo().OS() == "tvOS" {
 			continue
 		}
-		if self.User() != peer.User() && !nodeBackend.PeerHasCap(peer, tailcfg.PeerCapabilityFileSharingTarget) {
+		if self.User() != peer.User() && !nodeBackend.PeerHasCap(peer, peercap.FileSharingTarget) {
 			continue
 		}
 		if !nodeBackend.PeerHasPeerAPI(peer) {

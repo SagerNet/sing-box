@@ -15,15 +15,17 @@ import (
 )
 
 type tunDeviceAdapter struct {
-	tun        singTun.Tun
-	linuxTUN   singTun.LinuxTUN
-	events     chan wgTun.Event
-	mtu        int
-	logger     logger.ContextLogger
-	debugTun   bool
-	readCount  atomic.Uint32
-	writeCount atomic.Uint32
-	closeOnce  sync.Once
+	tun         singTun.Tun
+	linuxTUN    singTun.LinuxTUN
+	readBuffers [][]byte
+	readSizes   []int
+	events      chan wgTun.Event
+	mtu         int
+	logger      logger.ContextLogger
+	debugTun    bool
+	readCount   atomic.Uint32
+	writeCount  atomic.Uint32
+	closeOnce   sync.Once
 }
 
 func newTunDeviceAdapter(tun singTun.Tun, mtu int, logger logger.ContextLogger) (wgTun.Device, error) {
@@ -51,30 +53,37 @@ func (a *tunDeviceAdapter) File() *os.File {
 	return nil
 }
 
-func (a *tunDeviceAdapter) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
+func (a *tunDeviceAdapter) Read(slab []byte, packets []wgTun.ReadPacket) (int, error) {
 	if a.linuxTUN != nil {
-		n, err := a.linuxTUN.BatchRead(bufs, offset-singTun.PacketOffset, sizes)
-		if err == nil {
-			for i := range n {
-				a.debugPacket("read", bufs[i][offset:offset+sizes[i]])
-			}
+		stride := wgTun.ReadPacketSpacing + a.mtu
+		batchSize := min(len(packets), (len(slab)-wgTun.ReadPacketSpacing)/stride)
+		if cap(a.readBuffers) < batchSize {
+			a.readBuffers = make([][]byte, batchSize)
+			a.readSizes = make([]int, batchSize)
 		}
-		return n, err
+		buffers := a.readBuffers[:batchSize]
+		for i := range buffers {
+			buffers[i] = slab[i*stride : (i+1)*stride]
+		}
+		count, err := a.linuxTUN.BatchRead(buffers, wgTun.ReadPacketSpacing-singTun.PacketOffset, a.readSizes[:batchSize])
+		for i := range count {
+			offset := i*stride + wgTun.ReadPacketSpacing
+			packets[i] = wgTun.ReadPacket{Offset: offset, Size: a.readSizes[i]}
+			a.debugPacket("read", slab[offset:offset+a.readSizes[i]])
+		}
+		return count, err
 	}
-	if offset < singTun.PacketOffset {
-		return 0, io.ErrShortBuffer
-	}
-	readBuf := bufs[0][offset-singTun.PacketOffset:]
+	readBuf := slab[wgTun.ReadPacketSpacing-singTun.PacketOffset : len(slab)-wgTun.ReadPacketSpacing]
 	n, err := a.tun.Read(readBuf)
-	if err == nil {
-		if n < singTun.PacketOffset {
-			return 0, io.ErrUnexpectedEOF
-		}
-		sizes[0] = n - singTun.PacketOffset
-		a.debugPacket("read", readBuf[singTun.PacketOffset:n])
-		return 1, nil
+	if err != nil {
+		return 0, err
 	}
-	return 0, err
+	if n < singTun.PacketOffset {
+		return 0, io.ErrUnexpectedEOF
+	}
+	packets[0] = wgTun.ReadPacket{Offset: wgTun.ReadPacketSpacing, Size: n - singTun.PacketOffset}
+	a.debugPacket("read", readBuf[singTun.PacketOffset:n])
+	return 1, nil
 }
 
 func (a *tunDeviceAdapter) Write(bufs [][]byte, offset int) (count int, err error) {

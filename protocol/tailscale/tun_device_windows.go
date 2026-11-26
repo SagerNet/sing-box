@@ -66,13 +66,13 @@ func (a *tunDeviceAdapter) File() *os.File {
 	return nil
 }
 
-func (a *tunDeviceAdapter) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
+func (a *tunDeviceAdapter) Read(slab []byte, packets []wgTun.ReadPacket) (int, error) {
 	packet, release, err := a.tun.ReadPacket()
 	if err != nil {
 		return 0, err
 	}
 	defer release()
-	sizes[0] = copy(bufs[0][offset-singTun.PacketOffset:], packet)
+	packets[0] = wgTun.ReadPacket{Offset: wgTun.ReadPacketSpacing, Size: copy(slab[wgTun.ReadPacketSpacing:len(slab)-wgTun.ReadPacketSpacing], packet)}
 	return 1, nil
 }
 

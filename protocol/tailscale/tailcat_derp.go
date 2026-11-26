@@ -29,7 +29,7 @@ const (
 
 type tailcatDERP struct {
 	region      *tailcfg.DERPRegion
-	regionID    int
+	regionID    tailcfg.DERPRegionID
 	mapURL      string
 	mode        string
 	httpClient  option.HTTPClientOptions
@@ -70,7 +70,7 @@ func newTailcatDERP(options option.TailcatDERPOptions, mode string) (*tailcatDER
 		}
 		derp.region = region
 	case options.DERPRegion > 0:
-		derp.regionID = options.DERPRegion
+		derp.regionID = tailcfg.DERPRegionID(options.DERPRegion)
 		derp.mapURL = options.DERPMapURL
 		if derp.mapURL == "" {
 			derp.mapURL = tailcatDefaultDERPMapURL

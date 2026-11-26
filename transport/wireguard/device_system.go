@@ -2,6 +2,7 @@ package wireguard
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/netip"
 	"os"
@@ -29,6 +30,8 @@ type systemDevice struct {
 	device       tun.Tun
 	ports        atomic.Pointer[kernelports.Pool]
 	batchDevice  tun.LinuxTUN
+	readBuffers  [][]byte
+	readSizes    []int
 	events       chan wgTun.Event
 	closeOnce    sync.Once
 	inet4Address netip.Addr
@@ -131,17 +134,33 @@ func (w *systemDevice) File() *os.File {
 	return nil
 }
 
-func (w *systemDevice) Read(bufs [][]byte, sizes []int, offset int) (count int, err error) {
-	if w.batchDevice != nil {
-		count, err = w.batchDevice.BatchRead(bufs, offset-tun.PacketOffset, sizes)
-	} else {
-		sizes[0], err = w.device.Read(bufs[0][offset-tun.PacketOffset:])
-		if err == nil {
-			sizes[0] -= tun.PacketOffset
-			count = 1
+func (w *systemDevice) Read(slab []byte, packets []wgTun.ReadPacket) (int, error) {
+	if w.batchDevice == nil {
+		n, err := w.device.Read(slab[wgTun.ReadPacketSpacing-tun.PacketOffset : len(slab)-wgTun.ReadPacketSpacing])
+		if err != nil {
+			return 0, err
 		}
+		if n < tun.PacketOffset {
+			return 0, io.ErrUnexpectedEOF
+		}
+		packets[0] = wgTun.ReadPacket{Offset: wgTun.ReadPacketSpacing, Size: n - tun.PacketOffset}
+		return 1, nil
 	}
-	return
+	stride := wgTun.ReadPacketSpacing + int(w.options.MTU)
+	batchSize := min(len(packets), (len(slab)-wgTun.ReadPacketSpacing)/stride)
+	if cap(w.readBuffers) < batchSize {
+		w.readBuffers = make([][]byte, batchSize)
+		w.readSizes = make([]int, batchSize)
+	}
+	buffers := w.readBuffers[:batchSize]
+	for i := range buffers {
+		buffers[i] = slab[i*stride : (i+1)*stride]
+	}
+	count, err := w.batchDevice.BatchRead(buffers, wgTun.ReadPacketSpacing, w.readSizes[:batchSize])
+	for i := range count {
+		packets[i] = wgTun.ReadPacket{Offset: i*stride + wgTun.ReadPacketSpacing, Size: w.readSizes[i]}
+	}
+	return count, err
 }
 
 func (w *systemDevice) Write(bufs [][]byte, offset int) (count int, err error) {

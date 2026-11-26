@@ -246,7 +246,7 @@ func (n *tailcatNode) start() error {
 	if err != nil {
 		return E.Cause(err, "set private key")
 	}
-	magicConn.SetDERPMap(&tailcfg.DERPMap{Regions: map[int]*tailcfg.DERPRegion{n.region.RegionID: n.region}})
+	magicConn.SetDERPMap(&tailcfg.DERPMap{Regions: map[tailcfg.DERPRegionID]*tailcfg.DERPRegion{n.region.RegionID: n.region}})
 	networkMap := n.buildNetworkMap(nil)
 	n.access.Lock()
 	n.networkMap = networkMap
@@ -421,7 +421,7 @@ func (n *tailcatNode) userName(address netip.Addr) string {
 	return n.users[nodeKey]
 }
 
-func (n *tailcatNode) onDERPRecv(regionID int, source key.NodePublic, packet []byte) bool {
+func (n *tailcatNode) onDERPRecv(regionID tailcfg.DERPRegionID, source key.NodePublic, packet []byte) bool {
 	if !isTailcatMeowPacket(packet) {
 		return false
 	}
@@ -505,7 +505,7 @@ func (n *tailcatNode) onMeow(nodeKey key.NodePublic, discoKey key.DiscoPublic) b
 	n.networkMap = networkMap
 	n.sys.MagicSock.Get().SetNetworkMap(networkMap.SelfNode, networkMap.Peers)
 	if loaded {
-		n.sys.Engine.Get().ResetDevicePeer(nodeKey)
+		n.sys.Engine.Get().MarkDevicePeerForHandshake(nodeKey)
 	}
 	n.netstack.UpdateNetstackIPs(networkMap)
 	go n.advertiseEndpoints()
@@ -600,7 +600,7 @@ func (n *tailcatNode) loopMeow() {
 		case sessionID := <-n.meowResponses:
 			restarted := registered && serverSession != sessionID
 			if restarted {
-				n.sys.Engine.Get().ResetDevicePeer(n.serverPublicKey)
+				n.sys.Engine.Get().MarkDevicePeerForHandshake(n.serverPublicKey)
 				n.logger.Info("server reconnected")
 			}
 			serverSession = sessionID
