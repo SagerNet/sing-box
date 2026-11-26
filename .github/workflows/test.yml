@@ -34,6 +34,7 @@ jobs:
           - macos-latest
         go:
           - ~1.26
+          - ~1.27
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
