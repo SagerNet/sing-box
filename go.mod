@@ -55,7 +55,7 @@ require (
 	github.com/sagernet/sing-shadowsocks2 v0.2.2-0.20261110092058-52ade8ab7e95
 	github.com/sagernet/sing-shadowtls v0.2.2-0.20261125124310-5028b2558ebf
 	github.com/sagernet/sing-snell v0.0.0-20261125120456-6dfe590430a8
-	github.com/sagernet/sing-tun v0.9.7-0.20261125154220-725b9b9a17ff
+	github.com/sagernet/sing-tun v0.9.7-0.20261126024553-adc31e26d330
 	github.com/sagernet/sing-usbip v0.0.0-20260817040617-28bd42667eca
 	github.com/sagernet/sing-vmess v0.2.9-0.20261124075649-4acc92a6f6c6
 	github.com/sagernet/smux v1.5.50-sing-box-mod.1
