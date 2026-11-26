@@ -15,8 +15,8 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -28,8 +28,10 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/service/filemanager"
+	"github.com/sagernet/tailscale/ipn/ipnlocal"
 	tsDNS "github.com/sagernet/tailscale/net/dns"
 	"github.com/sagernet/tailscale/tailcfg"
+	"github.com/sagernet/tailscale/tailcfg/nodecap"
 	"github.com/sagernet/tailscale/tsnet"
 	"github.com/sagernet/tailscale/wgengine/router"
 	"github.com/sagernet/tailscale/wgengine/wgcfg"
@@ -39,29 +41,6 @@ import (
 )
 
 type sshConnContextKey struct{}
-
-type sshConnInfo struct {
-	node        tailcfg.NodeView
-	userProfile tailcfg.UserProfile
-	sshUser     string
-	srcIP       netip.Addr
-	localUser   string
-	action      *tailcfg.SSHAction
-	acceptEnv   []string
-
-	// action0 is the initially matched rule's action, retained so session
-	// recording can fall back to its recorders when a hold-and-delegate result
-	// (which replaces action) carries none. connID is shared with control and
-	// reused across multiplexed sessions on this connection.
-	action0 *tailcfg.SSHAction
-	connID  string
-
-	// localUser is fixed for the lifetime of an accepted connection, so the OS
-	// lookup is resolved once and memoized here for all sessions/forwards.
-	localUserOnce sync.Once
-	localUserInfo *adapter.PlatformUser
-	localUserErr  error
-}
 
 type Server struct {
 	tsnetServer       *tsnet.Server
@@ -77,20 +56,14 @@ type Server struct {
 	disableSFTP       bool
 	disableForwarding bool
 
-	done         chan struct{}
 	serverCtx    context.Context
 	serverCancel context.CancelFunc
 
-	access      sync.Mutex
-	activeConns map[*activeSession]struct{}
-	sessionWg   sync.WaitGroup
-}
-
-// activeSession is the map key for activeConns so that multiple concurrent
-// sessions sharing one *sshConnInfo are tracked and revoked independently.
-type activeSession struct {
-	info   *sshConnInfo
-	cancel context.CancelFunc
+	access    sync.Mutex
+	closed    bool
+	conns     map[*sshConn]struct{}
+	policy    *tailcfg.SSHPolicy
+	sessionWg sync.WaitGroup
 }
 
 func New(ctx context.Context, tsnetServer *tsnet.Server, platformInterface adapter.PlatformInterface, options *option.TailscaleSSHServerOptions, logger logger.ContextLogger) (*Server, error) {
@@ -101,8 +74,7 @@ func New(ctx context.Context, tsnetServer *tsnet.Server, platformInterface adapt
 		disablePTY:        options.DisablePTY,
 		disableSFTP:       options.DisableSFTP,
 		disableForwarding: options.DisableForwarding,
-		done:              make(chan struct{}),
-		activeConns:       make(map[*activeSession]struct{}),
+		conns:             make(map[*sshConn]struct{}),
 	}
 	s.serverCtx, s.serverCancel = context.WithCancel(ctx)
 	hostSigner, err := s.loadOrGenerateHostKey()
@@ -185,6 +157,7 @@ func (s *Server) Start() error {
 	unixFwdHandler := &gliderssh.ForwardedUnixHandler{}
 	sshServer := &gliderssh.Server{
 		Version:              "sing-box",
+		ConnCallback:         s.newConn,
 		ServerConfigCallback: s.serverConfig,
 		Handler:              s.handleSession,
 		SubsystemHandlers: map[string]gliderssh.SubsystemHandler{
@@ -230,11 +203,11 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Close() error {
-	close(s.done)
 	s.serverCancel()
 	s.access.Lock()
-	for active := range s.activeConns {
-		active.cancel()
+	s.closed = true
+	for conn := range s.conns {
+		conn.close()
 	}
 	s.access.Unlock()
 	var err error
@@ -244,39 +217,95 @@ func (s *Server) Close() error {
 	if s.listener != nil {
 		s.listener.Close()
 	}
-	s.sessionWg.Wait()
+	sessionsDone := make(chan struct{})
+	go func() {
+		s.sessionWg.Wait()
+		close(sessionsDone)
+	}()
+	select {
+	case <-sessionsDone:
+	case <-time.After(shutdownTimeout):
+		s.logger.Warn("SSH sessions did not finish within ", shutdownTimeout, " of shutdown")
+	}
 	if s.backend != nil {
 		s.backend.Close()
 	}
 	return err
 }
 
+func (s *Server) newConn(ctx gliderssh.Context, netConn net.Conn) net.Conn {
+	authCtx, authCancel := context.WithCancel(s.serverCtx)
+	conn := &sshConn{
+		server:     s,
+		netConn:    netConn,
+		authCtx:    authCtx,
+		authCancel: authCancel,
+		sessions:   make(map[*activeSession]struct{}),
+	}
+	conn.access.Lock()
+	conn.armLoginGraceLocked(loginGraceTime)
+	conn.access.Unlock()
+	s.access.Lock()
+	if s.closed {
+		s.access.Unlock()
+		conn.stopTimers()
+		authCancel()
+		return nil
+	}
+	s.conns[conn] = struct{}{}
+	s.access.Unlock()
+	ctx.SetValue(sshConnContextKey{}, conn)
+	context.AfterFunc(ctx, func() {
+		s.access.Lock()
+		delete(s.conns, conn)
+		s.access.Unlock()
+		conn.stopTimers()
+		authCancel()
+	})
+	return netConn
+}
+
 func (s *Server) serverConfig(ctx gliderssh.Context) *gossh.ServerConfig {
+	conn := s.connFromContext(ctx)
 	var preAuthConn gossh.ServerPreAuthConn
 	config := &gossh.ServerConfig{
+		AuthLogCallback: func(_ gossh.ConnMetadata, _ string, err error) {
+			if err == nil {
+				conn.completeAuth()
+			}
+		},
 		PreAuthConnCallback: func(conn gossh.ServerPreAuthConn) {
 			preAuthConn = conn
 		},
-		NoClientAuthCallback: func(conn gossh.ConnMetadata) (*gossh.Permissions, error) {
-			return s.authenticate(ctx, preAuthConn, conn)
+		NoClientAuthCallback: func(metadata gossh.ConnMetadata) (*gossh.Permissions, error) {
+			return s.authenticate(conn, preAuthConn, metadata)
 		},
-		PasswordCallback: func(conn gossh.ConnMetadata, password []byte) (*gossh.Permissions, error) {
-			return s.authenticate(ctx, preAuthConn, conn)
+		PasswordCallback: func(metadata gossh.ConnMetadata, password []byte) (*gossh.Permissions, error) {
+			return s.authenticate(conn, preAuthConn, metadata)
 		},
-		PublicKeyCallback: func(conn gossh.ConnMetadata, key gossh.PublicKey) (*gossh.Permissions, error) {
-			return s.authenticate(ctx, preAuthConn, conn)
+		PublicKeyCallback: func(metadata gossh.ConnMetadata, key gossh.PublicKey) (*gossh.Permissions, error) {
+			return s.authenticate(conn, preAuthConn, metadata)
 		},
 	}
 	return config
 }
 
-func (s *Server) authenticate(ctx gliderssh.Context, preAuthConn gossh.ServerPreAuthConn, conn gossh.ConnMetadata) (*gossh.Permissions, error) {
-	if s.connInfoFromContext(ctx) != nil {
+func (s *Server) sshPolicy() *tailcfg.SSHPolicy {
+	netMap := s.tsnetServer.ExportLocalBackend().NetMapNoPeers()
+	s.access.Lock()
+	defer s.access.Unlock()
+	if netMap != nil {
+		s.policy = netMap.SSHPolicy
+	}
+	return s.policy
+}
+
+func (s *Server) authenticate(conn *sshConn, preAuthConn gossh.ServerPreAuthConn, metadata gossh.ConnMetadata) (*gossh.Permissions, error) {
+	if conn.action != nil {
 		return &gossh.Permissions{}, nil
 	}
-	remoteAddrPort := M.AddrPortFromNet(conn.RemoteAddr())
-	localBackend := s.tsnetServer.ExportLocalBackend()
-	node, userProfile, found := localBackend.WhoIs("tcp", remoteAddrPort)
+	remoteAddrPort := M.AddrPortFromNet(metadata.RemoteAddr())
+	node, userProfile, found := s.tsnetServer.ExportLocalBackend().WhoIs("tcp", remoteAddrPort)
 	// Every denial returns an empty *gossh.PartialSuccessError so x/crypto/ssh
 	// stops offering further auth methods instead of re-running policy
 	// evaluation (and hold-and-delegate) once per method.
@@ -284,145 +313,79 @@ func (s *Server) authenticate(ctx gliderssh.Context, preAuthConn gossh.ServerPre
 		s.logger.Warn("SSH auth: unknown peer ", remoteAddrPort)
 		return nil, &gossh.PartialSuccessError{}
 	}
-	netMap := localBackend.NetMapNoPeers()
-	if netMap == nil || netMap.SSHPolicy == nil {
+	conn.node = node
+	conn.userProfile = userProfile
+	conn.sshUser = metadata.User()
+	conn.srcIP = remoteAddrPort.Addr()
+	policy := s.sshPolicy()
+	if policy == nil {
 		s.logger.Warn("SSH auth: no SSH policy")
 		return nil, &gossh.PartialSuccessError{}
 	}
-	srcIP := remoteAddrPort.Addr()
-	connInfo, err := s.evaluatePolicy(netMap.SSHPolicy, conn.User(), node, userProfile, srcIP)
+	match, err := conn.evaluatePolicy(policy, s.lookupUser)
 	if err != nil {
-		s.logger.Info("SSH auth rejected for ", userProfile.LoginName, " -> ", conn.User(), ": ", err)
+		s.logger.Info("SSH auth rejected for ", userProfile.LoginName, " -> ", conn.sshUser, ": ", err)
 		return nil, &gossh.PartialSuccessError{}
 	}
-	connInfo.action0 = connInfo.action
+	action := match.action
+	conn.action0 = action
+	conn.latchedRule = match.rule
+	if action.Accept || action.HoldAndDelegate != "" {
+		localUser, lookupErr := s.lookupUser(match.localUser)
+		if lookupErr != nil {
+			s.logger.Info("SSH auth rejected for ", userProfile.LoginName, ": lookup local user ", match.localUser, ": ", lookupErr)
+			return nil, &gossh.PartialSuccessError{}
+		}
+		conn.localUser = localUser
+		conn.mappedLocalUser = match.localUser
+		conn.acceptEnv = match.acceptEnv
+	}
 	for hops := 0; ; hops++ {
-		if connInfo.action.Message != "" {
-			err = preAuthConn.SendAuthBanner(connInfo.action.Message)
+		if action.Message != "" {
+			err = preAuthConn.SendAuthBanner(action.Message)
 			if err != nil {
 				s.logger.Info("SSH auth: send banner: ", err)
 				return nil, &gossh.PartialSuccessError{}
 			}
 		}
-		if connInfo.action.Reject {
-			s.logger.Info("SSH auth rejected for ", userProfile.LoginName, " -> ", conn.User())
+		if action.Reject {
+			s.logger.Info("SSH auth rejected for ", userProfile.LoginName, " -> ", conn.sshUser)
 			return nil, &gossh.PartialSuccessError{}
 		}
-		if connInfo.action.HoldAndDelegate == "" {
+		if action.HoldAndDelegate == "" {
 			break
 		}
 		if hops >= 10 {
 			s.logger.Info("SSH auth rejected: hold-and-delegate chain too long")
 			return nil, &gossh.PartialSuccessError{}
 		}
-		delegatedAction, delegateErr := s.holdAndDelegate(ctx, connInfo.action, node, conn.User(), connInfo.localUser, srcIP)
-		if delegateErr != nil {
-			s.logger.Info("SSH auth rejected for ", userProfile.LoginName, ": ", delegateErr)
+		conn.extendLoginGrace(holdDelegateGrace)
+		action, err = s.holdAndDelegate(conn, action)
+		if err != nil {
+			s.logger.Info("SSH auth rejected for ", userProfile.LoginName, ": ", err)
 			return nil, &gossh.PartialSuccessError{}
 		}
-		connInfo.action = delegatedAction
 	}
-	if !connInfo.action.Accept {
-		s.logger.Info("SSH auth rejected for ", userProfile.LoginName, " -> ", conn.User())
+	if !action.Accept {
+		s.logger.Info("SSH auth rejected for ", userProfile.LoginName, " -> ", conn.sshUser)
 		return nil, &gossh.PartialSuccessError{}
 	}
-	connInfo.sshUser = conn.User()
-	connInfo.srcIP = srcIP
-	connInfo.connID = newConnID()
-	ctx.SetValue(sshConnContextKey{}, connInfo)
-	s.logger.Info("SSH auth accepted: ", userProfile.LoginName, " -> ", connInfo.localUser)
+	conn.connID = newConnID()
+	conn.action = action
+	s.logger.Info("SSH auth accepted: ", userProfile.LoginName, " -> ", conn.localUser.Username)
 	return &gossh.Permissions{}, nil
 }
 
-func (s *Server) evaluatePolicy(policy *tailcfg.SSHPolicy, sshUser string, node tailcfg.NodeView, userProfile tailcfg.UserProfile, srcIP netip.Addr) (*sshConnInfo, error) {
-	now := time.Now()
-	for _, rule := range policy.Rules {
-		if rule == nil {
-			continue
-		}
-		if rule.RuleExpires != nil && now.After(*rule.RuleExpires) {
-			continue
-		}
-		if !s.matchPrincipals(rule.Principals, node, userProfile, srcIP) {
-			continue
-		}
-		if rule.Action == nil {
-			continue
-		}
-		if rule.Action.Reject {
-			return &sshConnInfo{
-				node:        node,
-				userProfile: userProfile,
-				action:      rule.Action,
-			}, nil
-		}
-		localUser := s.matchSSHUser(rule.SSHUsers, sshUser)
-		if localUser == "" {
-			continue
-		}
-		return &sshConnInfo{
-			node:        node,
-			userProfile: userProfile,
-			localUser:   localUser,
-			action:      rule.Action,
-			acceptEnv:   rule.AcceptEnv,
-		}, nil
-	}
-	return nil, E.New("no matching SSH rule")
-}
-
-func (s *Server) matchPrincipals(principals []*tailcfg.SSHPrincipal, node tailcfg.NodeView, userProfile tailcfg.UserProfile, srcIP netip.Addr) bool {
-	for _, p := range principals {
-		if p == nil {
-			continue
-		}
-		if p.Any {
-			return true
-		}
-		if p.Node != "" && p.Node == node.StableID() {
-			return true
-		}
-		if p.NodeIP != "" {
-			principalIP, err := netip.ParseAddr(p.NodeIP)
-			if err == nil && principalIP == srcIP {
-				return true
-			}
-		}
-		if p.UserLogin != "" && p.UserLogin == userProfile.LoginName {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *Server) matchSSHUser(sshUsers map[string]string, requestedUser string) string {
-	localUser, ok := sshUsers[requestedUser]
-	if !ok {
-		localUser, ok = sshUsers["*"]
-		if !ok {
-			return ""
-		}
-	}
-	if localUser == "" {
-		return ""
-	}
-	if localUser == "=" {
-		return requestedUser
-	}
-	return localUser
-}
-
-func (s *Server) holdAndDelegate(ctx context.Context, action *tailcfg.SSHAction, node tailcfg.NodeView, sshUser string, localUser string, srcIP netip.Addr) (*tailcfg.SSHAction, error) {
+func (s *Server) holdAndDelegate(conn *sshConn, action *tailcfg.SSHAction) (*tailcfg.SSHAction, error) {
 	lb := s.tsnetServer.ExportLocalBackend()
-	delegateURL := action.HoldAndDelegate
 	addr4, addr6 := s.tsnetServer.TailscaleIPs()
 	dstNodeIP := addr4
 	if !dstNodeIP.IsValid() {
 		dstNodeIP = addr6
 	}
-	srcNodeIP := srcIP
-	if !srcNodeIP.IsValid() && node.Addresses().Len() > 0 {
-		srcNodeIP = node.Addresses().At(0).Addr()
+	srcNodeIP := conn.srcIP
+	if !srcNodeIP.IsValid() && conn.node.Addresses().Len() > 0 {
+		srcNodeIP = conn.node.Addresses().At(0).Addr()
 	}
 	var dstNodeID string
 	netMap := lb.NetMapNoPeers()
@@ -430,125 +393,87 @@ func (s *Server) holdAndDelegate(ctx context.Context, action *tailcfg.SSHAction,
 		dstNodeID = fmt.Sprint(int64(netMap.SelfNode.ID()))
 	}
 	// Escape interpolated values; $SSH_USER and $LOCAL_USER are client-controlled
-	// (matchSSHUser "=" passes the requested name through). Numeric node IDs need
+	// (mapLocalUser "=" passes the requested name through). Numeric node IDs need
 	// no escaping.
 	replacer := strings.NewReplacer(
 		"$SRC_NODE_IP", url.QueryEscape(srcNodeIP.String()),
-		"$SRC_NODE_ID", fmt.Sprint(int64(node.ID())),
+		"$SRC_NODE_ID", fmt.Sprint(int64(conn.node.ID())),
 		"$DST_NODE_IP", url.QueryEscape(dstNodeIP.String()),
 		"$DST_NODE_ID", dstNodeID,
-		"$SSH_USER", url.QueryEscape(sshUser),
-		"$LOCAL_USER", url.QueryEscape(localUser),
+		"$SSH_USER", url.QueryEscape(conn.sshUser),
+		"$LOCAL_USER", url.QueryEscape(conn.mappedLocalUser),
 	)
-	delegateURL = replacer.Replace(delegateURL)
-	deadline := time.After(30 * time.Minute)
+	delegateURL := replacer.Replace(action.HoldAndDelegate)
+	ctx, cancel := context.WithTimeout(conn.authCtx, delegateFetchTimeout)
+	defer cancel()
 	for {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-s.done:
-			return nil, E.New("server closing")
-		case <-deadline:
-			return nil, E.New("hold and delegate timed out")
-		default:
-		}
-		req, err := http.NewRequestWithContext(ctx, "GET", delegateURL, nil)
+		err := ctx.Err()
 		if err != nil {
 			return nil, err
 		}
-		resp, err := lb.DoNoiseRequest(req)
-		if err != nil {
-			backoffErr := s.delegateBackoff(ctx)
-			if backoffErr != nil {
-				return nil, backoffErr
-			}
-			continue
+		newAction, err := s.fetchSSHAction(ctx, lb, delegateURL)
+		if err == nil {
+			return newAction, nil
 		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			s.logger.Warn("hold and delegate: unexpected status ", resp.Status)
-			backoffErr := s.delegateBackoff(ctx)
-			if backoffErr != nil {
-				return nil, backoffErr
-			}
-			continue
+		s.logger.Warn("hold and delegate: ", err)
+		select {
+		case <-ctx.Done():
+		case <-time.After(time.Second):
 		}
-		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			backoffErr := s.delegateBackoff(ctx)
-			if backoffErr != nil {
-				return nil, backoffErr
-			}
-			continue
-		}
-		var newAction tailcfg.SSHAction
-		err = json.Unmarshal(body, &newAction)
-		if err != nil {
-			backoffErr := s.delegateBackoff(ctx)
-			if backoffErr != nil {
-				return nil, backoffErr
-			}
-			continue
-		}
-		return &newAction, nil
 	}
 }
 
-// delegateBackoff waits up to a second between hold-and-delegate retries,
-// returning a non-nil error (so the caller never returns a nil action) when the
-// connection or the server is shutting down.
-func (s *Server) delegateBackoff(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-s.done:
-		return E.New("server closing")
-	case <-time.After(time.Second):
-		return nil
+func (s *Server) fetchSSHAction(ctx context.Context, lb *ipnlocal.LocalBackend, delegateURL string) (*tailcfg.SSHAction, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, delegateURL, nil)
+	if err != nil {
+		return nil, err
 	}
+	response, err := lb.DoNoiseRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, E.New("unexpected status: ", response.Status)
+	}
+	var action tailcfg.SSHAction
+	err = json.NewDecoder(response.Body).Decode(&action)
+	if err != nil {
+		return nil, err
+	}
+	return &action, nil
 }
 
-func (s *Server) connInfoFromContext(ctx gliderssh.Context) *sshConnInfo {
-	val := ctx.Value(sshConnContextKey{})
-	if val == nil {
-		return nil
-	}
-	return val.(*sshConnInfo)
-}
-
-func (s *Server) resolveConnUser(connInfo *sshConnInfo) (*adapter.PlatformUser, error) {
-	connInfo.localUserOnce.Do(func() {
-		connInfo.localUserInfo, connInfo.localUserErr = resolveLocalUser(s.platformInterface, connInfo.localUser)
-	})
-	return connInfo.localUserInfo, connInfo.localUserErr
+func (s *Server) connFromContext(ctx context.Context) *sshConn {
+	return ctx.Value(sshConnContextKey{}).(*sshConn)
 }
 
 func (s *Server) handleSession(session gliderssh.Session) {
-	connInfo := s.connInfoFromContext(session.Context())
-	s.sessionWg.Add(1)
-	defer s.sessionWg.Done()
-	ctx, cancel := context.WithCancel(session.Context())
-	defer cancel()
-	active := &activeSession{info: connInfo, cancel: cancel}
-	s.access.Lock()
-	s.activeConns[active] = struct{}{}
-	s.access.Unlock()
-	defer func() {
-		s.access.Lock()
-		delete(s.activeConns, active)
-		s.access.Unlock()
-	}()
-	if connInfo.action.SessionDuration != 0 {
-		timer := time.AfterFunc(connInfo.action.SessionDuration, func() {
-			io.WriteString(session.Stderr(), "Session duration exceeded.\r\n")
-			cancel()
+	conn := s.connFromContext(session.Context())
+	_, err := conn.checkPolicy(s.lookupUser)
+	if err != nil {
+		io.WriteString(session.Stderr(), "tailscale: access revoked\r\n")
+		session.Exit(255)
+		conn.revoke(err)
+		return
+	}
+	ctx, cancel := context.WithCancelCause(session.Context())
+	defer cancel(nil)
+	active := &activeSession{cancel: cancel, done: make(chan struct{})}
+	if !conn.attachSession(active) {
+		session.Exit(255)
+		return
+	}
+	defer conn.detachSession(active)
+	if conn.action.SessionDuration != 0 {
+		timer := time.AfterFunc(conn.action.SessionDuration, func() {
+			cancel(&terminationError{message: "Session duration exceeded."})
 		})
 		defer timer.Stop()
 	}
 	subsystem := session.Subsystem()
 	if subsystem == "sftp" {
-		s.handleSFTP(ctx, session, connInfo)
+		s.handleSFTP(ctx, cancel, session, conn)
 		return
 	}
 	if subsystem != "" {
@@ -556,12 +481,7 @@ func (s *Server) handleSession(session gliderssh.Session) {
 		session.Exit(1)
 		return
 	}
-	localUser, err := s.resolveConnUser(connInfo)
-	if err != nil {
-		fmt.Fprintf(session.Stderr(), "failed to lookup user %s: %s\r\n", connInfo.localUser, err)
-		session.Exit(1)
-		return
-	}
+	localUser := conn.localUser
 	err = verifyShellIdentity(s.platformInterface, localUser)
 	if err != nil {
 		s.logger.Warn("shell rejected for ", localUser.Username, ": ", err)
@@ -570,7 +490,7 @@ func (s *Server) handleSession(session gliderssh.Session) {
 		return
 	}
 	var agentSocketPath string
-	if connInfo.action.AllowAgentForwarding && !s.disableForwarding && gliderssh.AgentRequested(session) {
+	if conn.action.AllowAgentForwarding && !s.disableForwarding && gliderssh.AgentRequested(session) {
 		agentListener, err := newAgentListener(localUser)
 		if err == nil {
 			defer agentListener.Close()
@@ -580,7 +500,7 @@ func (s *Server) handleSession(session gliderssh.Session) {
 			s.logger.Warn("create agent listener: ", err)
 		}
 	}
-	env := s.buildEnvironment(session, connInfo, localUser)
+	env := s.buildEnvironment(session, conn)
 	if agentSocketPath != "" {
 		env = append(env, "SSH_AUTH_SOCK="+agentSocketPath)
 	}
@@ -596,27 +516,13 @@ func (s *Server) handleSession(session gliderssh.Session) {
 		widthPixels = clampWindowDimension(ptyReq.Window.WidthPixels)
 		heightPixels = clampWindowDimension(ptyReq.Window.HeightPixels)
 	}
-	var rec *recording
-	recorderList, onFailure := recorders(connInfo)
-	if len(recorderList) > 0 {
-		rec, err = s.startNewRecording(ctx, cancel, session, connInfo, localUser, recorderList, onFailure)
-		if err != nil {
-			var rejected *recordingRejectedError
-			if errors.As(err, &rejected) && rejected.message != "" {
-				io.WriteString(session.Stderr(), rejected.message+"\r\n")
-			}
-			s.logger.Error("recording: ", err)
-			session.Exit(1)
-			return
-		}
-		if rec != nil {
-			defer rec.Close()
-			// Cancel the session ctx before the recording is closed (defers run LIFO,
-			// so this runs first), so the upload watcher observes the session as ended
-			// on a clean final flush instead of misreading it as a mid-session upload
-			// failure.
-			defer cancel()
-		}
+	rec, err := s.startSessionRecording(ctx, cancel, session, conn)
+	if err != nil {
+		return
+	}
+	if rec != nil {
+		defer rec.Close()
+		defer cancel(nil)
 	}
 	shellSession, err := s.backend.OpenSession(shellRequest{
 		User:         localUser,
@@ -693,6 +599,26 @@ func (s *Server) handleSession(session gliderssh.Session) {
 	shellAccess.Unlock()
 }
 
+func (s *Server) startSessionRecording(ctx context.Context, cancel context.CancelCauseFunc, session gliderssh.Session, conn *sshConn) (*recording, error) {
+	recorderList, onFailure := recordingConfig(conn.action0, conn.action)
+	if len(recorderList) == 0 {
+		return nil, nil
+	}
+	rec, err := s.startNewRecording(ctx, cancel, session, conn, recorderList, onFailure)
+	if err != nil {
+		var rejected *recordingRejectedError
+		if errors.As(err, &rejected) && rejected.message != "" {
+			io.WriteString(session.Stderr(), rejected.message+"\r\n")
+		} else {
+			io.WriteString(session.Stderr(), "can't start new recording\r\n")
+		}
+		s.logger.Error("recording: ", err)
+		session.Exit(254)
+		return nil, err
+	}
+	return rec, nil
+}
+
 // pumpSession copies between the SSH channel and the backend session. It signals
 // stdin EOF to the child (without killing it) when the client closes its input,
 // and waits for all output to drain before reporting the exit status, because
@@ -718,28 +644,37 @@ func (s *Server) pumpSession(ctx context.Context, session gliderssh.Session, she
 	}()
 	select {
 	case <-ctx.Done():
+		termErr, isTermination := errors.AsType[*terminationError](context.Cause(ctx))
+		if isTermination {
+			io.WriteString(session.Stderr(), "\r\n\r\n"+termErr.message+"\r\n\r\n")
+		}
 		session.Exit(130)
 	case exitStatus := <-exitCh:
 		select {
 		case <-outputDone:
 		case <-ctx.Done():
+		case <-time.After(ioDrainTimeout):
+			s.logger.Debug("session output did not drain within ", ioDrainTimeout)
 		}
 		session.Exit(int(exitStatus))
 	}
 }
 
-func (s *Server) handleSFTP(ctx context.Context, session gliderssh.Session, connInfo *sshConnInfo) {
+func (s *Server) handleSFTP(ctx context.Context, cancel context.CancelCauseFunc, session gliderssh.Session, conn *sshConn) {
 	if s.disableSFTP {
 		fmt.Fprint(session.Stderr(), "SFTP is disabled.\r\n")
 		session.Exit(1)
 		return
 	}
-	localUser, err := s.resolveConnUser(connInfo)
+	rec, err := s.startSessionRecording(ctx, cancel, session, conn)
 	if err != nil {
-		fmt.Fprintf(session.Stderr(), "failed to lookup user %s: %s\r\n", connInfo.localUser, err)
-		session.Exit(1)
 		return
 	}
+	if rec != nil {
+		defer rec.Close()
+		defer cancel(nil)
+	}
+	localUser := conn.localUser
 	sftpPath, err := lookupSFTPServer(s.platformInterface)
 	if err != nil {
 		match, matchErr := requestedUserMatchesProcess(localUser)
@@ -766,7 +701,7 @@ func (s *Server) handleSFTP(ctx context.Context, session gliderssh.Session, conn
 		session.Exit(1)
 		return
 	}
-	env := s.buildEnvironment(session, connInfo, localUser)
+	env := s.buildEnvironment(session, conn)
 	sftpSession, err := s.backend.OpenSession(shellRequest{
 		User:    localUser,
 		Command: sftpCommand(sftpPath, localUser.Shell),
@@ -816,13 +751,14 @@ func (s *Server) serveBuiltinSFTP(ctx context.Context, session gliderssh.Session
 	session.Exit(0)
 }
 
-func (s *Server) buildEnvironment(session gliderssh.Session, connInfo *sshConnInfo, localUser *adapter.PlatformUser) []string {
-	var env []string
-	env = append(env,
-		"USER="+localUser.Username,
-		"HOME="+localUser.HomeDir,
-		"SHELL="+localUser.Shell,
-	)
+func (s *Server) buildEnvironment(session gliderssh.Session, conn *sshConn) []string {
+	localUser := conn.localUser
+	env := []string{
+		"USER=" + localUser.Username,
+		"LOGNAME=" + localUser.Username,
+		"HOME=" + localUser.HomeDir,
+		"SHELL=" + localUser.Shell,
+	}
 	defaultPath := defaultPathEnv(s.platformInterface)
 	if defaultPath != "" {
 		env = append(env, "PATH="+defaultPath)
@@ -844,66 +780,24 @@ func (s *Server) buildEnvironment(session gliderssh.Session, connInfo *sshConnIn
 	}
 	// Only honor the rule's AcceptEnv patterns when the node has the ssh-env-vars
 	// capability, matching upstream's capability gate.
-	acceptEnv := connInfo.acceptEnv
+	acceptEnv := conn.acceptEnv
 	if len(acceptEnv) > 0 {
 		netMap := s.tsnetServer.ExportLocalBackend().NetMapNoPeers()
-		if netMap == nil || !netMap.HasCap(tailcfg.NodeAttrSSHEnvironmentVariables) {
+		if netMap == nil || !netMap.HasCap(nodecap.SSHEnvironmentVariables) {
 			acceptEnv = nil
 		}
 	}
 	for _, clientEnv := range session.Environ() {
-		name, _, found := strings.Cut(clientEnv, "=")
-		if !found {
-			continue
-		}
 		// TERM is already set authoritatively from the PTY request above; skip a
 		// client-sent duplicate that would otherwise override it.
-		if isPty && name == "TERM" {
+		if isPty && strings.HasPrefix(clientEnv, "TERM=") {
 			continue
 		}
-		if s.envAccepted(name, acceptEnv) {
+		if acceptClientEnv(clientEnv, acceptEnv) {
 			env = append(env, clientEnv)
 		}
 	}
 	return env
-}
-
-func (s *Server) envAccepted(name string, extraPatterns []string) bool {
-	// Never forward loader/shell-init variables, even if an AcceptEnv pattern
-	// (e.g. "LD_*" or "*") would match: they allow code execution in a shell that
-	// may run as another local user.
-	if isDangerousEnv(name) {
-		return false
-	}
-	// Never let a client override the variables the server sets authoritatively from
-	// the resolved local user: a forwarded PATH/HOME/SHELL would otherwise win (execve
-	// resolves duplicate keys last) and redirect command or identity resolution for the
-	// spawned shell, even when an AcceptEnv pattern such as "*" matches.
-	switch name {
-	case "USER", "LOGNAME", "HOME", "SHELL", "PATH":
-		return false
-	}
-	if name == "TERM" || name == "LANG" || strings.HasPrefix(name, "LC_") {
-		return true
-	}
-	for _, pattern := range extraPatterns {
-		matched, _ := path.Match(pattern, name)
-		if matched {
-			return true
-		}
-	}
-	return false
-}
-
-func isDangerousEnv(name string) bool {
-	if strings.HasPrefix(name, "LD_") || strings.HasPrefix(name, "DYLD_") {
-		return true
-	}
-	switch name {
-	case "IFS", "ENV", "BASH_ENV", "SHELLOPTS", "BASHOPTS", "PS4", "GLOBIGNORE":
-		return true
-	}
-	return false
 }
 
 // clampWindowDimension maps a client-supplied terminal dimension into uint16 without
@@ -923,30 +817,42 @@ func (s *Server) allowLocalForward(ctx gliderssh.Context, destinationHost string
 	if s.disableForwarding {
 		return false
 	}
-	return s.connInfoFromContext(ctx).action.AllowLocalPortForwarding
+	conn := s.connFromContext(ctx)
+	return conn.action.AllowLocalPortForwarding && conn.recheckPolicy(conn.latchedUser)
 }
 
 func (s *Server) allowReverseForward(ctx gliderssh.Context, bindHost string, bindPort uint32) bool {
 	if s.disableForwarding {
 		return false
 	}
-	return s.connInfoFromContext(ctx).action.AllowRemotePortForwarding
+	conn := s.connFromContext(ctx)
+	if !conn.action.AllowRemotePortForwarding || !conn.recheckPolicy(conn.latchedUser) {
+		return false
+	}
+	if bindHost != "localhost" {
+		bindAddr, err := netip.ParseAddr(bindHost)
+		if err != nil || !bindAddr.IsLoopback() {
+			s.logger.Info("SSH reverse port forward rejected: binding to non-loopback address ", bindHost, " is not permitted")
+			return false
+		}
+	}
+	if bindPort != 0 && bindPort < 1024 && privilegedPortRestricted(conn.localUser) {
+		s.logger.Info("SSH reverse port forward rejected: binding privileged port ", bindPort, " as ", conn.localUser.Username, " is not permitted")
+		return false
+	}
+	return true
 }
 
 func (s *Server) allowLocalUnixForward(ctx gliderssh.Context, socketPath string) (net.Conn, error) {
 	if s.disableForwarding {
 		return nil, gliderssh.ErrRejected
 	}
-	connInfo := s.connInfoFromContext(ctx)
-	if !connInfo.action.AllowLocalPortForwarding {
-		return nil, gliderssh.ErrRejected
-	}
-	localUser, err := s.resolveConnUser(connInfo)
-	if err != nil {
+	conn := s.connFromContext(ctx)
+	if !conn.action.AllowLocalPortForwarding || !conn.recheckPolicy(conn.latchedUser) {
 		return nil, gliderssh.ErrRejected
 	}
 	opts := gliderssh.UnixForwardingOptions{
-		AllowedDirectories: userSocketDirectories(localUser),
+		AllowedDirectories: userSocketDirectories(conn.localUser),
 	}
 	return gliderssh.NewLocalUnixForwardingCallback(opts)(ctx, socketPath)
 }
@@ -955,43 +861,36 @@ func (s *Server) allowReverseUnixForward(ctx gliderssh.Context, socketPath strin
 	if s.disableForwarding {
 		return nil, gliderssh.ErrRejected
 	}
-	connInfo := s.connInfoFromContext(ctx)
-	if !connInfo.action.AllowRemotePortForwarding {
-		return nil, gliderssh.ErrRejected
-	}
-	localUser, err := s.resolveConnUser(connInfo)
-	if err != nil {
+	conn := s.connFromContext(ctx)
+	if !conn.action.AllowRemotePortForwarding || !conn.recheckPolicy(conn.latchedUser) {
 		return nil, gliderssh.ErrRejected
 	}
 	opts := gliderssh.UnixForwardingOptions{
-		AllowedDirectories: userSocketDirectories(localUser),
+		AllowedDirectories: userSocketDirectories(conn.localUser),
 		BindUnlink:         true,
 	}
-	return gliderssh.NewReverseUnixForwardingCallback(opts)(ctx, socketPath)
+	listener, err := gliderssh.NewReverseUnixForwardingCallback(opts)(ctx, socketPath)
+	if err != nil {
+		return nil, err
+	}
+	err = chownUserSocket(listener, conn.localUser)
+	if err != nil {
+		listener.Close()
+		return nil, err
+	}
+	return listener, nil
 }
 
 func (s *Server) OnReconfig(cfg *wgcfg.Config, routerCfg *router.Config, dnsCfg *tsDNS.Config) {
-	localBackend := s.tsnetServer.ExportLocalBackend()
-	netMap := localBackend.NetMapNoPeers()
-	if netMap == nil || netMap.SSHPolicy == nil {
+	if s.tsnetServer.ExportLocalBackend().NetMapNoPeers() == nil {
 		return
 	}
 	s.access.Lock()
-	connsToCheck := make([]*activeSession, 0, len(s.activeConns))
-	for active := range s.activeConns {
-		connsToCheck = append(connsToCheck, active)
-	}
+	conns := slices.Collect(maps.Keys(s.conns))
 	s.access.Unlock()
-	for _, active := range connsToCheck {
-		connInfo := active.info
-		newConnInfo, err := s.evaluatePolicy(netMap.SSHPolicy, connInfo.sshUser, connInfo.node, connInfo.userProfile, connInfo.srcIP)
-		// A HoldAndDelegate rule re-evaluates to an action with Accept=false, so a
-		// session granted via delegation must not be revoked just because Accept is
-		// not set on the raw rule.
-		if err == nil && !newConnInfo.action.Reject && (newConnInfo.action.Accept || newConnInfo.action.HoldAndDelegate != "") && newConnInfo.localUser == connInfo.localUser {
-			continue
+	for _, conn := range conns {
+		if conn.authCompleted.Load() {
+			go conn.recheckPolicy(s.lookupUser)
 		}
-		s.logger.Info("revoking SSH access for ", connInfo.userProfile.LoginName)
-		active.cancel()
 	}
 }

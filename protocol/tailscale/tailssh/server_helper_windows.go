@@ -87,6 +87,14 @@ func newAgentListener(localUser *adapter.PlatformUser) (net.Listener, error) {
 	return listener, nil
 }
 
+func chownUserSocket(_ net.Listener, _ *adapter.PlatformUser) error {
+	return nil
+}
+
+func privilegedPortRestricted(_ *adapter.PlatformUser) bool {
+	return false
+}
+
 func platformEnvironment(localUser *adapter.PlatformUser) []string {
 	var env []string
 	env = append(env, "USERPROFILE="+localUser.HomeDir)
