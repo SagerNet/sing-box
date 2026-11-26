@@ -6,6 +6,10 @@ icon: material/file-code
 
 ## :material-graph: Requirements
 
+### sing-box 1.15
+
+* Go 1.26.11 - ~
+
 ### sing-box 1.11
 
 * Go 1.23.1 - ~
