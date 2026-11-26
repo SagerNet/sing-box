@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	"github.com/sagernet/sing-box/adapter"
 	C "github.com/sagernet/sing-box/constant"
@@ -15,6 +16,9 @@ import (
 	"github.com/sagernet/sing-box/service/powerreport"
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
+	M "github.com/sagernet/sing/common/metadata"
+	N "github.com/sagernet/sing/common/network"
+	"github.com/sagernet/sing/common/pipe"
 	"github.com/sagernet/sing/service"
 
 	"google.golang.org/grpc"
@@ -302,6 +306,88 @@ func (s *CommandServer) UpdateWIFIState() {
 	instance.Box().Network().UpdateWIFIState(context.Background())
 }
 
+func (s *CommandServer) NewHTTPClient() HTTPClient {
+	client := NewHTTPClient().(*httpClient)
+	client.tunneled = true
+	client.transport.DialContext = s.dialContext
+	return client
+}
+
+func (s *CommandServer) dialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	instance, err := s.StartedService.WaitStartedInstance(ctx)
+	if err != nil {
+		return nil, E.Cause(err, "libbox: wait for service")
+	}
+	input, output := pipe.Pipe()
+	clientConn := &routedClientConn{Conn: input}
+	go instance.Box().Router().RouteConnectionEx(log.ContextWithNewID(instance.Context()), &routedConn{Conn: output, clientConn: clientConn}, adapter.InboundContext{
+		Network:     N.NetworkTCP,
+		Destination: M.ParseSocksaddr(addr),
+	}, func(error) {})
+	return clientConn, nil
+}
+
+type routedClientConn struct {
+	net.Conn
+	access   sync.Mutex
+	routeErr error
+}
+
+func (c *routedClientConn) closeWithError(err error) {
+	c.access.Lock()
+	defer c.access.Unlock()
+	if c.routeErr == nil {
+		c.routeErr = err
+	}
+}
+
+func (c *routedClientConn) wrapError(err error) error {
+	c.access.Lock()
+	defer c.access.Unlock()
+	if c.routeErr != nil {
+		return E.Cause(c.routeErr, "libbox: route connection")
+	}
+	return err
+}
+
+func (c *routedClientConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	if err != nil {
+		err = c.wrapError(err)
+	}
+	return n, err
+}
+
+func (c *routedClientConn) Write(p []byte) (int, error) {
+	n, err := c.Conn.Write(p)
+	if err != nil {
+		err = c.wrapError(err)
+	}
+	return n, err
+}
+
+type routedConn struct {
+	net.Conn
+	clientConn *routedClientConn
+}
+
+func (c *routedConn) HandshakeFailure(err error) error {
+	c.clientConn.closeWithError(err)
+	return nil
+}
+
+func (c *routedConn) ReaderReplaceable() bool {
+	return true
+}
+
+func (c *routedConn) WriterReplaceable() bool {
+	return true
+}
+
+func (c *routedConn) Upstream() any {
+	return c.Conn
+}
+
 type platformHandler CommandServer
 
 func (h *platformHandler) ServiceStop() error {
@@ -338,3 +424,9 @@ func (h *platformHandler) WriteDebugMessage(message string) {
 func (h *platformHandler) ConnectSSHAgent() (int32, error) {
 	return (*CommandServer)(h).handler.ConnectSSHAgent()
 }
+
+var (
+	_ N.HandshakeFailure   = (*routedConn)(nil)
+	_ N.ReaderWithUpstream = (*routedConn)(nil)
+	_ N.WriterWithUpstream = (*routedConn)(nil)
+)

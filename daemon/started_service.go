@@ -22,6 +22,7 @@ import (
 	"github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing-box/service/oomkiller"
 	"github.com/sagernet/sing/common"
+	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/memory"
 	N "github.com/sagernet/sing/common/network"
 	"github.com/sagernet/sing/common/observable"
@@ -2115,4 +2116,36 @@ func (s *StartedService) Instance() *Instance {
 	s.serviceAccess.RLock()
 	defer s.serviceAccess.RUnlock()
 	return s.instance
+}
+
+func (s *StartedService) WaitStartedInstance(ctx context.Context) (*Instance, error) {
+	subscription, done, err := s.serviceStatusObserver.Subscribe()
+	if err != nil {
+		return nil, err
+	}
+	defer s.serviceStatusObserver.UnSubscribe(subscription)
+	for {
+		s.serviceAccess.RLock()
+		currentStatus := s.serviceStatus
+		instance := s.instance
+		s.serviceAccess.RUnlock()
+		switch currentStatus.Status {
+		case ServiceStatus_STARTED:
+			return instance, nil
+		case ServiceStatus_STARTING, ServiceStatus_STOPPING:
+		case ServiceStatus_FATAL:
+			return nil, E.New(currentStatus.ErrorMessage)
+		default:
+			return nil, os.ErrInvalid
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-s.ctx.Done():
+			return nil, s.ctx.Err()
+		case <-subscription:
+		case <-done:
+			return nil, os.ErrClosed
+		}
+	}
 }

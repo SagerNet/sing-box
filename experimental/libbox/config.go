@@ -48,6 +48,11 @@ func parseConfig(ctx context.Context, configContent string) (option.Options, err
 	return options, nil
 }
 
+func ParseConfig(configContent string) error {
+	_, err := parseConfig(baseContext(nil), configContent)
+	return err
+}
+
 func CheckConfig(configContent string) error {
 	ctx := baseContext(nil)
 	options, err := parseConfig(ctx, configContent)

@@ -75,6 +75,7 @@ type httpClient struct {
 	client     http.Client
 	transport  http.Transport
 	storeScope *adapter.Scope
+	tunneled   bool
 }
 
 func NewHTTPClient() HTTPClient {
@@ -136,6 +137,9 @@ func (c *httpClient) PinnedSHA256(sumHex string) {
 }
 
 func (c *httpClient) TrySocks5(port int32) {
+	if c.tunneled {
+		return
+	}
 	dialer := new(net.Dialer)
 	c.transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		for {
