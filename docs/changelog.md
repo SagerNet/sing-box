@@ -2,6 +2,10 @@
 icon: material/alert-decagram
 ---
 
+#### 1.14.6
+
+* Fixes and improvements
+
 #### 1.14.5
 
 * Update NaiveProxy to 154.0.8037.49-2
