@@ -1,7 +1,6 @@
 package mixed
 
 import (
-	std_bufio "bufio"
 	"context"
 	"net"
 	"time"
@@ -119,7 +118,7 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 		}
 		conn = tlsConn
 	}
-	reader := std_bufio.NewReader(conn)
+	reader := http.NewReader(conn)
 	headerBytes, err := reader.Peek(1)
 	if err != nil {
 		err = E.Cause(err, "peek first byte")
@@ -128,7 +127,7 @@ func (h *Inbound) newConnection(ctx context.Context, conn net.Conn, metadata ada
 	}
 	switch headerBytes[0] {
 	case socks4.Version, socks5.Version:
-		err = socks.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
+		err = socks.HandleConnectionEx(ctx, conn, reader.Reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), h.listener, h.udpTimeout, metadata.Source, onClose)
 		N.CloseOnHandshakeFailure(conn, onClose, err)
 	default:
 		err = http.HandleConnectionEx(ctx, conn, reader, h.authenticator, adapter.NewUpstreamHandler(metadata, h.newUserConnection, h.streamUserPacketConnection), metadata.Source, onClose)
