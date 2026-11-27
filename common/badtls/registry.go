@@ -17,7 +17,7 @@ var _ *tls.Conn
 type Methods struct {
 	readRecord                 func(c unsafe.Pointer) error
 	handlePostHandshakeMessage func(c unsafe.Pointer) error
-	writeRecordLocked          func(c unsafe.Pointer, typ uint16, data []byte) (int, error)
+	writeRecordLocked          func(c unsafe.Pointer, typ uint8, data []byte) (int, error)
 
 	setErrorLocked   func(hc unsafe.Pointer, err error) error
 	decrypt          func(hc unsafe.Pointer, record []byte) ([]byte, uint8, error)
@@ -53,7 +53,7 @@ func stdTLSReadRecord(c unsafe.Pointer) error
 func stdTLSHandlePostHandshakeMessage(c unsafe.Pointer) error
 
 //go:linkname stdWriteRecordLocked crypto/tls.(*Conn).writeRecordLocked
-func stdWriteRecordLocked(c unsafe.Pointer, typ uint16, data []byte) (int, error)
+func stdWriteRecordLocked(c unsafe.Pointer, typ uint8, data []byte) (int, error)
 
 //go:linkname stdSetErrorLocked crypto/tls.(*halfConn).setErrorLocked
 func stdSetErrorLocked(hc unsafe.Pointer, err error) error

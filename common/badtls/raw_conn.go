@@ -171,6 +171,6 @@ func (c *RawConn) HandlePostHandshakeMessage() error {
 	return c.methods.handlePostHandshakeMessage(c.pointer)
 }
 
-func (c *RawConn) WriteRecordLocked(typ uint16, data []byte) (int, error) {
+func (c *RawConn) WriteRecordLocked(typ uint8, data []byte) (int, error) {
 	return c.methods.writeRecordLocked(c.pointer, typ, data)
 }

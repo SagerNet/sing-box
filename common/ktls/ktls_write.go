@@ -73,7 +73,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 	return n + m, c.rawConn.Out.SetErrorLocked(err)
 }
 
-func (c *Conn) writeRecordLocked(typ uint16, data []byte) (n int, err error) {
+func (c *Conn) writeRecordLocked(typ uint8, data []byte) (n int, err error) {
 	if !c.kernelTx {
 		return c.rawConn.WriteRecordLocked(typ, data)
 	}

@@ -287,7 +287,7 @@ func (c *Conn) readKernelRecord() (uint8, []byte, error) {
 	return recordTypeApplicationData, data[:n], nil
 }
 
-func (c *Conn) writeKernelRecord(typ uint16, data []byte) (int, error) {
+func (c *Conn) writeKernelRecord(typ uint8, data []byte) (int, error) {
 	if typ == recordTypeApplicationData {
 		return c.conn.Write(data)
 	}
@@ -296,7 +296,7 @@ func (c *Conn) writeKernelRecord(typ uint16, data []byte) (int, error) {
 	buffer := make([]byte, unix.CmsgSpace(1))
 	cmsg := (*unix.Cmsghdr)(unsafe.Pointer(&buffer[0]))
 	cmsg.SetLen(unix.CmsgLen(1))
-	buffer[unix.CmsgLen(0)] = byte(typ)
+	buffer[unix.CmsgLen(0)] = typ
 	cmsg.Level = unix.SOL_TLS
 	cmsg.Type = TLS_SET_RECORD_TYPE
 

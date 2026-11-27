@@ -41,7 +41,7 @@ func utlsReadRecord(c unsafe.Pointer) error
 func utlsHandlePostHandshakeMessage(c unsafe.Pointer) error
 
 //go:linkname utlsWriteRecordLocked github.com/metacubex/utls.(*Conn).writeRecordLocked
-func utlsWriteRecordLocked(hc unsafe.Pointer, typ uint16, data []byte) (int, error)
+func utlsWriteRecordLocked(hc unsafe.Pointer, typ uint8, data []byte) (int, error)
 
 //go:linkname utlsSetErrorLocked github.com/metacubex/utls.(*halfConn).setErrorLocked
 func utlsSetErrorLocked(hc unsafe.Pointer, err error) error
