@@ -18,17 +18,7 @@ type stackRecord struct {
 	Stack []uintptr
 }
 
-type memProfileRecord struct {
-	AllocBytes, FreeBytes     int64
-	AllocObjects, FreeObjects int64
-	Stack                     []uintptr
-}
-
-func (r *memProfileRecord) InUseBytes() int64 {
-	return r.AllocBytes - r.FreeBytes
-}
-
-func (r *memProfileRecord) InUseObjects() int64 {
+func (r *memProfileRecord) inUseObjects() int64 {
 	return r.AllocObjects - r.FreeObjects
 }
 
@@ -336,12 +326,12 @@ func writeHeapProto(w io.Writer, profile []memProfileRecord, rate int64, default
 			hideRuntime = false
 		}
 
-		values[0], values[1] = scaleHeapSample(record.AllocObjects, record.AllocBytes, rate)
-		values[2], values[3] = scaleHeapSample(record.InUseObjects(), record.InUseBytes(), rate)
+		values[0], values[1] = scaleHeapSample(record.AllocObjects, record.allocBytes(), rate)
+		values[2], values[3] = scaleHeapSample(record.inUseObjects(), record.inUseBytes(), rate)
 
 		var blockSize int64
 		if record.AllocObjects > 0 {
-			blockSize = record.AllocBytes / record.AllocObjects
+			blockSize = record.allocBytes() / record.AllocObjects
 		}
 		builder.pbSample(values, locs, func() {
 			if blockSize != 0 {
